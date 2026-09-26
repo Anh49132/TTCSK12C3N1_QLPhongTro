@@ -1,6 +1,8 @@
 # Ignore local dev SQLite database
 /data/local-dev.sqlite
 /data/*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 
 # User files
 *.user
