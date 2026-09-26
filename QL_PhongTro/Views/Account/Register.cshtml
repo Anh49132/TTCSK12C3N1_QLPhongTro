@@ -1,0 +1,82 @@
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <h2>Đăng ký tài khoản</h2>
+    <form method="post" action="/Account/Register" id="registerForm" novalidate>
+        <div class="mb-3">
+            <label for="HoTen" class="form-label">Họ tên</label>
+            <input type="text" class="form-control" id="HoTen" name="HoTen" />
+            <div class="text-danger field-validation" data-valmsg-for="HoTen"></div>
+        </div>
+
+        <div class="mb-3">
+            <label for="Email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="Email" name="Email" />
+            <div class="text-danger field-validation" data-valmsg-for="Email">
+                @Html.ValidationMessage("Email")
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="SoDienThoai" class="form-label">Số điện thoại</label>
+            <input type="text" class="form-control" id="SoDienThoai" name="SoDienThoai" />
+            <div class="text-danger field-validation" data-valmsg-for="SoDienThoai">
+                @Html.ValidationMessage("SoDienThoai")
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="MatKhau" class="form-label">Mật khẩu</label>
+            <input type="password" class="form-control" id="MatKhau" name="MatKhau" />
+            <div class="text-danger field-validation" data-valmsg-for="MatKhau"></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Đăng ký</button>
+    </form>
+</div>
+
+<script>
+    (function(){
+        function setError(fieldName, message){
+            var el = document.querySelector('.field-validation[data-valmsg-for="'+fieldName+'"]');
+            if(el) el.textContent = message || '';
+        }
+
+        function validatePhone(v){
+            return /^0\d{9}$/.test(v);
+        }
+
+        function validatePassword(v){
+            return v && v.length >= 8 && /[A-Za-z]/.test(v) && /\d/.test(v);
+        }
+
+        var phoneEl = document.getElementById('SoDienThoai');
+        var pwdEl = document.getElementById('MatKhau');
+
+        if(phoneEl){
+            phoneEl.addEventListener('blur', function(e){
+                if(!validatePhone(e.target.value)) setError('SoDienThoai', 'Số điện thoại phải bắt đầu bằng 0 và đúng 10 chữ số');
+                else setError('SoDienThoai', '');
+            });
+        }
+
+        if(pwdEl){
+            pwdEl.addEventListener('blur', function(e){
+                if(!validatePassword(e.target.value)) setError('MatKhau', 'Mật khẩu tối thiểu 8 ký tự, ít nhất một chữ cái và một chữ số');
+                else setError('MatKhau', '');
+            });
+        }
+
+        var form = document.getElementById('registerForm');
+        if(form){
+            form.addEventListener('submit', function(e){
+                var hasError = false;
+                if(!validatePhone(phoneEl.value)){ setError('SoDienThoai','Số điện thoại phải bắt đầu bằng 0 và đúng 10 chữ số'); hasError = true; }
+                if(!validatePassword(pwdEl.value)){ setError('MatKhau','Mật khẩu tối thiểu 8 ký tự, ít nhất một chữ cái và một chữ số'); hasError = true; }
+                if(hasError){ e.preventDefault(); }
+            });
+        }
+    })();
+</script>
