@@ -1,0 +1,12 @@
+# Ignore local dev SQLite database
+/data/local-dev.sqlite
+/data/*.sqlite
+
+# User files
+*.user
+*.suo
+.vs/
+
+# Build outputs
+bin/
+obj/
