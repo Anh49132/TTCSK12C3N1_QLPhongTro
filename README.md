@@ -1,6 +1,6 @@
 # TTCS_QLPhongTro
 
-Ứng dụng ASP.NET Core MVC dùng F#, .NET 10 và Entity Framework Core 10 (SQLite).
+Ứng dụng ASP.NET Core MVC dùng C#, .NET 10 và Entity Framework Core 10 (SQLite).
 
 ## Môi trường
 
@@ -13,8 +13,8 @@
 Mở Terminal tại thư mục chứa README này:
 
 ```powershell
-dotnet restore .\QL_PhongTro\QL_PhongTro.fsproj
-dotnet run --project .\QL_PhongTro\QL_PhongTro.fsproj --launch-profile http
+dotnet restore .\QL_PhongTro\QL_PhongTro.csproj
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
 ```
 
 Truy cập http://localhost:5247. Nhấn Ctrl+C để dừng.
@@ -22,7 +22,7 @@ Truy cập http://localhost:5247. Nhấn Ctrl+C để dừng.
 Chạy trong lúc phát triển:
 
 ```powershell
-dotnet watch --project .\QL_PhongTro\QL_PhongTro.fsproj run --launch-profile http
+dotnet watch --project .\QL_PhongTro\QL_PhongTro.csproj run --launch-profile http
 ```
 
 Database SQLite được tạo tự động tại `QL_PhongTro/Data/local-dev.sqlite` trên Windows. Không cần cài SQL Server; giữ lại file này nếu đã có dữ liệu.
@@ -30,7 +30,7 @@ Database SQLite được tạo tự động tại `QL_PhongTro/Data/local-dev.sq
 ## Kiểm tra build
 
 ```powershell
-dotnet build .\QL_PhongTro\QL_PhongTro.fsproj -c Release
+dotnet build .\QL_PhongTro\QL_PhongTro.csproj -c Release
 ```
 
-Ứng dụng F# hiện dùng Razor runtime compilation để hiển thị các view `.cshtml`. API này đã được đánh dấu obsolete trong ASP.NET Core 10; vẫn giữ lại để tương thích với cấu trúc hiện tại.
+Các view `.cshtml` được biên dịch cùng dự án C#. Dùng `dotnet watch` khi phát triển để cập nhật thay đổi giao diện.
