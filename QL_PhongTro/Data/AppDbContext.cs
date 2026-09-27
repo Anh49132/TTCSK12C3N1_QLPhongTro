@@ -35,6 +35,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         entity.Property(e => e.IsStaff).HasColumnName("is_staff").HasDefaultValue(false);
         entity.Property(e => e.IsSuperuser).HasColumnName("is_superuser").HasDefaultValue(false);
         entity.Property(e => e.LastLogin).HasColumnName("last_login");
+        entity.Property(e => e.FailedLoginCount).HasColumnName("failed_login_count").HasDefaultValue(0);
+        entity.Property(e => e.LockedUntil).HasColumnName("locked_until");
+        entity.Property(e => e.RefreshTokenHash).HasColumnName("refresh_token_hash").HasMaxLength(256);
+        entity.Property(e => e.RefreshTokenExpiry).HasColumnName("refresh_token_expiry");
         entity.Property(e => e.NgayTao).HasColumnName("ngay_tao").IsRequired();
         entity.Property(e => e.NgayCapNhat).HasColumnName("ngay_cap_nhat").IsRequired();
 

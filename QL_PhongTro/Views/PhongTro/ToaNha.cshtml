@@ -1,0 +1,62 @@
+@model QL_PhongTro.ViewModels.DanhSachToaNhaViewModel
+
+@{
+    ViewData["Title"] = "Quản lý tòa nhà";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+    <div>
+        <p class="text-uppercase text-secondary small fw-semibold mb-2">Vận hành nhà cho thuê</p>
+        <h1 class="h2 mb-1">Quản lý tòa nhà</h1>
+        <p class="text-secondary mb-0">Xem nhanh số phòng và số phòng đang trống của từng tòa.</p>
+    </div>
+    <a asp-action="TaoToaNha" class="btn btn-primary">Khai báo tòa nhà</a>
+</div>
+
+@if (TempData["RoomMessage"] is string message)
+{
+    <div class="alert alert-info" role="status">@message</div>
+}
+
+<form method="get" asp-action="ToaNha" class="row g-2 align-items-end mb-4">
+    <div class="col-12 col-md-7">
+        <label asp-for="TuKhoa" class="form-label">Tìm theo tên hoặc địa chỉ</label>
+        <input asp-for="TuKhoa" class="form-control" placeholder="Ví dụ: Nguyễn Trãi" />
+    </div>
+    <div class="col-auto"><button type="submit" class="btn btn-outline-secondary">Tìm kiếm</button></div>
+</form>
+
+@if (Model.ToaNhas.Count == 0)
+{
+    <div class="border-top border-bottom py-4 text-secondary">Không tìm thấy tòa nhà phù hợp.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light"><tr><th>Tòa nhà</th><th>Người quản lý</th><th>Phòng</th><th>Đang trống</th><th>Trạng thái</th><th></th></tr></thead>
+            <tbody>
+            @foreach (var building in Model.ToaNhas)
+            {
+                <tr>
+                    <th scope="row"><a asp-action="Index" asp-route-toaNhaId="@building.Id">@building.TenToaNha</a><div class="small text-secondary">@building.DiaChi</div></th>
+                    <td>@(building.QuanLy ?? "Chưa phân công")</td>
+                    <td>@building.SoPhong</td>
+                    <td><strong class="@(building.SoPhongTrong > 0 ? "text-success" : "text-secondary")">@building.SoPhongTrong</strong></td>
+                    <td><span class="badge @(building.DangHoatDong ? "text-bg-success" : "text-bg-secondary")">@(building.DangHoatDong ? "Đang hoạt động" : "Ngừng hoạt động")</span></td>
+                    <td>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a asp-action="SuaToaNha" asp-route-id="@building.Id" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                            @if (building.DangHoatDong)
+                            {
+                                <form asp-action="NgungHoatDong" method="post"><input type="hidden" name="id" value="@building.Id" /><button class="btn btn-sm btn-outline-warning" type="submit">Ngừng hoạt động</button></form>
+                            }
+                            <form asp-action="XoaToaNha" method="post" onsubmit="return confirm('Bạn có chắc muốn xóa tòa nhà này không? Dữ liệu tòa nhà không có phòng sẽ bị xóa.');"><input type="hidden" name="id" value="@building.Id" /><button class="btn btn-sm btn-outline-danger" type="submit">Xóa</button></form>
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
