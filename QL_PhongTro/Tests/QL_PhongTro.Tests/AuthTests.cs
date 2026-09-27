@@ -38,8 +38,16 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         var json = JsonSerializer.Serialize(body);
         var response = await _client.PostAsync(url, new StringContent(json, Encoding.UTF8, "application/json"));
         var statusCode = (int)response.StatusCode;
-        var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        return (statusCode, doc.RootElement);
+        var responseBody = await response.Content.ReadAsStringAsync();
+        try
+        {
+            var doc = JsonDocument.Parse(responseBody);
+            return (statusCode, doc.RootElement);
+        }
+        catch
+        {
+            return (statusCode, JsonDocument.Parse("{}").RootElement);
+        }
     }
 
     private TaiKhoan CreateUser(string email = "test@example.com", string phone = "0901234567", string password = "Test123456")
@@ -61,6 +69,11 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         _dbContext.TaiKhoans.Add(user);
         _dbContext.SaveChanges();
         return user;
+    }
+
+    private async Task<TaiKhoan?> GetUserAsync(int id)
+    {
+        return await _dbContext.TaiKhoans.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
     }
 
     [Fact]
@@ -122,7 +135,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
             });
         }
 
-        var updatedUser = await _dbContext.TaiKhoans.FindAsync(user.Id);
+        var updatedUser = await GetUserAsync(user.Id);
         Assert.NotNull(updatedUser?.LockedUntil);
         Assert.True(updatedUser?.LockedUntil > DateTime.UtcNow);
     }
@@ -160,7 +173,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
             MatKhau = "Test123456"
         });
 
-        var updatedUser = await _dbContext.TaiKhoans.FindAsync(user.Id);
+        var updatedUser = await GetUserAsync(user.Id);
         Assert.Equal(0, updatedUser?.FailedLoginCount);
         Assert.Null(updatedUser?.LockedUntil);
     }
@@ -215,9 +228,9 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         });
 
         Assert.Equal(200, statusCode);
-        Assert.True(body.GetProperty("success").GetBoolean());
+        Assert.True(body.TryGetProperty("success", out _) && body.GetProperty("success").GetBoolean());
 
-        var updatedUser = await _dbContext.TaiKhoans.FindAsync(user.Id);
+        var updatedUser = await GetUserAsync(user.Id);
         Assert.Null(updatedUser?.RefreshTokenHash);
     }
 

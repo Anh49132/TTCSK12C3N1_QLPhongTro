@@ -56,7 +56,6 @@ public class AuthController(AuthService authService, JwtSettings jwtSettings) : 
     }
 
     [HttpPost("logout")]
-    [Authorize]
     public async Task<IActionResult> Logout([FromBody] LogoutRequest? request)
     {
         var refreshToken = request?.RefreshToken ?? Request.Headers["X-Refresh-Token"].ToString();
