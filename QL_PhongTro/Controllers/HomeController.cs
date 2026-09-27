@@ -15,6 +15,8 @@ public class HomeController(RegistrationSettings settings) : Controller
     public IActionResult Privacy() => View();
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
+    [QL_PhongTro.Authorization.ModuleAccess("TAI_KHOAN", write: true)]
     public IActionResult ToggleRegistration()
     {
         settings.EnableDuplicateCheck = !settings.EnableDuplicateCheck;

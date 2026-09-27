@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
+using QL_PhongTro.ViewModels;
+using Microsoft.EntityFrameworkCore;
 
 namespace QL_PhongTro.Controllers;
 
@@ -17,9 +19,57 @@ public class AccountController(AppDbContext db, RegistrationSettings settings) :
         !string.IsNullOrEmpty(password) && password.Length >= 8 &&
         Regex.IsMatch(password, "[A-Za-z]") && Regex.IsMatch(password, @"\d");
 
+    [HttpGet]
+    public IActionResult Login(string? returnUrl = null) => View(new LoginViewModel { ReturnUrl = returnUrl });
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Login(LoginViewModel model)
+    {
+        if (!ModelState.IsValid) return View(model);
+        var identifier = model.Identifier.Trim().ToLowerInvariant();
+        var account = await db.TaiKhoans.AsNoTracking().FirstOrDefaultAsync(a =>
+            a.Email == identifier || a.SoDienThoai == identifier);
+        bool valid = false;
+        try { valid = BCrypt.Net.BCrypt.Verify(model.Password, account?.MatKhau ?? DummyHash); }
+        catch (BCrypt.Net.SaltParseException) { }
+        if (!valid || account is null || !account.DangHoatDong)
+        {
+            ModelState.AddModelError("", "Thông tin đăng nhập không hợp lệ.");
+            return View(model);
+        }
+        var identity = new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, account.Id.ToString()),
+            new Claim(ClaimTypes.Name, account.HoTen),
+            new Claim(ClaimTypes.Role, account.VaiTro ?? "")
+        }, CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+        return Url.IsLocalUrl(model.ReturnUrl) ? LocalRedirect(model.ReturnUrl!) : RedirectToAction("Index", "Home");
+    }
+
+    private static readonly string DummyHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Logout()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    public IActionResult AccessDenied()
+    {
+        Response.StatusCode = StatusCodes.Status403Forbidden;
+        Response.Headers.CacheControl = "no-store";
+        return View();
+    }
+
     public IActionResult Register() => View();
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(RegisterViewModel? model)
     {
         if (model is null)

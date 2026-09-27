@@ -12,3 +12,6 @@
 # Build outputs
 bin/
 obj/
+
+# Local SQLite backups created by the explicit permission initializer
+*.sqlite.before-s1-04-*.bak*

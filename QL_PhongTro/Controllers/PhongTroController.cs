@@ -7,12 +7,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Data;
+using QL_PhongTro.Authorization;
 using QL_PhongTro.Models;
 using QL_PhongTro.ViewModels;
 
 namespace QL_PhongTro.Controllers;
 
 [Authorize]
+[ModuleAccess("PHONG_TRO")]
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class PhongTroController(AppDbContext db) : Controller
 {
     public async Task<IActionResult> Index(int? toaNhaId, TrangThaiPhong? trangThaiFilter)
@@ -65,6 +68,7 @@ public class PhongTroController(AppDbContext db) : Controller
     }
 
     [HttpGet]
+    [ModuleAccess("PHONG_TRO", write: true)]
     public async Task<IActionResult> Create(int? toaNhaId)
     {
         var ownerId = CurrentAccountId();
@@ -90,6 +94,7 @@ public class PhongTroController(AppDbContext db) : Controller
     }
 
     [HttpGet]
+    [ModuleAccess("PHONG_TRO", write: true)]
     public async Task<IActionResult> CreateBulk(int? toaNhaId)
     {
         var ownerId = CurrentAccountId();
@@ -115,6 +120,7 @@ public class PhongTroController(AppDbContext db) : Controller
     }
 
     [HttpPost]
+    [ModuleAccess("PHONG_TRO", write: true)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(TaoPhongViewModel model)
     {
@@ -175,6 +181,7 @@ public class PhongTroController(AppDbContext db) : Controller
     }
 
     [HttpPost]
+    [ModuleAccess("PHONG_TRO", write: true)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateBulk(TaoPhongHangLoatViewModel model)
     {
@@ -254,6 +261,7 @@ public class PhongTroController(AppDbContext db) : Controller
     }
 
     [HttpGet]
+    [ModuleAccess("PHONG_TRO", write: true)]
     public IActionResult TaoToaNha()
     {
         if (CurrentAccountId() is null)
@@ -263,6 +271,7 @@ public class PhongTroController(AppDbContext db) : Controller
     }
 
     [HttpPost]
+    [ModuleAccess("PHONG_TRO", write: true)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> TaoToaNha(TaoToaNhaViewModel model)
     {
