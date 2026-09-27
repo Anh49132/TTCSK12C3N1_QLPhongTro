@@ -25,6 +25,9 @@ var connectionString = $"Data Source={databasePath}";
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtSettings>() ?? new JwtSettings();
 builder.Services.AddSingleton(jwt);
 builder.Services.AddSingleton<RegistrationSettings>();
+builder.Services.AddSingleton<ITimeProvider, SystemTimeProvider>();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<TokenBlacklistService>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
 
@@ -65,6 +68,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
+app.UseMiddleware<TokenBlacklistMiddleware>();
 app.UseAuthorization();
 app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
 

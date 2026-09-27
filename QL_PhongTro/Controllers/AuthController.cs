@@ -59,13 +59,14 @@ public class AuthController(AuthService authService, JwtSettings jwtSettings) : 
     public async Task<IActionResult> Logout([FromBody] LogoutRequest? request)
     {
         var refreshToken = request?.RefreshToken ?? Request.Headers["X-Refresh-Token"].ToString();
+        var accessToken = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
 
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
             return BadRequest(new AuthErrorResponse { Error = "VALIDATION_ERROR", Message = "Refresh token là bắt buộc", Code = 400 });
         }
 
-        await _authService.LogoutAsync(refreshToken);
+        await _authService.LogoutAsync(refreshToken, accessToken);
 
         return Ok(new LogoutResponse { Success = true, Message = "Đăng xuất thành công" });
     }

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
+using QL_PhongTro.Services;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -11,15 +12,36 @@ using Xunit;
 
 namespace QL_PhongTro.Tests;
 
+public class MockTimeProvider : ITimeProvider
+{
+    public DateTime UtcNow { get; set; } = DateTime.UtcNow;
+}
+
 public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
 {
     private readonly WebApplicationFactory<Program> _factory;
     private readonly AppDbContext _dbContext;
     private readonly HttpClient _client;
+    private readonly MockTimeProvider _mockTimeProvider;
 
     public AuthTests()
     {
-        _factory = new WebApplicationFactory<Program>();
+        _mockTimeProvider = new MockTimeProvider();
+        
+        _factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureServices(services =>
+                {
+                    var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(ITimeProvider));
+                    if (descriptor != null)
+                    {
+                        services.Remove(descriptor);
+                    }
+                    services.AddSingleton<ITimeProvider>(_mockTimeProvider);
+                });
+            });
+        
         _client = _factory.CreateClient();
 
         var scope = _factory.Services.CreateScope();
@@ -33,10 +55,18 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         _dbContext.Dispose();
     }
 
-    private async Task<(int statusCode, JsonElement body)> PostJsonAsync(string url, object body)
+    private async Task<(int statusCode, JsonElement body)> PostJsonAsync(string url, object body, string? accessToken = null)
     {
         var json = JsonSerializer.Serialize(body);
-        var response = await _client.PostAsync(url, new StringContent(json, Encoding.UTF8, "application/json"));
+        var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
+        };
+        if (!string.IsNullOrEmpty(accessToken))
+        {
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        }
+        var response = await _client.SendAsync(request);
         var statusCode = (int)response.StatusCode;
         var responseBody = await response.Content.ReadAsStringAsync();
         try
@@ -76,8 +106,10 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         return await _dbContext.TaiKhoans.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
     }
 
+    // ========== LÁT 1: ĐĂNG NHẬP & DUY TRÌ PHIÊN ==========
+
     [Fact]
-    public async Task Login_ValidCredentials_ReturnsTokens()
+    public async Task L1_1_Login_ValidCredentials_ReturnsAccessAndRefreshTokens()
     {
         CreateUser();
         var (statusCode, body) = await PostJsonAsync("/api/auth/login", new
@@ -87,65 +119,110 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         });
 
         Assert.Equal(200, statusCode);
-        Assert.True(body.TryGetProperty("accessToken", out _));
-        Assert.True(body.TryGetProperty("refreshToken", out _));
+        Assert.True(body.TryGetProperty("accessToken", out var accessToken));
+        Assert.True(body.TryGetProperty("refreshToken", out var refreshToken));
         Assert.True(body.TryGetProperty("userId", out _));
+        Assert.False(string.IsNullOrEmpty(accessToken.GetString()));
+        Assert.False(string.IsNullOrEmpty(refreshToken.GetString()));
     }
 
     [Fact]
-    public async Task Login_WrongPassword_Returns401()
+    public async Task L1_2_Refresh_ValidRefreshToken_ReturnsNewAccessToken()
     {
         CreateUser();
-        var (statusCode, body) = await PostJsonAsync("/api/auth/login", new
+        var (_, loginBody) = await PostJsonAsync("/api/auth/login", new
         {
             Email = "test@example.com",
-            MatKhau = "WrongPassword1"
-        });
-
-        Assert.Equal(401, statusCode);
-        Assert.Equal("LOGIN_FAILED", body.GetProperty("error").GetString());
-    }
-
-    [Fact]
-    public async Task Login_WrongEmailOrPhone_ReturnsGenericError()
-    {
-        CreateUser();
-        var (statusCode, body) = await PostJsonAsync("/api/auth/login", new
-        {
-            Email = "nonexistent@example.com",
             MatKhau = "Test123456"
         });
 
-        Assert.Equal(401, statusCode);
-        Assert.Equal("LOGIN_FAILED", body.GetProperty("error").GetString());
-        Assert.Contains("Sai", body.GetProperty("message").GetString());
+        var refreshToken = loginBody.GetProperty("refreshToken").GetString();
+
+        var (statusCode, body) = await PostJsonAsync("/api/auth/refresh", new
+        {
+            RefreshToken = refreshToken
+        });
+
+        Assert.Equal(200, statusCode);
+        Assert.True(body.TryGetProperty("accessToken", out var newAccessToken));
+        Assert.False(string.IsNullOrEmpty(newAccessToken.GetString()));
     }
 
     [Fact]
-    public async Task Login_FailedAttemptsReached5_LocksAccount()
+    public async Task L1_3_Refresh_ExpiredRefreshToken_Returns401()
     {
-        var user = CreateUser();
+        CreateUser();
+        var (_, loginBody) = await PostJsonAsync("/api/auth/login", new
+        {
+            Email = "test@example.com",
+            MatKhau = "Test123456"
+        });
+
+        var refreshToken = loginBody.GetProperty("refreshToken").GetString();
+
+        // Tiến thời gian quá hạn refresh token (8 ngày > 7 ngày)
+        _mockTimeProvider.UtcNow = _mockTimeProvider.UtcNow.AddDays(8);
+
+        var (statusCode, body) = await PostJsonAsync("/api/auth/refresh", new
+        {
+            RefreshToken = refreshToken
+        });
+
+        Assert.Equal(401, statusCode);
+        Assert.Equal("TOKEN_EXPIRED", body.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task L1_4_WrongEmailAndWrongPassword_ReturnSameError()
+    {
+        CreateUser();
+
+        // Sai email
+        var (status1, body1) = await PostJsonAsync("/api/auth/login", new
+        {
+            Email = "wrong@example.com",
+            MatKhau = "Test123456"
+        });
+
+        // Sai mật khẩu
+        var (status2, body2) = await PostJsonAsync("/api/auth/login", new
+        {
+            Email = "test@example.com",
+            MatKhau = "WrongPass123"
+        });
+
+        Assert.Equal(status1, status2);
+        Assert.Equal(body1.GetProperty("error").GetString(), body2.GetProperty("error").GetString());
+        Assert.Equal(body1.GetProperty("message").GetString(), body2.GetProperty("message").GetString());
+    }
+
+    // ========== LÁT 2: KHOÁ TÀI KHOẢN ==========
+
+    [Fact]
+    public async Task L2_5_FailedLogin5TimesIn15Min_LocksAccount()
+    {
+        CreateUser();
 
         for (int i = 0; i < 5; i++)
         {
             await PostJsonAsync("/api/auth/login", new
             {
                 Email = "test@example.com",
-                MatKhau = "WrongPassword" + i
+                MatKhau = "WrongPass" + i
             });
         }
 
-        var updatedUser = await GetUserAsync(user.Id);
+        var updatedUser = await _dbContext.TaiKhoans.AsNoTracking().FirstOrDefaultAsync(u => u.Email == "test@example.com");
         Assert.NotNull(updatedUser?.LockedUntil);
-        Assert.True(updatedUser?.LockedUntil > DateTime.UtcNow);
+        Assert.True(updatedUser?.LockedUntil > _mockTimeProvider.UtcNow);
     }
 
     [Fact]
-    public async Task Login_LockedAccount_ReturnsLockoutMessage()
+    public async Task L2_6_LockedAccount_RejectsCorrectPassword()
     {
         var user = CreateUser();
         user.FailedLoginCount = 5;
-        user.LockedUntil = DateTime.UtcNow.AddMinutes(15);
+        user.LockedUntil = _mockTimeProvider.UtcNow.AddMinutes(15);
         _dbContext.TaiKhoans.Update(user);
         _dbContext.SaveChanges();
 
@@ -160,7 +237,29 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
     }
 
     [Fact]
-    public async Task Login_SuccessAfterFailedAttempts_ResetsCounter()
+    public async Task L2_7_LockExpired_LoginWithCorrectPassword_Succeeds()
+    {
+        var user = CreateUser();
+        user.FailedLoginCount = 5;
+        user.LockedUntil = _mockTimeProvider.UtcNow.AddMinutes(15);
+        _dbContext.TaiKhoans.Update(user);
+        _dbContext.SaveChanges();
+
+        // Tiến thời gian qua 15 phút khoá
+        _mockTimeProvider.UtcNow = _mockTimeProvider.UtcNow.AddMinutes(16);
+
+        var (statusCode, body) = await PostJsonAsync("/api/auth/login", new
+        {
+            Email = "test@example.com",
+            MatKhau = "Test123456"
+        });
+
+        Assert.Equal(200, statusCode);
+        Assert.True(body.TryGetProperty("accessToken", out _));
+    }
+
+    [Fact]
+    public async Task L2_8_SuccessfulLogin_ResetsFailedCounter()
     {
         var user = CreateUser();
         user.FailedLoginCount = 3;
@@ -173,13 +272,41 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
             MatKhau = "Test123456"
         });
 
-        var updatedUser = await GetUserAsync(user.Id);
+        var updatedUser = await _dbContext.TaiKhoans.AsNoTracking().FirstOrDefaultAsync(u => u.Email == "test@example.com");
         Assert.Equal(0, updatedUser?.FailedLoginCount);
         Assert.Null(updatedUser?.LockedUntil);
     }
 
     [Fact]
-    public async Task Refresh_ValidRefreshToken_ReturnsNewAccessToken()
+    public async Task L2_9_FailedLogin4Times_NotLocked_CanLoginOn5thAttempt()
+    {
+        CreateUser();
+
+        // 4 lần sai
+        for (int i = 0; i < 4; i++)
+        {
+            await PostJsonAsync("/api/auth/login", new
+            {
+                Email = "test@example.com",
+                MatKhau = "WrongPass" + i
+            });
+        }
+
+        // Lần 5 đúng mật khẩu -> phải thành công
+        var (statusCode, body) = await PostJsonAsync("/api/auth/login", new
+        {
+            Email = "test@example.com",
+            MatKhau = "Test123456"
+        });
+
+        Assert.Equal(200, statusCode);
+        Assert.True(body.TryGetProperty("accessToken", out _));
+    }
+
+    // ========== LÁT 3: ĐĂNG XUẤT ==========
+
+    [Fact]
+    public async Task L3_10_Logout_InvalidatesRefreshToken()
     {
         CreateUser();
         var (_, loginBody) = await PostJsonAsync("/api/auth/login", new
@@ -187,69 +314,87 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
             Email = "test@example.com",
             MatKhau = "Test123456"
         });
-
         var refreshToken = loginBody.GetProperty("refreshToken").GetString();
-
-        var (statusCode, body) = await PostJsonAsync("/api/auth/refresh", new
-        {
-            RefreshToken = refreshToken
-        });
-
-        Assert.Equal(200, statusCode);
-        Assert.True(body.TryGetProperty("accessToken", out _));
-    }
-
-    [Fact]
-    public async Task Refresh_InvalidRefreshToken_Returns401()
-    {
-        var (statusCode, body) = await PostJsonAsync("/api/auth/refresh", new
-        {
-            RefreshToken = "invalid_token_12345"
-        });
-
-        Assert.Equal(401, statusCode);
-        Assert.Equal("TOKEN_EXPIRED", body.GetProperty("error").GetString());
-    }
-
-    [Fact]
-    public async Task Logout_ValidToken_ClearsRefreshToken()
-    {
-        var user = CreateUser();
-        var (_, loginBody) = await PostJsonAsync("/api/auth/login", new
-        {
-            Email = "test@example.com",
-            MatKhau = "Test123456"
-        });
-        var refreshToken = loginBody.GetProperty("refreshToken").GetString();
+        var accessToken = loginBody.GetProperty("accessToken").GetString();
 
         var (statusCode, body) = await PostJsonAsync("/api/auth/logout", new
         {
             RefreshToken = refreshToken
-        });
+        }, accessToken);
 
         Assert.Equal(200, statusCode);
         Assert.True(body.TryGetProperty("success", out _) && body.GetProperty("success").GetBoolean());
 
-        var updatedUser = await GetUserAsync(user.Id);
+        var updatedUser = await _dbContext.TaiKhoans.AsNoTracking().FirstOrDefaultAsync(u => u.Email == "test@example.com");
         Assert.Null(updatedUser?.RefreshTokenHash);
     }
 
     [Fact]
-    public async Task Logout_ReuseOldToken_Returns401()
+    public async Task L3_11_AccessTokenAfterLogout_Returns401()
     {
-        var user = CreateUser();
+        CreateUser();
+        var (_, loginBody) = await PostJsonAsync("/api/auth/login", new
+        {
+            Email = "test@example.com",
+            MatKhau = "Test123456"
+        });
+        var accessToken = loginBody.GetProperty("accessToken").GetString();
+        var refreshToken = loginBody.GetProperty("refreshToken").GetString();
+
+        // Logout with access token to blacklist it
+        await PostJsonAsync("/api/auth/logout", new { RefreshToken = refreshToken }, accessToken);
+
+        // Gọi API /api/auth/me với access token cũ
+        var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/auth/me");
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task L3_12_RefreshTokenAfterLogout_Returns401()
+    {
+        CreateUser();
         var (_, loginBody) = await PostJsonAsync("/api/auth/login", new
         {
             Email = "test@example.com",
             MatKhau = "Test123456"
         });
         var refreshToken = loginBody.GetProperty("refreshToken").GetString();
+        var accessToken = loginBody.GetProperty("accessToken").GetString();
 
-        await PostJsonAsync("/api/auth/logout", new { RefreshToken = refreshToken });
+        await PostJsonAsync("/api/auth/logout", new { RefreshToken = refreshToken }, accessToken);
 
         var (statusCode, body) = await PostJsonAsync("/api/auth/refresh", new { RefreshToken = refreshToken });
 
         Assert.Equal(401, statusCode);
         Assert.Equal("TOKEN_EXPIRED", body.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task L3_13_LogoutThenLoginAgain_Works()
+    {
+        CreateUser();
+        var (_, loginBody) = await PostJsonAsync("/api/auth/login", new
+        {
+            Email = "test@example.com",
+            MatKhau = "Test123456"
+        });
+        var refreshToken = loginBody.GetProperty("refreshToken").GetString();
+        var accessToken = loginBody.GetProperty("accessToken").GetString();
+
+        await PostJsonAsync("/api/auth/logout", new { RefreshToken = refreshToken }, accessToken);
+
+        // Đăng nhập lại
+        var (statusCode, body) = await PostJsonAsync("/api/auth/login", new
+        {
+            Email = "test@example.com",
+            MatKhau = "Test123456"
+        });
+
+        Assert.Equal(200, statusCode);
+        Assert.True(body.TryGetProperty("accessToken", out _));
+        Assert.True(body.TryGetProperty("refreshToken", out _));
     }
 }

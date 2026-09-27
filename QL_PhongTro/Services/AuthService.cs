@@ -10,11 +10,12 @@ using QL_PhongTro.ViewModels.Auth;
 
 namespace QL_PhongTro.Services;
 
-public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings jwtSettings)
+public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings jwtSettings, ITimeProvider timeProvider)
 {
     private readonly AppDbContext _db = db;
     private readonly TokenService _tokenService = tokenService;
     private readonly JwtSettings _jwtSettings = jwtSettings;
+    private readonly ITimeProvider _timeProvider = timeProvider;
 
     private const int MaxFailedAttempts = 5;
     private const int LockoutMinutes = 15;
@@ -33,28 +34,29 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
             return (false, null, "Sai email/SĐT hoặc mật khẩu");
         }
 
-        if (user.LockedUntil is not null && user.LockedUntil > DateTime.UtcNow)
+        var now = _timeProvider.UtcNow;
+        if (user.LockedUntil is not null && user.LockedUntil > now)
         {
-            var remaining = (int)Math.Ceiling((user.LockedUntil.Value - DateTime.UtcNow).TotalMinutes);
+            var remaining = (int)Math.Ceiling((user.LockedUntil.Value - now).TotalMinutes);
             return (false, null, $"Tài khoản đã khoá. Vui lòng thử lại sau {remaining} phút");
         }
 
         if (!BCrypt.Net.BCrypt.Verify(request.MatKhau ?? string.Empty, user.MatKhau))
         {
-            await HandleFailedLogin(user);
+            await HandleFailedLogin(user, now);
             return (false, null, "Sai email/SĐT hoặc mật khẩu");
         }
 
-        await HandleSuccessfulLogin(user);
+        await HandleSuccessfulLogin(user, now);
 
         var accessToken = _tokenService.GenerateAccessToken(user);
         var refreshToken = _tokenService.GenerateRefreshToken();
         var refreshTokenHash = ComputeHash(refreshToken);
 
         user.RefreshTokenHash = refreshTokenHash;
-        user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenDays);
-        user.LastLogin = DateTime.UtcNow;
-        user.NgayCapNhat = DateTime.UtcNow;
+        user.RefreshTokenExpiry = now.AddDays(_jwtSettings.RefreshTokenDays);
+        user.LastLogin = now;
+        user.NgayCapNhat = now;
 
         await _db.SaveChangesAsync();
 
@@ -73,25 +75,26 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
     public async Task<(bool success, RefreshTokenResponse? response, string? error)> RefreshTokenAsync(string refreshToken)
     {
         var tokenHash = ComputeHash(refreshToken);
+        var now = _timeProvider.UtcNow;
         var user = await _db.TaiKhoans
-            .FirstOrDefaultAsync(u => u.RefreshTokenHash == tokenHash && u.RefreshTokenExpiry > DateTime.UtcNow);
+            .FirstOrDefaultAsync(u => u.RefreshTokenHash == tokenHash && u.RefreshTokenExpiry > now);
 
         if (user is null)
         {
             return (false, null, "Refresh token không hợp lệ hoặc đã hết hạn");
         }
 
-        if (user.LockedUntil is not null && user.LockedUntil > DateTime.UtcNow)
+        if (user.LockedUntil is not null && user.LockedUntil > now)
         {
-            var remaining = (int)Math.Ceiling((user.LockedUntil.Value - DateTime.UtcNow).TotalMinutes);
+            var remaining = (int)Math.Ceiling((user.LockedUntil.Value - now).TotalMinutes);
             return (false, null, $"Tài khoản đã khoá. Vui lòng thử lại sau {remaining} phút");
         }
 
         var newAccessToken = _tokenService.GenerateAccessToken(user);
         var newRefreshToken = _tokenService.GenerateRefreshToken();
         user.RefreshTokenHash = ComputeHash(newRefreshToken);
-        user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenDays);
-        user.NgayCapNhat = DateTime.UtcNow;
+        user.RefreshTokenExpiry = now.AddDays(_jwtSettings.RefreshTokenDays);
+        user.NgayCapNhat = now;
 
         await _db.SaveChangesAsync();
 
@@ -102,7 +105,7 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
         }, null);
     }
 
-    public async Task<(bool success, string message)> LogoutAsync(string refreshToken)
+    public async Task<(bool success, string message)> LogoutAsync(string refreshToken, string? accessToken = null)
     {
         var tokenHash = ComputeHash(refreshToken);
         var user = await _db.TaiKhoans
@@ -113,6 +116,11 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
             user.RefreshTokenHash = null;
             user.RefreshTokenExpiry = null;
             await _db.SaveChangesAsync();
+        }
+
+        if (!string.IsNullOrEmpty(accessToken))
+        {
+            _tokenService.BlacklistAccessToken(accessToken, TimeSpan.FromMinutes(_jwtSettings.AccessTokenMinutes));
         }
 
         return (true, "Đăng xuất thành công");
@@ -128,14 +136,15 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
 
         if (user is null) return (false, 0);
 
-        if (user.LockedUntil is not null && user.LockedUntil > DateTime.UtcNow)
+        var now = _timeProvider.UtcNow;
+        if (user.LockedUntil is not null && user.LockedUntil > now)
         {
-            return (true, (int)Math.Ceiling((user.LockedUntil.Value - DateTime.UtcNow).TotalMinutes));
+            return (true, (int)Math.Ceiling((user.LockedUntil.Value - now).TotalMinutes));
         }
 
         if (user.FailedLoginCount >= MaxFailedAttempts)
         {
-            user.LockedUntil = DateTime.UtcNow.AddMinutes(LockoutMinutes);
+            user.LockedUntil = now.AddMinutes(LockoutMinutes);
             await _db.SaveChangesAsync();
             return (true, LockoutMinutes);
         }
@@ -143,9 +152,8 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
         return (false, 0);
     }
 
-    private async Task HandleFailedLogin(TaiKhoan user)
+    private async Task HandleFailedLogin(TaiKhoan user, DateTime now)
     {
-        var now = DateTime.UtcNow;
         var windowStart = now.AddMinutes(-15);
 
         user.FailedLoginCount = (user.FailedLoginCount ?? 0) + 1;
@@ -159,10 +167,11 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
         await _db.SaveChangesAsync();
     }
 
-    private async Task HandleSuccessfulLogin(TaiKhoan user)
+    private async Task HandleSuccessfulLogin(TaiKhoan user, DateTime now)
     {
         user.FailedLoginCount = 0;
         user.LockedUntil = null;
+        user.NgayCapNhat = now;
         await _db.SaveChangesAsync();
     }
 
