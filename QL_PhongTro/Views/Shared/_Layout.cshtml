@@ -25,7 +25,17 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="PhongTro" asp-action="Index">Quản lý phòng</a>
                         </li>
+                        @if (User.IsInRole("KHACH_THUE"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="HoSo" asp-action="Index">Hồ sơ cá nhân</a>
+                            </li>
+                        }
                         <li class="nav-item ms-sm-auto">
+                            @if (User.Identity?.IsAuthenticated == true)
+                            {
+                                <a class="nav-link text-dark" asp-controller="HoSo" asp-action="Xem">Xem hồ sơ</a>
+                            }
                             <a class="btn btn-primary nav-link text-white px-3" asp-area="" asp-controller="Account" asp-action="Register">Đăng ký</a>
                         </li>
                     </ul>

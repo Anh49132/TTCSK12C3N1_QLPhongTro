@@ -1,6 +1,9 @@
 # Ignore local dev SQLite database
 /data/local-dev.sqlite
 /data/*.sqlite
+/data/backups/
+/QL_PhongTro/App_Data/
+/data/S1-06-images/
 *.sqlite-shm
 *.sqlite-wal
 

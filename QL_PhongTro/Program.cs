@@ -7,6 +7,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
+builder.Services.AddSingleton<QL_PhongTro.Services.GiayToImageStore>();
+builder.Services.AddScoped<QL_PhongTro.Services.HoSoAccess>();
 
 var dataDir = Path.Combine(builder.Environment.ContentRootPath, "Data");
 var configuredDatabasePath = builder.Configuration["DatabasePath"];
@@ -43,12 +45,6 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
-
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    RoomSchemaInitializer.EnsureSchema(db);
-}
 
 app.MapRazorPages();
 app.Run();
