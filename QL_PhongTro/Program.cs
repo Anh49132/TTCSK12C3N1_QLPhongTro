@@ -14,7 +14,6 @@ using QL_PhongTro.Data;
 using QL_PhongTro.Authorization;
 
 using QL_PhongTro.Services;
-using System.Text;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -71,23 +70,15 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<PermissionService>();
 builder.Services.AddScoped<AppCookieEvents>();
 
-var connectionString = $"Data Source={databasePath}";
-    builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
-
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtSettings>() ?? new JwtSettings();
 builder.Services.AddSingleton(jwt);
-builder.Services.AddSingleton<RegistrationSettings>();
 builder.Services.AddSingleton<ITimeProvider, SystemTimeProvider>();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<TokenBlacklistService>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
+builder.Services.AddAuthentication()
 .AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
@@ -101,11 +92,6 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SecretKey)),
         ClockSkew = TimeSpan.Zero
     };
-})
-.AddCookie(options =>
-{
-    options.LoginPath = "/Account/Register";
-    options.AccessDeniedPath = "/";
 });
 
 
@@ -129,6 +115,7 @@ app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Inde
 
 using (var scope = app.Services.CreateScope())
 {
+    AuthSchemaInitializer.Initialize(databasePath);
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
     RoomSchemaInitializer.EnsureSchema(db);

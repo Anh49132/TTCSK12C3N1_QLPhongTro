@@ -72,7 +72,7 @@ public class AuthController(AuthService authService, JwtSettings jwtSettings) : 
     }
 
     [HttpPost("me")]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)]
     public IActionResult Me()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

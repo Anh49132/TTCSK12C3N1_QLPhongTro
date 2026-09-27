@@ -290,12 +290,8 @@ public class PhongTroController(AppDbContext db) : Controller
     }
 
     [HttpGet]
- feature/s1-04-phan-quyen-nguoi-dung
     [ModuleAccess("PHONG_TRO", write: true)]
-    public IActionResult TaoToaNha()
-
     public async Task<IActionResult> TaoToaNha()
- dev
     {
         if (CurrentAccountId() is null)
             return Forbid();

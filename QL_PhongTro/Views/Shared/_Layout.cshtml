@@ -1,99 +1,46 @@
-@inject QL_PhongTro.Authorization.PermissionService Permissions
-@{
-    var menu = await Permissions.MenuAsync();
-}
+﻿@inject QL_PhongTro.Authorization.PermissionService Permissions
+@{ var menu = await Permissions.MenuAsync(); }
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Quản lý phòng trọ</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>@ViewData["Title"] - Nhà Trọ</title>
+<link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+<link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
-
-<header class="border-bottom bg-white mb-3">
-    <nav class="container-fluid d-flex flex-wrap align-items-center gap-3 p-3" aria-label="Tài khoản">
-        <a class="navbar-brand" asp-controller="Home" asp-action="Index">Quản lý phòng trọ</a>
-        <div class="ms-auto d-flex flex-wrap gap-2 align-items-center">
-        @if (User.Identity?.IsAuthenticated == true)
-        {
-            <span>@User.Identity.Name</span>
-            <form asp-controller="Account" asp-action="Logout" method="post">
-                <button class="btn btn-outline-secondary" type="submit">Đăng xuất</button>
-            </form>
-        }
-        else
-        {
-            <a asp-controller="Account" asp-action="Login" class="btn btn-primary">Đăng nhập</a>
-            <a asp-controller="Account" asp-action="Register" class="btn btn-outline-primary">Đăng ký</a>
-        }
-
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">QL_PhongTro</a>
-                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex flex-sm-row-reverse">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="PhongTro" asp-action="Index">Quản lý phòng</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="PhongTro" asp-action="ToaNha">Quản lý tòa nhà</a>
-                        </li>
-                        <li class="nav-item ms-sm-auto">
-                            <a class="btn btn-primary nav-link text-white px-3" asp-area="" asp-controller="Account" asp-action="Register">Đăng ký</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
-
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - QL_PhongTro - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-
-        </div>
-    </nav>
-</header>
-<div class="container-fluid app-shell">
-    @if (menu.Count > 0)
-    {
-        <aside class="app-sidebar border-end pe-3">
-            <nav aria-label="Menu chức năng">
-            @foreach (var group in menu.GroupBy(m => m.GroupName))
-            {
-                <section class="mb-3" data-menu-group="@group.Key">
-                    <h2 class="h6 text-secondary">@group.Key</h2>
-                    <ul class="nav flex-column">
-                    @foreach (var module in group)
-                    {
-                        <li class="nav-item"><a class="nav-link px-0" data-menu-module="@module.Code"
-                            href="@QL_PhongTro.Authorization.PermissionService.Url(module.Code)">@module.Name</a></li>
-                    }
-                    </ul>
-                </section>
-            }
-            </nav>
-        </aside>
-    }
-    <main role="main" class="app-content pb-4">@RenderBody()</main>
+<a class="skip-link" href="#main-content">Đến nội dung chính</a>
+<header class="site-header">
+<nav class="header-inner" aria-label="Điều hướng chính">
+<a class="brand" asp-controller="Home" asp-action="Index"><span class="brand-mark" aria-hidden="true">⌂</span><span>Nhà Trọ<span class="brand-caption">QUẢN LÝ KHÔNG GIAN SỐNG</span></span></a>
+<div class="header-actions">
+<a class="home-link" asp-controller="Home" asp-action="Index">Trang chủ</a>
+@if (User.Identity?.IsAuthenticated == true) {
+<span class="account-name">@User.Identity.Name</span>
+<form asp-controller="Account" asp-action="Logout" method="post"><button class="btn btn-outline-primary" type="submit">Đăng xuất</button></form>
+} else {
+<a asp-controller="Account" asp-action="Login">Đăng nhập</a>
+<a asp-controller="Account" asp-action="Register" class="btn btn-primary">Tạo tài khoản ↗</a>
+}
 </div>
-<footer class="border-top text-muted mt-4 p-3">&copy; 2026 - Quản lý phòng trọ</footer>
+</nav>
+</header>
+<div class="app-shell @(menu.Count > 0 ? "with-sidebar" : "")">
+@if (menu.Count > 0) {
+<aside class="app-sidebar"><p class="eyebrow">KHÔNG GIAN LÀM VIỆC</p><nav aria-label="Menu chức năng">
+@foreach (var group in menu.GroupBy(m => m.GroupName)) {
+<section data-menu-group="@group.Key"><h2>@group.Key</h2>
+@foreach (var module in group) {
+var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
+<a class="sidebar-link @(Context.Request.Path.StartsWithSegments(url) ? "is-active" : "")" data-menu-module="@module.Code" href="@url">@module.Name <span aria-hidden="true">↗</span></a>
+}
+</section>
+}
+</nav></aside>
+}
+<main id="main-content" class="app-content">@RenderBody()</main>
+</div>
+<footer class="site-footer"><div><a class="footer-brand" asp-controller="Home" asp-action="Index">Nhà Trọ.</a><span>Một nơi ở tốt. Một cách quản lý tốt hơn.</span></div><span>© @DateTime.Now.Year · Quản lý phòng trọ</span></footer>
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>

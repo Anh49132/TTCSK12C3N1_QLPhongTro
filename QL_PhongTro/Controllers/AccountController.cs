@@ -15,7 +15,7 @@ using QL_PhongTro.ViewModels.Auth;
 
 namespace QL_PhongTro.Controllers;
 
-public class AccountController(AppDbContext db, RegistrationSettings settings, AuthService authService) : Controller
+public class AccountController(AppDbContext db, RegistrationSettings settings) : Controller
 {
     private static bool ValidatePhone(string? phone) =>
         !string.IsNullOrWhiteSpace(phone) && Regex.IsMatch(phone, @"^0\d{9}$");
@@ -24,7 +24,6 @@ public class AccountController(AppDbContext db, RegistrationSettings settings, A
         !string.IsNullOrEmpty(password) && password.Length >= 8 &&
         Regex.IsMatch(password, "[A-Za-z]") && Regex.IsMatch(password, @"\d");
 
- feature/s1-04-phan-quyen-nguoi-dung
     [HttpGet]
     public IActionResult Login(string? returnUrl = null) => View(new LoginViewModel { ReturnUrl = returnUrl });
 
@@ -71,27 +70,6 @@ public class AccountController(AppDbContext db, RegistrationSettings settings, A
         Response.Headers.CacheControl = "no-store";
         return View();
 
-    public IActionResult Login() => View();
-
-    [HttpPost]
-    public async Task<IActionResult> Login(LoginRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request?.Email) && string.IsNullOrWhiteSpace(request?.SoDienThoai))
-        {
-            ModelState.AddModelError("", "Phải nhập email hoặc số điện thoại");
-            return View(request);
-        }
-
-        var (success, response, error) = await authService.LoginAsync(request);
-
-        if (!success)
-        {
-            ModelState.AddModelError("", error);
-            return View(request);
-        }
-
-        return RedirectToAction("Index", "Home");
- dev
     }
 
     public IActionResult Register() => View();
