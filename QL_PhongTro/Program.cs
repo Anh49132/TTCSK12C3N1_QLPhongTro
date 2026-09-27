@@ -19,11 +19,8 @@ var databasePath = string.IsNullOrWhiteSpace(configuredDatabasePath)
     : Path.GetFullPath(Path.IsPathRooted(configuredDatabasePath)
         ? configuredDatabasePath
         : Path.Combine(builder.Environment.ContentRootPath, configuredDatabasePath));
-if (!File.Exists(databasePath))
-    throw new FileNotFoundException("Existing local SQLite database was not found; refusing to create a new database.", databasePath);
-
 var connectionString = $"Data Source={databasePath}";
-builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
+    builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
 
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtSettings>() ?? new JwtSettings();
 builder.Services.AddSingleton(jwt);
@@ -74,6 +71,7 @@ app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Inde
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();
     RoomSchemaInitializer.EnsureSchema(db);
 }
 
