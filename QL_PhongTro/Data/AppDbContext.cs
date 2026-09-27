@@ -9,8 +9,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ToaNha> ToaNhas { get; set; } = null!;
     public DbSet<PhongTro> PhongTros { get; set; } = null!;
 
+    public DbSet<AppRole> AppRoles { get; set; } = null!;
+    public DbSet<AppModule> AppModules { get; set; } = null!;
+    public DbSet<RolePermission> RolePermissions { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<AppRole>().ToTable("app_role").HasKey(r => r.Code);
+        modelBuilder.Entity<AppModule>().ToTable("app_module").HasKey(m => m.Code);
+        var permission = modelBuilder.Entity<RolePermission>();
+        permission.ToTable("role_permission").HasKey(p => new { p.RoleCode, p.ModuleCode });
+        permission.HasOne<AppRole>().WithMany().HasForeignKey(p => p.RoleCode).OnDelete(DeleteBehavior.Restrict);
+        permission.HasOne<AppModule>().WithMany().HasForeignKey(p => p.ModuleCode).OnDelete(DeleteBehavior.Restrict);
+
         var entity = modelBuilder.Entity<TaiKhoan>();
         entity.ToTable("tai_khoan");
         entity.HasKey(e => e.Id);

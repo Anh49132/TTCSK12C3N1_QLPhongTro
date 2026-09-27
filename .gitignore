@@ -14,9 +14,13 @@
 bin/
 obj/
 
+# Local SQLite backups created by the explicit permission initializer
+*.sqlite.before-s1-04-*.bak*
+
 # Environment files (keep .env.example but ignore .env)
 .env
 .env.local
 
 # Tests output
 **/TestResults/
+

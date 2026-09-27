@@ -1,14 +1,35 @@
-﻿<!DOCTYPE html>
+@inject QL_PhongTro.Authorization.PermissionService Permissions
+@{
+    var menu = await Permissions.MenuAsync();
+}
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - QL_PhongTro</title>
-
+    <title>@ViewData["Title"] - Quản lý phòng trọ</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
+
+<header class="border-bottom bg-white mb-3">
+    <nav class="container-fluid d-flex flex-wrap align-items-center gap-3 p-3" aria-label="Tài khoản">
+        <a class="navbar-brand" asp-controller="Home" asp-action="Index">Quản lý phòng trọ</a>
+        <div class="ms-auto d-flex flex-wrap gap-2 align-items-center">
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <span>@User.Identity.Name</span>
+            <form asp-controller="Account" asp-action="Logout" method="post">
+                <button class="btn btn-outline-secondary" type="submit">Đăng xuất</button>
+            </form>
+        }
+        else
+        {
+            <a asp-controller="Account" asp-action="Login" class="btn btn-primary">Đăng nhập</a>
+            <a asp-controller="Account" asp-action="Register" class="btn btn-outline-primary">Đăng ký</a>
+        }
+
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
             <div class="container">
@@ -45,14 +66,37 @@
     <footer class="border-top footer text-muted">
         <div class="container">
             &copy; 2026 - QL_PhongTro - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+
         </div>
-    </footer>
-
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script src="~/js/site.js" asp-append-version="true"></script>
-
-    @await RenderSectionAsync("Scripts", required: false)
+    </nav>
+</header>
+<div class="container-fluid app-shell">
+    @if (menu.Count > 0)
+    {
+        <aside class="app-sidebar border-end pe-3">
+            <nav aria-label="Menu chức năng">
+            @foreach (var group in menu.GroupBy(m => m.GroupName))
+            {
+                <section class="mb-3" data-menu-group="@group.Key">
+                    <h2 class="h6 text-secondary">@group.Key</h2>
+                    <ul class="nav flex-column">
+                    @foreach (var module in group)
+                    {
+                        <li class="nav-item"><a class="nav-link px-0" data-menu-module="@module.Code"
+                            href="@QL_PhongTro.Authorization.PermissionService.Url(module.Code)">@module.Name</a></li>
+                    }
+                    </ul>
+                </section>
+            }
+            </nav>
+        </aside>
+    }
+    <main role="main" class="app-content pb-4">@RenderBody()</main>
+</div>
+<footer class="border-top text-muted mt-4 p-3">&copy; 2026 - Quản lý phòng trọ</footer>
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

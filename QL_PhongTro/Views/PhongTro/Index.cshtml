@@ -1,8 +1,10 @@
 @model QL_PhongTro.ViewModels.DanhSachPhongViewModel
 @using System.Globalization
+@inject QL_PhongTro.Authorization.PermissionService Permissions
 
 @{
     ViewData["Title"] = "Quản lý phòng";
+    var canWrite = await Permissions.AllowsAsync("PHONG_TRO", write: true);
 }
 
 <section class="mb-4">
@@ -12,7 +14,7 @@
             <h1 class="h2 mb-1">Quản lý phòng</h1>
             <p class="text-secondary mb-0">Theo dõi thông tin và tình trạng phòng theo từng tòa nhà.</p>
         </div>
-        @if (Model.ToaNhaOptions.Count > 0)
+        @if (Model.ToaNhaOptions.Count > 0 && canWrite)
         {
             <div class="d-flex flex-wrap gap-2">
                 <a class="btn btn-outline-secondary" asp-action="CreateBulk" asp-route-toaNhaId="@Model.ToaNhaId">Tạo nhanh</a>
@@ -32,7 +34,10 @@
     <div class="border-top border-bottom py-4">
         <h2 class="h5">Chưa có tòa nhà</h2>
         <p class="text-secondary">Khai báo tòa nhà để bắt đầu thêm và theo dõi phòng.</p>
-        <a class="btn btn-primary" asp-action="TaoToaNha">Khai báo tòa nhà</a>
+        @if (canWrite)
+        {
+            <a class="btn btn-primary" asp-action="TaoToaNha">Khai báo tòa nhà</a>
+        }
     </div>
 }
 else

@@ -5,6 +5,7 @@
 <div class="container mt-4">
     <h2>Đăng ký tài khoản...</h2>
     <form method="post" action="/Account/Register" id="registerForm" novalidate>
+        @Html.AntiForgeryToken()
         <div class="mb-3">
             <label for="HoTen" class="form-label">Họ tên</label>
             <input type="text" class="form-control" id="HoTen" name="HoTen" />
