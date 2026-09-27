@@ -22,11 +22,11 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
 
     public async Task<(bool success, LoginResponse? response, string? error)> LoginAsync(LoginRequest request)
     {
-        var emailNorm = request.Email?.Trim().ToLower();
-        var phoneNorm = request.SoDienThoai?.Trim();
-
+        // Tạm: nhận TaiKhoanDangNhap, phát hiện email (có @) hay SĐT (toàn số)
+        var input = request.TaiKhoanDangNhap?.Trim() ?? "";
+        bool isEmail = input.Contains("@");
         var user = await _db.TaiKhoans
-            .FirstOrDefaultAsync(u => u.Email == emailNorm || u.SoDienThoai == phoneNorm);
+            .FirstOrDefaultAsync(u => isEmail ? u.Email == input.ToLower() : u.SoDienThoai == input);
 
         if (user is null)
         {
