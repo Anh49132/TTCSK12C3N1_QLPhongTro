@@ -74,13 +74,12 @@
                     errorEl.textContent = '';
                     hideLockout();
 
-                    var email = document.getElementById('Email').value.trim();
-                    var phone = document.getElementById('SoDienThoai').value.trim();
+                    var taiKhoan = document.getElementById('TaiKhoanDangNhap').value.trim();
                     var pwd = document.getElementById('MatKhau').value;
                     var hasError = false;
 
-                    if (!email && (!phone || !/^\d{10}$/.test(phone))) {
-                        errorEl.textContent = 'Phải nhập email hoặc số điện thoại hợp lệ';
+                    if (!taiKhoan) {
+                        errorEl.textContent = 'Phải nhập số điện thoại hoặc email';
                         return;
                     }
                     if (!pwd || pwd.length < 8) {
@@ -92,7 +91,7 @@
                         var res = await fetch('/api/auth/login', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ Email: email, SoDienThoai: phone, MatKhau: pwd })
+                            body: JSON.stringify({ TaiKhoanDangNhap: taiKhoan, MatKhau: pwd })
                         });
                         var data = await res.json();
                         if (!res.ok) {
