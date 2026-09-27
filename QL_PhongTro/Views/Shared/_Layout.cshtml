@@ -25,8 +25,10 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="PhongTro" asp-action="Index">Quản lý phòng</a>
                         </li>
-                        <li class="nav-item ms-sm-auto">
-                            <a class="btn btn-primary nav-link text-white px-3" asp-area="" asp-controller="Account" asp-action="Register">Đăng ký</a>
+                        <li class="nav-item ms-sm-auto" id="authButtons">
+                            <a class="btn btn-primary nav-link text-white px-3" asp-area="" asp-controller="Account" asp-action="Register" id="registerBtn">Đăng ký</a>
+                            <a class="btn btn-outline-primary nav-link text-dark px-3 ms-2" asp-area="" asp-controller="Account" asp-action="Login" id="loginBtn">Đăng nhập</a>
+                            <button class="btn btn-danger nav-link text-white px-3 ms-2 d-none" id="logoutBtn" type="button">Đăng xuất</button>
                         </li>
                     </ul>
                 </div>
@@ -51,6 +53,61 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/auth-interceptor.js" asp-append-version="true"></script>
 
-    @await RenderSectionAsync("Scripts", required: false)
+    <script>
+        (function () {
+            function updateAuthUI() {
+                var hasToken = !!localStorage.getItem('accessToken');
+                var registerBtn = document.getElementById('registerBtn');
+                var loginBtn = document.getElementById('loginBtn');
+                var logoutBtn = document.getElementById('logoutBtn');
+
+                if (hasToken) {
+                    if (registerBtn) registerBtn.classList.add('d-none');
+                    if (loginBtn) loginBtn.classList.add('d-none');
+                    if (logoutBtn) logoutBtn.classList.remove('d-none');
+                } else {
+                    if (registerBtn) registerBtn.classList.remove('d-none');
+                    if (loginBtn) loginBtn.classList.remove('d-none');
+                    if (logoutBtn) logoutBtn.classList.add('d-none');
+                }
+            }
+
+            // Initial check
+            updateAuthUI();
+
+            // Listen for storage changes (login/logout in other tabs)
+            window.addEventListener('storage', updateAuthUI);
+
+            // Logout handler
+            var logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async function () {
+                    var refreshToken = localStorage.getItem('refreshToken');
+                    var accessToken = localStorage.getItem('accessToken');
+
+                    try {
+                        await fetch('/api/auth/logout', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + accessToken
+                            },
+                            body: JSON.stringify({ RefreshToken: refreshToken })
+                        });
+                    } catch (err) {
+                        console.error('Logout error:', err);
+                    } finally {
+                        localStorage.removeItem('accessToken');
+                        localStorage.removeItem('refreshToken');
+                        updateAuthUI();
+                        window.location.href = '/Account/Login';
+                    }
+                });
+            }
+
+            // Listen for custom auth events
+            window.addEventListener('authChanged', updateAuthUI);
+        })();
+    </script>
 </body>
 </html>
