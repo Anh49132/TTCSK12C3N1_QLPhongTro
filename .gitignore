@@ -1,14 +1,22 @@
 # Ignore local dev SQLite database
-/data/local-dev.sqlite
-/data/*.sqlite
-*.sqlite-shm
-*.sqlite-wal
+**/Data/local-dev.sqlite
+**/Data/*.sqlite
+**/*.sqlite-shm
+**/*.sqlite-wal
 
 # User files
 *.user
 *.suo
 .vs/
+.vscode/
 
 # Build outputs
 bin/
 obj/
+
+# Environment files (keep .env.example but ignore .env)
+.env
+.env.local
+
+# Tests output
+**/TestResults/

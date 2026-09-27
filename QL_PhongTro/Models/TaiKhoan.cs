@@ -25,6 +25,10 @@ public class TaiKhoan
     public bool DangHoatDong { get; set; }
     public bool IsStaff { get; set; }
     public bool IsSuperuser { get; set; }
+    public int? FailedLoginCount { get; set; }
+    public DateTime? LockedUntil { get; set; }
+    public string? RefreshTokenHash { get; set; }
+    public DateTime? RefreshTokenExpiry { get; set; }
     public DateTime? LastLogin { get; set; }
     public DateTime NgayTao { get; set; }
     public DateTime NgayCapNhat { get; set; }
