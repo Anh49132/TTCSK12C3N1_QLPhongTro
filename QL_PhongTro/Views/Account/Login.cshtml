@@ -4,7 +4,7 @@
 
 <div class="container mt-4">
     <h2>Đăng nhập</h2>
-    <form method="post" action="/Account/Login" id="loginForm" novalidate>
+    <form id="loginForm" novalidate>
         <div class="mb-3">
             <label for="Email" class="form-label">Email</label>
             <input type="email" class="form-control" id="Email" name="Email" />
@@ -33,22 +33,44 @@
 <script>
     (function () {
         var form = document.getElementById('loginForm');
+        var errorEl = document.getElementById('loginError');
         if (form) {
-            form.addEventListener('submit', function (e) {
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                errorEl.textContent = '';
+
                 var email = document.getElementById('Email').value.trim();
                 var phone = document.getElementById('SoDienThoai').value.trim();
                 var pwd = document.getElementById('MatKhau').value;
                 var hasError = false;
 
                 if (!email && (!phone || !/^\d{10}$/.test(phone))) {
-                    document.getElementById('loginError').textContent = 'Phải nhập email hoặc số điện thoại hợp lệ';
+                    errorEl.textContent = 'Phải nhập email hoặc số điện thoại hợp lệ';
                     hasError = true;
                 }
                 if (!pwd || pwd.length < 8) {
-                    document.getElementById('loginError').textContent = 'Mật khẩu tối thiểu 8 ký tự';
+                    errorEl.textContent = 'Mật khẩu tối thiểu 8 ký tự';
                     hasError = true;
                 }
-                if (hasError) e.preventDefault();
+                if (hasError) return;
+
+                try {
+                    var res = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ Email: email, SoDienThoai: phone, MatKhau: pwd })
+                    });
+                    var data = await res.json();
+                    if (!res.ok) {
+                        errorEl.textContent = data.message || 'Đăng nhập thất bại';
+                        return;
+                    }
+                    // Store tokens
+                    authSetTokens(data.accessToken, data.refreshToken);
+                    window.location.href = '/';
+                } catch (err) {
+                    errorEl.textContent = 'Lỗi kết nối server';
+                }
             });
         }
     })();
