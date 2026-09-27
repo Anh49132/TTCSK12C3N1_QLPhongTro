@@ -31,7 +31,7 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
         if (user is null)
         {
             await Task.Delay(1000);
-            return (false, null, "Sai email/SĐT hoặc mật khẩu");
+            return (false, null, "Thông tin đăng nhập không chính xác"); // TẠM — chờ PO xác nhận chính thức
         }
 
         var now = _timeProvider.UtcNow;
@@ -44,7 +44,7 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
         if (!BCrypt.Net.BCrypt.Verify(request.MatKhau ?? string.Empty, user.MatKhau))
         {
             await HandleFailedLogin(user, now);
-            return (false, null, "Sai email/SĐT hoặc mật khẩu");
+            return (false, null, "Thông tin đăng nhập không chính xác"); // TẠM — chờ PO xác nhận chính thức
         }
 
         await HandleSuccessfulLogin(user, now);
