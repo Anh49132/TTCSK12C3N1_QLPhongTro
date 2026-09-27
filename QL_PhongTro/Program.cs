@@ -9,8 +9,16 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
 var dataDir = Path.Combine(builder.Environment.ContentRootPath, "Data");
-Directory.CreateDirectory(dataDir);
-var connectionString = $"Data Source={Path.Combine(dataDir, "local-dev.sqlite")}";
+var configuredDatabasePath = builder.Configuration["DatabasePath"];
+var databasePath = string.IsNullOrWhiteSpace(configuredDatabasePath)
+    ? Path.Combine(dataDir, "local-dev.sqlite")
+    : Path.GetFullPath(Path.IsPathRooted(configuredDatabasePath)
+        ? configuredDatabasePath
+        : Path.Combine(builder.Environment.ContentRootPath, configuredDatabasePath));
+if (!File.Exists(databasePath))
+    throw new FileNotFoundException("Existing local SQLite database was not found; refusing to create a new database.", databasePath);
+
+var connectionString = $"Data Source={databasePath}";
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -39,7 +47,7 @@ app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Inde
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
+    RoomSchemaInitializer.EnsureSchema(db);
 }
 
 app.MapRazorPages();

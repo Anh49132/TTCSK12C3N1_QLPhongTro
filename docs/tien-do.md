@@ -2,20 +2,27 @@
 
 ## Cập nhật gần nhất
 
-- Workspace đang ở nhánh `Feature_S1-01_SignIn`.
-- Đã triển khai S1-01 trong phạm vi development/test với SQLite cục bộ dự kiến tại `data/local-dev.sqlite`; ứng dụng sẽ tạo file khi chạy lần đầu. File này đã được thêm vào `.gitignore` và không dùng cho production.
-- Đã thêm model `TaiKhoan`, `AppDbContext`, ánh xạ bảng `tai_khoan`, cookie authentication và khởi tạo DB bằng `EnsureCreated()` khi chạy ứng dụng.
-- Đã thêm biểu mẫu đăng ký gồm họ tên, email, số điện thoại và mật khẩu tại `/Account/Register`.
-- Đã triển khai kiểm tra số điện thoại `^0[0-9]{9}$`, mật khẩu tối thiểu 8 ký tự có chữ cái và chữ số; kiểm tra phía client khi rời trường và khi gửi, đồng thời kiểm tra lại phía server.
-- Mật khẩu được băm bằng BCrypt trước khi lưu; vai trò được gán cứng `KHACH_THUE` ở server; đăng ký thành công sẽ tạo cookie đăng nhập và chuyển về trang Home.
-- Đã thêm các package EF Core SQLite, cookie authentication và BCrypt.Net-Next.
-- Chưa kiểm tra trùng email/số điện thoại theo phạm vi hiện tại của story.
-- Chưa xác nhận build/runtime bằng công cụ môi trường hiện tại vì lệnh build không khả dụng; cần build và chạy thử trực tiếp trong Visual Studio.
+- Hoàn thành S1-08 (quản lý phòng): tạo phòng đơn, chống trùng mã trong cùng tòa, kiểm tra giá thuê, tạo nhanh phòng theo tầng, lọc trạng thái và đếm phòng từng trạng thái.
+- Đã thêm unique index SQLite trên `(toa_nha_id, ma_phong)`. Trước khi tạo index, ứng dụng kiểm tra dữ liệu trùng và dừng có thông báo nếu cần xử lý dữ liệu cũ; không xóa/sửa phòng tự động.
+- Giá thuê được parse và xác thực phía server là số nguyên VND, tối thiểu 500.000; nhập/xuất dùng dấu chấm nhóm nghìn. Không rebuild bảng SQLite hiện có, nên CHECK vật lý trong bảng cũ vẫn chỉ là `gia_thue > 0`; quy tắc 500.000 được bảo vệ qua luồng ứng dụng.
+- Tạo nhanh sinh mã theo quy ước tạm: tầng + số thứ tự phòng 2 chữ số (`101`, `102`, `201`...). Nếu lô có mã đã tồn tại trong cùng tòa, từ chối toàn bộ lô. Cần PO xác nhận quy tắc sinh mã và chính sách va chạm này.
+- DB dự án ban đầu có 2 tài khoản và chưa có tòa/phòng. Không có bản ghi test được ghi vào DB dự án; test tích hợp dùng bản sao SQLite.
 
-## Phạm vi và lưu ý
+## Chạy
 
-- Task: S1-01 — đăng ký tài khoản Khách thuê và tự đăng nhập sau khi đăng ký.
-- Trạng thái: đã triển khai mã nguồn; đang chờ build và kiểm thử thực tế.
-- Giả định UI nếu triển khai: kiểm tra số điện thoại/mật khẩu khi rời trường và khi gửi biểu mẫu; hiển thị lỗi ngay dưới trường tương ứng. Nội dung cần thống nhất với PO.
-- Ngoài phạm vi hiện tại: kiểm tra trùng email/số điện thoại theo yêu cầu demo; không tạo bảng hồ sơ `khach_thue`.
-- Còn lại: build project, chạy ứng dụng, kiểm tra luồng đăng ký hợp lệ/không hợp lệ và xác nhận cột `mat_khau` trong SQLite chứa BCrypt hash thay vì mật khẩu rõ.
+- Từ `QL_PhongTro`, chạy `dotnet restore --source https://api.nuget.org/v3/index.json` nếu nguồn NuGet mặc định đang tắt, sau đó `dotnet run`.
+- Mở `/Account/Register`, đăng ký, vào **Quản lý phòng**; khai báo tòa nhà nếu chưa có. Dùng **Thêm phòng** hoặc **Tạo nhanh**.
+- Có thể đặt biến môi trường `DatabasePath` tới một file SQLite hiện có; mặc định là `QL_PhongTro/Data/local-dev.sqlite`.
+
+## Xác minh
+
+- `dotnet build --no-restore`: thành công, không có warning.
+- Smoke test trình duyệt trên DB tạm: mã mới, mã trùng cùng tòa bị chặn tại trường, cùng mã ở tòa khác được lưu; giá 500.000/1.000.000/10.500.000 được định dạng đúng; giá dưới ngưỡng, 0, âm và thập phân bị từ chối tại trường.
+- Tạo lô 2×2 sinh đúng `101`, `102`, `201`, `202` và áp dụng cùng diện tích/giá/sức chứa/trạng thái. Lô va chạm không thêm phòng; tầng và số phòng bằng 0 bị chặn.
+- Đã lọc lần lượt cả bốn trạng thái và đối chiếu số dòng với bộ đếm. `git diff --check` sạch.
+
+## Giới hạn và bàn giao
+
+- Chưa có xác nhận PO cho quy tắc mã/số tầng thực tế (ví dụ tầng trệt/đánh số vượt 99 phòng mỗi tầng); hiện giới hạn đầu vào 1..99 tầng và 1..99 phòng/tầng.
+- Màn hình tòa nhà hiện chỉ tạo tên và địa chỉ; chưa triển khai CRUD quản lý tòa nhà đầy đủ.
+- Đăng ký hiện chỉ tạo vai trò `KHACH_THUE`; chưa có luồng cấp vai trò `CHU_NHA`/đăng nhập chủ nhà. Cần hoàn thiện xác thực vai trò trước production.
