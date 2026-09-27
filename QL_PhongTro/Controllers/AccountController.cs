@@ -5,10 +5,12 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
+using QL_PhongTro.Services;
+using QL_PhongTro.ViewModels.Auth;
 
 namespace QL_PhongTro.Controllers;
 
-public class AccountController(AppDbContext db, RegistrationSettings settings) : Controller
+public class AccountController(AppDbContext db, RegistrationSettings settings, AuthService authService) : Controller
 {
     private static bool ValidatePhone(string? phone) =>
         !string.IsNullOrWhiteSpace(phone) && Regex.IsMatch(phone, @"^0\d{9}$");
@@ -16,6 +18,28 @@ public class AccountController(AppDbContext db, RegistrationSettings settings) :
     private static bool ValidatePassword(string? password) =>
         !string.IsNullOrEmpty(password) && password.Length >= 8 &&
         Regex.IsMatch(password, "[A-Za-z]") && Regex.IsMatch(password, @"\d");
+
+    public IActionResult Login() => View();
+
+    [HttpPost]
+    public async Task<IActionResult> Login(LoginRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.Email) && string.IsNullOrWhiteSpace(request?.SoDienThoai))
+        {
+            ModelState.AddModelError("", "Phải nhập email hoặc số điện thoại");
+            return View(request);
+        }
+
+        var (success, response, error) = await authService.LoginAsync(request);
+
+        if (!success)
+        {
+            ModelState.AddModelError("", error);
+            return View(request);
+        }
+
+        return RedirectToAction("Index", "Home");
+    }
 
     public IActionResult Register() => View();
 
