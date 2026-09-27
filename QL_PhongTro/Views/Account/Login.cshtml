@@ -25,7 +25,17 @@
 
         <div class="mb-3 text-danger" id="loginError"></div>
 
-        <button type="submit" class="btn btn-primary">Đăng nhập</button>
+        <!-- Lockout countdown -->
+        <div class="mb-3 text-warning d-none" id="lockoutAlert">
+            <div class="alert alert-warning mb-0" role="alert">
+                <strong id="lockoutMessage"></strong>
+                <div class="mt-2">
+                    <span class="badge bg-warning text-dark" id="countdownTimer"></span>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="loginBtn">Đăng nhập</button>
     </form>
     <p class="mt-3">Chưa có tài khoản? <a href="/Account/Register">Đăng ký</a></p>
 </div>
@@ -34,10 +44,40 @@
     (function () {
         var form = document.getElementById('loginForm');
         var errorEl = document.getElementById('loginError');
+        var lockoutAlert = document.getElementById('lockoutAlert');
+        var lockoutMessage = document.getElementById('lockoutMessage');
+        var countdownTimer = document.getElementById('countdownTimer');
+        var countdownInterval = null;
+
+        function showLockout(seconds) {
+            errorEl.textContent = '';
+            lockoutAlert.classList.remove('d-none');
+            var endTime = Date.now() + seconds * 1000;
+            countdownInterval = setInterval(function () {
+                var remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+                var mins = Math.floor(remaining / 60);
+                var secs = remaining % 60;
+                countdownTimer.textContent = mins + ':' + (secs < 10 ? '0' : '') + secs;
+                if (remaining <= 0) {
+                    clearInterval(countdownInterval);
+                    lockoutAlert.classList.add('d-none');
+                }
+            }, 1000);
+        }
+
+        function hideLockout() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            lockoutAlert.classList.add('d-none');
+        }
+
         if (form) {
             form.addEventListener('submit', async function (e) {
                 e.preventDefault();
                 errorEl.textContent = '';
+                hideLockout();
 
                 var email = document.getElementById('Email').value.trim();
                 var phone = document.getElementById('SoDienThoai').value.trim();
@@ -46,13 +86,12 @@
 
                 if (!email && (!phone || !/^\d{10}$/.test(phone))) {
                     errorEl.textContent = 'Phải nhập email hoặc số điện thoại hợp lệ';
-                    hasError = true;
+                    return;
                 }
                 if (!pwd || pwd.length < 8) {
                     errorEl.textContent = 'Mật khẩu tối thiểu 8 ký tự';
-                    hasError = true;
+                    return;
                 }
-                if (hasError) return;
 
                 try {
                     var res = await fetch('/api/auth/login', {
@@ -63,6 +102,14 @@
                     var data = await res.json();
                     if (!res.ok) {
                         errorEl.textContent = data.message || 'Đăng nhập thất bại';
+                        // Check if account is locked
+                        if (data.message && data.message.includes('khoá')) {
+                            // Extract seconds from message if possible
+                            var match = data.message.match(/(\d+)\s*phút/);
+                            if (match) {
+                                showLockout(parseInt(match[1]) * 60);
+                            }
+                        }
                         return;
                     }
                     // Store tokens
