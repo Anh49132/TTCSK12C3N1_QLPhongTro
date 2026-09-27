@@ -33,4 +33,13 @@ Database SQLite được tạo tự động tại `QL_PhongTro/Data/local-dev.sq
 dotnet build .\QL_PhongTro\QL_PhongTro.csproj -c Release
 ```
 
+## Auth / S1-02 (đăng nhập, phiên, khoá, đăng xuất)
+
+- Endpoint: `POST /api/auth/login` (SĐT/email + mật khẩu) → access token (30 phút) + refresh token (7 ngày)
+- Endpoint: `POST /api/auth/refresh` (refresh token) → access token mới
+- Endpoint: `POST /api/auth/logout` (refresh token + access token) → vô hiệu hoá, xoá token
+- Khoá tài khoản: 5 lần sai trong 15 phút → khoá 15 phút; tự mở khi hết hạn hoặc đăng nhập thành công
+- Tài khoản test: `test@example.com` / `Test123456`
+- Cấu hình JWT: xem `QL_PhongTro/appsettings.json` (JwtSettings) và `.env.example`
+
 Các view `.cshtml` được biên dịch cùng dự án C#. Dùng `dotnet watch` khi phát triển để cập nhật thay đổi giao diện.
