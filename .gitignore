@@ -14,9 +14,24 @@
 bin/
 obj/
 
+# Test project build outputs
+Tests/**/bin/
+Tests/**/obj/
+
 # Environment files (keep .env.example but ignore .env)
 .env
 .env.local
 
 # Tests output
 **/TestResults/
+
+# User files
+*.user
+*.suo
+.vs/
+.vscode/
+
+# IDE
+.idea/
+*.swp
+*.swo
