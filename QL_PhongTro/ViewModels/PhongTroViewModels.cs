@@ -45,7 +45,7 @@ public class TaoPhongViewModel
     public int? Tang { get; set; }
 
     [Required(ErrorMessage = "Diện tích là bắt buộc.")]
-    [Range(typeof(decimal), "0.01", "999999.99", ErrorMessage = "Diện tích phải lớn hơn 0 và tối đa 999999,99 m².")]
+    [Range(0.01, 999999.99, ErrorMessage = "Diện tích phải lớn hơn 0 và tối đa 999999,99 m².")]
     [Display(Name = "Diện tích (m²)")]
     public decimal? DienTich { get; set; }
 
@@ -87,7 +87,7 @@ public class TaoPhongHangLoatViewModel
     public int? SoPhongMoiTang { get; set; }
 
     [Required(ErrorMessage = "Diện tích là bắt buộc.")]
-    [Range(typeof(decimal), "0.01", "999999.99", ErrorMessage = "Diện tích phải lớn hơn 0 và tối đa 999999,99 m².")]
+    [Range(0.01, 999999.99, ErrorMessage = "Diện tích phải lớn hơn 0 và tối đa 999999,99 m².")]
     [Display(Name = "Diện tích (m²)")]
     public decimal? DienTich { get; set; }
 
@@ -122,4 +122,45 @@ public class TaoToaNhaViewModel
     [Required(ErrorMessage = "Địa chỉ là bắt buộc.")]
     [Display(Name = "Địa chỉ")]
     public string DiaChi { get; set; } = string.Empty;
+
+    [StringLength(100)]
+    [Display(Name = "Phường/xã")]
+    public string? PhuongXa { get; set; }
+
+    [StringLength(100)]
+    [Display(Name = "Quận/huyện")]
+    public string? QuanHuyen { get; set; }
+
+    [StringLength(100)]
+    [Display(Name = "Tỉnh/thành phố")]
+    public string? TinhThanh { get; set; }
+
+    [Range(1, 99, ErrorMessage = "Số tầng phải từ 1 đến 99.")]
+    [Display(Name = "Số tầng")]
+    public int? SoTang { get; set; }
+
+    [Display(Name = "Người quản lý")]
+    public int? QuanLyId { get; set; }
+
+    [Display(Name = "Ghi chú")]
+    public string? GhiChu { get; set; }
+
+    public IReadOnlyList<SelectListItem> QuanLyOptions { get; set; } = [];
+}
+
+public class DanhSachToaNhaViewModel
+{
+    public string? TuKhoa { get; set; }
+    public IReadOnlyList<ToaNhaTongHopViewModel> ToaNhas { get; set; } = [];
+}
+
+public class ToaNhaTongHopViewModel
+{
+    public int Id { get; set; }
+    public string TenToaNha { get; set; } = string.Empty;
+    public string DiaChi { get; set; } = string.Empty;
+    public string? QuanLy { get; set; }
+    public int SoPhong { get; set; }
+    public int SoPhongTrong { get; set; }
+    public bool DangHoatDong { get; set; }
 }
