@@ -10,6 +10,7 @@
             var lockoutMessage = document.getElementById('lockoutMessage');
             var countdownTimer = document.getElementById('countdownTimer');
             var countdownInterval = null;
+            var useApi = form.dataset.useApi === 'true';
 
             function showLockout(seconds) {
                 errorEl.textContent = '';
@@ -37,48 +38,47 @@
 
             if (form) {
                 form.addEventListener('submit', async function (e) {
-                    e.preventDefault();
-                    errorEl.textContent = '';
-                    hideLockout();
+                    if (useApi) {
+                        e.preventDefault();
+                        errorEl.textContent = '';
+                        hideLockout();
 
-                    var taiKhoan = document.getElementById('TaiKhoanDangNhap').value.trim();
-                    var pwd = document.getElementById('MatKhau').value;
-                    var hasError = false;
+                        var taiKhoan = document.getElementById('TaiKhoanDangNhap').value.trim();
+                        var pwd = document.getElementById('MatKhau').value;
 
-                    if (!taiKhoan) {
-                        errorEl.textContent = 'Phải nhập số điện thoại hoặc email';
-                        return;
-                    }
-                    if (!pwd || pwd.length < 8) {
-                        errorEl.textContent = 'Mật khẩu tối thiểu 8 ký tự';
-                        return;
-                    }
-
-                    try {
-                        var res = await fetch('/api/auth/login', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ TaiKhoanDangNhap: taiKhoan, MatKhau: pwd })
-                        });
-                        var data = await res.json();
-                        if (!res.ok) {
-                            errorEl.textContent = data.message || 'Đăng nhập thất bại';
-                            // Check if account is locked
-                            if (data.message && data.message.includes('khoá')) {
-                                // Extract seconds from message if possible
-                                var match = data.message.match(/(\d+)\s*phút/);
-                                if (match) {
-                                    showLockout(parseInt(match[1]) * 60);
-                                }
-                            }
+                        if (!taiKhoan) {
+                            errorEl.textContent = 'Phải nhập số điện thoại hoặc email';
                             return;
                         }
-                        // Store tokens
-                        authSetTokens(data.accessToken, data.refreshToken);
-                        window.location.href = data.returnUrl || '/';
-                    } catch (err) {
-                        errorEl.textContent = 'Lỗi kết nối server';
+                        if (!pwd || pwd.length < 8) {
+                            errorEl.textContent = 'Mật khẩu tối thiểu 8 ký tự';
+                            return;
+                        }
+
+                        try {
+                            var res = await fetch('/api/auth/login', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ TaiKhoanDangNhap: taiKhoan, MatKhau: pwd })
+                            });
+                            var data = await res.json();
+                            if (!res.ok) {
+                                errorEl.textContent = data.message || 'Đăng nhập thất bại';
+                                if (data.message && data.message.includes('khoá')) {
+                                    var match = data.message.match(/(\d+)\s*phút/);
+                                    if (match) {
+                                        showLockout(parseInt(match[1]) * 60);
+                                    }
+                                }
+                                return;
+                            }
+                            authSetTokens(data.accessToken, data.refreshToken);
+                            window.location.href = data.returnUrl || '/';
+                        } catch (err) {
+                            errorEl.textContent = 'Lỗi kết nối server';
+                        }
                     }
+                    // If not useApi, let the form submit normally to MVC endpoint
                 });
             }
         })();
@@ -92,7 +92,7 @@
                 <h1>Đăng nhập</h1>
                 @if (TempData["PasswordSuccess"] is string success) { <div class="alert alert-success" role="status">@success</div> }
                 <p class="auth-description">Tiếp tục quản lý không gian sống của bạn.</p>
-                <form id="loginForm" novalidate>
+                <form id="loginForm" method="post" data-use-api="false" novalidate>
                     <div asp-validation-summary="ModelOnly" class="text-danger" role="alert" id="loginError"></div>
                     <input asp-for="ReturnUrl" type="hidden" />
                     <div class="mb-3">

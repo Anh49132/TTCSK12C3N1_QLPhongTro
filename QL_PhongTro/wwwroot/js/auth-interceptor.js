@@ -1,6 +1,7 @@
 (function () {
     let isRefreshing = false;
     let failedQueue = [];
+    let sessionRestored = false;
 
     const processQueue = (error, token = null) => {
         failedQueue.forEach(prom => {
@@ -37,6 +38,49 @@
         }
     };
 
+    // Check if access token is expired (with 30 second buffer)
+    const isAccessTokenExpired = () => {
+        const accessToken = localStorage.getItem('accessToken');
+        if (!accessToken) return true;
+        try {
+            const payload = JSON.parse(atob(accessToken.split('.')[1]));
+            const exp = payload.exp * 1000; // convert to milliseconds
+            return Date.now() >= (exp - 30000); // 30 second buffer
+        } catch {
+            return true;
+        }
+    };
+
+    // Restore session on page load: if access token expired but refresh token exists, try to refresh
+    const restoreSession = async () => {
+        if (sessionRestored) return;
+        sessionRestored = true;
+
+        const accessToken = localStorage.getItem('accessToken');
+        const refreshToken = localStorage.getItem('refreshToken');
+
+        if (!accessToken || !refreshToken) return;
+
+        if (isAccessTokenExpired()) {
+            try {
+                await refreshAccessToken();
+                console.log('Session restored via refresh token');
+            } catch (err) {
+                console.warn('Session restore failed, tokens cleared');
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                window.dispatchEvent(new Event('authChanged'));
+            }
+        }
+    };
+
+    // Call restore on page load
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', restoreSession);
+    } else {
+        restoreSession();
+    }
+
     const originalFetch = window.fetch;
     window.fetch = async (url, options = {}) => {
         const accessToken = localStorage.getItem('accessToken');
@@ -62,14 +106,13 @@
                 } catch (err) {
                     isRefreshing = false;
                     processQueue(err);
-                    // Redirect to login
                     localStorage.removeItem('accessToken');
                     localStorage.removeItem('refreshToken');
+                    window.dispatchEvent(new Event('authChanged'));
                     window.location.href = '/Account/Login';
                     throw err;
                 }
             } else {
-                // Wait for refresh to complete
                 try {
                     const newAccessToken = await new Promise((resolve, reject) => {
                         failedQueue.push({ resolve, reject });
@@ -84,7 +127,6 @@
                 }
             }
 
-            // Retry original request with new token
             options.headers = {
                 ...options.headers,
                 'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
@@ -95,7 +137,6 @@
         return response;
     };
 
-    // Helper to set tokens after login
     window.authSetTokens = (accessToken, refreshToken) => {
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', refreshToken);

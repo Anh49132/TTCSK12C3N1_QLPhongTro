@@ -11,7 +11,7 @@ using QL_PhongTro.Services;
 
 namespace QL_PhongTro.Controllers;
 
-public partial class AccountController(AppDbContext db, RegistrationSettings settings, SessionVersionStore sessions, AuthService authService) : Controller
+public partial class AccountController(AppDbContext db, RegistrationSettings settings, SessionVersionStore sessions, ICredentialValidationService credentialValidator) : Controller
 {
     private static bool ValidatePhone(string? phone) =>
         !string.IsNullOrWhiteSpace(phone) && Regex.IsMatch(phone, @"^0\d{9}$");
@@ -29,23 +29,16 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
     {
         if (!ModelState.IsValid) return View(request);
 
-        // Use the AuthService for consistent logic (1 ô TaiKhoanDangNhap + lockout)
-        var (success, response, error) = await authService.LoginAsync(request);
+        // Validate credentials using shared service (MVC cookie auth flow)
+        var validation = await credentialValidator.ValidateAsync(request);
 
-        if (!success)
+        if (!validation.Success)
         {
-            ModelState.AddModelError("", error ?? "Thông tin đăng nhập không hợp lệ.");
+            ModelState.AddModelError("", validation.Error ?? "Thông tin đăng nhập không hợp lệ.");
             return View(request);
         }
 
-        // AuthService already handles session version and lockout
-        // For cookie-based login, create identity with session version
-        var input = request.TaiKhoanDangNhap?.Trim() ?? "";
-        bool isEmail = input.Contains("@");
-        var user = await db.TaiKhoans.AsNoTracking().FirstOrDefaultAsync(u => isEmail ? u.Email == input.ToLower() : u.SoDienThoai == input);
-        
-        if (user is null) return View(request);
-
+        var user = validation.User!;
         var sessionVersion = sessions.Capture(user.Id, user.MatKhau);
         if (sessionVersion is null)
         {
@@ -62,10 +55,6 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
         }, CookieAuthenticationDefaults.AuthenticationScheme);
 
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-        
-        // Store tokens in TempData for potential use
-        TempData["AccessToken"] = response!.AccessToken;
-        TempData["RefreshToken"] = response.RefreshToken;
 
         return Url.IsLocalUrl(request.ReturnUrl) ? LocalRedirect(request.ReturnUrl!) : RedirectToAction("Index", "Home");
     }
@@ -74,6 +63,9 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
+        // For proper dual auth logout: need to revoke tokens if user has them
+        // Since we only have cookie here, we sign out the cookie
+        // The refresh token revocation would require the refresh token which we don't have in cookie-only flow
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction(nameof(Login));
     }
