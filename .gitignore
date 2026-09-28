@@ -35,3 +35,5 @@ obj/
 
 # Password reset schema backups
 *.sqlite.before-s105-*.bak*
+*.sqlite.before-s109-*.bak*
+/data/S1-09-verification/

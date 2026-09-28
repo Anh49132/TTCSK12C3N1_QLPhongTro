@@ -1,5 +1,11 @@
 # Tiến độ dự án
 
+## Gộp S1-09 vào dev (28/09/2026)
+
+- Gộp commit S1-09 `7216a8b` vào dev sau `a45b14b`; giữ phần staging S1-10, xử lý xung đột tài liệu bằng cách giữ bàn giao cả hai nhánh.
+- Đã restore và build bản gộp: 0 lỗi, còn cảnh báo ImageSharp và CS8601 cũ. Chưa chạy lại kiểm thử runtime trên bản gộp; bước tiếp theo là demo S1-09 trên DB kiểm thử theo hướng dẫn. Schema staging vẫn là fixture riêng, chưa xác minh tương thích với nghiệp vụ hóa đơn S1-09.
+- Không chạy ứng dụng hoặc script DB trong lần merge; không đưa thay đổi local project test, mật khẩu hay DB demo vào commit.
+
 ## S4-10 staging và nghiệm thu (28/09/2026)
 
 - Thêm staging Compose riêng, volume SQLite riêng, reset/seed có xác nhận Staging + `AllowReset`, chặn DB local, trang admin tổng hợp, và tài khoản mẫu bốn vai trò. Hướng dẫn: [staging.md](staging.md).
@@ -7,6 +13,14 @@
 - Sửa cookie authorization để route MVC trái quyền trả trực tiếp 403; cập nhật test và fixture auth. Cả lớp `PermissionTests`: 8/8 pass (7 test quyền + 1 staging integration).
 - Chưa chạy Docker Compose do máy hiện tại không có Docker CLI. Chưa có hợp đồng/hóa đơn/thanh toán nghiệp vụ trong app; schema staging chỉ phục vụ dữ liệu tổng hợp/dashboard, không phải migration production. Chưa xác minh demo end-to-end hoặc quyền từng chức năng cho module placeholder.
 - Không đọc/ghi `local-dev.sqlite`; các thay đổi DB/test/backup có sẵn của người dùng được giữ nguyên. Hai cảnh báo CS8601 ở AuthController và cảnh báo giấy phép ImageSharp vẫn còn.
+## Đang thực hiện — S1-09 AC1–AC4 (28/09/2026)
+
+- Đã viết năm dịch vụ mặc định chống khởi tạo trùng, sửa giá ban đầu, lịch sử giá/ngày hiệu lực, ngừng/kích hoạt lại, xóa có kiểm tra tham chiếu và giao diện tương ứng. Thêm hóa đơn tối thiểu cho kỳ thuê trọn tháng, lưu snapshot dòng hóa đơn và khóa sau phát hành; chưa làm toàn bộ backlog tài chính.
+- Người dùng chốt: trùng ngày từ chối, hóa đơn giữ snapshot, ngừng/kích hoạt từ kỳ sau; **chỉ mã/script và DB kiểm thử, không ghi DB gốc**. Giá mặc định và bảng đơn vị/cách tính chưa chốt; mặc định hiển thị “Chưa thiết lập”, chưa cho lập hóa đơn với giá chưa chốt.
+- Build app/bộ kiểm thử thành công, còn cảnh báo ImageSharp/CS8601 cũ. Console suite trong môi trường agent vẫn bị Application Control chặn; người dùng đã chạy app thành công. Đã xác minh HTTP thực tế các luồng mặc định/giá đầu vào/hóa đơn snapshot/giá hiệu lực/chặn xóa/ngừng và kích hoạt; chưa chạy toàn bộ suite, concurrency hoặc trình duyệt đồ họa, chưa nghiệm thu toàn bộ AC.
+- DB gốc vẫn chỉ có schema nền đã kiểm tra; giữ nguyên SHA-256, không áp dụng initializer hoặc chạy app vào DB gốc. Mã kiểm thử chuẩn bị fixture riêng khi môi trường cho chạy.
+- Thành phần, cách chạy, giả định/giới hạn và bước tiếp theo: [s1-09-dich-vu.md](s1-09-dich-vu.md). Bước kế tiếp: chốt giá, xử lý quyền chạy assembly, kiểm thử/demo trên bản sao; giữ nguyên thay đổi local project test từ trước.
+- DB demo đang dùng: `data/S1-09-verification/20260928102752-c3ffa2/test.sqlite`, app `http://localhost:5247`. Đã tạo năm giá thử, hóa đơn tháng 9 = 2.030.000đ, giá điện tháng 10 = 3.500đ, tham chiếu hợp đồng của Nước, dịch vụ thử xóa và lịch trạng thái. Hướng dẫn: [s1-09-demo.md](s1-09-demo.md). Chưa tạo hóa đơn tháng 10 để người dùng thử.
 
 ## Gộp S1-06 vào dev (28/09/2026)
 

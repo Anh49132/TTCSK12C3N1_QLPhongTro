@@ -5,6 +5,14 @@ namespace QL_PhongTro.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    public DbSet<DichVu> DichVus => Set<DichVu>();
+    public DbSet<CauHinhDichVu> CauHinhDichVus => Set<CauHinhDichVu>();
+    public DbSet<KhoiTaoDichVu> KhoiTaoDichVus => Set<KhoiTaoDichVu>();
+    public DbSet<HopDongThamChieu> HopDongs => Set<HopDongThamChieu>();
+    public DbSet<KyHopDongThamChieu> KyHopDongs => Set<KyHopDongThamChieu>();
+    public DbSet<HopDongDichVu> HopDongDichVus => Set<HopDongDichVu>();
+    public DbSet<HoaDon> HoaDons => Set<HoaDon>();
+    public DbSet<ChiTietHoaDon> ChiTietHoaDons => Set<ChiTietHoaDon>();
     public DbSet<KhachThue> KhachThues { get; set; } = null!;
     public DbSet<TaiKhoan> TaiKhoans { get; set; } = null!;
     public DbSet<ToaNha> ToaNhas { get; set; } = null!;
@@ -16,6 +24,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<HopDongDichVu>().HasIndex(x => new { x.HopDongId, x.DichVuId }).IsUnique();
+        modelBuilder.Entity<HopDongDichVu>().HasOne<HopDongThamChieu>().WithMany().HasForeignKey(x => x.HopDongId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<HopDongDichVu>().HasOne<DichVu>().WithMany().HasForeignKey(x => x.DichVuId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<HopDongDichVu>().HasOne<CauHinhDichVu>().WithMany().HasForeignKey(x => x.CauHinhDichVuId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<HoaDon>().HasIndex(x => new { x.HopDongId, x.Nam, x.Thang }).IsUnique().HasFilter("trang_thai <> 'DA_HUY'");
+        modelBuilder.Entity<HoaDon>().HasOne<HopDongThamChieu>().WithMany().HasForeignKey(x => x.HopDongId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<HoaDon>().HasMany(x => x.ChiTiet).WithOne().HasForeignKey(x => x.HoaDonId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ChiTietHoaDon>().HasOne<DichVu>().WithMany().HasForeignKey(x => x.DichVuId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ChiTietHoaDon>().HasOne<CauHinhDichVu>().WithMany().HasForeignKey(x => x.CauHinhDichVuId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ChiTietHoaDon>().HasOne<KyHopDongThamChieu>().WithMany().HasForeignKey(x => x.KyHopDongId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<DichVu>().HasIndex(x => x.MaDichVu).IsUnique();
+        modelBuilder.Entity<KhoiTaoDichVu>().HasOne<ToaNha>().WithMany().HasForeignKey(x => x.ToaNhaId).OnDelete(DeleteBehavior.Restrict);
+        var servicePrice = modelBuilder.Entity<CauHinhDichVu>();
+        servicePrice.HasOne(x => x.DichVu).WithMany().HasForeignKey(x => x.DichVuId).OnDelete(DeleteBehavior.Restrict);
+        servicePrice.HasOne<ToaNha>().WithMany().HasForeignKey(x => x.ToaNhaId).OnDelete(DeleteBehavior.Restrict);
+        servicePrice.HasOne<PhongTro>().WithMany().HasForeignKey(x => x.PhongId).OnDelete(DeleteBehavior.Restrict);
+        servicePrice.HasOne<TaiKhoan>().WithMany().HasForeignKey(x => x.NguoiTaoId).OnDelete(DeleteBehavior.Restrict);
+        servicePrice.HasIndex(x => new { x.ToaNhaId, x.DichVuId, x.TuNgay }).IsUnique().HasFilter("phong_id IS NULL");
+        servicePrice.HasIndex(x => new { x.PhongId, x.DichVuId, x.TuNgay }).IsUnique().HasFilter("phong_id IS NOT NULL");
         modelBuilder.Entity<AppRole>().ToTable("app_role").HasKey(r => r.Code);
         modelBuilder.Entity<AppModule>().ToTable("app_module").HasKey(m => m.Code);
         var permission = modelBuilder.Entity<RolePermission>();
