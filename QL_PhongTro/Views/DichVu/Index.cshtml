@@ -1,0 +1,55 @@
+@model QL_PhongTro.ViewModels.DanhSachDichVuViewModel
+@using QL_PhongTro.Models
+@using System.Globalization
+@using QL_PhongTro.Services
+@inject QL_PhongTro.Authorization.PermissionService Permissions
+@{ ViewData["Title"] = "Dịch vụ và đơn giá"; }
+<section class="mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div><p class="text-uppercase text-secondary small">Vận hành nhà cho thuê</p><h1 class="h2">Dịch vụ và đơn giá</h1><p class="text-secondary mb-0">Danh sách dịch vụ đã khai báo theo từng tòa nhà.</p></div>
+    @if (Model.SanSang && Model.ToaNhaId.HasValue && await Permissions.AllowsAsync("PHONG_TRO", true))
+    { <a asp-action="Create" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-primary">Thêm dịch vụ</a> }
+</section>
+@if (TempData["DichVuMessage"] is string message) { <div class="alert alert-success" role="status">@message</div> }
+@{ var error = TempData["DichVuError"] as string; }
+@if (error is not null) { <div class="alert alert-danger" role="alert">@error</div> }
+@if (!Model.SanSang)
+{
+    <div class="alert alert-info" role="status">Chức năng dịch vụ chưa sẵn sàng. Vui lòng liên hệ người quản trị để hoàn tất thiết lập.</div>
+}
+else if (Model.ToaNhas.Count == 0)
+{
+    <p>Bạn chưa có tòa nhà đang hoạt động.</p>
+    <a asp-controller="PhongTro" asp-action="TaoToaNha" class="btn btn-primary">Khai báo tòa nhà</a>
+}
+else
+{
+    @if (await Permissions.AllowsAsync("TAI_CHINH")) { <p><a class="btn btn-outline-primary" asp-controller="HoaDonDichVu" asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId">Lập và xem hóa đơn</a></p> }
+    @if (Model.CanKhoiTao && await Permissions.AllowsAsync("PHONG_TRO", true))
+    {
+        <form id="initialize-services" asp-action="Initialize" method="post" class="mb-3">
+            <input name="toaNhaId" value="@Model.ToaNhaId" type="hidden" />
+            <p>Chuẩn bị điện, nước, rác, gửi xe và internet cho tòa nhà.</p><button class="btn btn-primary">Khởi tạo năm dịch vụ</button>
+        </form>
+        @if (error is null) { <script>document.getElementById('initialize-services').requestSubmit();</script> }
+    }
+    <form method="get" class="d-flex flex-wrap align-items-end gap-2 mb-4">
+        <div><label for="toaNhaId" class="form-label">Tòa nhà</label><select id="toaNhaId" name="toaNhaId" asp-for="ToaNhaId" asp-items="Model.ToaNhas" class="form-select"></select></div>
+        <button class="btn btn-outline-primary" type="submit">Xem dịch vụ</button>
+    </form>
+    @if (Model.DichVus.Count == 0)
+    { <p class="text-secondary">Chưa có dịch vụ. Chọn “Thêm dịch vụ” để khai báo đơn giá đầu tiên.</p> }
+    else
+    {
+        <div class="table-responsive">
+        <table class="table align-middle">
+            <caption>@Model.DichVus.Select(x => x.DichVuId).Distinct().Count() dịch vụ đã khai báo</caption>
+            <thead><tr><th scope="col">Tên dịch vụ</th><th scope="col">Cách tính tiền</th><th scope="col">Đơn vị tính</th><th scope="col" class="text-end">Đơn giá (VND)</th><th scope="col">Trạng thái</th></tr></thead>
+            <tbody>@foreach (var versions in Model.DichVus.GroupBy(x => x.DichVuId))
+            {
+                var item = versions.Where(x => x.TuNgay <= DichVuService.HomNay()).OrderBy(x => x.TuNgay).LastOrDefault() ?? versions.OrderBy(x => x.TuNgay).First();
+                <tr><td><a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@item.DichVuId">@item.DichVu.TenDichVu</a>@if (DichVuMacDinhOptions.LaMacDinh(item.DichVu.MaDichVu)) { <span class="badge text-bg-light ms-1">Mặc định</span> }@if (versions.Any(x => x.TuNgay > DichVuService.HomNay())) { <small class="d-block text-secondary">Có thay đổi đã lên lịch</small> }</td><td>@CachTinhDichVu.Ten(item.CachTinh)</td><td>@item.DonViTinh</td><td class="text-end text-nowrap">@(item.DaChotGia ? item.DonGia.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) : "Chưa thiết lập")</td><td>@(!item.DaChotGia ? "Chờ đơn giá" : item.DangApDung && item.DichVu.DangHoatDong ? "Đang áp dụng" : "Ngừng áp dụng")</td></tr>
+            }</tbody>
+        </table>
+        </div>
+    }
+}

@@ -51,6 +51,16 @@ if (args.Contains("--initialize-password-security"))
     PasswordSchemaInitializer.Initialize(databasePath);
     return;
 }
+if (args.Contains("--initialize-services"))
+{
+    DichVuSchemaInitializer.Initialize(databasePath);
+    return;
+}
+if (args.Contains("--initialize-service-invoices"))
+{
+    DichVuSchemaInitializer.InitializeInvoices(databasePath);
+    return;
+}
 var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
 {
     DataSource = databasePath, Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadWrite, ForeignKeys = true
@@ -88,6 +98,9 @@ builder.Services.Configure<PasswordResetOptions>(builder.Configuration.GetSectio
 builder.Services.AddScoped<IPasswordEmailSender, PasswordEmailSender>();
 builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddScoped<SessionVersionStore>();
+builder.Services.AddScoped<DichVuService>();
+builder.Services.AddScoped<HoaDonDichVuService>();
+builder.Services.Configure<DichVuMacDinhOptions>(builder.Configuration.GetSection("DichVuMacDinh"));
 
 builder.Services.AddAuthentication()
 .AddJwtBearer(options =>
