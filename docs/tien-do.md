@@ -1,5 +1,18 @@
 # Tiến độ dự án
 
+## Dọn môi trường và xác minh trước báo cáo (28/09/2026)
+
+- Dừng server và dọn các cache/build bị Git ignore: `.vs`, `bin`, `obj` của app, S109 và project test. Giữ nguyên SQLite, backup, dữ liệu demo và `App_Data`; các output cần thiết đã được tạo lại khi build.
+- Loại thông tin đăng nhập cụ thể không khớp CSDL khỏi README, giữ biến môi trường ở dạng mẫu. README bổ sung cách tránh server cũ khóa file và dùng build Debug cho chạy local.
+- Restore và build Debug thành công (0 lỗi, còn cảnh báo license ImageSharp và 2 cảnh báo nullable cũ); `--check-database` báo schema sẵn sàng. Chạy app Development tại `http://localhost:5247`, GET `/` và `/Account/Login` đều HTTP 200, rồi dừng server sạch.
+- Build Release chưa đạt: ImageSharp 4.1.2 yêu cầu license hợp lệ và dừng build Release. Chưa thay package hoặc bỏ kiểm tra license; Docker dùng Release nên cần cấu hình license qua secret trước khi dùng. Không đưa SQLite và thay đổi project test local vào commit.
+
+## Hướng dẫn tránh khóa file khi chạy local (28/09/2026)
+
+- Cập nhật `README.md` để dừng tiến trình `QL_PhongTro` cũ trước khi restore/build/update DB, giữ đúng terminal có dòng `Now listening` và dùng Ctrl+C tại terminal đó.
+- Bổ sung cách xử lý lỗi `MSB3021`/`MSB3027` do `QL_PhongTro.exe` đang bị server cũ khóa; phân biệt với lỗi thiếu bảng SQLite và dẫn lại quy trình cập nhật CSDL.
+- Chỉ sửa tài liệu; không thay đổi mã nguồn hoặc schema. Đã kiểm tra diff và nội dung lệnh PowerShell, không chạy lại build vì thay đổi không ảnh hưởng ứng dụng.
+
 ## Sửa startup sau merge S1-03/S1-09 (28/09/2026)
 
 - Nguyên nhân app không chạy: `DatabaseUpdates.Check` duyệt mọi entity EF nên yêu cầu cả schema S1-09 dù S1-09 được bàn giao là module tùy chọn chỉ dùng DB kiểm thử. `--update-database`, tạo ADMIN và startup đều dừng khi DB local thiếu dịch vụ/hợp đồng/hóa đơn.

@@ -13,6 +13,9 @@
 Mở Terminal tại thư mục chứa README này:
 
 ```powershell
+# Dừng phiên QL_PhongTro cũ nếu terminal trước đã đóng hoặc không còn thấy dòng "Now listening"
+Get-Process QL_PhongTro -ErrorAction SilentlyContinue | Stop-Process -Force
+
 dotnet restore .\QL_PhongTro\QL_PhongTro.csproj
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --update-database
 $env:LocalAdmin__Email = 'admin-local@example.test'
@@ -22,7 +25,15 @@ dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --create-local-admin
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
 ```
 
-Truy cập http://localhost:5247. Nhấn Ctrl+C để dừng.
+Truy cập http://localhost:5247. Giữ terminal đang hiện `Now listening on: http://localhost:5247` mở trong lúc sử dụng. Muốn dừng server, bấm vào đúng terminal đó, nhấn Ctrl+C và chờ dấu nhắc `PS C:\...>` xuất hiện lại rồi mới build hoặc chạy lần nữa.
+
+Nếu terminal đã hiện dấu nhắc `PS C:\...>` nhưng website vẫn truy cập được, server đang chạy ở terminal hoặc tiến trình khác. Dừng tiến trình cũ bằng:
+
+```powershell
+Get-Process QL_PhongTro -ErrorAction SilentlyContinue | Stop-Process -Force
+```
+
+Lỗi `MSB3021` hoặc `MSB3027` kèm thông báo `QL_PhongTro.exe ... being used by another process` có nghĩa là server cũ đang khóa file build. Chạy lệnh dừng ở trên, đợi vài giây rồi chạy lại lệnh `dotnet run`. Lỗi SQLite như `no such table` có nguyên nhân khác; làm theo quy trình `--update-database` và tài liệu `docs/cap-nhat-csdl.md`.
 
 Lệnh `--update-database` sao lưu rồi cập nhật schema còn thiếu; nên dừng ứng dụng trước khi chạy. Ứng dụng yêu cầu file SQLite đã tồn tại và không tự tạo lại CSDL nền. Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt biến môi trường `DatabasePath` để dùng file riêng.
 
@@ -48,7 +59,9 @@ Quy trình đồng bộ schema và hướng dẫn kiểm thử S1-03 nằm tại
 ## Kiểm tra build
 
 ```powershell
-dotnet build .\QL_PhongTro\QL_PhongTro.csproj -c Release
+dotnet build .\QL_PhongTro\QL_PhongTro.csproj
 ```
 
 Các view `.cshtml` được biên dịch cùng dự án C#. Dùng `dotnet watch` khi phát triển để cập nhật thay đổi giao diện.
+
+Build Debug ở trên phù hợp để chạy và báo cáo local. Build Release và Docker hiện yêu cầu cấu hình license hợp lệ cho `SixLabors.ImageSharp` 4.1.2; nếu chưa có license, bước build Release sẽ dừng thay vì chỉ cảnh báo. Không thêm khóa license vào Git; cấu hình qua secret của môi trường triển khai.
