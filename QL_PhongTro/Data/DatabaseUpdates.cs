@@ -39,9 +39,23 @@ public static class DatabaseUpdates
         using var c = Open(path, true);
         var problems = new List<string>();
         using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(c).Options);
+        var contracts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "hop_dong", "ky_hop_dong" };
+        var services = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "dich_vu", "cau_hinh_dich_vu", "khoi_tao_dich_vu" };
+        var invoices = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "hoa_don", "chi_tiet_hoa_don", "hop_dong_dich_vu" };
+        var requiredOptional = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (contracts.Any(table => HasTable(c, table))) requiredOptional.UnionWith(contracts);
+        if (services.Any(table => HasTable(c, table))) requiredOptional.UnionWith(services);
+        if (invoices.Any(table => HasTable(c, table)))
+        {
+            requiredOptional.UnionWith(contracts);
+            requiredOptional.UnionWith(services);
+            requiredOptional.UnionWith(invoices);
+        }
         foreach (var entity in db.Model.GetEntityTypes())
         {
             var table = entity.GetTableName()!;
+            var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table);
+            if (isOptional && !requiredOptional.Contains(table)) continue;
             var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
             var columns = entity.GetProperties().Select(p => p.GetColumnName(store)!);
             Probe(table, columns);
@@ -59,6 +73,8 @@ public static class DatabaseUpdates
             throw new InvalidOperationException("Database schema is not ready: " + string.Join("; ", problems) +
                 "\nStop the app, then run: dotnet run --project QL_PhongTro -- --update-database" +
                 "\nUse the same DatabasePath for update and startup. Existing incompatible columns require manual review. No schema was changed by this check.");
+        if (!services.Any(table => HasTable(c, table)))
+            Console.WriteLine("Optional S1-09 service schema is not installed; service and service-invoice pages are unavailable for this database.");
 
         void Probe(string table, IEnumerable<string> columns)
         {

@@ -1,5 +1,11 @@
 # Tiến độ dự án
 
+## Sửa startup sau merge S1-03/S1-09 (28/09/2026)
+
+- Nguyên nhân app không chạy: `DatabaseUpdates.Check` duyệt mọi entity EF nên yêu cầu cả schema S1-09 dù S1-09 được bàn giao là module tùy chọn chỉ dùng DB kiểm thử. `--update-database`, tạo ADMIN và startup đều dừng khi DB local thiếu dịch vụ/hợp đồng/hóa đơn.
+- Sửa check theo nhóm: schema lõi luôn bắt buộc; hợp đồng, dịch vụ và hóa đơn chỉ được kiểm tra khi nhóm tương ứng đã bắt đầu tồn tại. Nếu hóa đơn tồn tại thì kiểm tra cả hợp đồng + dịch vụ. Schema tùy chọn tồn tại một phần vẫn bị chặn; DB không có S1-09 được phép chạy và console báo module chưa cài.
+- Không tạo bảng S1-09 hoặc sửa dữ liệu nghiệp vụ. CSDL local hiện integrity=ok, 0 lỗi FK, schema S1-03 v2; backup từ lần update lỗi vẫn được giữ. Cần dùng fixture theo `s1-09-dich-vu.md` nếu muốn demo module dịch vụ/hóa đơn.
+
 ## Gộp S1-03 vào dev (28/09/2026)
 
 - Gộp commit S1-03 `730c063` vào `dev` mới nhất sau S1-09 (`97d01d2`); giữ bàn giao và ignore của cả hai nhánh. Xung đột chỉ ở `.gitignore` và tài liệu tiến độ.
