@@ -1,0 +1,120 @@
+@model QL_PhongTro.ViewModels.DanhSachPhongViewModel
+@using System.Globalization
+@inject QL_PhongTro.Authorization.PermissionService Permissions
+
+@{
+    ViewData["Title"] = "Quản lý phòng";
+    var canWrite = await Permissions.AllowsAsync("PHONG_TRO", write: true);
+}
+
+<section class="mb-4">
+    <p class="text-uppercase text-secondary small fw-semibold mb-2">Vận hành nhà cho thuê</p>
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+        <div>
+            <h1 class="h2 mb-1">Quản lý phòng</h1>
+            <p class="text-secondary mb-0">Theo dõi thông tin và tình trạng phòng theo từng tòa nhà.</p>
+        </div>
+        @if (Model.ToaNhaOptions.Count > 0 && canWrite)
+        {
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-outline-secondary" asp-action="CreateBulk" asp-route-toaNhaId="@Model.ToaNhaId">Tạo nhanh</a>
+                <a class="btn btn-primary" asp-action="Create" asp-route-toaNhaId="@Model.ToaNhaId">Thêm phòng</a>
+            </div>
+        }
+    </div>
+</section>
+
+@if (TempData["RoomMessage"] is string message)
+{
+    <div class="alert alert-success" role="status">@message</div>
+}
+
+@if (Model.ToaNhaOptions.Count == 0)
+{
+    <div class="border-top border-bottom py-4">
+        <h2 class="h5">Chưa có tòa nhà</h2>
+        <p class="text-secondary">Khai báo tòa nhà để bắt đầu thêm và theo dõi phòng.</p>
+        @if (canWrite)
+        {
+            <a class="btn btn-primary" asp-action="TaoToaNha">Khai báo tòa nhà</a>
+        }
+    </div>
+}
+else
+{
+    <form method="get" asp-action="Index" class="row g-2 align-items-end mb-3">
+        <div class="col-sm-6 col-md-4">
+            <label for="toaNhaId" class="form-label">Tòa nhà</label>
+            <select id="toaNhaId" name="toaNhaId" asp-items="Model.ToaNhaOptions" class="form-select"></select>
+        </div>
+        <div class="col-sm-6 col-md-4">
+            <label asp-for="TrangThaiFilter" class="form-label">Trạng thái</label>
+            <select asp-for="TrangThaiFilter" asp-items="Model.TrangThaiOptions" class="form-select">
+                <option value="">Tất cả trạng thái</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-outline-secondary">Lọc danh sách</button>
+        </div>
+    </form>
+
+    <div class="d-flex flex-wrap gap-3 border-top border-bottom py-3 mb-3" aria-label="Số lượng phòng theo trạng thái">
+        @foreach (var status in Model.TrangThaiOptions)
+        {
+            <span>@status.Text <strong>@Model.SoLuongTheoTrangThai[status.Value!]</strong></span>
+        }
+    </div>
+
+    @if (Model.PhongTros.Count == 0)
+    {
+        <div class="border-top border-bottom py-4">
+            <h2 class="h5">Tòa nhà chưa có phòng</h2>
+            <p class="text-secondary">Phòng mới sẽ xuất hiện tại đây sau khi lưu.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Mã phòng</th>
+                        <th scope="col">Tầng</th>
+                        <th scope="col">Diện tích</th>
+                        <th scope="col">Giá thuê / tháng</th>
+                        <th scope="col">Số người tối đa</th>
+                        <th scope="col">Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var room in Model.PhongTros)
+                    {
+                        var statusLabel = room.TrangThai switch
+                        {
+                            "TRONG" => "Trống",
+                            "DA_DAT_COC" => "Đã đặt cọc",
+                            "DANG_THUE" => "Đang thuê",
+                            "NGUNG_CHO_THUE" => "Ngừng cho thuê",
+                            _ => room.TrangThai
+                        };
+                        var statusClass = room.TrangThai switch
+                        {
+                            "TRONG" => "text-bg-success",
+                            "DA_DAT_COC" => "text-bg-warning",
+                            "DANG_THUE" => "text-bg-primary",
+                            _ => "text-bg-secondary"
+                        };
+                        <tr>
+                            <th scope="row">@room.MaPhong</th>
+                            <td>@room.Tang</td>
+                            <td>@room.DienTich.ToString("N2", CultureInfo.GetCultureInfo("vi-VN")) m²</td>
+                            <td>@room.GiaThue.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) đ</td>
+                            <td>@room.SoNguoiToiDa</td>
+                            <td><span class="badge @statusClass">@statusLabel</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}

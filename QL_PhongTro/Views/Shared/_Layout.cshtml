@@ -1,0 +1,52 @@
+@inject QL_PhongTro.Authorization.PermissionService Permissions
+@{ var menu = await Permissions.MenuAsync(); }
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>@ViewData["Title"] - Nhà Trọ</title>
+<link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+<link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+<a class="skip-link" href="#main-content">Đến nội dung chính</a>
+<header class="site-header">
+<nav class="header-inner" aria-label="Điều hướng chính">
+<a class="brand" asp-controller="Home" asp-action="Index"><span class="brand-mark" aria-hidden="true">⌂</span><span>Nhà Trọ<span class="brand-caption">QUẢN LÝ KHÔNG GIAN SỐNG</span></span></a>
+<div class="header-actions">
+<a class="home-link" asp-controller="Home" asp-action="Index">Trang chủ</a>
+@if (User.Identity?.IsAuthenticated == true) {
+@if (User.IsInRole("KHACH_THUE")) { <a asp-controller="Account" asp-action="ChangePassword">Đổi mật khẩu</a> }
+@if (User.IsInRole("KHACH_THUE")) { <a asp-controller="HoSo" asp-action="Index">Hồ sơ cá nhân</a> }
+<a asp-controller="HoSo" asp-action="Xem">Xem hồ sơ</a>
+<span class="account-name">@User.Identity.Name</span>
+<form asp-controller="Account" asp-action="Logout" method="post"><button class="btn btn-outline-primary" type="submit">Đăng xuất</button></form>
+} else {
+<a asp-controller="Account" asp-action="Login">Đăng nhập</a>
+<a asp-controller="Account" asp-action="Register" class="btn btn-primary">Tạo tài khoản ↗</a>
+}
+</div>
+</nav>
+</header>
+<div class="app-shell @(menu.Count > 0 ? "with-sidebar" : "")">
+@if (menu.Count > 0) {
+<aside class="app-sidebar"><p class="eyebrow">KHÔNG GIAN LÀM VIỆC</p><nav aria-label="Menu chức năng">
+@foreach (var group in menu.GroupBy(m => m.GroupName)) {
+<section data-menu-group="@group.Key"><h2>@group.Key</h2>
+@foreach (var module in group) {
+var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
+<a class="sidebar-link @(Context.Request.Path.StartsWithSegments(url) ? "is-active" : "")" data-menu-module="@module.Code" href="@url">@module.Name <span aria-hidden="true">↗</span></a>
+}
+</section>
+}
+</nav></aside>
+}
+<main id="main-content" class="app-content">@RenderBody()</main>
+</div>
+<footer class="site-footer"><div><a class="footer-brand" asp-controller="Home" asp-action="Index">Nhà Trọ.</a><span>Một nơi ở tốt. Một cách quản lý tốt hơn.</span></div><span>© @DateTime.Now.Year · Quản lý phòng trọ</span></footer>
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

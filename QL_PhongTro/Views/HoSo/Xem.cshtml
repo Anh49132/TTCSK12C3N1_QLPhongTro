@@ -1,0 +1,32 @@
+@model QL_PhongTro.ViewModels.XemHoSoViewModel
+@{ ViewData["Title"] = "Xem hồ sơ"; }
+<h1>Xem hồ sơ</h1>
+<form asp-action="Xem" method="get" class="mb-4">
+    <label for="profile-id" class="form-label">Mã hồ sơ</label>
+    <input id="profile-id" name="id" type="number" min="1" required class="form-control" />
+    <button class="btn btn-primary mt-2" type="submit">Xem hồ sơ</button>
+</form>
+@if (Model.Id > 0)
+{
+    <p>Mã hồ sơ: @Model.Id</p>
+    <dl>
+        <dt>Họ tên</dt><dd>@Model.HoTen</dd>
+        <dt>Số căn cước</dt><dd id="can-cuoc-hien-thi">@Model.CanCuocHienThi</dd>
+        @if (Model.LaChuHoSo || Model.XemDayDu)
+        {
+            <dt>Ngày sinh</dt><dd>@Model.NgaySinh?.ToString("dd/MM/yyyy")</dd>
+            <dt>Quê quán</dt><dd>@Model.QueQuan</dd>
+            <dt>Nghề nghiệp</dt><dd>@Model.NgheNghiep</dd>
+        }
+    </dl>
+    @if (!Model.XemDayDu) { <p class="text-muted">Số căn cước chỉ hiển thị 4 chữ số cuối theo quyền của bạn.</p> }
+    @if (Model.CoAnhMatTruoc)
+    {
+        <img src="@Url.Action("Anh", new { id = Model.Id, mat = "truoc" })" alt="Ảnh giấy tờ mặt trước" class="img-fluid mb-3" style="max-height:280px" />
+    }
+    @if (Model.CoAnhMatSau)
+    {
+        <img src="@Url.Action("Anh", new { id = Model.Id, mat = "sau" })" alt="Ảnh giấy tờ mặt sau" class="img-fluid mb-3" style="max-height:280px" />
+    }
+    @if (Model.LaChuHoSo) { <p><a asp-action="Index">Chỉnh sửa hồ sơ của tôi</a></p> }
+}

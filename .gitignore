@@ -1,0 +1,36 @@
+# Ignore local dev SQLite database
+**/Data/local-dev.sqlite
+**/Data/*.sqlite
+**/*.sqlite-shm
+**/*.sqlite-wal
+/data/local-dev.sqlite
+/data/*.sqlite
+/data/backups/
+/QL_PhongTro/App_Data/
+/data/S1-06-images/
+*.sqlite-shm
+*.sqlite-wal
+
+# User files
+*.user
+*.suo
+.vs/
+.vscode/
+
+# Build outputs
+bin/
+obj/
+
+# Local SQLite backups created by the explicit permission initializer
+*.sqlite.before-s1-04-*.bak*
+
+# Environment files (keep .env.example but ignore .env)
+.env
+.env.local
+
+# Tests output
+**/TestResults/
+
+
+# Password reset schema backups
+*.sqlite.before-s105-*.bak*
