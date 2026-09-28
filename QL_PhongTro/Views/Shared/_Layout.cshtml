@@ -1,4 +1,5 @@
 @inject QL_PhongTro.Authorization.PermissionService Permissions
+@inject IWebHostEnvironment Environment
 @{ var menu = await Permissions.MenuAsync(); }
 <!DOCTYPE html>
 <html lang="vi">
@@ -9,111 +10,6 @@
 <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
-<<<<<<< HEAD
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">QL_PhongTro</a>
-                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex flex-sm-row-reverse">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="PhongTro" asp-action="Index">Quản lý phòng</a>
-                        </li>
-                        <li class="nav-item ms-sm-auto" id="authButtons">
-                            <a class="btn btn-primary nav-link text-white px-3" asp-area="" asp-controller="Account" asp-action="Register" id="registerBtn">Đăng ký</a>
-                            <a class="btn btn-primary nav-link text-white px-3 ms-2" asp-area="" asp-controller="Account" asp-action="Login" id="loginBtn">Đăng nhập</a>
-                            <button class="btn btn-danger nav-link text-white px-3 ms-2 d-none" id="logoutBtn" type="button">Đăng xuất</button>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
-
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - QL_PhongTro - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-        </div>
-    </footer>
-
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script src="~/js/site.js" asp-append-version="true"></script>
-    <script src="~/js/auth-interceptor.js" asp-append-version="true"></script>
-
-    <script>
-        (function () {
-            function updateAuthUI() {
-                var hasToken = !!localStorage.getItem('accessToken');
-                var registerBtn = document.getElementById('registerBtn');
-                var loginBtn = document.getElementById('loginBtn');
-                var logoutBtn = document.getElementById('logoutBtn');
-
-                if (hasToken) {
-                    if (registerBtn) registerBtn.classList.add('d-none');
-                    if (loginBtn) loginBtn.classList.add('d-none');
-                    if (logoutBtn) logoutBtn.classList.remove('d-none');
-                } else {
-                    if (registerBtn) registerBtn.classList.remove('d-none');
-                    if (loginBtn) loginBtn.classList.remove('d-none');
-                    if (logoutBtn) logoutBtn.classList.add('d-none');
-                }
-            }
-
-            // Initial check
-            updateAuthUI();
-
-            // Listen for storage changes (login/logout in other tabs)
-            window.addEventListener('storage', updateAuthUI);
-
-            // Logout handler
-            var logoutBtn = document.getElementById('logoutBtn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', async function () {
-                    var refreshToken = localStorage.getItem('refreshToken');
-                    var accessToken = localStorage.getItem('accessToken');
-
-                    try {
-                        await fetch('/api/auth/logout', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': 'Bearer ' + accessToken
-                            },
-                            body: JSON.stringify({ RefreshToken: refreshToken })
-                        });
-                    } catch (err) {
-                        console.error('Logout error:', err);
-                    } finally {
-                        localStorage.removeItem('accessToken');
-                        localStorage.removeItem('refreshToken');
-                        updateAuthUI();
-                        window.location.href = '/Account/Login';
-                    }
-                });
-            }
-
-            // Listen for custom auth events
-            window.addEventListener('authChanged', updateAuthUI);
-        })();
-    </script>
-@RenderSection("Scripts", required: false)
-
-    </body>
-=======
 <a class="skip-link" href="#main-content">Đến nội dung chính</a>
 <header class="site-header">
 <nav class="header-inner" aria-label="Điều hướng chính">
@@ -123,12 +19,13 @@
 @if (User.Identity?.IsAuthenticated == true) {
 @if (User.IsInRole("KHACH_THUE")) { <a asp-controller="Account" asp-action="ChangePassword">Đổi mật khẩu</a> }
 @if (User.IsInRole("KHACH_THUE")) { <a asp-controller="HoSo" asp-action="Index">Hồ sơ cá nhân</a> }
+@if (Environment.IsStaging() && User.IsInRole("ADMIN")) { <a asp-controller="Staging" asp-action="Index">Staging</a> }
 <a asp-controller="HoSo" asp-action="Xem">Xem hồ sơ</a>
 <span class="account-name">@User.Identity.Name</span>
-<form asp-controller="Account" asp-action="Logout" method="post"><button class="btn btn-outline-primary" type="submit">Đăng xuất</button></form>
+<form asp-controller="Account" asp-action="Logout" method="post"><button class="btn btn-outline-primary" type="submit" id="logoutBtn">Đăng xuất</button></form>
 } else {
-<a asp-controller="Account" asp-action="Login">Đăng nhập</a>
-<a asp-controller="Account" asp-action="Register" class="btn btn-primary">Tạo tài khoản ↗</a>
+<a asp-controller="Account" asp-action="Login" id="loginBtn">Đăng nhập</a>
+<a asp-controller="Account" asp-action="Register" class="btn btn-primary" id="registerBtn">Tạo tài khoản ↗</a>
 }
 </div>
 </nav>
@@ -141,6 +38,9 @@
 @foreach (var module in group) {
 var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
 <a class="sidebar-link @(Context.Request.Path.StartsWithSegments(url) ? "is-active" : "")" data-menu-module="@module.Code" href="@url">@module.Name <span aria-hidden="true">↗</span></a>
+@if (module.Code == "PHONG_TRO" && User.IsInRole("CHU_NHA")) {
+<a class="sidebar-link @(Context.Request.Path.StartsWithSegments("/DichVu") ? "is-active" : "")" asp-controller="DichVu" asp-action="Index">Dịch vụ và đơn giá <span aria-hidden="true">↗</span></a>
+}
 }
 </section>
 }
@@ -152,7 +52,7 @@ var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
+<script src="~/js/auth-interceptor.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>
->>>>>>> origin/dev
 </html>

@@ -22,42 +22,35 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
 
     public async Task<(bool success, LoginResponse? response, string? error)> LoginAsync(LoginRequest request)
     {
-<<<<<<< HEAD
+        // Serialize credential verification/token persistence with transaction.
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+
         // Tạm: nhận TaiKhoanDangNhap, phát hiện email (có @) hay SĐT (toàn số)
         var input = request.TaiKhoanDangNhap?.Trim() ?? "";
         bool isEmail = input.Contains("@");
-=======
-        // Serialize credential verification/token persistence with password reset.
-        await using var transaction = await _db.Database.BeginTransactionAsync();
-        var emailNorm = request.Email?.Trim().ToLower();
-        var phoneNorm = request.SoDienThoai?.Trim();
-
->>>>>>> origin/dev
         var user = await _db.TaiKhoans
             .FirstOrDefaultAsync(u => isEmail ? u.Email == input.ToLower() : u.SoDienThoai == input);
 
         if (user is null || !user.DangHoatDong)
         {
             await Task.Delay(1000);
-            return (false, null, "Thông tin đăng nhập không chính xác"); // TẠM — chờ PO xác nhận chính thức
+            await transaction.CommitAsync();
+            return (false, null, "Thông tin đăng nhập không chính xác");
         }
 
         var now = _timeProvider.UtcNow;
         if (user.LockedUntil is not null && user.LockedUntil > now)
         {
             var remaining = (int)Math.Ceiling((user.LockedUntil.Value - now).TotalMinutes);
+            await transaction.CommitAsync();
             return (false, null, $"Tài khoản đã khoá. Vui lòng thử lại sau {remaining} phút");
         }
 
         if (!BCrypt.Net.BCrypt.Verify(request.MatKhau ?? string.Empty, user.MatKhau))
         {
             await HandleFailedLogin(user, now);
-<<<<<<< HEAD
-            return (false, null, "Thông tin đăng nhập không chính xác"); // TẠM — chờ PO xác nhận chính thức
-=======
             await transaction.CommitAsync();
-            return (false, null, "Sai email/SĐT hoặc mật khẩu");
->>>>>>> origin/dev
+            return (false, null, "Thông tin đăng nhập không chính xác");
         }
 
         await HandleSuccessfulLogin(user, now);
@@ -142,13 +135,12 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
         return (true, "Đăng xuất thành công");
     }
 
-    public async Task<(bool blocked, int remainingMinutes)> CheckLockoutAsync(string emailOrPhone)
+    public async Task<(bool blocked, int remainingMinutes)> CheckLockoutAsync(string taiKhoanDangNhap)
     {
-        var emailNorm = emailOrPhone.Trim().ToLower();
-        var phoneNorm = emailOrPhone.Trim();
-
+        var input = taiKhoanDangNhap?.Trim() ?? "";
+        bool isEmail = input.Contains("@");
         var user = await _db.TaiKhoans
-            .FirstOrDefaultAsync(u => u.Email == emailNorm || u.SoDienThoai == phoneNorm);
+            .FirstOrDefaultAsync(u => isEmail ? u.Email == input.ToLower() : u.SoDienThoai == input);
 
         if (user is null) return (false, 0);
 

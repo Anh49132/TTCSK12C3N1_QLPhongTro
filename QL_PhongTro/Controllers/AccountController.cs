@@ -5,17 +5,13 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
-
-using QL_PhongTro.ViewModels;
-using Microsoft.EntityFrameworkCore;
-
-using QL_PhongTro.Services;
 using QL_PhongTro.ViewModels.Auth;
-
+using Microsoft.EntityFrameworkCore;
+using QL_PhongTro.Services;
 
 namespace QL_PhongTro.Controllers;
 
-public partial class AccountController(AppDbContext db, RegistrationSettings settings, SessionVersionStore sessions) : Controller
+public partial class AccountController(AppDbContext db, RegistrationSettings settings, SessionVersionStore sessions, AuthService authService) : Controller
 {
     private static bool ValidatePhone(string? phone) =>
         !string.IsNullOrWhiteSpace(phone) && Regex.IsMatch(phone, @"^0\d{9}$");
@@ -25,42 +21,54 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
         Regex.IsMatch(password, "[A-Za-z]") && Regex.IsMatch(password, @"\d");
 
     [HttpGet]
-    public IActionResult Login(string? returnUrl = null) => View(new LoginViewModel { ReturnUrl = returnUrl });
+    public IActionResult Login(string? returnUrl = null) => View(new LoginRequest { ReturnUrl = returnUrl });
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login(LoginViewModel model)
+    public async Task<IActionResult> Login(LoginRequest request)
     {
-        if (!ModelState.IsValid) return View(model);
-        var identifier = model.Identifier.Trim().ToLowerInvariant();
-        var account = await db.TaiKhoans.AsNoTracking().FirstOrDefaultAsync(a =>
-            a.Email == identifier || a.SoDienThoai == identifier);
-        bool valid = false;
-        try { valid = BCrypt.Net.BCrypt.Verify(model.Password, account?.MatKhau ?? DummyHash); }
-        catch (BCrypt.Net.SaltParseException) { }
-        if (!valid || account is null || !account.DangHoatDong)
+        if (!ModelState.IsValid) return View(request);
+
+        // Use the AuthService for consistent logic (1 ô TaiKhoanDangNhap + lockout)
+        var (success, response, error) = await authService.LoginAsync(request);
+
+        if (!success)
         {
-            ModelState.AddModelError("", "Thông tin đăng nhập không hợp lệ.");
-            return View(model);
+            ModelState.AddModelError("", error ?? "Thông tin đăng nhập không hợp lệ.");
+            return View(request);
         }
-        var sessionVersion = sessions.Capture(account.Id, account.MatKhau);
+
+        // AuthService already handles session version and lockout
+        // For cookie-based login, create identity with session version
+        var input = request.TaiKhoanDangNhap?.Trim() ?? "";
+        bool isEmail = input.Contains("@");
+        var user = await db.TaiKhoans.AsNoTracking().FirstOrDefaultAsync(u => isEmail ? u.Email == input.ToLower() : u.SoDienThoai == input);
+        
+        if (user is null) return View(request);
+
+        var sessionVersion = sessions.Capture(user.Id, user.MatKhau);
         if (sessionVersion is null)
         {
             ModelState.AddModelError("", "Thông tin đăng nhập vừa thay đổi. Vui lòng đăng nhập lại.");
-            return View(model);
+            return View(request);
         }
+
         var identity = new ClaimsIdentity(new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, account.Id.ToString()),
-            new Claim(ClaimTypes.Name, account.HoTen),
-            new Claim(ClaimTypes.Role, account.VaiTro ?? ""),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.HoTen),
+            new Claim(ClaimTypes.Role, user.VaiTro ?? ""),
             new Claim(SessionVersionStore.ClaimType, sessionVersion)
         }, CookieAuthenticationDefaults.AuthenticationScheme);
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-        return Url.IsLocalUrl(model.ReturnUrl) ? LocalRedirect(model.ReturnUrl!) : RedirectToAction("Index", "Home");
-    }
 
-    private static readonly string DummyHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+        
+        // Store tokens in TempData for potential use
+        TempData["AccessToken"] = response!.AccessToken;
+        TempData["RefreshToken"] = response.RefreshToken;
+
+        return Url.IsLocalUrl(request.ReturnUrl) ? LocalRedirect(request.ReturnUrl!) : RedirectToAction("Index", "Home");
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -76,7 +84,6 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
         Response.StatusCode = StatusCodes.Status403Forbidden;
         Response.Headers.CacheControl = "no-store";
         return View();
-
     }
 
     public IActionResult Register() => View();

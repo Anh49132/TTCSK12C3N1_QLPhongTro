@@ -1,5 +1,6 @@
 # Ignore local dev SQLite database
 **/Data/local-dev.sqlite
+**/Data/staging/
 **/Data/*.sqlite
 **/*.sqlite-shm
 **/*.sqlite-wal
@@ -21,14 +22,8 @@
 bin/
 obj/
 
-<<<<<<< HEAD
-# Test project build outputs
-Tests/**/bin/
-Tests/**/obj/
-=======
 # Local SQLite backups created by the explicit permission initializer
 *.sqlite.before-s1-04-*.bak*
->>>>>>> origin/dev
 
 # Environment files (keep .env.example but ignore .env)
 .env
@@ -37,19 +32,8 @@ Tests/**/obj/
 # Tests output
 **/TestResults/
 
-<<<<<<< HEAD
-# User files
-*.user
-*.suo
-.vs/
-.vscode/
-
-# IDE
-.idea/
-*.swp
-*.swo
-=======
 
 # Password reset schema backups
 *.sqlite.before-s105-*.bak*
->>>>>>> origin/dev
+*.sqlite.before-s109-*.bak*
+/data/S1-09-verification/

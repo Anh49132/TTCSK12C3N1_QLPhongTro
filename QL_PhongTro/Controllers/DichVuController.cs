@@ -1,0 +1,132 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
+using QL_PhongTro.Authorization;
+using QL_PhongTro.Data;
+using QL_PhongTro.Services;
+using QL_PhongTro.ViewModels;
+
+namespace QL_PhongTro.Controllers;
+
+[Authorize(Roles = "CHU_NHA")]
+[ModuleAccess("PHONG_TRO")]
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+public class DichVuController(AppDbContext db, DichVuService services) : Controller
+{
+    private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
+    private Task<List<SelectListItem>> ToaNhasAsync() => db.ToaNhas.AsNoTracking()
+        .Where(x => x.ChuNhaId == AccountId && x.DangHoatDong).OrderBy(x => x.TenToaNha)
+        .Select(x => new SelectListItem(x.TenToaNha, x.Id.ToString())).ToListAsync();
+
+    [HttpGet]
+    public async Task<IActionResult> Index(int? toaNhaId)
+    {
+        var buildings = await ToaNhasAsync();
+        if (toaNhaId.HasValue && !await services.SoHuuToaNhaAsync(AccountId, toaNhaId.Value)) return Forbid();
+        var selected = toaNhaId ?? (buildings.Count > 0 ? int.Parse(buildings[0].Value) : (int?)null);
+        var ready = await services.SanSangAsync();
+        return View(new DanhSachDichVuViewModel
+        {
+            ToaNhaId = selected, ToaNhas = buildings, SanSang = ready,
+            CanKhoiTao = ready && selected.HasValue && !await services.DaKhoiTaoAsync(AccountId, selected.Value),
+            DichVus = ready && selected.HasValue ? await services.DanhSachAsync(AccountId, selected.Value) : []
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> Initialize(int toaNhaId)
+    {
+        try { await services.KhoiTaoMacDinhAsync(AccountId, toaNhaId); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { TempData["DichVuError"] = ex.Message; }
+        return RedirectToAction(nameof(Index), new { toaNhaId });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Manage(int toaNhaId, int dichVuId)
+    {
+        try
+        {
+            var history = await services.LichSuAsync(AccountId, toaNhaId, dichVuId);
+            if (history.Count == 0) return NotFound();
+            var latest = history.Last();
+            var nextDate = latest.TuNgay.AddDays(1) > DichVuService.HomNay() ? latest.TuNgay.AddDays(1) : DichVuService.HomNay();
+            return View(new QuanLyDichVuViewModel { ToaNhaId = toaNhaId, DichVuId = dichVuId, LichSu = history,
+                DonGia = latest.DaChotGia ? latest.DonGia : null, GiaCu = latest.DonGia, PhienBan = latest.Id, TuNgay = nextDate });
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> SavePrice(QuanLyDichVuViewModel model, bool initial = false)
+    {
+        if (!initial && !model.TuNgay.HasValue) ModelState.AddModelError(nameof(model.TuNgay), "Hãy chọn ngày hiệu lực.");
+        try
+        {
+            model.LichSu = await services.LichSuAsync(AccountId, model.ToaNhaId, model.DichVuId);
+            if (model.LichSu.Count == 0) return NotFound();
+            if (!ModelState.IsValid) return View("Manage", model);
+            if (initial) await services.SuaGiaBanDauAsync(AccountId, model.ToaNhaId, model.DichVuId, model.DonGia!.Value, model.GiaCu);
+            else await services.DoiGiaAsync(AccountId, model.ToaNhaId, model.DichVuId, model.DonGia!.Value, model.TuNgay!.Value, model.PhienBan);
+            TempData["DichVuMessage"] = "Đã lưu đơn giá dịch vụ.";
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { ModelState.AddModelError("", ex.Message); return View("Manage", model); }
+        return RedirectToAction(nameof(Manage), new { model.ToaNhaId, model.DichVuId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> SetStatus(int toaNhaId, int dichVuId, bool active, DateOnly? tuNgay, int phienBan)
+    {
+        try
+        {
+            if (!tuNgay.HasValue || !ModelState.IsValid) throw new InvalidOperationException("Ngày hiệu lực không hợp lệ.");
+            await services.DoiTrangThaiAsync(AccountId, toaNhaId, dichVuId, active, tuNgay.Value, phienBan);
+            TempData["DichVuMessage"] = "Đã lưu lịch thay đổi trạng thái dịch vụ.";
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { TempData["DichVuError"] = ex.Message; }
+        return RedirectToAction(nameof(Manage), new { toaNhaId, dichVuId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> Delete(int toaNhaId, int dichVuId)
+    {
+        try
+        {
+            await services.XoaAsync(AccountId, toaNhaId, dichVuId);
+            TempData["DichVuMessage"] = "Đã xóa dịch vụ khỏi tòa nhà.";
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { TempData["DichVuError"] = ex.Message; }
+        catch (DbUpdateException) { TempData["DichVuError"] = "Dịch vụ đang được tham chiếu hoặc vừa thay đổi. Hãy tải lại; có thể ngừng áp dụng thay vì xóa."; }
+        return RedirectToAction(nameof(Index), new { toaNhaId });
+    }
+
+    [HttpGet, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> Create(int? toaNhaId)
+    {
+        if (!await services.SanSangAsync()) return RedirectToAction(nameof(Index));
+        if (toaNhaId.HasValue && !await services.SoHuuToaNhaAsync(AccountId, toaNhaId.Value)) return Forbid();
+        var buildings = await ToaNhasAsync();
+        return View(new TaoDichVuViewModel { ToaNhaId = toaNhaId ?? (buildings.Count > 0 ? int.Parse(buildings[0].Value) : (int?)null), ToaNhas = buildings });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> Create(TaoDichVuViewModel model)
+    {
+        if (!await services.SanSangAsync()) return RedirectToAction(nameof(Index));
+        if (model.ToaNhaId.HasValue && !await services.SoHuuToaNhaAsync(AccountId, model.ToaNhaId.Value)) return Forbid();
+        if (!ModelState.IsValid)
+        {
+            model.ToaNhas = await ToaNhasAsync();
+            return View(model);
+        }
+        try { await services.ThemAsync(AccountId, model); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        TempData["DichVuMessage"] = "Đã thêm dịch vụ và đơn giá.";
+        return RedirectToAction(nameof(Index), new { toaNhaId = model.ToaNhaId });
+    }
+}
