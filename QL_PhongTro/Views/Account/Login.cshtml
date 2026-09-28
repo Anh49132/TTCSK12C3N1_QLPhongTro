@@ -1,8 +1,9 @@
-﻿@model QL_PhongTro.ViewModels.LoginViewModel
+@model QL_PhongTro.ViewModels.LoginViewModel
 @{ ViewData["Title"] = "Đăng nhập"; }
 <section class="auth-card">
 <p class="eyebrow">CHÀO MỪNG TRỞ LẠI</p>
 <h1>Đăng nhập</h1>
+@if (TempData["PasswordSuccess"] is string success) { <div class="alert alert-success" role="status">@success</div> }
 <p class="auth-description">Tiếp tục quản lý không gian sống của bạn.</p>
 <form asp-action="Login" method="post">
 <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
@@ -11,5 +12,6 @@
 <div class="mb-3"><label asp-for="Password" class="form-label">Mật khẩu</label><input asp-for="Password" class="form-control" autocomplete="current-password" placeholder="Nhập mật khẩu" /><span asp-validation-for="Password" class="text-danger"></span></div>
 <button class="btn btn-primary" type="submit">Đăng nhập →</button>
 </form>
+<p><a asp-action="ForgotPassword">Quên mật khẩu?</a></p>
 <p class="auth-bottom">Chưa có tài khoản? <a asp-action="Register">Đăng ký ngay</a></p>
 </section>
