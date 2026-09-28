@@ -1,5 +1,13 @@
 # Tiến độ dự án
 
+## S4-10 staging và nghiệm thu (28/09/2026)
+
+- Thêm staging Compose riêng, volume SQLite riêng, reset/seed có xác nhận Staging + `AllowReset`, chặn DB local, trang admin tổng hợp, và tài khoản mẫu bốn vai trò. Hướng dẫn: [staging.md](staging.md).
+- Seed tạo 2 tòa, 30 phòng, 20 hợp đồng, 60 hóa đơn/3 kỳ; 20 trả đủ, 20 trả một phần còn hạn, 20 quá hạn chưa trả. Thử trên SQLite tạm hai lần: 4.37 giây lần tạo schema đầu, 0.80 giây lần reset sau; integration test xác nhận dữ liệu cũ bị xóa và dashboard/login mẫu hoạt động.
+- Sửa cookie authorization để route MVC trái quyền trả trực tiếp 403; cập nhật test và fixture auth. Cả lớp `PermissionTests`: 8/8 pass (7 test quyền + 1 staging integration).
+- Chưa chạy Docker Compose do máy hiện tại không có Docker CLI. Chưa có hợp đồng/hóa đơn/thanh toán nghiệp vụ trong app; schema staging chỉ phục vụ dữ liệu tổng hợp/dashboard, không phải migration production. Chưa xác minh demo end-to-end hoặc quyền từng chức năng cho module placeholder.
+- Không đọc/ghi `local-dev.sqlite`; các thay đổi DB/test/backup có sẵn của người dùng được giữ nguyên. Hai cảnh báo CS8601 ở AuthController và cảnh báo giấy phép ImageSharp vẫn còn.
+
 ## Gộp S1-06 vào dev (28/09/2026)
 
 - Giữ đăng nhập cookie/JWT, phân quyền, mật khẩu, khởi tạo auth/phòng và giao diện hiện tại của dev; bổ sung model/service hồ sơ, ImageSharp và hai liên kết Hồ sơ cá nhân/Xem hồ sơ.

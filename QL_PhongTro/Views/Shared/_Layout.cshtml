@@ -1,4 +1,5 @@
 @inject QL_PhongTro.Authorization.PermissionService Permissions
+@inject IWebHostEnvironment Environment
 @{ var menu = await Permissions.MenuAsync(); }
 <!DOCTYPE html>
 <html lang="vi">
@@ -18,6 +19,7 @@
 @if (User.Identity?.IsAuthenticated == true) {
 @if (User.IsInRole("KHACH_THUE")) { <a asp-controller="Account" asp-action="ChangePassword">Đổi mật khẩu</a> }
 @if (User.IsInRole("KHACH_THUE")) { <a asp-controller="HoSo" asp-action="Index">Hồ sơ cá nhân</a> }
+@if (Environment.IsStaging() && User.IsInRole("ADMIN")) { <a asp-controller="Staging" asp-action="Index">Staging</a> }
 <a asp-controller="HoSo" asp-action="Xem">Xem hồ sơ</a>
 <span class="account-name">@User.Identity.Name</span>
 <form asp-controller="Account" asp-action="Logout" method="post"><button class="btn btn-outline-primary" type="submit">Đăng xuất</button></form>

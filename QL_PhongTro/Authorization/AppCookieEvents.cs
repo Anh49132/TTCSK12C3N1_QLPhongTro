@@ -46,8 +46,14 @@ public sealed class AppCookieEvents(AppDbContext db, SessionVersionStore session
             context.Response.StatusCode = status;
             return context.Response.WriteAsJsonAsync(new { code, message });
         }
-        context.Response.Redirect(context.RedirectUri);
-        return Task.CompletedTask;
+        if (status == 401)
+        {
+            context.Response.Redirect(context.RedirectUri);
+            return Task.CompletedTask;
+        }
+        context.Response.StatusCode = status;
+        context.Response.ContentType = "text/html; charset=utf-8";
+        return context.Response.WriteAsync($"<!doctype html><html lang=\"vi\"><meta charset=\"utf-8\"><title>{status}</title><body><main><h1>{status}</h1><p>{message}</p></main></body></html>");
     }
 }
 
