@@ -24,3 +24,6 @@ obj/
 # Tests output
 **/TestResults/
 
+
+# Password reset schema backups
+*.sqlite.before-s105-*.bak*

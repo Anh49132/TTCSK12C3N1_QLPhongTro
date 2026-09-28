@@ -15,7 +15,7 @@ using QL_PhongTro.ViewModels.Auth;
 
 namespace QL_PhongTro.Controllers;
 
-public class AccountController(AppDbContext db, RegistrationSettings settings) : Controller
+public partial class AccountController(AppDbContext db, RegistrationSettings settings, SessionVersionStore sessions) : Controller
 {
     private static bool ValidatePhone(string? phone) =>
         !string.IsNullOrWhiteSpace(phone) && Regex.IsMatch(phone, @"^0\d{9}$");
@@ -43,11 +43,18 @@ public class AccountController(AppDbContext db, RegistrationSettings settings) :
             ModelState.AddModelError("", "Thông tin đăng nhập không hợp lệ.");
             return View(model);
         }
+        var sessionVersion = sessions.Capture(account.Id, account.MatKhau);
+        if (sessionVersion is null)
+        {
+            ModelState.AddModelError("", "Thông tin đăng nhập vừa thay đổi. Vui lòng đăng nhập lại.");
+            return View(model);
+        }
         var identity = new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.NameIdentifier, account.Id.ToString()),
             new Claim(ClaimTypes.Name, account.HoTen),
-            new Claim(ClaimTypes.Role, account.VaiTro ?? "")
+            new Claim(ClaimTypes.Role, account.VaiTro ?? ""),
+            new Claim(SessionVersionStore.ClaimType, sessionVersion)
         }, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
         return Url.IsLocalUrl(model.ReturnUrl) ? LocalRedirect(model.ReturnUrl!) : RedirectToAction("Index", "Home");
@@ -133,7 +140,8 @@ public class AccountController(AppDbContext db, RegistrationSettings settings) :
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.HoTen),
-            new Claim(ClaimTypes.Role, user.VaiTro)
+            new Claim(ClaimTypes.Role, user.VaiTro),
+            new Claim(SessionVersionStore.ClaimType, "0")
         };
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));

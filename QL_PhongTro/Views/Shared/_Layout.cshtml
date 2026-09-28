@@ -1,4 +1,4 @@
-﻿@inject QL_PhongTro.Authorization.PermissionService Permissions
+@inject QL_PhongTro.Authorization.PermissionService Permissions
 @{ var menu = await Permissions.MenuAsync(); }
 <!DOCTYPE html>
 <html lang="vi">
@@ -16,6 +16,7 @@
 <div class="header-actions">
 <a class="home-link" asp-controller="Home" asp-action="Index">Trang chủ</a>
 @if (User.Identity?.IsAuthenticated == true) {
+@if (User.IsInRole("KHACH_THUE")) { <a asp-controller="Account" asp-action="ChangePassword">Đổi mật khẩu</a> }
 <span class="account-name">@User.Identity.Name</span>
 <form asp-controller="Account" asp-action="Logout" method="post"><button class="btn btn-outline-primary" type="submit">Đăng xuất</button></form>
 } else {

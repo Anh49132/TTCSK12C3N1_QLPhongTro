@@ -3,10 +3,11 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Data;
+using QL_PhongTro.Services;
 
 namespace QL_PhongTro.Authorization;
 
-public sealed class AppCookieEvents(AppDbContext db) : CookieAuthenticationEvents
+public sealed class AppCookieEvents(AppDbContext db, SessionVersionStore sessions) : CookieAuthenticationEvents
 {
     public override async Task ValidatePrincipal(CookieValidatePrincipalContext context)
     {
@@ -16,7 +17,7 @@ public sealed class AppCookieEvents(AppDbContext db) : CookieAuthenticationEvent
             return;
         }
         var account = await db.TaiKhoans.AsNoTracking().SingleOrDefaultAsync(a => a.Id == id);
-        if (account is null || !account.DangHoatDong)
+        if (account is null || !account.DangHoatDong || !sessions.IsValid(id, context.Principal?.FindFirstValue(SessionVersionStore.ClaimType)))
         {
             context.RejectPrincipal();
             await context.HttpContext.SignOutAsync();
@@ -27,7 +28,8 @@ public sealed class AppCookieEvents(AppDbContext db) : CookieAuthenticationEvent
         {
             new Claim(ClaimTypes.NameIdentifier, account.Id.ToString()),
             new Claim(ClaimTypes.Name, account.HoTen),
-            new Claim(ClaimTypes.Role, account.VaiTro ?? "")
+            new Claim(ClaimTypes.Role, account.VaiTro ?? ""),
+            new Claim(SessionVersionStore.ClaimType, context.Principal?.FindFirstValue(SessionVersionStore.ClaimType) ?? "0")
         }, CookieAuthenticationDefaults.AuthenticationScheme);
         context.ReplacePrincipal(new ClaimsPrincipal(identity));
     }

@@ -44,6 +44,11 @@ if (args.Contains("--initialize-permissions"))
     PermissionSchemaInitializer.Initialize(databasePath, Path.Combine(dataDir, "permissions.seed.json"));
     return;
 }
+if (args.Contains("--initialize-password-security"))
+{
+    PasswordSchemaInitializer.Initialize(databasePath);
+    return;
+}
 var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
 {
     DataSource = databasePath, Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadWrite, ForeignKeys = true
@@ -77,10 +82,25 @@ builder.Services.AddMemoryCache();
 builder.Services.AddScoped<TokenBlacklistService>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.Configure<PasswordResetOptions>(builder.Configuration.GetSection("PasswordReset"));
+builder.Services.AddScoped<IPasswordEmailSender, PasswordEmailSender>();
+builder.Services.AddScoped<PasswordResetService>();
+builder.Services.AddScoped<SessionVersionStore>();
 
 builder.Services.AddAuthentication()
 .AddJwtBearer(options =>
 {
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = context =>
+        {
+            var id = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var version = context.Principal?.FindFirst(SessionVersionStore.ClaimType)?.Value;
+            if (!int.TryParse(id, out var accountId) || !context.HttpContext.RequestServices.GetRequiredService<SessionVersionStore>().IsValid(accountId, version))
+                context.Fail("Phiên đăng nhập đã bị vô hiệu hóa.");
+            return Task.CompletedTask;
+        }
+    };
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
