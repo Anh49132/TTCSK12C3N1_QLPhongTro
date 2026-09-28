@@ -31,6 +31,24 @@ var databasePath = string.IsNullOrWhiteSpace(configuredDatabasePath)
         ? configuredDatabasePath
         : Path.Combine(builder.Environment.ContentRootPath, configuredDatabasePath));
 
+var resetStagingDemo = args.Contains("--reset-staging-demo");
+if (builder.Environment.IsStaging() && string.IsNullOrWhiteSpace(configuredDatabasePath))
+    throw new InvalidOperationException("Staging requires an explicit DatabasePath; the local development database is never a staging default.");
+if (resetStagingDemo)
+{
+    if (!builder.Environment.IsStaging())
+        throw new InvalidOperationException("--reset-staging-demo is available only in the Staging environment.");
+    if (!bool.TryParse(builder.Configuration["Staging:AllowReset"], out var allowReset) || !allowReset)
+        throw new InvalidOperationException("Set Staging:AllowReset=true explicitly before resetting staging data.");
+    if (string.Equals(Path.GetFullPath(databasePath), Path.GetFullPath(Path.Combine(dataDir, "local-dev.sqlite")), StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException("Refusing to reset the local development database.");
+    var demoPassword = builder.Configuration["Staging:DemoPassword"];
+    if (string.IsNullOrWhiteSpace(demoPassword))
+        throw new InvalidOperationException("Set Staging:DemoPassword through an environment secret before seeding.");
+    await StagingDemoSeeder.ResetAsync(databasePath, Path.Combine(dataDir, "permissions.seed.json"), demoPassword);
+    return;
+}
+
 if (!File.Exists(databasePath))
     throw new FileNotFoundException("Existing local SQLite database was not found; refusing to create a new database.", databasePath);
 

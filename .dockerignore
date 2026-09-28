@@ -1,0 +1,11 @@
+.git
+**/bin/
+**/obj/
+**/Data/local-dev.sqlite*
+**/Data/*.sqlite*
+**/Data/*.bak*
+**/Data/staging/
+**/App_Data/
+**/TestResults/
+.env
+.env.*
