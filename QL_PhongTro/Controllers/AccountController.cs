@@ -5,12 +5,17 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
+
+using QL_PhongTro.ViewModels;
+using Microsoft.EntityFrameworkCore;
+
 using QL_PhongTro.Services;
 using QL_PhongTro.ViewModels.Auth;
 
+
 namespace QL_PhongTro.Controllers;
 
-public class AccountController(AppDbContext db, RegistrationSettings settings, AuthService authService) : Controller
+public partial class AccountController(AppDbContext db, RegistrationSettings settings, SessionVersionStore sessions) : Controller
 {
     private static bool ValidatePhone(string? phone) =>
         !string.IsNullOrWhiteSpace(phone) && Regex.IsMatch(phone, @"^0\d{9}$");
@@ -19,31 +24,65 @@ public class AccountController(AppDbContext db, RegistrationSettings settings, A
         !string.IsNullOrEmpty(password) && password.Length >= 8 &&
         Regex.IsMatch(password, "[A-Za-z]") && Regex.IsMatch(password, @"\d");
 
-    public IActionResult Login() => View();
+    [HttpGet]
+    public IActionResult Login(string? returnUrl = null) => View(new LoginViewModel { ReturnUrl = returnUrl });
 
     [HttpPost]
-    public async Task<IActionResult> Login(LoginRequest request)
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Login(LoginViewModel model)
     {
-        if (string.IsNullOrWhiteSpace(request?.Email) && string.IsNullOrWhiteSpace(request?.SoDienThoai))
+        if (!ModelState.IsValid) return View(model);
+        var identifier = model.Identifier.Trim().ToLowerInvariant();
+        var account = await db.TaiKhoans.AsNoTracking().FirstOrDefaultAsync(a =>
+            a.Email == identifier || a.SoDienThoai == identifier);
+        bool valid = false;
+        try { valid = BCrypt.Net.BCrypt.Verify(model.Password, account?.MatKhau ?? DummyHash); }
+        catch (BCrypt.Net.SaltParseException) { }
+        if (!valid || account is null || !account.DangHoatDong)
         {
-            ModelState.AddModelError("", "Phải nhập email hoặc số điện thoại");
-            return View(request);
+            ModelState.AddModelError("", "Thông tin đăng nhập không hợp lệ.");
+            return View(model);
         }
-
-        var (success, response, error) = await authService.LoginAsync(request);
-
-        if (!success)
+        var sessionVersion = sessions.Capture(account.Id, account.MatKhau);
+        if (sessionVersion is null)
         {
-            ModelState.AddModelError("", error);
-            return View(request);
+            ModelState.AddModelError("", "Thông tin đăng nhập vừa thay đổi. Vui lòng đăng nhập lại.");
+            return View(model);
         }
+        var identity = new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, account.Id.ToString()),
+            new Claim(ClaimTypes.Name, account.HoTen),
+            new Claim(ClaimTypes.Role, account.VaiTro ?? ""),
+            new Claim(SessionVersionStore.ClaimType, sessionVersion)
+        }, CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+        return Url.IsLocalUrl(model.ReturnUrl) ? LocalRedirect(model.ReturnUrl!) : RedirectToAction("Index", "Home");
+    }
 
-        return RedirectToAction("Index", "Home");
+    private static readonly string DummyHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Logout()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    public IActionResult AccessDenied()
+    {
+        Response.StatusCode = StatusCodes.Status403Forbidden;
+        Response.Headers.CacheControl = "no-store";
+        return View();
+
     }
 
     public IActionResult Register() => View();
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(RegisterViewModel? model)
     {
         if (model is null)
@@ -101,7 +140,8 @@ public class AccountController(AppDbContext db, RegistrationSettings settings, A
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.HoTen),
-            new Claim(ClaimTypes.Role, user.VaiTro)
+            new Claim(ClaimTypes.Role, user.VaiTro),
+            new Claim(SessionVersionStore.ClaimType, "0")
         };
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));

@@ -22,13 +22,21 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
 
     public async Task<(bool success, LoginResponse? response, string? error)> LoginAsync(LoginRequest request)
     {
+<<<<<<< HEAD
         // Tạm: nhận TaiKhoanDangNhap, phát hiện email (có @) hay SĐT (toàn số)
         var input = request.TaiKhoanDangNhap?.Trim() ?? "";
         bool isEmail = input.Contains("@");
+=======
+        // Serialize credential verification/token persistence with password reset.
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+        var emailNorm = request.Email?.Trim().ToLower();
+        var phoneNorm = request.SoDienThoai?.Trim();
+
+>>>>>>> origin/dev
         var user = await _db.TaiKhoans
             .FirstOrDefaultAsync(u => isEmail ? u.Email == input.ToLower() : u.SoDienThoai == input);
 
-        if (user is null)
+        if (user is null || !user.DangHoatDong)
         {
             await Task.Delay(1000);
             return (false, null, "Thông tin đăng nhập không chính xác"); // TẠM — chờ PO xác nhận chính thức
@@ -44,7 +52,12 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
         if (!BCrypt.Net.BCrypt.Verify(request.MatKhau ?? string.Empty, user.MatKhau))
         {
             await HandleFailedLogin(user, now);
+<<<<<<< HEAD
             return (false, null, "Thông tin đăng nhập không chính xác"); // TẠM — chờ PO xác nhận chính thức
+=======
+            await transaction.CommitAsync();
+            return (false, null, "Sai email/SĐT hoặc mật khẩu");
+>>>>>>> origin/dev
         }
 
         await HandleSuccessfulLogin(user, now);
@@ -60,6 +73,7 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
 
         await _db.SaveChangesAsync();
 
+        await transaction.CommitAsync();
         return (true, new LoginResponse
         {
             AccessToken = accessToken,
@@ -74,10 +88,11 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
 
     public async Task<(bool success, RefreshTokenResponse? response, string? error)> RefreshTokenAsync(string refreshToken)
     {
+        await using var transaction = await _db.Database.BeginTransactionAsync();
         var tokenHash = ComputeHash(refreshToken);
         var now = _timeProvider.UtcNow;
         var user = await _db.TaiKhoans
-            .FirstOrDefaultAsync(u => u.RefreshTokenHash == tokenHash && u.RefreshTokenExpiry > now);
+            .FirstOrDefaultAsync(u => u.RefreshTokenHash == tokenHash && u.RefreshTokenExpiry > now && u.DangHoatDong);
 
         if (user is null)
         {
@@ -98,6 +113,7 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
 
         await _db.SaveChangesAsync();
 
+        await transaction.CommitAsync();
         return (true, new RefreshTokenResponse
         {
             AccessToken = newAccessToken,

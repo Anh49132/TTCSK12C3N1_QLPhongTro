@@ -5,12 +5,39 @@ namespace QL_PhongTro.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    public DbSet<KhachThue> KhachThues { get; set; } = null!;
     public DbSet<TaiKhoan> TaiKhoans { get; set; } = null!;
     public DbSet<ToaNha> ToaNhas { get; set; } = null!;
     public DbSet<PhongTro> PhongTros { get; set; } = null!;
 
+    public DbSet<AppRole> AppRoles { get; set; } = null!;
+    public DbSet<AppModule> AppModules { get; set; } = null!;
+    public DbSet<RolePermission> RolePermissions { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<AppRole>().ToTable("app_role").HasKey(r => r.Code);
+        modelBuilder.Entity<AppModule>().ToTable("app_module").HasKey(m => m.Code);
+        var permission = modelBuilder.Entity<RolePermission>();
+        permission.ToTable("role_permission").HasKey(p => new { p.RoleCode, p.ModuleCode });
+        permission.HasOne<AppRole>().WithMany().HasForeignKey(p => p.RoleCode).OnDelete(DeleteBehavior.Restrict);
+        permission.HasOne<AppModule>().WithMany().HasForeignKey(p => p.ModuleCode).OnDelete(DeleteBehavior.Restrict);
+        var profile = modelBuilder.Entity<KhachThue>();
+        profile.ToTable("khach_thue");
+        profile.HasKey(e => e.Id);
+        profile.Property(e => e.Id).HasColumnName("id");
+        profile.Property(e => e.TaiKhoanId).HasColumnName("tai_khoan_id");
+        profile.Property(e => e.HoTen).HasColumnName("ho_ten").HasMaxLength(100).IsRequired();
+        profile.Property(e => e.NgaySinh).HasColumnName("ngay_sinh");
+        profile.Property(e => e.SoGiayTo).HasColumnName("so_giay_to").HasMaxLength(255);
+        profile.Property(e => e.AnhGiayToTruoc).HasColumnName("anh_giay_to_truoc").HasMaxLength(500);
+        profile.Property(e => e.AnhGiayToSau).HasColumnName("anh_giay_to_sau").HasMaxLength(500);
+        profile.Property(e => e.QueQuan).HasColumnName("dia_chi_thuong_tru");
+        profile.Property(e => e.NgheNghiep).HasColumnName("nghe_nghiep").HasMaxLength(150);
+        profile.Property(e => e.NgayTao).HasColumnName("ngay_tao");
+        profile.HasIndex(e => e.TaiKhoanId).IsUnique();
+        profile.HasOne<TaiKhoan>().WithMany().HasForeignKey(e => e.TaiKhoanId).OnDelete(DeleteBehavior.Restrict);
+
         var entity = modelBuilder.Entity<TaiKhoan>();
         entity.ToTable("tai_khoan");
         entity.HasKey(e => e.Id);

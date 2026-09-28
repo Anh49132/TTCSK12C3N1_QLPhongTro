@@ -9,7 +9,7 @@ using QL_PhongTro.ViewModels.Auth;
 
 namespace QL_PhongTro.Services;
 
-public class TokenService(JwtSettings jwtSettings, ITimeProvider timeProvider, TokenBlacklistService blacklistService)
+public class TokenService(JwtSettings jwtSettings, ITimeProvider timeProvider, TokenBlacklistService blacklistService, SessionVersionStore sessions)
 {
     private readonly JwtSettings _jwtSettings = jwtSettings;
     private readonly ITimeProvider _timeProvider = timeProvider;
@@ -17,12 +17,15 @@ public class TokenService(JwtSettings jwtSettings, ITimeProvider timeProvider, T
 
     public string GenerateAccessToken(TaiKhoan user)
     {
+        var version = sessions.Capture(user.Id, user.MatKhau)
+            ?? throw new InvalidOperationException("Credentials changed during token creation.");
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.HoTen),
             new Claim(ClaimTypes.Role, user.VaiTro ?? "KHACH_THUE"),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim(SessionVersionStore.ClaimType, version)
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
@@ -73,6 +76,8 @@ public class TokenService(JwtSettings jwtSettings, ITimeProvider timeProvider, T
                 IssuerSigningKey = key,
                 ClockSkew = TimeSpan.Zero
             }, out _);
+            if (!int.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId) ||
+                !sessions.IsValid(accountId, principal.FindFirstValue(SessionVersionStore.ClaimType))) return null;
             return principal;
         }
         catch

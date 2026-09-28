@@ -3,6 +3,13 @@
 **/Data/*.sqlite
 **/*.sqlite-shm
 **/*.sqlite-wal
+/data/local-dev.sqlite
+/data/*.sqlite
+/data/backups/
+/QL_PhongTro/App_Data/
+/data/S1-06-images/
+*.sqlite-shm
+*.sqlite-wal
 
 # User files
 *.user
@@ -14,9 +21,14 @@
 bin/
 obj/
 
+<<<<<<< HEAD
 # Test project build outputs
 Tests/**/bin/
 Tests/**/obj/
+=======
+# Local SQLite backups created by the explicit permission initializer
+*.sqlite.before-s1-04-*.bak*
+>>>>>>> origin/dev
 
 # Environment files (keep .env.example but ignore .env)
 .env
@@ -25,6 +37,7 @@ Tests/**/obj/
 # Tests output
 **/TestResults/
 
+<<<<<<< HEAD
 # User files
 *.user
 *.suo
@@ -35,3 +48,8 @@ Tests/**/obj/
 .idea/
 *.swp
 *.swo
+=======
+
+# Password reset schema backups
+*.sqlite.before-s105-*.bak*
+>>>>>>> origin/dev

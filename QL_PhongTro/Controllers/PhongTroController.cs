@@ -7,14 +7,46 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Data;
+using QL_PhongTro.Authorization;
 using QL_PhongTro.Models;
 using QL_PhongTro.ViewModels;
 
 namespace QL_PhongTro.Controllers;
 
 [Authorize]
+[ModuleAccess("PHONG_TRO")]
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class PhongTroController(AppDbContext db) : Controller
 {
+    [HttpGet]
+    public async Task<IActionResult> ToaNha(string? tuKhoa)
+    {
+        var ownerId = CurrentAccountId();
+        if (ownerId is null)
+            return Forbid();
+
+        var query = db.ToaNhas.AsNoTracking().Where(building => building.ChuNhaId == ownerId);
+        if (!string.IsNullOrWhiteSpace(tuKhoa))
+        {
+            var keyword = tuKhoa.Trim();
+            query = query.Where(building => building.TenToaNha.Contains(keyword) || building.DiaChi.Contains(keyword));
+        }
+
+        var buildings = await query.OrderBy(building => building.TenToaNha)
+            .Select(building => new ToaNhaTongHopViewModel
+            {
+                Id = building.Id,
+                TenToaNha = building.TenToaNha,
+                DiaChi = building.DiaChi,
+                QuanLy = db.TaiKhoans.Where(account => account.Id == building.QuanLyId).Select(account => account.HoTen).FirstOrDefault(),
+                SoPhong = db.PhongTros.Count(room => room.ToaNhaId == building.Id),
+                SoPhongTrong = db.PhongTros.Count(room => room.ToaNhaId == building.Id && room.TrangThai == TrangThaiPhong.TRONG.ToString()),
+                DangHoatDong = building.DangHoatDong
+            }).ToListAsync();
+
+        return View(new DanhSachToaNhaViewModel { TuKhoa = tuKhoa, ToaNhas = buildings });
+    }
+
     public async Task<IActionResult> Index(int? toaNhaId, TrangThaiPhong? trangThaiFilter)
     {
         var ownerId = CurrentAccountId();
@@ -65,6 +97,7 @@ public class PhongTroController(AppDbContext db) : Controller
     }
 
     [HttpGet]
+    [ModuleAccess("PHONG_TRO", write: true)]
     public async Task<IActionResult> Create(int? toaNhaId)
     {
         var ownerId = CurrentAccountId();
@@ -90,6 +123,7 @@ public class PhongTroController(AppDbContext db) : Controller
     }
 
     [HttpGet]
+    [ModuleAccess("PHONG_TRO", write: true)]
     public async Task<IActionResult> CreateBulk(int? toaNhaId)
     {
         var ownerId = CurrentAccountId();
@@ -115,6 +149,7 @@ public class PhongTroController(AppDbContext db) : Controller
     }
 
     [HttpPost]
+    [ModuleAccess("PHONG_TRO", write: true)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(TaoPhongViewModel model)
     {
@@ -175,6 +210,7 @@ public class PhongTroController(AppDbContext db) : Controller
     }
 
     [HttpPost]
+    [ModuleAccess("PHONG_TRO", write: true)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateBulk(TaoPhongHangLoatViewModel model)
     {
@@ -254,15 +290,17 @@ public class PhongTroController(AppDbContext db) : Controller
     }
 
     [HttpGet]
-    public IActionResult TaoToaNha()
+    [ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> TaoToaNha()
     {
         if (CurrentAccountId() is null)
             return Forbid();
 
-        return View(new TaoToaNhaViewModel());
+        return View(new TaoToaNhaViewModel { QuanLyOptions = await GetManagerOptions() });
     }
 
     [HttpPost]
+    [ModuleAccess("PHONG_TRO", write: true)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> TaoToaNha(TaoToaNhaViewModel model)
     {
@@ -270,6 +308,7 @@ public class PhongTroController(AppDbContext db) : Controller
         if (ownerId is null)
             return Forbid();
 
+        model.QuanLyOptions = await GetManagerOptions();
         if (!ModelState.IsValid)
             return View(model);
 
@@ -278,6 +317,12 @@ public class PhongTroController(AppDbContext db) : Controller
             ChuNhaId = ownerId.Value,
             TenToaNha = model.TenToaNha.Trim(),
             DiaChi = model.DiaChi.Trim(),
+            PhuongXa = model.PhuongXa?.Trim(),
+            QuanHuyen = model.QuanHuyen?.Trim(),
+            TinhThanh = model.TinhThanh?.Trim(),
+            SoTang = model.SoTang,
+            QuanLyId = model.QuanLyId,
+            GhiChu = model.GhiChu?.Trim(),
             NgayChotHangThang = 1,
             DangHoatDong = true
         };
@@ -286,6 +331,86 @@ public class PhongTroController(AppDbContext db) : Controller
         await db.SaveChangesAsync();
 
         return RedirectToAction(nameof(Create), new { toaNhaId = building.Id });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> SuaToaNha(int id)
+    {
+        var building = await GetOwnedBuilding(id);
+        if (building is null)
+            return NotFound();
+
+        return View(new TaoToaNhaViewModel
+        {
+            TenToaNha = building.TenToaNha,
+            DiaChi = building.DiaChi,
+            PhuongXa = building.PhuongXa,
+            QuanHuyen = building.QuanHuyen,
+            TinhThanh = building.TinhThanh,
+            SoTang = building.SoTang,
+            QuanLyId = building.QuanLyId,
+            GhiChu = building.GhiChu,
+            QuanLyOptions = await GetManagerOptions()
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SuaToaNha(int id, TaoToaNhaViewModel model)
+    {
+        var building = await GetOwnedBuilding(id);
+        if (building is null)
+            return NotFound();
+
+        model.QuanLyOptions = await GetManagerOptions();
+        if (!ModelState.IsValid)
+            return View(model);
+
+        building.TenToaNha = model.TenToaNha.Trim();
+        building.DiaChi = model.DiaChi.Trim();
+        building.PhuongXa = model.PhuongXa?.Trim();
+        building.QuanHuyen = model.QuanHuyen?.Trim();
+        building.TinhThanh = model.TinhThanh?.Trim();
+        building.SoTang = model.SoTang;
+        building.QuanLyId = model.QuanLyId;
+        building.GhiChu = model.GhiChu?.Trim();
+        await db.SaveChangesAsync();
+        TempData["RoomMessage"] = "Đã cập nhật thông tin tòa nhà.";
+        return RedirectToAction(nameof(ToaNha));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> XoaToaNha(int id)
+    {
+        var building = await GetOwnedBuilding(id);
+        if (building is null)
+            return NotFound();
+
+        if (await db.PhongTros.AnyAsync(room => room.ToaNhaId == id))
+        {
+            TempData["RoomMessage"] = "Không thể xóa tòa nhà đang có phòng. Hãy chuyển sang ngừng hoạt động nếu không còn sử dụng.";
+            return RedirectToAction(nameof(ToaNha));
+        }
+
+        db.ToaNhas.Remove(building);
+        await db.SaveChangesAsync();
+        TempData["RoomMessage"] = "Đã xóa tòa nhà không còn phòng.";
+        return RedirectToAction(nameof(ToaNha));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> NgungHoatDong(int id)
+    {
+        var building = await GetOwnedBuilding(id);
+        if (building is null)
+            return NotFound();
+
+        building.DangHoatDong = false;
+        await db.SaveChangesAsync();
+        TempData["RoomMessage"] = "Đã chuyển tòa nhà sang ngừng hoạt động.";
+        return RedirectToAction(nameof(ToaNha));
     }
 
     private int? CurrentAccountId() =>
@@ -353,5 +478,14 @@ public class PhongTroController(AppDbContext db) : Controller
         .Where(building => building.ChuNhaId == ownerId && building.DangHoatDong)
         .OrderBy(building => building.TenToaNha)
         .Select(building => new SelectListItem(building.TenToaNha, building.Id.ToString()))
+        .ToListAsync();
+
+    private Task<ToaNha?> GetOwnedBuilding(int id) => db.ToaNhas
+        .SingleOrDefaultAsync(building => building.Id == id && building.ChuNhaId == CurrentAccountId());
+
+    private Task<List<SelectListItem>> GetManagerOptions() => db.TaiKhoans.AsNoTracking()
+        .Where(account => account.VaiTro == "QUAN_LY" && account.DangHoatDong)
+        .OrderBy(account => account.HoTen)
+        .Select(account => new SelectListItem(account.HoTen, account.Id.ToString()))
         .ToListAsync();
 }
