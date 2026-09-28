@@ -1,0 +1,45 @@
+# Đồng bộ cấu trúc SQLite trong team
+
+Mỗi người giữ dữ liệu SQLite riêng. Pull mã nguồn không cập nhật file SQLite của máy khác. Không chép đè CSDL của đồng đội và không dùng EnsureDeleted/EnsureCreated để nâng cấp dữ liệu cũ.
+
+## Sau khi pull
+
+Dừng ứng dụng trước khi cập nhật. Chạy từ thư mục gốc repository:
+
+```powershell
+dotnet restore QL_PhongTro
+dotnet run --project QL_PhongTro -- --update-database
+dotnet run --project QL_PhongTro -- --check-database
+dotnet run --project QL_PhongTro --launch-profile http
+```
+
+Mở http://localhost:5247/Account/Login. Nếu dùng file khác, đặt `$env:DatabasePath = 'C:\duong-dan\database.sqlite'` trong cùng terminal trước các lệnh trên. Đường dẫn phải trỏ file đã tồn tại; công cụ không tạo lại CSDL nền.
+
+`--check-database` và khởi động web chỉ đọc schema, không tự sửa. Thiếu bảng/cột cần thiết thì dừng với hướng dẫn cập nhật trước khi nhận request.
+
+## Phiên bản 1
+
+Phiên bản hiện tại là **2 (S1-03)**: bổ sung `tai_khoan.must_change_password` mặc định false và unique index email chuẩn hoá/số điện thoại. Các tài khoản cũ không tự bị ép đổi mật khẩu. Nếu dữ liệu trùng, phiên bản 2 rollback và báo lỗi để kiểm tra; không tự gộp/xoá. Hướng dẫn chức năng: [s1-03-tai-khoan.md](s1-03-tai-khoan.md).
+
+`Data/DatabaseUpdates.cs` gom các bước auth, phòng, phân quyền, mật khẩu/phiên và bảng hồ sơ đã có trong code/SQL hiện tại. Không triển khai toàn bộ 22 bảng tham chiếu. Quan hệ thuê chưa có vẫn được xử lý theo cơ chế giới hạn quyền của HoSoAccess.
+
+- Backup SQLite nhất quán được lưu cạnh DB dưới tên `*.before-update-<id>.bak`; console in đường dẫn. Các initializer cũ còn tạo backup riêng.
+- Bảng `app_schema_version` ghi phiên bản sau khi tất cả bước và kiểm tra hoàn tất. Chạy lại phiên bản đã hoàn thành không sửa dữ liệu hoặc cấp lại quyền đã thu hồi.
+- Không xóa tài khoản/dữ liệu cũ. Bảng đã tồn tại nhưng thiếu cột ngoài auth không được tự sửa: phải kiểm tra và viết bản nâng cấp phù hợp.
+- Các bước cũ chưa nằm trong một transaction chung. Nếu lỗi giữa chừng, một số bước có thể đã hoàn tất; phiên bản chưa được ghi nhận. Dừng app, đọc lỗi, đối chiếu backup rồi xử lý và chạy lại. Không tự phục hồi đè lên dữ liệu mới phát sinh.
+- Không chạy đồng thời ứng dụng và updater. Khóa `.update.lock` chỉ ngăn hai updater chạy cùng lúc; nó không khóa các công cụ quản trị/phiên web khác.
+- Kiểm tra hiện tại xác nhận bảng/cột cần cho model và các bảng mật khẩu, cùng sự hiện diện dữ liệu phân quyền; không chứng minh toàn bộ kiểu dữ liệu, FK/index hoặc toàn bộ nghiệp vụ đã đúng.
+
+## Quy tắc cho sprint sau
+
+PR thay đổi schema phải kèm bước cập nhật mới, tăng phiên bản và tài liệu sử dụng. Giữ nguyên các bước đã phát hành; bổ sung bước theo thứ tự, chỉ áp dụng phiên bản chưa chạy. Bản nâng cấp phải kiểm tra schema cũ, sao lưu và bảo toàn dữ liệu; thay đổi phá hủy cần quyết định riêng.
+
+Trước khi merge: build, kiểm thử nâng cấp từ CSDL phiên bản trước trên bản sao, đối chiếu dữ liệu cũ, kiểm tra chạy lặp lại và chạy web. Một thành viên khác cần thử quy trình pull/cập nhật trên máy của họ. Không commit DB, backup hoặc dữ liệu cá nhân; DB đã được Git theo dõi từ trước vẫn cần kiểm tra `git status` trước khi commit.
+
+Kiểm chứng tự động hiện tại (Python 3, .NET 10, sau build):
+
+```powershell
+python verification/database_updates.py
+```
+
+Script chỉ thao tác bản sao tạm: thiếu schema, backup, giữ dữ liệu, integrity/FK, chạy lại không cấp lại quyền, từ chối phiên bản tương lai/file không tồn tại. Không chạy bộ test cũ có nguy cơ xóa DB mặc định.

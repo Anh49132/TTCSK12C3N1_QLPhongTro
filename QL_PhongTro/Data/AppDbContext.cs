@@ -48,6 +48,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         entity.Property(e => e.MatKhau).HasColumnName("mat_khau").IsRequired().HasMaxLength(128);
         entity.Property(e => e.VaiTro).HasColumnName("vai_tro").HasMaxLength(20).HasDefaultValue("KHACH_THUE");
         entity.Property(e => e.DangHoatDong).HasColumnName("dang_hoat_dong").HasDefaultValue(true);
+        entity.Property(e => e.MustChangePassword).HasColumnName("must_change_password").HasDefaultValue(false);
         entity.Property(e => e.IsStaff).HasColumnName("is_staff").HasDefaultValue(false);
         entity.Property(e => e.IsSuperuser).HasColumnName("is_superuser").HasDefaultValue(false);
         entity.Property(e => e.LastLogin).HasColumnName("last_login");

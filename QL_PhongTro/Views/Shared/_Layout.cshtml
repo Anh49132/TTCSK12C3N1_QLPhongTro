@@ -17,7 +17,8 @@
 <div class="header-actions">
 <a class="home-link" asp-controller="Home" asp-action="Index">Trang chủ</a>
 @if (User.Identity?.IsAuthenticated == true) {
-@if (User.IsInRole("KHACH_THUE")) { <a asp-controller="Account" asp-action="ChangePassword">Đổi mật khẩu</a> }
+<a asp-controller="Account" asp-action="ChangePassword">Đổi mật khẩu</a>
+@if (User.IsInRole("ADMIN")) { <a asp-controller="ManagedAccounts" asp-action="Index">Quản lý tài khoản</a> }
 @if (User.IsInRole("KHACH_THUE")) { <a asp-controller="HoSo" asp-action="Index">Hồ sơ cá nhân</a> }
 @if (Environment.IsStaging() && User.IsInRole("ADMIN")) { <a asp-controller="Staging" asp-action="Index">Staging</a> }
 <a asp-controller="HoSo" asp-action="Xem">Xem hồ sơ</a>
@@ -33,7 +34,7 @@
 <div class="app-shell @(menu.Count > 0 ? "with-sidebar" : "")">
 @if (menu.Count > 0) {
 <aside class="app-sidebar"><p class="eyebrow">KHÔNG GIAN LÀM VIỆC</p><nav aria-label="Menu chức năng">
-@foreach (var group in menu.GroupBy(m => m.GroupName)) {
+@foreach (var group in menu.GroupBy(m => m.GroupName).OrderBy(g => g.Key == "Hệ thống" ? 1 : 0)) {
 <section data-menu-group="@group.Key"><h2>@group.Key</h2>
 @foreach (var module in group) {
 var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
@@ -50,5 +51,8 @@ var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
+@if (User.Identity?.IsAuthenticated == true) {
+<script src="~/js/session-status.js" asp-append-version="true"></script>
+}
 </body>
 </html>

@@ -35,3 +35,8 @@ obj/
 
 # Password reset schema backups
 *.sqlite.before-s105-*.bak*
+*.sqlite.before-update-*.bak*
+*.sqlite.before-admin-*.bak*
+*.sqlite.before-local-admin-*.bak*
+*.sqlite.before-auth-*.bak*
+*.sqlite.update.lock

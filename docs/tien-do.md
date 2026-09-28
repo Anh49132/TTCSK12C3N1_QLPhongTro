@@ -1,5 +1,38 @@
 # Tiến độ dự án
 
+## Tài khoản ADMIN local và README (28/09/2026)
+
+- Đã tạo tài khoản ADMIN phát triển do người dùng yêu cầu trong `QL_PhongTro/Data/local-dev.sqlite` và `data/s103-demo-ready.sqlite`; mật khẩu được băm BCrypt, tài khoản hoạt động và không bị buộc đổi mật khẩu lần đầu. Thông tin rõ chỉ còn trong CSDL local, không đưa lên Git.
+- Trước khi ghi, đã kiểm tra email chưa tồn tại và tạo backup cạnh từng CSDL với hậu tố `.before-admin-<thời gian>.bak`. Đối chiếu xác nhận các tài khoản cũ giữ nguyên, BCrypt xác minh đúng mật khẩu và `integrity_check=ok` trên cả hai CSDL.
+- Cập nhật `README.md`: thêm bước nâng cấp schema trước khi chạy, sửa mô tả CSDL không còn ghi tự tạo, ghi thông tin ADMIN local và liên kết tài liệu. Thông tin đăng nhập này chỉ dành cho phát triển/kiểm thử, cần đổi hoặc loại bỏ trước triển khai thật.
+- Đã đăng nhập thực tế bằng ADMIN local trên bản demo đang chạy: chuyển về trang chủ với HTTP 200; truy cập `/ManagedAccounts` và `/Permissions` đều HTTP 200. Thêm ignore cho backup `*.sqlite.before-admin-*.bak*` để tránh đưa bản sao CSDL lên Git.
+- Thêm lệnh Development `--create-local-admin` nhận email/mật khẩu/số điện thoại qua `LocalAdmin__Email`, `LocalAdmin__Password`, `LocalAdmin__Phone`; không còn credential cố định trong code/tài liệu. Lệnh kiểm tra schema v2, không ghi đè email đã có, từ chối xung đột số điện thoại và sao lưu trước khi tạo.
+
+## Thứ tự menu (28/09/2026)
+
+- Sửa `Views/Shared/_Layout.cshtml`: chuyển nhóm Hệ thống xuống cuối sidebar, giữ thứ tự các nhóm còn lại. Không đổi CSDL hay quyền truy cập.
+- Khởi động lại app để Razor biên dịch lại, mở trang có menu để xem. Kiểm tra diff; chưa xác minh bằng trình duyệt.
+
+## S1-03 – Tạo, bắt buộc đổi mật khẩu, khoá và danh sách (28/09/2026)
+
+- Đã triển khai ba lát AC1–AC4: ADMIN tạo Chủ nhà/Quản lý, email mật khẩu tạm, trạng thái chờ đổi; chặn chức năng khác tới khi đổi xong; khoá/mở khoá thu hồi cookie/JWT/refresh; lọc vai trò/trạng thái và 20 dòng/trang. PO đã đồng ý ADMIN-only/phạm vi hai vai trò, mật khẩu tạm 16 ký tự đủ 4 nhóm, mật khẩu mới >=8 có chữ/số và email văn bản theo mẫu. Không tự khoá.
+- Thành phần: `ManagedAccountsController`, ViewModels/Razor, email sender dùng chung SMTP/pickup, middleware bắt buộc đổi, AccountController/ChangePassword, cookie/JWT/AuthService, layout + polling 20 giây. Gửi email lỗi vẫn giữ tài khoản chờ đổi, có gửi lại và thay mật khẩu tạm cũ; không lưu mật khẩu rõ trong DB. Đổi mật khẩu nay dùng được cho mọi vai trò và thu hồi mọi phiên.
+- Schema v2 trong `DatabaseUpdates`: cột must_change_password + unique index email chuẩn hoá/điện thoại; backup trước, không gộp/xoá dữ liệu trùng. Chỉ áp dụng vào bản sao thử/demo; CSDL chính giữ nguyên v1 trong task này. Startup báo cần updater trước khi chạy bản code mới với DB v1.
+- Build PASS; `verification/s103_http.py` PASS HTTP tạo/trùng/validation/CSRF/email pickup/lỗi gửi và gửi lại/ép đổi/chặn MVC+API/login mới/khoá Chủ nhà+Quản lý/cookie-JWT-refresh-unlock/lọc+3 trang/integrity/FK. `verification/database_updates.py` PASS hồi quy nâng cấp và bảo toàn dữ liệu. Test đối chiếu SHA-256 DB gốc không đổi. Còn warning ImageSharp + 2 CS8601 cũ; không chạy bộ test cũ có EnsureDeleted.
+- Demo đang chạy localhost:5247 với `data/s103-demo-ready.sqlite`, ADMIN ngẫu nhiên và 45 Quản lý hoạt động + 8 khoá thêm vào bản sao. Script `verification/prepare_s103_demo.py` tạo bản sao mới và in thông tin đăng nhập; không tự cấp ADMIN vào DB thật. Lần tạo demo đầu đã xong dữ liệu nhưng lỗi in đường dẫn Unicode; đã sửa encoding, chạy lại với file đích mới thành công.
+- Hướng dẫn chạy và từng bước test: [s1-03-tai-khoan.md](s1-03-tai-khoan.md). Mail demo ở `%TEMP%/s103-mail-preview`, chưa gửi tới inbox. Chưa xác minh SMTP thật/UI đồ hoạ hoặc đo polling trong trình duyệt; HTTP đã xác minh khoá có hiệu lực ngay. Cần SMTP và kiểm thử demo theo tài liệu trước nghiệm thu vận hành.
+- Giới hạn: gửi SMTP không cùng transaction với DB; retry thay mật khẩu tạm, có thể cần kiểm tra thư mới nhất. Tab bị treo/mất mạng không tự chuyển đúng thời gian, server vẫn chặn mọi yêu cầu. Không commit/push; giữ nguyên thay đổi test project/DB/backup từ trước. Ghi chú auth/schema startup ở các mục cũ bên dưới đã được thay thế bởi updater hiện tại.
+
+## Đồng bộ schema và sửa lỗi app_module (28/09/2026)
+
+- Theo yêu cầu sửa quy trình CSDL: thêm `Data/DatabaseUpdates.cs`, lệnh `--update-database` (backup + phiên bản 1) và `--check-database`; sửa `Program.cs` để web chỉ kiểm tra schema, bỏ tự chạy auth/room/EnsureCreated. Bổ sung bảng hồ sơ theo SQL đã có; không triển khai backlog hay toàn bộ 22 bảng.
+- Thêm `verification/database_updates.py`, `docs/cap-nhat-csdl.md`; cập nhật hướng dẫn và ignore backup/lock. Quy trình team và cách chạy: [cap-nhat-csdl.md](cap-nhat-csdl.md). Sau pull: dừng app, `dotnet run --project QL_PhongTro -- --update-database`, rồi chạy profile `http`.
+- Đã build thành công; chạy script kiểm chứng trên bản sao PASS: thiếu schema không ghi DB, backup, giữ dữ liệu cũ, integrity/FK, cập nhật lặp lại không đổi quyền đã thu hồi, từ chối phiên bản tương lai/file chưa tồn tại. Lần thử đầu script lỗi dọn file tạm do connection Python chưa đóng; đã sửa và chạy lại đạt. Không chạy bộ test nghiệp vụ cũ.
+- Đã áp dụng updater và check vào DB local sau khi người dùng yêu cầu sửa. Backup toàn bộ: `QL_PhongTro/Data/local-dev.sqlite.before-update-d29bcc86691b4f7aa043da213bcfb6ef.bak`. Tại thời điểm cập nhật, dữ liệu phân quyền đã tồn tại nên initializer giữ nguyên, không seed lại. Đối chiếu tất cả bảng cũ với backup: dữ liệu giữ nguyên, integrity=ok, 0 lỗi FK.
+- Web đang chạy `http://localhost:5247`; HTTP GET `/`, `/Account/Login`, `/Account/Register` đều 200, không còn lỗi app_module. Phiên sandbox lỗi DPAPI nên đã dừng và chạy lại dưới tài khoản Windows bình thường. Chưa xác minh đăng nhập bằng tài khoản thật hoặc toàn bộ nghiệp vụ/UI trình duyệt.
+- Build còn cảnh báo ImageSharp; compile đầy đủ cũng có 2 CS8601 cũ. Diff của các file task không lỗi khoảng trắng; project test có lỗi whitespace từ trước, giữ nguyên. Không commit/push; file SQLite vốn được Git theo dõi vẫn hiện modified, không đưa dữ liệu/backup vào PR.
+- Giới hạn: cập nhật hiện tại gồm nhiều bước idempotent, chưa có transaction chung; thất bại giữa chừng không ghi phiên bản, cần xem lỗi/backup rồi chạy lại. Check kiểm tra bảng/cột và dữ liệu quyền cơ bản, chưa so sánh toàn bộ constraint/index. Sprint sau thêm bước phiên bản mới và kiểm thử từ DB cũ; không sửa bước đã phát hành.
+
 ## S4-10 staging và nghiệm thu (28/09/2026)
 
 - Thêm staging Compose riêng, volume SQLite riêng, reset/seed có xác nhận Staging + `AllowReset`, chặn DB local, trang admin tổng hợp, và tài khoản mẫu bốn vai trò. Hướng dẫn: [staging.md](staging.md).

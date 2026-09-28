@@ -50,6 +50,8 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
             return (false, null, "Sai email/SĐT hoặc mật khẩu");
         }
 
+        if (user.MustChangePassword)
+            return (false, null, "Bạn phải đăng nhập tại /Account/Login và đổi mật khẩu tạm trước khi sử dụng API.");
         await HandleSuccessfulLogin(user, now);
 
         var accessToken = _tokenService.GenerateAccessToken(user);
@@ -84,7 +86,7 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
         var user = await _db.TaiKhoans
             .FirstOrDefaultAsync(u => u.RefreshTokenHash == tokenHash && u.RefreshTokenExpiry > now && u.DangHoatDong);
 
-        if (user is null)
+        if (user is null || user.MustChangePassword)
         {
             return (false, null, "Refresh token không hợp lệ hoặc đã hết hạn");
         }
