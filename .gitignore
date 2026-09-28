@@ -37,3 +37,8 @@ obj/
 *.sqlite.before-s105-*.bak*
 *.sqlite.before-s109-*.bak*
 /data/S1-09-verification/
+*.sqlite.before-update-*.bak*
+*.sqlite.before-admin-*.bak*
+*.sqlite.before-local-admin-*.bak*
+*.sqlite.before-auth-*.bak*
+*.sqlite.update.lock

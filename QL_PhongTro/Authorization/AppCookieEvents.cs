@@ -29,6 +29,7 @@ public sealed class AppCookieEvents(AppDbContext db, SessionVersionStore session
             new Claim(ClaimTypes.NameIdentifier, account.Id.ToString()),
             new Claim(ClaimTypes.Name, account.HoTen),
             new Claim(ClaimTypes.Role, account.VaiTro ?? ""),
+            new Claim("must_change_password", account.MustChangePassword ? "true" : "false"),
             new Claim(SessionVersionStore.ClaimType, context.Principal?.FindFirstValue(SessionVersionStore.ClaimType) ?? "0")
         }, CookieAuthenticationDefaults.AuthenticationScheme);
         context.ReplacePrincipal(new ClaimsPrincipal(identity));

@@ -14,10 +14,21 @@ Mở Terminal tại thư mục chứa README này:
 
 ```powershell
 dotnet restore .\QL_PhongTro\QL_PhongTro.csproj
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --update-database
+$env:LocalAdmin__Email = 'admin-local@example.test'
+$env:LocalAdmin__Password = 'ThayBangMatKhauManh123!'
+$env:LocalAdmin__Phone = '0900000000'
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --create-local-admin
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
 ```
 
 Truy cập http://localhost:5247. Nhấn Ctrl+C để dừng.
+
+Lệnh `--update-database` sao lưu rồi cập nhật schema còn thiếu; nên dừng ứng dụng trước khi chạy. Ứng dụng yêu cầu file SQLite đã tồn tại và không tự tạo lại CSDL nền. Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt biến môi trường `DatabasePath` để dùng file riêng.
+
+## Tài khoản quản trị local
+
+Đặt `LocalAdmin__Email`, `LocalAdmin__Password`, `LocalAdmin__Phone` trong terminal local, sau đó chạy `--create-local-admin` sau `--update-database`. Không ghi thông tin thật vào README, `appsettings*.json`, commit hoặc log. Lệnh chỉ chạy trong Development, không ghi đè tài khoản đã có và sao lưu trước khi tạo. Mật khẩu trong SQLite được lưu dưới dạng băm BCrypt. Xoá các biến môi trường khỏi terminal sau khi dùng nếu máy được chia sẻ.
 
 Chạy trong lúc phát triển:
 
@@ -25,7 +36,12 @@ Chạy trong lúc phát triển:
 dotnet watch --project .\QL_PhongTro\QL_PhongTro.csproj run --launch-profile http
 ```
 
-Database SQLite được tạo tự động tại `QL_PhongTro/Data/local-dev.sqlite` trên Windows. Không cần cài SQL Server; giữ lại file này nếu đã có dữ liệu.
+SQLite mặc định nằm tại `QL_PhongTro/Data/local-dev.sqlite`. Không cần cài SQL Server; giữ lại file này nếu đã có dữ liệu và không chia sẻ CSDL có dữ liệu cá nhân.
+
+Quy trình đồng bộ schema và hướng dẫn kiểm thử S1-03 nằm tại:
+
+- `docs/cap-nhat-csdl.md`
+- `docs/s1-03-tai-khoan.md`
 
 ## Kiểm tra build
 

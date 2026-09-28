@@ -23,6 +23,7 @@ public class TaiKhoan
     public string? VaiTro { get; set; }
 
     public bool DangHoatDong { get; set; }
+    public bool MustChangePassword { get; set; }
     public bool IsStaff { get; set; }
     public bool IsSuperuser { get; set; }
     public int? FailedLoginCount { get; set; }

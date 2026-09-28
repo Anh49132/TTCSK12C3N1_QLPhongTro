@@ -22,16 +22,35 @@ public interface IPasswordEmailSender
     Task SendAsync(string email, string resetUrl);
 }
 
-public sealed class PasswordEmailSender(IOptions<PasswordResetOptions> options, IWebHostEnvironment environment) : IPasswordEmailSender
+public interface ITemporaryPasswordEmailSender
 {
-    public async Task SendAsync(string email, string resetUrl)
+    Task SendTemporaryAsync(string email, string name, string role, string password);
+}
+
+public sealed class PasswordEmailSender(IOptions<PasswordResetOptions> options, IWebHostEnvironment environment) : IPasswordEmailSender, ITemporaryPasswordEmailSender
+{
+    public Task SendAsync(string email, string resetUrl) => DeliverAsync(email, "Đặt lại mật khẩu Nhà Trọ",
+        "Bạn đã yêu cầu đặt lại mật khẩu Nhà Trọ. Mở liên kết sau trong vòng 30 phút; liên kết chỉ dùng được một lần:\n\n" + resetUrl + "\n\nNếu bạn không yêu cầu, hãy bỏ qua email này.");
+
+    public Task SendTemporaryAsync(string email, string name, string role, string password)
+    {
+        var url = options.Value.PublicBaseUrl;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var origin) ||
+            (origin.Scheme != "https" && !(environment.IsDevelopment() && origin.Scheme == "http" && origin.IsLoopback)) ||
+            !string.IsNullOrEmpty(origin.UserInfo) || !string.IsNullOrEmpty(origin.Query) || !string.IsNullOrEmpty(origin.Fragment))
+            throw new InvalidOperationException("Configure a trusted PublicBaseUrl.");
+        return DeliverAsync(email, "Tài khoản Nhà Trọ – yêu cầu đổi mật khẩu lần đầu",
+            $"Xin chào {name},\n\nQuản trị viên đã cấp tài khoản Nhà Trọ cho bạn.\nVai trò: {role}\nEmail đăng nhập: {email}\nMật khẩu tạm: {password}\nĐăng nhập: {url.TrimEnd('/')}/Account/Login\n\nBạn bắt buộc đặt mật khẩu mới ngay lần đăng nhập đầu tiên trước khi sử dụng hệ thống. Không chia sẻ mật khẩu này. Nếu bạn không yêu cầu tài khoản, hãy liên hệ quản trị viên.");
+    }
+
+    private async Task DeliverAsync(string email, string subject, string body)
     {
         var settings = options.Value;
         if (string.IsNullOrWhiteSpace(settings.From)) throw new InvalidOperationException("Missing email sender configuration.");
         using var message = new MailMessage(settings.From, email)
         {
-            Subject = "Đặt lại mật khẩu Nhà Trọ",
-            Body = "Bạn đã yêu cầu đặt lại mật khẩu Nhà Trọ. Mở liên kết sau trong vòng 30 phút; liên kết chỉ dùng được một lần:\n\n" + resetUrl + "\n\nNếu bạn không yêu cầu, hãy bỏ qua email này.",
+            Subject = subject,
+            Body = body,
             IsBodyHtml = false
         };
         using var client = new SmtpClient { Timeout = 15000 };

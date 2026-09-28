@@ -1,0 +1,154 @@
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+
+namespace QL_PhongTro.Data;
+
+// Append new versions; never rewrite an update already shared with the team.
+public static class DatabaseUpdates
+{
+    private const int CurrentVersion = 2;
+    private static SqliteConnection Open(string path, bool readOnly)
+    {
+        var c = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = path, Mode = readOnly ? SqliteOpenMode.ReadOnly : SqliteOpenMode.ReadWrite,
+            ForeignKeys = true
+        }.ToString());
+        c.Open();
+        return c;
+    }
+
+    private static void Execute(SqliteConnection c, string sql)
+    {
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = sql;
+        cmd.ExecuteNonQuery();
+    }
+
+    private static bool HasTable(SqliteConnection c, string name)
+    {
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=$name";
+        cmd.Parameters.AddWithValue("$name", name);
+        return Convert.ToInt64(cmd.ExecuteScalar()) != 0;
+    }
+
+    public static void Check(string path)
+    {
+        using var c = Open(path, true);
+        var problems = new List<string>();
+        using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(c).Options);
+        foreach (var entity in db.Model.GetEntityTypes())
+        {
+            var table = entity.GetTableName()!;
+            var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
+            var columns = entity.GetProperties().Select(p => p.GetColumnName(store)!);
+            Probe(table, columns);
+        }
+        Probe("password_reset_token", ["token_hash", "account_id", "expires_at", "used_at"]);
+        Probe("password_reset_request", ["id", "email_key", "requested_at"]);
+        Probe("account_session_version", ["account_id", "version"]);
+        if (HasTable(c, "app_module") && HasTable(c, "app_role") && HasTable(c, "role_permission"))
+        {
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = "SELECT (SELECT COUNT(*) FROM app_module) * (SELECT COUNT(*) FROM app_role) * (SELECT COUNT(*) FROM role_permission)";
+            if (Convert.ToInt64(cmd.ExecuteScalar()) == 0) problems.Add("Permission seed is missing; inspect permissions.seed.json and existing permission data.");
+        }
+        if (problems.Count != 0)
+            throw new InvalidOperationException("Database schema is not ready: " + string.Join("; ", problems) +
+                "\nStop the app, then run: dotnet run --project QL_PhongTro -- --update-database" +
+                "\nUse the same DatabasePath for update and startup. Existing incompatible columns require manual review. No schema was changed by this check.");
+
+        void Probe(string table, IEnumerable<string> columns)
+        {
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = $"PRAGMA table_info(\"{table}\")";
+            using var reader = cmd.ExecuteReader();
+            var actual = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            while (reader.Read()) actual.Add(reader.GetString(1));
+            var missing = columns.Where(column => !actual.Contains(column)).ToArray();
+            if (missing.Length > 0) problems.Add(table + ": missing " + string.Join(", ", missing));
+        }
+    }
+
+    public static void Update(string path, string seedPath)
+    {
+        // Prevent two updater processes from interleaving. Stop web instances before updating.
+        using var updateLock = new FileStream(path + ".update.lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        using var c = Open(path, false);
+        if (!HasTable(c, "tai_khoan")) throw new InvalidOperationException("Missing existing tai_khoan table; refusing to create a replacement database.");
+        var version = 0;
+        if (HasTable(c, "app_schema_version"))
+        {
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = "SELECT COALESCE(MAX(version),0) FROM app_schema_version";
+            version = Convert.ToInt32(cmd.ExecuteScalar());
+        }
+        if (version > CurrentVersion) throw new InvalidOperationException("Database is newer than this code. Pull the matching branch before updating.");
+        if (version == CurrentVersion)
+        {
+            Check(path);
+            Console.WriteLine($"Database already up to date (version {CurrentVersion}). No changes.");
+            return;
+        }
+        var backupPath = path + ".before-update-" + Guid.NewGuid().ToString("N") + ".bak";
+        using (var backup = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = backupPath }.ToString()))
+        {
+            backup.Open();
+            c.BackupDatabase(backup);
+        }
+        Console.WriteLine("Database backup: " + backupPath);
+        // Legacy initializers are additive and rerunnable. A failed update is not marked complete.
+        // The backup covers the whole update; individual initializers also keep their own backups.
+        if (version < 1)
+        {
+        AuthSchemaInitializer.Initialize(path);
+        using (var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(c).Options))
+            RoomSchemaInitializer.EnsureSchema(db);
+        PermissionSchemaInitializer.Initialize(path, seedPath);
+        PasswordSchemaInitializer.Initialize(path);
+        Execute(c, """
+            CREATE TABLE IF NOT EXISTS khach_thue (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                tai_khoan_id INTEGER UNIQUE REFERENCES tai_khoan(id) ON DELETE RESTRICT,
+                ho_ten TEXT NOT NULL, ngay_sinh TEXT, so_giay_to TEXT,
+                giay_to_bon_so_cuoi TEXT, anh_giay_to_truoc TEXT, anh_giay_to_sau TEXT,
+                dia_chi_thuong_tru TEXT, nghe_nghiep TEXT, so_dien_thoai TEXT,
+                email TEXT, lien_he_khan_cap TEXT, ngay_tao TEXT NOT NULL
+            );
+            """);
+        Execute(c, """
+            CREATE TABLE IF NOT EXISTS app_schema_version (
+                version INTEGER NOT NULL PRIMARY KEY, applied_at TEXT NOT NULL
+            );
+            INSERT INTO app_schema_version(version, applied_at) VALUES (1, strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+            """);
+        }
+        if (version < 2)
+        {
+            using var tx = c.BeginTransaction();
+            using var command = c.CreateCommand();
+            command.Transaction = tx;
+            command.CommandText = "PRAGMA table_info(tai_khoan)";
+            bool hasFlag = false;
+            using (var reader = command.ExecuteReader())
+                while (reader.Read()) hasFlag |= reader.GetString(1) == "must_change_password";
+            if (!hasFlag)
+            {
+                command.CommandText = "ALTER TABLE tai_khoan ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0 CHECK(must_change_password IN (0,1))";
+                command.ExecuteNonQuery();
+            }
+            // Duplicate legacy data causes rollback, never automatic deletion/merging.
+            command.CommandText = """
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_account_email_normalized ON tai_khoan(lower(trim(email)));
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_account_phone ON tai_khoan(so_dien_thoai);
+                INSERT INTO app_schema_version(version,applied_at) VALUES(2,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                """;
+            command.ExecuteNonQuery();
+            tx.Commit();
+        }
+        Check(path);
+        Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
+    }
+}

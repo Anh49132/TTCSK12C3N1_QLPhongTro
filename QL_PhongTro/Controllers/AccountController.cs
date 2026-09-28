@@ -57,10 +57,19 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
             new Claim(SessionVersionStore.ClaimType, sessionVersion)
         }, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+        if (account.MustChangePassword) return RedirectToAction(nameof(ChangePassword));
         return Url.IsLocalUrl(model.ReturnUrl) ? LocalRedirect(model.ReturnUrl!) : RedirectToAction("Index", "Home");
     }
 
     private static readonly string DummyHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
+
+    [HttpGet]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult SessionStatus() => Json(new
+    {
+        authenticated = User.Identity?.IsAuthenticated == true,
+        mustChangePassword = User.FindFirst("must_change_password")?.Value == "true"
+    });
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -134,7 +143,12 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
         };
 
         db.TaiKhoans.Add(user);
-        await db.SaveChangesAsync();
+        try { await db.SaveChangesAsync(); }
+        catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.Sqlite.SqliteException { SqliteErrorCode: 19 })
+        {
+            ModelState.AddModelError("", "Email hoặc số điện thoại đã được sử dụng.");
+            return View(model);
+        }
 
         var claims = new[]
         {
