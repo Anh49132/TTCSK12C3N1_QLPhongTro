@@ -1,5 +1,11 @@
 # Tiến độ dự án
 
+## Tinh gọn cấu hình dự án (28/09/2026)
+
+- Loại bỏ môi trường staging thử nghiệm gồm Docker/Compose, reset-seed, trang tổng quan và liên kết giao diện; đây không phải phần triển khai Nhật ký hoạt động S1-10 theo backlog.
+- Giữ nguyên sửa lỗi phân quyền MVC trả 403, đăng nhập, cookie/JWT, cập nhật CSDL và các chức năng nghiệp vụ đang có. Không sửa SQLite, backup, dữ liệu demo hoặc project test local.
+- Build Debug thành công (0 lỗi, 3 cảnh báo cũ); `--check-database` báo schema sẵn sàng. Chạy local và xác minh GET `/`, `/Account/Login` đều HTTP 200 rồi dừng server sạch. Build Release vẫn cần license ImageSharp hợp lệ.
+
 ## Dọn môi trường và xác minh trước báo cáo (28/09/2026)
 
 - Dừng server và dọn các cache/build bị Git ignore: `.vs`, `bin`, `obj` của app, S109 và project test. Giữ nguyên SQLite, backup, dữ liệu demo và `App_Data`; các output cần thiết đã được tạo lại khi build.

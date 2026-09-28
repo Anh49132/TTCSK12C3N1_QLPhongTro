@@ -1,6 +1,5 @@
 # Ignore local dev SQLite database
 **/Data/local-dev.sqlite
-**/Data/staging/
 **/Data/*.sqlite
 **/*.sqlite-shm
 **/*.sqlite-wal
