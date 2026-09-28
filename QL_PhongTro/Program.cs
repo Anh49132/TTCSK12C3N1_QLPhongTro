@@ -20,6 +20,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
+builder.Services.AddSingleton<QL_PhongTro.Services.GiayToImageStore>();
+builder.Services.AddScoped<QL_PhongTro.Services.HoSoAccess>();
 
 var dataDir = Path.Combine(builder.Environment.ContentRootPath, "Data");
 var configuredDatabasePath = builder.Configuration["DatabasePath"];
