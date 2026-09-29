@@ -1,9 +1,13 @@
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
 using QL_PhongTro.Services;
+using System.Data.Common;
+using System.IO;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -17,20 +21,49 @@ public class MockTimeProvider : ITimeProvider
     public DateTime UtcNow { get; set; } = DateTime.UtcNow;
 }
 
-public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
+public class AuthTests : IDisposable
 {
     private readonly WebApplicationFactory<Program> _factory;
     private readonly AppDbContext _dbContext;
     private readonly HttpClient _client;
     private readonly MockTimeProvider _mockTimeProvider;
+    private readonly string _testDatabasePath;
+    private readonly string _appPath;
 
     public AuthTests()
     {
         _mockTimeProvider = new MockTimeProvider();
         
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "QL_PhongTro", "Data")))
+            directory = directory.Parent;
+        _appPath = Path.Combine(directory?.FullName ?? throw new Exception("Repository not found"), "QL_PhongTro");
+        
+        _testDatabasePath = Path.Combine(Path.GetTempPath(), $"test_db_{Guid.NewGuid():N}.sqlite");
+        
+        // First, create EF Core tables using a direct DbContext
+        var connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = _testDatabasePath, Mode = SqliteOpenMode.ReadWriteCreate, ForeignKeys = true
+        }.ToString();
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connectionString).Options;
+        using (var db = new AppDbContext(options))
+        {
+            db.Database.EnsureCreated();
+        }
+        
+        // Then run initializers to add extra tables
+        AuthSchemaInitializer.Initialize(_testDatabasePath);
+        PasswordSchemaInitializer.Initialize(_testDatabasePath);
+        PermissionSchemaInitializer.Initialize(_testDatabasePath, Path.Combine(_appPath, "Data", "permissions.seed.json"));
+        
+        // Now create the factory with the same database path
+        Environment.SetEnvironmentVariable("DatabasePath", _testDatabasePath);
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
+                builder.UseContentRoot(_appPath);
+                builder.UseEnvironment("Development");
                 builder.ConfigureServices(services =>
                 {
                     var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(ITimeProvider));
@@ -46,13 +79,16 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
 
         var scope = _factory.Services.CreateScope();
         _dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        _dbContext.Database.EnsureCreated();
     }
 
     public void Dispose()
     {
         _dbContext.Database.EnsureDeleted();
         _dbContext.Dispose();
+        if (File.Exists(_testDatabasePath))
+        {
+            File.Delete(_testDatabasePath);
+        }
     }
 
     private async Task<(int statusCode, JsonElement body)> PostJsonAsync(string url, object body, string? accessToken = null)
@@ -114,7 +150,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         CreateUser();
         var (statusCode, body) = await PostJsonAsync("/api/auth/login", new
         {
-            Email = "test@example.com",
+            TaiKhoanDangNhap = "test@example.com",
             MatKhau = "Test123456"
         });
 
@@ -132,7 +168,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         CreateUser();
         var (_, loginBody) = await PostJsonAsync("/api/auth/login", new
         {
-            Email = "test@example.com",
+            TaiKhoanDangNhap = "test@example.com",
             MatKhau = "Test123456"
         });
 
@@ -154,7 +190,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         CreateUser();
         var (_, loginBody) = await PostJsonAsync("/api/auth/login", new
         {
-            Email = "test@example.com",
+            TaiKhoanDangNhap = "test@example.com",
             MatKhau = "Test123456"
         });
 
@@ -180,14 +216,14 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         // Sai email
         var (status1, body1) = await PostJsonAsync("/api/auth/login", new
         {
-            Email = "wrong@example.com",
+            TaiKhoanDangNhap = "wrong@example.com",
             MatKhau = "Test123456"
         });
 
         // Sai mật khẩu
         var (status2, body2) = await PostJsonAsync("/api/auth/login", new
         {
-            Email = "test@example.com",
+            TaiKhoanDangNhap = "test@example.com",
             MatKhau = "WrongPass123"
         });
 
@@ -207,7 +243,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         {
             await PostJsonAsync("/api/auth/login", new
             {
-                Email = "test@example.com",
+                TaiKhoanDangNhap = "test@example.com",
                 MatKhau = "WrongPass" + i
             });
         }
@@ -228,7 +264,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
 
         var (statusCode, body) = await PostJsonAsync("/api/auth/login", new
         {
-            Email = "test@example.com",
+            TaiKhoanDangNhap = "test@example.com",
             MatKhau = "Test123456"
         });
 
@@ -250,7 +286,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
 
         var (statusCode, body) = await PostJsonAsync("/api/auth/login", new
         {
-            Email = "test@example.com",
+            TaiKhoanDangNhap = "test@example.com",
             MatKhau = "Test123456"
         });
 
@@ -268,7 +304,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
 
         await PostJsonAsync("/api/auth/login", new
         {
-            Email = "test@example.com",
+            TaiKhoanDangNhap = "test@example.com",
             MatKhau = "Test123456"
         });
 
@@ -287,7 +323,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         {
             await PostJsonAsync("/api/auth/login", new
             {
-                Email = "test@example.com",
+                TaiKhoanDangNhap = "test@example.com",
                 MatKhau = "WrongPass" + i
             });
         }
@@ -295,7 +331,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         // Lần 5 đúng mật khẩu -> phải thành công
         var (statusCode, body) = await PostJsonAsync("/api/auth/login", new
         {
-            Email = "test@example.com",
+            TaiKhoanDangNhap = "test@example.com",
             MatKhau = "Test123456"
         });
 
@@ -311,7 +347,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         CreateUser();
         var (_, loginBody) = await PostJsonAsync("/api/auth/login", new
         {
-            Email = "test@example.com",
+            TaiKhoanDangNhap = "test@example.com",
             MatKhau = "Test123456"
         });
         var refreshToken = loginBody.GetProperty("refreshToken").GetString();
@@ -335,7 +371,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         CreateUser();
         var (_, loginBody) = await PostJsonAsync("/api/auth/login", new
         {
-            Email = "test@example.com",
+            TaiKhoanDangNhap = "test@example.com",
             MatKhau = "Test123456"
         });
         var accessToken = loginBody.GetProperty("accessToken").GetString();
@@ -358,7 +394,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         CreateUser();
         var (_, loginBody) = await PostJsonAsync("/api/auth/login", new
         {
-            Email = "test@example.com",
+            TaiKhoanDangNhap = "test@example.com",
             MatKhau = "Test123456"
         });
         var refreshToken = loginBody.GetProperty("refreshToken").GetString();
@@ -378,7 +414,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         CreateUser();
         var (_, loginBody) = await PostJsonAsync("/api/auth/login", new
         {
-            Email = "test@example.com",
+            TaiKhoanDangNhap = "test@example.com",
             MatKhau = "Test123456"
         });
         var refreshToken = loginBody.GetProperty("refreshToken").GetString();
@@ -389,7 +425,7 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>, IDisposa
         // Đăng nhập lại
         var (statusCode, body) = await PostJsonAsync("/api/auth/login", new
         {
-            Email = "test@example.com",
+            TaiKhoanDangNhap = "test@example.com",
             MatKhau = "Test123456"
         });
 

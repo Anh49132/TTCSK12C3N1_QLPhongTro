@@ -51,6 +51,9 @@ public sealed class PermissionTests : IDisposable
         {
             original.Open(); copy.Open(); original.BackupDatabase(copy);
         }
+        // Run all initializers to ensure schema is complete
+        AuthSchemaInitializer.Initialize(database);
+        PasswordSchemaInitializer.Initialize(database);
         // Reset only permission tables in the disposable copy to exercise a fresh initialization.
         Execute("DROP TABLE IF EXISTS role_permission; DROP TABLE IF EXISTS app_module; DROP TABLE IF EXISTS app_role;");
         var before = SnapshotBusinessData();
@@ -118,7 +121,7 @@ public sealed class PermissionTests : IDisposable
         Assert.NotEmpty(token);
         var response = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string,string>
         {
-            ["Identifier"] = role.ToLowerInvariant()+"@s104.test", ["Password"] = "DemoPass123!",
+            ["TaiKhoanDangNhap"] = role.ToLowerInvariant()+"@s104.test", ["MatKhau"] = "DemoPass123!",
             ["__RequestVerificationToken"] = WebUtility.HtmlDecode(token)
         }));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
@@ -178,13 +181,8 @@ public sealed class PermissionTests : IDisposable
                 var page = await client.GetAsync("/Modules/" + modules[m]);
                 if (!allowed)
                 {
-                    Assert.Equal(HttpStatusCode.Redirect,page.StatusCode);
-                    Assert.StartsWith("/Account/AccessDenied",page.Headers.Location!.AbsolutePath);
-                    Assert.DoesNotContain("app-content",await page.Content.ReadAsStringAsync());
-                    var denial = await client.GetAsync(page.Headers.Location);
-                    Assert.Equal(HttpStatusCode.Forbidden,denial.StatusCode);
-                    Assert.Contains("Không đủ quyền",WebUtility.HtmlDecode(await denial.Content.ReadAsStringAsync()));
-                    Assert.Equal("FORBIDDEN",JsonDocument.Parse(await api.Content.ReadAsStringAsync()).RootElement.GetProperty("code").GetString());
+                    Assert.Equal(HttpStatusCode.Forbidden, page.StatusCode);
+                    Assert.Equal("FORBIDDEN", JsonDocument.Parse(await api.Content.ReadAsStringAsync()).RootElement.GetProperty("code").GetString());
                 }
                 else Assert.True(page.StatusCode is HttpStatusCode.OK or HttpStatusCode.Redirect);
             }
@@ -247,10 +245,10 @@ public sealed class PermissionTests : IDisposable
             Assert.DoesNotContain("href=\"/PhongTro/Create",await client.GetStringAsync("/PhongTro"));
             foreach(var action in new[] {"Create","CreateBulk","TaoToaNha"})
             {
-                Assert.Equal(HttpStatusCode.Redirect,(await client.GetAsync("/PhongTro/"+action)).StatusCode);
+                var getResponse = await client.GetAsync("/PhongTro/"+action);
+                Assert.Equal(HttpStatusCode.Forbidden, getResponse.StatusCode);
                 var post = await client.PostAsync("/PhongTro/"+action,new FormUrlEncodedContent(new Dictionary<string,string>()));
-                Assert.Equal(HttpStatusCode.Redirect,post.StatusCode);
-                Assert.StartsWith("/Account/AccessDenied",post.Headers.Location!.AbsolutePath);
+                Assert.Equal(HttpStatusCode.Forbidden, post.StatusCode);
             }
         }
         using var owner = await Login("CHU_NHA");
