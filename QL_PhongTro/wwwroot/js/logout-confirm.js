@@ -72,8 +72,27 @@
         confirmButton.type = 'button';
         confirmButton.className = 'btn btn-primary';
         confirmButton.textContent = 'Đăng xuất';
-        confirmButton.addEventListener('click', () => {
+        confirmButton.addEventListener('click', async () => {
             close();
+            // S1-02: thu hoi refresh token o may chu truoc khi xoa phien cookie,
+            // de token da copy khong con dung duoc nua.
+            const refreshToken = localStorage.getItem('refreshToken');
+            const accessToken = localStorage.getItem('accessToken');
+            if (refreshToken) {
+                const headers = { 'Content-Type': 'application/json' };
+                if (accessToken) headers['Authorization'] = 'Bearer ' + accessToken;
+                try {
+                    await fetch('/api/auth/logout', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({ RefreshToken: refreshToken }),
+                        keepalive: true
+                    });
+                } catch (err) {
+                    // Mat ket noi van tiep tuc dang xuot khoi he thong.
+                }
+            }
+            if (typeof window.authClearTokens === 'function') window.authClearTokens();
             form.submit();
         });
 

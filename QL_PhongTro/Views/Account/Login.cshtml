@@ -10,7 +10,6 @@
             var lockoutMessage = document.getElementById('lockoutMessage');
             var countdownTimer = document.getElementById('countdownTimer');
             var countdownInterval = null;
-            var useApi = form.dataset.useApi === 'true';
 
             var passwordInput = document.getElementById('MatKhau');
             var passwordToggle = document.getElementById('togglePassword');
@@ -30,16 +29,19 @@
                 errorEl.textContent = '';
                 lockoutAlert.classList.remove('d-none');
                 var endTime = Date.now() + seconds * 1000;
-                countdownInterval = setInterval(function () {
+                function tick() {
                     var remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
                     var mins = Math.floor(remaining / 60);
                     var secs = remaining % 60;
                     countdownTimer.textContent = mins + ':' + (secs < 10 ? '0' : '') + secs;
                     if (remaining <= 0) {
                         clearInterval(countdownInterval);
+                        countdownInterval = null;
                         lockoutAlert.classList.add('d-none');
                     }
-                }, 1000);
+                }
+                tick();
+                countdownInterval = setInterval(tick, 1000);
             }
 
             function hideLockout() {
@@ -52,47 +54,52 @@
 
             if (form) {
                 form.addEventListener('submit', async function (e) {
-                    if (useApi) {
-                        e.preventDefault();
-                        errorEl.textContent = '';
-                        hideLockout();
+                    e.preventDefault();
+                    errorEl.textContent = '';
+                    hideLockout();
 
-                        var taiKhoan = document.getElementById('TaiKhoanDangNhap').value.trim();
-                        var pwd = document.getElementById('MatKhau').value;
+                    var taiKhoan = document.getElementById('TaiKhoanDangNhap').value.trim();
+                    var pwd = document.getElementById('MatKhau').value;
 
-                        if (!taiKhoan) {
-                            errorEl.textContent = 'Phải nhập số điện thoại hoặc email';
-                            return;
-                        }
-                        if (!pwd || pwd.length < 8) {
-                            errorEl.textContent = 'Mật khẩu tối thiểu 8 ký tự';
-                            return;
-                        }
-
-                        try {
-                            var res = await fetch('/api/auth/login', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ TaiKhoanDangNhap: taiKhoan, MatKhau: pwd })
-                            });
-                            var data = await res.json();
-                            if (!res.ok) {
-                                errorEl.textContent = data.message || 'Đăng nhập thất bại';
-                                if (data.message && data.message.includes('khoá')) {
-                                    var match = data.message.match(/(\d+)\s*phút/);
-                                    if (match) {
-                                        showLockout(parseInt(match[1]) * 60);
-                                    }
-                                }
-                                return;
-                            }
-                            authSetTokens(data.accessToken, data.refreshToken);
-                            window.location.href = data.returnUrl || '/';
-                        } catch (err) {
-                            errorEl.textContent = 'Lỗi kết nối server';
-                        }
+                    if (!taiKhoan) {
+                        errorEl.textContent = 'Phải nhập số điện thoại hoặc email';
+                        return;
                     }
-                    // If not useApi, let the form submit normally to MVC endpoint
+                    if (!pwd || pwd.length < 8) {
+                        errorEl.textContent = 'Mật khẩu tối thiểu 8 ký tự';
+                        return;
+                    }
+
+                    // S1-02: gui qua /Account/Login de lay cookie phien trinh duyet,
+                    // dong thoi nhan access token + refresh token luu xuong thiet bi.
+                    var payload = new FormData();
+                    payload.append('TaiKhoanDangNhap', taiKhoan);
+                    payload.append('MatKhau', pwd);
+                    payload.append('ReturnUrl', document.getElementById('ReturnUrl').value || '');
+                    var antiforgery = form.querySelector('input[name="__RequestVerificationToken"]');
+                    if (antiforgery) payload.append('__RequestVerificationToken', antiforgery.value);
+
+                    try {
+                        var res = await fetch('/Account/Login', {
+                            method: 'POST',
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                            body: payload
+                        });
+                        var data = await res.json();
+                        if (!res.ok || !data.success) {
+                            errorEl.textContent = data.message || 'Đăng nhập thất bại';
+                            if (data.locked && data.remainingMinutes > 0) {
+                                showLockout(data.remainingMinutes * 60);
+                            }
+                            return;
+                        }
+                        if (data.accessToken) {
+                            authSetTokens(data.accessToken, data.refreshToken);
+                        }
+                        window.location.href = data.returnUrl || '/';
+                    } catch (err) {
+                        errorEl.textContent = 'Lỗi kết nối server';
+                    }
                 });
             }
         })();
@@ -107,7 +114,7 @@
                 @if (TempData["PasswordSuccess"] is string success) { <div class="alert alert-success" role="status">@success</div> }
                 <p class="auth-description">Tiếp tục quản lý không gian sống của bạn.</p>
                 <form id="loginForm" method="post" data-use-api="false" novalidate>
-                    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert" id="loginError"></div>
+                    <div class="text-danger" role="alert" id="loginError">@if (!ViewData.ModelState.IsValid) { <div>@Html.ValidationSummary(false)</div> }</div>
                     <input asp-for="ReturnUrl" type="hidden" />
                     <div class="mb-3">
                         <label asp-for="TaiKhoanDangNhap" class="form-label">Số điện thoại hoặc Email</label>

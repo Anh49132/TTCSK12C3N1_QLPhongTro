@@ -31,6 +31,18 @@ public class CredentialValidationService(AppDbContext db, ITimeProvider timeProv
     private const int MaxFailedAttempts = 5;
     private const int LockoutMinutes = 15;
 
+    // S1-02: thong bao loi khong duoc tiet lo tai khoan co ton tai hay khong, ke ca qua
+    // thoi gian phan hoi. Khi khong tim thay tai khoan van phai chay BCrypt voi mot hash
+    // gia de thoi gian tra ve ngang bang truong hop tai khoan co that.
+    private static readonly string DummyHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
+
+    private static bool BurnPasswordTiming(string? password)
+    {
+        try { BCrypt.Net.BCrypt.Verify(password ?? string.Empty, DummyHash); }
+        catch (BCrypt.Net.SaltParseException) { }
+        return false;
+    }
+
     public async Task<CredentialValidationResult> ValidateAsync(LoginRequest request)
     {
         var input = request.TaiKhoanDangNhap?.Trim() ?? "";
@@ -50,6 +62,7 @@ public class CredentialValidationService(AppDbContext db, ITimeProvider timeProv
 
         if (user is null || !user.DangHoatDong)
         {
+            BurnPasswordTiming(request.MatKhau);
             return new CredentialValidationResult { Success = false, Error = "Thông tin đăng nhập không chính xác" };
         }
 

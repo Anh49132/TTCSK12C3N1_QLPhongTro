@@ -11,7 +11,7 @@ using QL_PhongTro.Services;
 
 namespace QL_PhongTro.Controllers;
 
-public partial class AccountController(AppDbContext db, RegistrationSettings settings, SessionVersionStore sessions, ICredentialValidationService credentialValidator) : Controller
+public partial class AccountController(AppDbContext db, RegistrationSettings settings, SessionVersionStore sessions, ICredentialValidationService credentialValidator, AuthService authService) : Controller
 {
     private static bool ValidatePhone(string? phone) =>
         !string.IsNullOrWhiteSpace(phone) && Regex.IsMatch(phone, @"^0\d{9}$");
@@ -27,13 +27,35 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginRequest request)
     {
-        if (!ModelState.IsValid) return View(request);
+        // S1-02: trinh duyet gui bang fetch de nhan duoc access token + refresh token
+        // va luu xuong thiet bi. Van giu duong POST binh thuong de hoat dong khi
+        // khong co JavaScript.
+        var isAjax = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!ModelState.IsValid)
+        {
+            var invalid = ModelState.Values.SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage).FirstOrDefault() ?? "Thông tin đăng nhập không hợp lệ.";
+            if (isAjax) return Json(new { success = false, message = invalid, locked = false, remainingMinutes = 0 });
+            return View(request);
+        }
 
         // Validate credentials using shared service (MVC cookie auth flow)
         var validation = await credentialValidator.ValidateAsync(request);
 
         if (!validation.Success)
         {
+            if (isAjax)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = validation.Error ?? "Thông tin đăng nhập không hợp lệ.",
+                    locked = validation.IsLocked,
+                    remainingMinutes = validation.LockoutRemainingMinutes
+                });
+            }
             ModelState.AddModelError("", validation.Error ?? "Thông tin đăng nhập không hợp lệ.");
             return View(request);
         }
@@ -42,7 +64,9 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
         var sessionVersion = sessions.Capture(user.Id, user.MatKhau);
         if (sessionVersion is null)
         {
-            ModelState.AddModelError("", "Thông tin đăng nhập vừa thay đổi. Vui lòng đăng nhập lại.");
+            const string changed = "Thông tin đăng nhập vừa thay đổi. Vui lòng đăng nhập lại.";
+            if (isAjax) return Json(new { success = false, message = changed, locked = false, remainingMinutes = 0 });
+            ModelState.AddModelError("", changed);
             return View(request);
         }
 
@@ -56,7 +80,30 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
 await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
 
         // S1-03: Check MustChangePassword (from dev)
-        if (user.MustChangePassword) return RedirectToAction(nameof(ChangePassword));
+        if (user.MustChangePassword)
+        {
+            return isAjax
+                ? Json(new { success = true, mustChangePassword = true, returnUrl = Url.Action("ChangePassword", "Account") })
+                : (IActionResult)RedirectToAction(nameof(ChangePassword));
+        }
+
+        // S1-02: phát access token (30 phut) + refresh token (7 ngay) cho phia may.
+        if (isAjax)
+        {
+            var (issued, tokens, error) = await authService.LoginAsync(request);
+            if (!issued)
+            {
+                return Json(new { success = false, message = error ?? "Đăng nhập thất bại", locked = false, remainingMinutes = 0 });
+            }
+            return Json(new
+            {
+                success = true,
+                mustChangePassword = false,
+                accessToken = tokens!.AccessToken,
+                refreshToken = tokens.RefreshToken,
+                returnUrl = Url.IsLocalUrl(request.ReturnUrl) ? request.ReturnUrl : Url.Action("Index", "Home")!
+            });
+        }
 
         return Url.IsLocalUrl(request.ReturnUrl) ? LocalRedirect(request.ReturnUrl!) : RedirectToAction("Index", "Home");
     }

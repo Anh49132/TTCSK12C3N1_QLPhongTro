@@ -1,7 +1,15 @@
 (function () {
+    // Luu lai fetch goc truoc khi bi patch. moi yeu cau noi bo (refresh token) phai dung
+    // ban goc, neu dung window.fetch da patch se tao vong lap doi va treo.
+    const originalFetch = window.fetch.bind(window);
     let isRefreshing = false;
     let failedQueue = [];
     let sessionRestored = false;
+
+    const AUTH_ENDPOINTS = ['/api/auth/refresh', '/api/auth/login'];
+
+    const isAuthEndpoint = url =>
+        typeof url === 'string' && AUTH_ENDPOINTS.some(path => url.includes(path));
 
     const processQueue = (error, token = null) => {
         failedQueue.forEach(prom => {
@@ -15,27 +23,21 @@
     };
 
     const refreshAccessToken = async () => {
-        try {
-            const refreshToken = localStorage.getItem('refreshToken');
-            if (!refreshToken) throw new Error('No refresh token');
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) throw new Error('No refresh token');
 
-            const response = await fetch('/api/auth/refresh', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ RefreshToken: refreshToken })
-            });
+        const response = await originalFetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ RefreshToken: refreshToken })
+        });
 
-            if (!response.ok) throw new Error('Refresh failed');
+        if (!response.ok) throw new Error('Refresh failed');
 
-            const data = await response.json();
-            localStorage.setItem('accessToken', data.accessToken);
-            localStorage.setItem('refreshToken', data.refreshToken);
-            return data.accessToken;
-        } catch (err) {
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            throw err;
-        }
+        const data = await response.json();
+        localStorage.setItem('accessToken', data.accessToken);
+        if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+        return data.accessToken;
     };
 
     // Check if access token is expired (with 30 second buffer)
@@ -48,6 +50,18 @@
             return Date.now() >= (exp - 30000); // 30 second buffer
         } catch {
             return true;
+        }
+    };
+
+    const clearTokens = () => {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        window.dispatchEvent(new Event('authChanged'));
+    };
+
+    const goToLogin = () => {
+        if (!/^\/account\/login/i.test(window.location.pathname)) {
+            window.location.replace('/Account/Login');
         }
     };
 
@@ -67,9 +81,9 @@
                 console.log('Session restored via refresh token');
             } catch (err) {
                 console.warn('Session restore failed, tokens cleared');
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-                window.dispatchEvent(new Event('authChanged'));
+                clearTokens();
+                // S1-02: ca access token va refresh token deu het han -> ve man hinh dang nhap.
+                goToLogin();
             }
         }
     };
@@ -81,7 +95,6 @@
         restoreSession();
     }
 
-    const originalFetch = window.fetch;
     window.fetch = async (url, options = {}) => {
         const accessToken = localStorage.getItem('accessToken');
         if (accessToken && !options.headers?.Authorization) {
@@ -91,12 +104,9 @@
             };
         }
 
-        let response = await originalFetch(url, options);
+        const response = await originalFetch(url, options);
 
-        if (response.status === 401) {
-            const originalUrl = url;
-            const originalOptions = { ...options };
-
+        if (response.status === 401 && !isAuthEndpoint(url) && localStorage.getItem('refreshToken')) {
             if (!isRefreshing) {
                 isRefreshing = true;
                 try {
@@ -106,25 +116,19 @@
                 } catch (err) {
                     isRefreshing = false;
                     processQueue(err);
-                    localStorage.removeItem('accessToken');
-                    localStorage.removeItem('refreshToken');
-                    window.dispatchEvent(new Event('authChanged'));
-                    window.location.href = '/Account/Login';
+                    clearTokens();
+                    goToLogin();
                     throw err;
                 }
             } else {
-                try {
-                    const newAccessToken = await new Promise((resolve, reject) => {
-                        failedQueue.push({ resolve, reject });
-                    });
-                    options.headers = {
-                        ...options.headers,
-                        'Authorization': `Bearer ${newAccessToken}`
-                    };
-                    return originalFetch(originalUrl, originalOptions);
-                } catch (err) {
-                    throw err;
-                }
+                const newAccessToken = await new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                });
+                options.headers = {
+                    ...options.headers,
+                    'Authorization': `Bearer ${newAccessToken}`
+                };
+                return originalFetch(url, options);
             }
 
             options.headers = {
@@ -144,8 +148,6 @@
     };
 
     window.authClearTokens = () => {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        window.dispatchEvent(new Event('authChanged'));
+        clearTokens();
     };
 })();
