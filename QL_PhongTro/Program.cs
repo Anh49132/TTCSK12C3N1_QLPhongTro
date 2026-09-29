@@ -18,6 +18,16 @@ using QL_PhongTro.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (args.Contains("--check-email-config"))
+{
+    var mail = builder.Configuration.GetSection("PasswordReset").Get<PasswordResetOptions>() ?? new();
+    Console.WriteLine("Email mode: " + (string.IsNullOrWhiteSpace(mail.PickupDirectory) ? "SMTP" : "PICKUP (local file only; no inbox delivery)"));
+    Console.WriteLine($"SMTP host: {mail.Host}; port: {mail.Port}; TLS: {mail.EnableSsl}");
+    Console.WriteLine($"Username configured: {!string.IsNullOrWhiteSpace(mail.Username)}; password configured: {!string.IsNullOrWhiteSpace(mail.Password)}; sender configured: {!string.IsNullOrWhiteSpace(mail.From)}");
+    Console.WriteLine("Configuration check only. No email sent; credentials are not displayed.");
+    return;
+}
+
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddSingleton<QL_PhongTro.Services.GiayToImageStore>();
@@ -120,6 +130,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.Configure<PasswordResetOptions>(builder.Configuration.GetSection("PasswordReset"));
 builder.Services.AddScoped<IPasswordEmailSender, PasswordEmailSender>();
 builder.Services.AddScoped<ITemporaryPasswordEmailSender, PasswordEmailSender>();
+builder.Services.AddScoped<IRegistrationEmailSender, PasswordEmailSender>();
 builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddScoped<SessionVersionStore>();
 builder.Services.AddScoped<DichVuService>();
@@ -140,7 +151,7 @@ builder.Services.AddAuthentication()
             if (int.TryParse(id, out var currentId))
             {
                 var account = await context.HttpContext.RequestServices.GetRequiredService<AppDbContext>().TaiKhoans.AsNoTracking().SingleOrDefaultAsync(a => a.Id == currentId);
-                if (account is null || !account.DangHoatDong || account.MustChangePassword)
+                if (account is null || account.IsDeleted || !account.EmailConfirmed || !account.DangHoatDong || account.MustChangePassword)
                     context.Fail("Tài khoản chưa được phép sử dụng phiên này.");
             }
         }
@@ -179,7 +190,7 @@ app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Inde
 
 
 DatabaseUpdates.Check(databasePath);
-
+AccountReuseSchema.Ensure(databasePath);
 
 app.MapRazorPages();
 app.Run();

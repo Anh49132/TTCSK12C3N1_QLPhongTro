@@ -39,6 +39,7 @@ obj/
 *.sqlite.before-update-*.bak*
 *.sqlite.before-admin-*.bak*
 *.sqlite.before-local-admin-*.bak*
+*.sqlite.before-account-reuse-*.bak*
 *.sqlite.before-auth-*.bak*
 *.sqlite.update.lock
 

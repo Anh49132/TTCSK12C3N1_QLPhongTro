@@ -15,11 +15,15 @@ dotnet run --project QL_PhongTro --launch-profile http
 
 Mở http://localhost:5247/Account/Login. Nếu dùng file khác, đặt `$env:DatabasePath = 'C:\duong-dan\database.sqlite'` trong cùng terminal trước các lệnh trên. Đường dẫn phải trỏ file đã tồn tại; công cụ không tạo lại CSDL nền.
 
-`--check-database` và khởi động web chỉ đọc schema, không tự sửa. Thiếu bảng/cột cần thiết thì dừng với hướng dẫn cập nhật trước khi nhận request.
+`--check-database` chỉ đọc schema. Web kiểm tra bảng/cột trước khi nhận request; riêng schema v4 được tự nâng lên v5 như mô tả dưới đây. Không cần chạy SQL/lệnh sửa dữ liệu mỗi lần xóa tài khoản.
 
 ## Các phiên bản cập nhật
 
-Phiên bản hiện tại trong mã nguồn là **3 (S1-10)**: bổ sung/kiểm tra nhật ký hoạt động, snapshot tên người thực hiện và trigger chặn sửa/xóa. Bước v3 kiểm tra schema, integrity/FK và ghi phiên bản trong cùng transaction; không suy đoán tên cho nhật ký cũ thiếu snapshot.
+Phiên bản hiện tại là **5**. `AccountReuseSchema` kiểm tra phiên bản, định nghĩa hai index UNIQUE và khóa ngoại; sao lưu `*.before-account-reuse-<id>.bak`, rồi thay hai index bằng UNIQUE có điều kiện `WHERE is_deleted = 0`. Chỉ tài khoản chưa xóa (kể cả đang khóa) giữ chỗ email/số điện thoại. ID và thông tin liên hệ cũ được giữ nguyên. Bước này tự chạy khi khởi động web v4, hoặc qua updater; chạy lại v5 chỉ kiểm tra. Schema/index lạ bị từ chối, không tự dựng lại bảng. Cần quyền ghi DB và tạo backup cạnh DB.
+
+v5 đồng thời vô hiệu hóa phiên/reset của tài khoản đã xóa từ trước và chuyển tòa của Quản lý đã xóa về chưa phân công. Toàn bộ bước nâng cấp nằm trong transaction; không xóa tài khoản, hồ sơ, hợp đồng hoặc nhật ký. Đây là sửa dữ liệu hạ tầng khi nâng cấp, không giả lập một ADMIN để ghi nhật ký nghiệp vụ. Xóa mới qua web vẫn ghi audit cùng transaction với bỏ phân công và thu hồi phiên.
+
+v4 bổ sung `email_confirmed`, `is_deleted` và `email_confirmation`. v3 (S1-10) bổ sung/kiểm tra nhật ký hoạt động, snapshot tên người thực hiện và trigger chặn sửa/xóa. Bước v3 kiểm tra schema, integrity/FK và ghi phiên bản trong cùng transaction; không suy đoán tên cho nhật ký cũ thiếu snapshot.
 
 Phiên bản 2 (S1-03) bổ sung `tai_khoan.must_change_password` mặc định false và unique index email chuẩn hoá/số điện thoại. Các tài khoản cũ không tự bị ép đổi mật khẩu. Nếu dữ liệu trùng, phiên bản 2 rollback và báo lỗi để kiểm tra; không tự gộp/xoá. Phạm vi chức năng và kiểm thử được tổng hợp trong [tiến độ dự án](tien-do.md).
 

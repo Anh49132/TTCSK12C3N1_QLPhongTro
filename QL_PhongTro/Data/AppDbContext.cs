@@ -77,6 +77,8 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         entity.Property(e => e.VaiTro).HasColumnName("vai_tro").HasMaxLength(20).HasDefaultValue("KHACH_THUE");
         entity.Property(e => e.DangHoatDong).HasColumnName("dang_hoat_dong").HasDefaultValue(true);
         entity.Property(e => e.MustChangePassword).HasColumnName("must_change_password").HasDefaultValue(false);
+        entity.Property(e => e.EmailConfirmed).HasColumnName("email_confirmed");
+        entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
         entity.Property(e => e.IsStaff).HasColumnName("is_staff").HasDefaultValue(false);
         entity.Property(e => e.IsSuperuser).HasColumnName("is_superuser").HasDefaultValue(false);
         entity.Property(e => e.LastLogin).HasColumnName("last_login");

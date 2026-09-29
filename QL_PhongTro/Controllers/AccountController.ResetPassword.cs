@@ -26,7 +26,7 @@ public partial class AccountController
             TempData["ResetRequestMessage"] = PasswordResetService.AcceptedMessage;
             return RedirectToAction(nameof(ForgotPassword));
         }
-        catch (Exception ex) when (ex is SmtpException or InvalidOperationException or FormatException)
+        catch (Exception ex) when (ex is SmtpException or InvalidOperationException or FormatException or IOException or UnauthorizedAccessException or OperationCanceledException)
         {
             ModelState.AddModelError("", "Chưa thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau hoặc liên hệ quản trị viên.");
             return View(model);

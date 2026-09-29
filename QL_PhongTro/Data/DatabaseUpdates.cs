@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 3;
+    private const int CurrentVersion = 5;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -36,7 +36,7 @@ public static class DatabaseUpdates
 
     public static void Check(string path) => Check(path, true);
 
-    private static void Check(string path, bool requireAudit)
+    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true)
     {
         using var c = Open(path, true);
         var problems = new List<string>();
@@ -60,12 +60,14 @@ public static class DatabaseUpdates
             var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table);
             if (isOptional && !requiredOptional.Contains(table)) continue;
             var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
-            var columns = entity.GetProperties().Select(p => p.GetColumnName(store)!);
+            var columns = entity.GetProperties().Select(p => p.GetColumnName(store)!)
+                .Where(column => requireAccountSecurity || table != "tai_khoan" || column is not ("email_confirmed" or "is_deleted"));
             Probe(table, columns);
         }
         Probe("password_reset_token", ["token_hash", "account_id", "expires_at", "used_at"]);
         Probe("password_reset_request", ["id", "email_key", "requested_at"]);
         Probe("account_session_version", ["account_id", "version"]);
+        if (requireAccountSecurity) Probe("email_confirmation", ["account_id", "token_hash", "expires_at", "requested_at"]);
         if (HasTable(c, "app_module") && HasTable(c, "app_role") && HasTable(c, "role_permission"))
         {
             using var cmd = c.CreateCommand();
@@ -110,6 +112,7 @@ public static class DatabaseUpdates
         if (version == CurrentVersion)
         {
             Check(path);
+            AccountReuseSchema.Ensure(path);
             Console.WriteLine($"Database already up to date (version {CurrentVersion}). No changes.");
             return;
         }
@@ -171,9 +174,30 @@ public static class DatabaseUpdates
         }
         if (version < 3)
         {
-            Check(path, false);
+            Check(path, false, false);
             AuditSchema.Upgrade(c);
         }
+        if (version < 4)
+        {
+            Check(path, true, false);
+            using var tx = c.BeginTransaction();
+            using var command = c.CreateCommand();
+            command.Transaction = tx;
+            command.CommandText = """
+                ALTER TABLE tai_khoan ADD COLUMN email_confirmed INTEGER NOT NULL DEFAULT 1 CHECK(email_confirmed IN (0,1));
+                ALTER TABLE tai_khoan ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0 CHECK(is_deleted IN (0,1));
+                CREATE TABLE email_confirmation (
+                    account_id INTEGER NOT NULL PRIMARY KEY REFERENCES tai_khoan(id) ON DELETE RESTRICT,
+                    token_hash TEXT NOT NULL UNIQUE,
+                    expires_at INTEGER NOT NULL,
+                    requested_at INTEGER NOT NULL
+                );
+                INSERT INTO app_schema_version(version,applied_at) VALUES(4,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                """;
+            command.ExecuteNonQuery();
+            tx.Commit();
+        }
+        AccountReuseSchema.Ensure(path);
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }
