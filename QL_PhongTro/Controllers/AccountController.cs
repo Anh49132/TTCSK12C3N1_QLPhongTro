@@ -77,7 +77,7 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
             new Claim(ClaimTypes.Role, user.VaiTro ?? ""),
             new Claim(SessionVersionStore.ClaimType, sessionVersion)
         }, CookieAuthenticationDefaults.AuthenticationScheme);
-await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
 
         // S1-03: Check MustChangePassword (from dev)
         if (user.MustChangePassword)
