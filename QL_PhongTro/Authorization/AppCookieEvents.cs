@@ -17,7 +17,7 @@ public sealed class AppCookieEvents(AppDbContext db, SessionVersionStore session
             return;
         }
         var account = await db.TaiKhoans.AsNoTracking().SingleOrDefaultAsync(a => a.Id == id);
-        if (account is null || !account.DangHoatDong || !sessions.IsValid(id, context.Principal?.FindFirstValue(SessionVersionStore.ClaimType)))
+        if (account is null || account.IsDeleted || !account.EmailConfirmed || !account.DangHoatDong || !sessions.IsValid(id, context.Principal?.FindFirstValue(SessionVersionStore.ClaimType)))
         {
             context.RejectPrincipal();
             await context.HttpContext.SignOutAsync();

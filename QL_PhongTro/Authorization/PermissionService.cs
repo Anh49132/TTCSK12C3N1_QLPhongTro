@@ -27,6 +27,8 @@ public sealed class PermissionService(AppDbContext db, IHttpContextAccessor acce
     public async Task<List<AppModule>> MenuAsync()
     {
         var allowed = (await CurrentAsync()).Where(p => p.AccessLevel is "READ" or "WRITE" or "FULL")
+            // PHONG_TRO currently links to staff management, not a tenant room page.
+            .Where(p => RoleCode != "KHACH_THUE" || p.ModuleCode != "PHONG_TRO")
             .Select(p => p.ModuleCode).ToList();
         return await db.AppModules.AsNoTracking().Where(m => allowed.Contains(m.Code))
             .OrderBy(m => m.SortOrder).ToListAsync();

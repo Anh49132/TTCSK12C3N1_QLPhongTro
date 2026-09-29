@@ -21,7 +21,7 @@ public sealed class PasswordResetService(AppDbContext db, ITimeProvider clock, I
     public async Task<bool> RequestAsync(string email)
     {
         email = email.Trim().ToLowerInvariant();
-        var accounts = await db.TaiKhoans.AsNoTracking().Where(a => a.Email == email && a.VaiTro == "KHACH_THUE" && a.DangHoatDong).Take(2).ToListAsync();
+        var accounts = await db.TaiKhoans.AsNoTracking().Where(a => !a.IsDeleted && a.EmailConfirmed && a.Email.Trim().ToLower() == email && a.VaiTro == "KHACH_THUE" && a.DangHoatDong).Take(2).ToListAsync();
         var account = accounts.Count == 1 ? accounts[0] : null;
         if (account is not null && (!Uri.TryCreate(options.Value.PublicBaseUrl, UriKind.Absolute, out var origin) ||
             (origin.Scheme != "https" && !(environment.IsDevelopment() && origin.Scheme == "http" && origin.IsLoopback)) ||
@@ -64,7 +64,7 @@ public sealed class PasswordResetService(AppDbContext db, ITimeProvider clock, I
         using var c = Open(); using var cmd = c.CreateCommand();
         cmd.CommandText = """
             SELECT COUNT(*) FROM password_reset_token t JOIN tai_khoan a ON a.id=t.account_id
-            WHERE t.token_hash=$hash AND t.used_at IS NULL AND t.expires_at>$now AND a.dang_hoat_dong=1 AND a.vai_tro='KHACH_THUE'
+            WHERE t.token_hash=$hash AND t.used_at IS NULL AND t.expires_at>$now AND a.dang_hoat_dong=1 AND a.is_deleted=0 AND a.email_confirmed=1 AND a.vai_tro='KHACH_THUE'
             """;
         cmd.Parameters.AddWithValue("$hash",Hash(token!));cmd.Parameters.AddWithValue("$now",clock.UtcNow.Ticks);
         return Convert.ToInt32(cmd.ExecuteScalar()) == 1;
@@ -76,7 +76,7 @@ public sealed class PasswordResetService(AppDbContext db, ITimeProvider clock, I
         using var c = Open(); using var tx = c.BeginTransaction(deferred: false); using var cmd = c.CreateCommand();cmd.Transaction = tx;
         cmd.CommandText = """
             SELECT t.account_id FROM password_reset_token t JOIN tai_khoan a ON a.id=t.account_id
-            WHERE t.token_hash=$token AND t.used_at IS NULL AND t.expires_at>$now AND a.dang_hoat_dong=1 AND a.vai_tro='KHACH_THUE'
+            WHERE t.token_hash=$token AND t.used_at IS NULL AND t.expires_at>$now AND a.dang_hoat_dong=1 AND a.is_deleted=0 AND a.email_confirmed=1 AND a.vai_tro='KHACH_THUE'
             """;
         var now = clock.UtcNow;
         cmd.Parameters.AddWithValue("$token",Hash(token!)); cmd.Parameters.AddWithValue("$now",now.Ticks);

@@ -24,7 +24,7 @@ public partial class AccountController
         if (!ModelState.IsValid) return View(model);
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id)) return Challenge();
         await using var transaction = await db.Database.BeginTransactionAsync();
-        var account = await db.TaiKhoans.AsNoTracking().SingleOrDefaultAsync(a => a.Id == id && a.DangHoatDong);
+        var account = await db.TaiKhoans.AsNoTracking().SingleOrDefaultAsync(a => !a.IsDeleted && a.Id == id && a.DangHoatDong);
         if (account is null) return Forbid();
         var valid = false;
         try { valid = BCrypt.Net.BCrypt.Verify(model.CurrentPassword, account.MatKhau); }
@@ -36,7 +36,7 @@ public partial class AccountController
         if (!ModelState.IsValid) return View(model);
 
         var hash = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
-        var updated = await db.TaiKhoans.Where(a => a.Id == id && a.MatKhau == account.MatKhau && a.DangHoatDong)
+        var updated = await db.TaiKhoans.Where(a => !a.IsDeleted && a.Id == id && a.MatKhau == account.MatKhau && a.DangHoatDong)
             .ExecuteUpdateAsync(s => s.SetProperty(a => a.MatKhau, hash).SetProperty(a => a.MustChangePassword, false)
                 .SetProperty(a => a.RefreshTokenHash, (string?)null).SetProperty(a => a.RefreshTokenExpiry, (DateTime?)null)
                 .SetProperty(a => a.NgayCapNhat, DateTime.UtcNow));

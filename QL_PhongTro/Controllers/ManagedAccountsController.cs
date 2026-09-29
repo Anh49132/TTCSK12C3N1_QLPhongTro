@@ -25,7 +25,7 @@ public sealed class ManagedAccountsController(AppDbContext db, ITemporaryPasswor
     {
         if (role is not (null or "" or "ADMIN" or "CHU_NHA" or "QUAN_LY" or "KHACH_THUE") ||
             status is not (null or "" or "active" or "locked")) return BadRequest("Bộ lọc không hợp lệ.");
-        var query = db.TaiKhoans.AsNoTracking();
+        var query = db.TaiKhoans.AsNoTracking().Where(a => !a.IsDeleted);
         if (!string.IsNullOrEmpty(role)) query = query.Where(a => a.VaiTro == role);
         if (!string.IsNullOrEmpty(status)) query = query.Where(a => a.DangHoatDong == (status == "active"));
         var total = await query.CountAsync();
@@ -47,9 +47,9 @@ public sealed class ManagedAccountsController(AppDbContext db, ITemporaryPasswor
         model.HoTen = (model.HoTen ?? "").Trim();
         if (string.IsNullOrWhiteSpace(model.HoTen)) ModelState.AddModelError(nameof(model.HoTen), "Nhập họ tên.");
         if (!ModelState.IsValid) return View(model);
-        if (await db.TaiKhoans.AnyAsync(a => a.Email.Trim().ToLower() == model.Email))
+        if (await db.TaiKhoans.AnyAsync(a => !a.IsDeleted && a.Email.Trim().ToLower() == model.Email))
             ModelState.AddModelError(nameof(model.Email), "Email đã được sử dụng.");
-        if (await db.TaiKhoans.AnyAsync(a => a.SoDienThoai == model.SoDienThoai))
+        if (await db.TaiKhoans.AnyAsync(a => !a.IsDeleted && a.SoDienThoai == model.SoDienThoai))
             ModelState.AddModelError(nameof(model.SoDienThoai), "Số điện thoại đã được sử dụng.");
         if (!ModelState.IsValid) return View(model);
         var password = TemporaryPassword();
@@ -76,7 +76,7 @@ public sealed class ManagedAccountsController(AppDbContext db, ITemporaryPasswor
     public async Task<IActionResult> Resend(int id)
     {
         await using var tx = await db.Database.BeginTransactionAsync();
-        var account = await db.TaiKhoans.SingleOrDefaultAsync(a => a.Id == id && a.MustChangePassword && a.DangHoatDong);
+        var account = await db.TaiKhoans.SingleOrDefaultAsync(a => !a.IsDeleted && a.Id == id && a.MustChangePassword && a.DangHoatDong);
         if (account is null || account.VaiTro is not ("CHU_NHA" or "QUAN_LY")) return NotFound();
         var password = TemporaryPassword();
         db.TemporaryPasswordResentFor = account.Id;
@@ -96,7 +96,7 @@ public sealed class ManagedAccountsController(AppDbContext db, ITemporaryPasswor
         if (!active && !confirmed) return BadRequest("Cần xác nhận khoá tài khoản.");
         if (User.FindFirstValue(ClaimTypes.NameIdentifier) == id.ToString()) return BadRequest("Không được tự khoá tài khoản.");
         await using var tx = await db.Database.BeginTransactionAsync();
-        var account = await db.TaiKhoans.SingleOrDefaultAsync(a => a.Id == id);
+        var account = await db.TaiKhoans.SingleOrDefaultAsync(a => !a.IsDeleted && a.Id == id);
         if (account is null) return NotFound();
         if (account.VaiTro is not ("CHU_NHA" or "QUAN_LY")) return Forbid();
         account.DangHoatDong = active;
@@ -107,6 +107,30 @@ public sealed class ManagedAccountsController(AppDbContext db, ITemporaryPasswor
         await RevokeAsync(id);
         await tx.CommitAsync();
         TempData["AccountMessage"] = active ? "Đã mở khoá. Người dùng cần đăng nhập lại." : "Đã khoá và thu hồi mọi phiên đăng nhập.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Delete(int id, bool confirmed = false)
+    {
+        if (!confirmed) return BadRequest("Cần xác nhận xóa tài khoản.");
+        if (User.FindFirstValue(ClaimTypes.NameIdentifier) == id.ToString()) return BadRequest("Không được tự xóa tài khoản.");
+        await using var tx = await db.Database.BeginTransactionAsync();
+        var account = await db.TaiKhoans.SingleOrDefaultAsync(a => !a.IsDeleted && a.Id == id && a.VaiTro != "ADMIN");
+        if (account is null) return NotFound();
+        account.DangHoatDong = false; account.IsDeleted = true; account.RefreshTokenHash = null; account.RefreshTokenExpiry = null;
+        account.NgayCapNhat = DateTime.UtcNow;
+        if (account.VaiTro == "QUAN_LY")
+        {
+            var buildings = await db.ToaNhas.Where(x => x.QuanLyId == id).ToListAsync();
+            foreach (var building in buildings) building.QuanLyId = null;
+        }
+        await db.SaveChangesAsync();
+        await RevokeAsync(id);
+        await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE password_reset_token SET used_at=COALESCE(used_at,0) WHERE account_id={id}");
+        await db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM email_confirmation WHERE account_id={id}");
+        await tx.CommitAsync();
+        TempData["AccountMessage"] = "Đã xóa tài khoản; email và số điện thoại có thể đăng ký lại. Dữ liệu lịch sử được giữ lại; các tòa của quản lý đã chuyển về Chưa phân công.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -125,7 +149,7 @@ public sealed class ManagedAccountsController(AppDbContext db, ITemporaryPasswor
                 ? "Tài khoản sẵn sàng. Email mật khẩu tạm đã được chuyển đến máy chủ gửi thư."
                 : "Tài khoản sẵn sàng. Email thử nghiệm đã lưu thành file .eml, chưa gửi đến hộp thư thật.";
         }
-        catch (Exception ex) when (ex is SmtpException or InvalidOperationException or FormatException or IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is SmtpException or InvalidOperationException or FormatException or IOException or UnauthorizedAccessException or OperationCanceledException)
         {
             TempData["AccountError"] = "Tài khoản đã lưu nhưng chưa gửi được email. Kiểm tra cấu hình email, rồi chọn Gửi lại mật khẩu tạm. Mật khẩu tạm cũ sẽ bị thay thế.";
         }

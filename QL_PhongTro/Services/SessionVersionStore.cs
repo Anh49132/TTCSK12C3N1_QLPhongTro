@@ -14,7 +14,7 @@ public sealed class SessionVersionStore(AppDbContext db)
         using var cmd = c.CreateCommand();
         cmd.CommandText = """
             SELECT COALESCE((SELECT version FROM account_session_version WHERE account_id=a.id),'0')
-            FROM tai_khoan a WHERE id=$id AND mat_khau=$hash AND dang_hoat_dong=1
+            FROM tai_khoan a WHERE id=$id AND mat_khau=$hash AND dang_hoat_dong=1 AND is_deleted=0 AND email_confirmed=1
             """;
         cmd.Parameters.AddWithValue("$id",accountId);cmd.Parameters.AddWithValue("$hash",passwordHash);
         return cmd.ExecuteScalar() as string;
@@ -25,7 +25,7 @@ public sealed class SessionVersionStore(AppDbContext db)
         using var cmd = c.CreateCommand();
         cmd.CommandText = """
             SELECT COALESCE((SELECT version FROM account_session_version WHERE account_id=a.id),'0')
-            FROM tai_khoan a WHERE id=$id AND dang_hoat_dong=1
+            FROM tai_khoan a WHERE id=$id AND dang_hoat_dong=1 AND is_deleted=0 AND email_confirmed=1
             """;
         cmd.Parameters.AddWithValue("$id",accountId);
         return cmd.ExecuteScalar() is string current && current == (version ?? "0");
