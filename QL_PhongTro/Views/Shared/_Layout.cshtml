@@ -21,7 +21,7 @@
 @if (User.IsInRole("KHACH_THUE")) { <a asp-controller="HoSo" asp-action="Index">Hồ sơ cá nhân</a> }
 <a asp-controller="HoSo" asp-action="Xem">Xem hồ sơ</a>
 <span class="account-name">@User.Identity.Name</span>
-<form asp-controller="Account" asp-action="Logout" method="post"><button class="btn btn-outline-primary" type="submit" id="logoutBtn">Đăng xuất</button></form>
+<form asp-controller="Account" asp-action="Logout" method="post" id="logoutForm"><button class="btn btn-outline-primary" type="submit" id="logoutBtn">Đăng xuất</button></form>
 } else {
 <a asp-controller="Account" asp-action="Login" id="loginBtn">Đăng nhập</a>
 <a asp-controller="Account" asp-action="Register" class="btn btn-primary" id="registerBtn">Tạo tài khoản ↗</a>
@@ -51,6 +51,7 @@ var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
+<script src="~/js/logout-confirm.js" asp-append-version="true"></script>
 <script src="~/js/auth-interceptor.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 @if (User.Identity?.IsAuthenticated == true) {
