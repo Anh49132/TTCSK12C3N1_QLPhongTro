@@ -17,7 +17,7 @@
 <a class="home-link" asp-controller="Home" asp-action="Index">Trang chủ</a>
 @if (User.Identity?.IsAuthenticated == true) {
 <a asp-controller="Account" asp-action="ChangePassword">Đổi mật khẩu</a>
-@if (User.IsInRole("ADMIN")) { <a asp-controller="ManagedAccounts" asp-action="Index">Quản lý tài khoản</a> }
+@if (User.IsInRole("ADMIN")) { <a asp-controller="ManagedAccounts" asp-action="Index">Quản lý tài khoản</a> <a asp-controller="NhatKy" asp-action="Index">Nhật ký hoạt động</a> }
 @if (User.IsInRole("KHACH_THUE")) { <a asp-controller="HoSo" asp-action="Index">Hồ sơ cá nhân</a> }
 <a asp-controller="HoSo" asp-action="Xem">Xem hồ sơ</a>
 <span class="account-name">@User.Identity.Name</span>
@@ -37,8 +37,20 @@
 @foreach (var module in group) {
 var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
 <a class="sidebar-link @(Context.Request.Path.StartsWithSegments(url) ? "is-active" : "")" data-menu-module="@module.Code" href="@url">@module.Name <span aria-hidden="true">↗</span></a>
-@if (module.Code == "PHONG_TRO" && User.IsInRole("CHU_NHA")) {
-<a class="sidebar-link @(Context.Request.Path.StartsWithSegments("/DichVu") ? "is-active" : "")" asp-controller="DichVu" asp-action="Index">Dịch vụ và đơn giá <span aria-hidden="true">↗</span></a>
+@if (module.Code == "PHONG_TRO") {
+    <a class="sidebar-link @(Context.Request.Path.Equals("/PhongTro/ToaNha", StringComparison.OrdinalIgnoreCase) ? "is-active" : "")"
+       asp-controller="PhongTro"
+       asp-action="ToaNha">
+        Quản lý tòa nhà <span aria-hidden="true">↗</span>
+    </a>
+
+    @if (User.IsInRole("CHU_NHA")) {
+        <a class="sidebar-link @(Context.Request.Path.StartsWithSegments("/DichVu") ? "is-active" : "")"
+           asp-controller="DichVu"
+           asp-action="Index">
+            Dịch vụ và đơn giá <span aria-hidden="true">↗</span>
+        </a>
+    }
 }
 }
 </section>

@@ -37,7 +37,7 @@ Lỗi `MSB3021` hoặc `MSB3027` kèm thông báo `QL_PhongTro.exe ... being use
 
 Lệnh `--update-database` sao lưu rồi cập nhật schema còn thiếu; nên dừng ứng dụng trước khi chạy. Ứng dụng yêu cầu file SQLite đã tồn tại và không tự tạo lại CSDL nền. Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt biến môi trường `DatabasePath` để dùng file riêng.
 
-Schema dịch vụ/hóa đơn S1-09 là module tùy chọn và không được tự ghi vào CSDL local. Khi chưa cài module này, ứng dụng tài khoản/phân quyền/phòng vẫn khởi động; các trang dịch vụ và hóa đơn chưa dùng được. Dùng fixture riêng theo `docs/s1-09-dich-vu.md` để demo S1-09.
+Schema dịch vụ/hóa đơn S1-09 là module tùy chọn và không được tự ghi vào CSDL local. Khi chưa cài module này, ứng dụng tài khoản/phân quyền/phòng vẫn khởi động; các trang dịch vụ và hóa đơn chưa dùng được. Xem mục **Dịch vụ và hóa đơn tối thiểu (S1-09)** trong [bàn giao dự án](docs/tien-do.md) để chuẩn bị fixture riêng.
 
 ## Tài khoản quản trị local
 
@@ -53,8 +53,41 @@ SQLite mặc định nằm tại `QL_PhongTro/Data/local-dev.sqlite`. Không c�
 
 Quy trình đồng bộ schema và hướng dẫn kiểm thử S1-03 nằm tại:
 
-- `docs/cap-nhat-csdl.md`
-- `docs/s1-03-tai-khoan.md`
+- [Cập nhật SQLite](docs/cap-nhat-csdl.md)
+- [Tiến độ, chức năng và kiểm thử](docs/tien-do.md)
+
+## Demo dịch vụ và hóa đơn trên bản sao
+
+Demo riêng dùng **http://localhost:5250**, không phải cổng 5247 của DB mặc định. Tạo mới từ gốc repo khi cổng 5250 đang trống:
+
+```powershell
+dotnet build QL_PhongTro/QL_PhongTro.csproj -c Debug -o data/service-demo/runtime
+python verification/prepare_service_demo.py
+```
+
+Cần Python 3. Script dành cho DB nguồn hiện có chưa cài các bảng hợp đồng/dịch vụ/hóa đơn; nếu đã có, script dừng để kiểm tra fixture. Script đọc schema, tạo bản sao mới, cập nhật v3 và schema demo; không ghi DB nguồn. Windows sandbox có thể chặn Data Protection/Event Log: chạy từ terminal Windows bình thường, không thay đổi bảo mật ứng dụng.
+
+Script in **email và mật khẩu thật**, tạo 4 tài khoản, 1 tòa, 3 phòng, 2 hợp đồng hiệu lực 24 tháng và 5 dịch vụ có giá; xác minh đăng nhập/hóa đơn rồi giữ server chạy nền. Dữ liệu hợp đồng là fixture SQL vì chưa có CRUD hợp đồng. Tạo tòa/phòng/dịch vụ và phát hành hóa đơn đi qua HTTP thật để ghi audit. Mọi artifact, credential và log nằm trong `data/service-demo/` đã ignore; file `latest.txt` trỏ thư mục demo mới nhất thành công.
+
+Đăng nhập bằng email CHU_NHA được in ra. Mở `/DichVu`, sau đó `/HoaDonDichVu` và chọn tòa demo. DEMO-101 có hóa đơn tháng hiện tại 2.030.000đ (phòng 2.000.000 + điện 10×3.000). DEMO-102 chưa có hóa đơn: chọn HD-DEMO-2, chỉ chọn Điện, nhập đầu 100/cuối 110, kỳ hiện tại để thử phát hành cùng tổng tiền. ADMIN xem `/NhatKy`; ADMIN không thay thế vai trò Chủ nhà để quản lý dịch vụ.
+
+Đọc lại credential và chạy lại bản demo đã có, không cần tạo thêm:
+
+```powershell
+$demoFolder = Get-Content data/service-demo/latest.txt -Raw
+$demoInfo = Get-Content (Join-Path $demoFolder 'access.json') -Raw | ConvertFrom-Json
+$demoInfo.accounts
+$demoInfo.password
+# Chỉ chạy tiếp khi phiên demo cổng 5250 đã dừng
+$env:DatabasePath = $demoInfo.database
+$env:ASPNETCORE_ENVIRONMENT = 'Development'
+$env:PasswordReset__PublicBaseUrl = 'http://localhost:5250'
+$env:PasswordReset__PickupDirectory = Join-Path $demoFolder 'mail'
+$env:IdentityImagePath = Join-Path $demoFolder 'images'
+dotnet run --project QL_PhongTro --launch-profile http -- --urls http://localhost:5250
+```
+
+Lần tạo đầu server chạy nền, PID được in và lưu trong access.json; xác nhận tiến trình đúng trước khi dừng. Khi chạy lại bằng terminal, dùng Ctrl+C. Không commit database hoặc access.json. Chưa có xác minh UI đồ họa/SMTP thật trong công cụ này.
 
 ## Kiểm tra build
 
@@ -146,3 +179,7 @@ Invoke-RestMethod -Method Post -Uri 'http://localhost:5247/api/auth/login' -Body
 
 ### ⚠️ Lưu ý build Release
 Build Debug ở trên phù hợp để chạy và báo cáo local. Build Release hiện yêu cầu cấu hình license hợp lệ cho `SixLabors.ImageSharp` 4.1.2; nếu chưa có license, bước build Release sẽ dừng thay vì chỉ cảnh báo. Không thêm khóa license vào Git; cấu hình qua secret của môi trường triển khai.
+
+## Nhật ký hoạt động S1-10
+
+ADMIN xem tại `/NhatKy`. Mã hiện tại yêu cầu schema nhật ký v3; kiểm tra schema của đúng database trước khi chạy và chỉ nâng cấp DB đang dùng khi được yêu cầu. Xem mục **Nhật ký hoạt động (S1-10)** trong [bàn giao dự án](docs/tien-do.md).

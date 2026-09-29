@@ -143,6 +143,7 @@ await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
         };
 
         db.TaiKhoans.Add(user);
+        db.SelfRegisteringAccount = user;
         try { await db.SaveChangesAsync(); }
         catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.Sqlite.SqliteException { SqliteErrorCode: 19 })
         {

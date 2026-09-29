@@ -3,7 +3,7 @@
 @using System.Globalization
 @using QL_PhongTro.Services
 @inject QL_PhongTro.Authorization.PermissionService Permissions
-@{ ViewData["Title"] = "Dịch vụ và đơn giá"; }
+@{ ViewData["Title"] = "Dịch vụ và đơn giá"; var write = await Permissions.AllowsAsync("PHONG_TRO", true); }
 <section class="mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
     <div><p class="text-uppercase text-secondary small">Vận hành nhà cho thuê</p><h1 class="h2">Dịch vụ và đơn giá</h1><p class="text-secondary mb-0">Danh sách dịch vụ đã khai báo theo từng tòa nhà.</p></div>
     @if (Model.SanSang && Model.ToaNhaId.HasValue && await Permissions.AllowsAsync("PHONG_TRO", true))
@@ -43,11 +43,23 @@ else
         <div class="table-responsive">
         <table class="table align-middle">
             <caption>@Model.DichVus.Select(x => x.DichVuId).Distinct().Count() dịch vụ đã khai báo</caption>
-            <thead><tr><th scope="col">Tên dịch vụ</th><th scope="col">Cách tính tiền</th><th scope="col">Đơn vị tính</th><th scope="col" class="text-end">Đơn giá (VND)</th><th scope="col">Trạng thái</th></tr></thead>
+            <thead><tr><th scope="col">Tên dịch vụ</th><th scope="col">Cách tính tiền</th><th scope="col">Đơn vị tính</th><th scope="col" class="text-end">Đơn giá (VND)</th><th scope="col">Trạng thái</th>@if (write) { <th scope="col">Thao tác</th> }</tr></thead>
             <tbody>@foreach (var versions in Model.DichVus.GroupBy(x => x.DichVuId))
             {
                 var item = versions.Where(x => x.TuNgay <= DichVuService.HomNay()).OrderBy(x => x.TuNgay).LastOrDefault() ?? versions.OrderBy(x => x.TuNgay).First();
-                <tr><td><a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@item.DichVuId">@item.DichVu.TenDichVu</a>@if (DichVuMacDinhOptions.LaMacDinh(item.DichVu.MaDichVu)) { <span class="badge text-bg-light ms-1">Mặc định</span> }@if (versions.Any(x => x.TuNgay > DichVuService.HomNay())) { <small class="d-block text-secondary">Có thay đổi đã lên lịch</small> }</td><td>@CachTinhDichVu.Ten(item.CachTinh)</td><td>@item.DonViTinh</td><td class="text-end text-nowrap">@(item.DaChotGia ? item.DonGia.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) : "Chưa thiết lập")</td><td>@(!item.DaChotGia ? "Chờ đơn giá" : item.DangApDung && item.DichVu.DangHoatDong ? "Đang áp dụng" : "Ngừng áp dụng")</td></tr>
+                <tr><td><a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@item.DichVuId">@item.DichVu.TenDichVu</a>@if (DichVuMacDinhOptions.LaMacDinh(item.DichVu.MaDichVu)) { <span class="badge text-bg-light ms-1">Mặc định</span> }@if (versions.Any(x => x.TuNgay > DichVuService.HomNay())) { <small class="d-block text-secondary">Có thay đổi đã lên lịch</small> }</td><td>@CachTinhDichVu.Ten(item.CachTinh)</td><td>@item.DonViTinh</td><td class="text-end text-nowrap">@(item.DaChotGia ? item.DonGia.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) : "Chưa thiết lập")</td><td>@(!item.DaChotGia ? "Chờ đơn giá" : item.DangApDung && item.DichVu.DangHoatDong ? "Đang áp dụng" : "Ngừng áp dụng")</td>
+                @if (write)
+                {
+                    <td><div class="d-flex flex-wrap gap-2">
+                        <a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@item.DichVuId" class="btn btn-sm btn-outline-primary" aria-label="Sửa đơn giá @item.DichVu.TenDichVu">Sửa đơn giá</a>
+                        <form asp-action="Delete" method="post" data-service-name="@item.DichVu.TenDichVu" onsubmit="return confirm('Xóa dịch vụ ' + this.dataset.serviceName + ' khỏi tòa nhà? Dịch vụ đã được sử dụng sẽ không thể xóa.');">
+                            <input name="toaNhaId" value="@Model.ToaNhaId" type="hidden" />
+                            <input name="dichVuId" value="@item.DichVuId" type="hidden" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Xóa @item.DichVu.TenDichVu">Xóa</button>
+                        </form>
+                    </div></td>
+                }
+                </tr>
             }</tbody>
         </table>
         </div>

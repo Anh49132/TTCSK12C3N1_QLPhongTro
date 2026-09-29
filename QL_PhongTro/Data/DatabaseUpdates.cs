@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 2;
+    private const int CurrentVersion = 3;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -34,7 +34,9 @@ public static class DatabaseUpdates
         return Convert.ToInt64(cmd.ExecuteScalar()) != 0;
     }
 
-    public static void Check(string path)
+    public static void Check(string path) => Check(path, true);
+
+    private static void Check(string path, bool requireAudit)
     {
         using var c = Open(path, true);
         var problems = new List<string>();
@@ -54,6 +56,7 @@ public static class DatabaseUpdates
         foreach (var entity in db.Model.GetEntityTypes())
         {
             var table = entity.GetTableName()!;
+            if (table == "nhat_ky_hoat_dong" && !requireAudit) continue;
             var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table);
             if (isOptional && !requiredOptional.Contains(table)) continue;
             var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
@@ -69,6 +72,8 @@ public static class DatabaseUpdates
             cmd.CommandText = "SELECT (SELECT COUNT(*) FROM app_module) * (SELECT COUNT(*) FROM app_role) * (SELECT COUNT(*) FROM role_permission)";
             if (Convert.ToInt64(cmd.ExecuteScalar()) == 0) problems.Add("Permission seed is missing; inspect permissions.seed.json and existing permission data.");
         }
+        if (requireAudit)
+            AuditSchema.Validate(c);
         if (problems.Count != 0)
             throw new InvalidOperationException("Database schema is not ready: " + string.Join("; ", problems) +
                 "\nStop the app, then run: dotnet run --project QL_PhongTro -- --update-database" +
@@ -163,6 +168,11 @@ public static class DatabaseUpdates
                 """;
             command.ExecuteNonQuery();
             tx.Commit();
+        }
+        if (version < 3)
+        {
+            Check(path, false);
+            AuditSchema.Upgrade(c);
         }
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");

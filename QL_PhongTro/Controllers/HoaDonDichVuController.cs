@@ -31,8 +31,15 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
             if (price is not null) model.DonGias.Add(price);
         }
         model.DaPhatHanh = await (from hd in db.HoaDons join h in db.HopDongs on hd.HopDongId equals h.Id
-            join p in db.PhongTros on h.PhongId equals p.Id where p.ToaNhaId == model.ToaNhaId
-            orderby hd.Id descending select hd).Take(30).ToListAsync();
+            join p in db.PhongTros on h.PhongId equals p.Id
+            join t in db.ToaNhas on p.ToaNhaId equals t.Id
+            where p.ToaNhaId == model.ToaNhaId && t.ChuNhaId == AccountId
+            orderby hd.Id descending
+            select new HoaDonGanDayViewModel
+            {
+                Id = hd.Id, MaHoaDon = hd.MaHoaDon, MaPhong = p.MaPhong, TenToaNha = t.TenToaNha,
+                Thang = hd.Thang, Nam = hd.Nam, NgayChot = hd.NgayChot, TongTien = hd.TongTien
+            }).Take(30).ToListAsync();
     }
 
     [HttpGet]
