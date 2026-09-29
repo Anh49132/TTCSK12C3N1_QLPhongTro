@@ -56,6 +56,9 @@ public class AuthTests : IDisposable
         AuthSchemaInitializer.Initialize(_testDatabasePath);
         PasswordSchemaInitializer.Initialize(_testDatabasePath);
         PermissionSchemaInitializer.Initialize(_testDatabasePath, Path.Combine(_appPath, "Data", "permissions.seed.json"));
+        // The app refuses to start on a database below the current schema version, so the
+        // disposable copy must be brought to the same version a deployed database has.
+        DatabaseUpdates.Update(_testDatabasePath, Path.Combine(_appPath, "Data", "permissions.seed.json"));
         
         // Now create the factory with the same database path
         Environment.SetEnvironmentVariable("DatabasePath", _testDatabasePath);
@@ -118,12 +121,33 @@ public class AuthTests : IDisposable
 
     private TaiKhoan CreateUser(string email = "test@example.com", string phone = "0901234567", string password = "Test123456")
     {
-        var user = new TaiKhoan
+        var hash = BCrypt.Net.BCrypt.HashPassword(password);
+        var now = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+        int id;
+        // Seed with plain SQL: an audited entity write needs a verified actor, and a test
+        // fixture has no HTTP caller that could be the actor for a brand new account.
+        using (var c = new SqliteConnection("Data Source=" + _testDatabasePath))
         {
+            c.Open();
+            using var insert = c.CreateCommand();
+            insert.CommandText = """
+                INSERT INTO tai_khoan(ho_ten,email,so_dien_thoai,mat_khau,vai_tro,dang_hoat_dong,is_staff,is_superuser,failed_login_count,must_change_password,ngay_tao,ngay_cap_nhat)
+                VALUES ('Test User',$email,$phone,$hash,'KHACH_THUE',1,0,0,0,0,$now,$now);
+                SELECT last_insert_rowid();
+                """;
+            insert.Parameters.AddWithValue("$email", email);
+            insert.Parameters.AddWithValue("$phone", phone);
+            insert.Parameters.AddWithValue("$hash", hash);
+            insert.Parameters.AddWithValue("$now", now);
+            id = Convert.ToInt32(insert.ExecuteScalar());
+        }
+        return new TaiKhoan
+        {
+            Id = id,
             HoTen = "Test User",
             Email = email,
             SoDienThoai = phone,
-            MatKhau = BCrypt.Net.BCrypt.HashPassword(password),
+            MatKhau = hash,
             VaiTro = "KHACH_THUE",
             DangHoatDong = true,
             IsStaff = false,
@@ -132,9 +156,6 @@ public class AuthTests : IDisposable
             NgayTao = DateTime.UtcNow,
             NgayCapNhat = DateTime.UtcNow
         };
-        _dbContext.TaiKhoans.Add(user);
-        _dbContext.SaveChanges();
-        return user;
     }
 
     private async Task<TaiKhoan?> GetUserAsync(int id)

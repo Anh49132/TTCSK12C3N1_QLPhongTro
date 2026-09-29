@@ -65,7 +65,7 @@ public sealed class PermissionTests : IDisposable
             Execute("""
                 INSERT INTO tai_khoan(ho_ten,email,so_dien_thoai,mat_khau,vai_tro,dang_hoat_dong,is_staff,is_superuser,ngay_tao,ngay_cap_nhat)
                 VALUES ($r,$email,$phone,$hash,$r,1,0,0,'2026-01-01','2026-01-01');
-                """, ("$r", role), ("$email", role.ToLowerInvariant() + "@s104.test"), ("$phone", "09" + Array.IndexOf(roles,role).ToString("D8")), ("$hash",hash));
+                """, ("$r", role), ("$email", role.ToLowerInvariant() + "@s104.test"), ("$phone", "098" + Array.IndexOf(roles,role).ToString("D7")), ("$hash",hash));
             accounts[role] = Convert.ToInt32(Scalar("SELECT id FROM tai_khoan WHERE email=$email", ("$email", role.ToLowerInvariant()+"@s104.test")));
         }
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
