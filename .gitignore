@@ -43,3 +43,4 @@ obj/
 *.sqlite.update.lock
 
 /data/S1-10-verification/
+/data/service-demo/

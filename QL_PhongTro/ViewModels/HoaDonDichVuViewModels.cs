@@ -16,6 +16,18 @@ public class DongDichVuInput
     public int CauHinhId { get; set; }
     public long DonGiaDaXem { get; set; }
 }
+public class HoaDonGanDayViewModel
+{
+    public int Id { get; set; }
+    public string MaHoaDon { get; set; } = "";
+    public string MaPhong { get; set; } = "";
+    public string TenToaNha { get; set; } = "";
+    public int Thang { get; set; }
+    public int Nam { get; set; }
+    public DateOnly NgayChot { get; set; }
+    public long TongTien { get; set; }
+}
+
 public class LapHoaDonDichVuViewModel
 {
     public int ToaNhaId { get; set; }
@@ -25,6 +37,6 @@ public class LapHoaDonDichVuViewModel
     public List<DongDichVuInput> Dong { get; set; } = [];
     [ValidateNever] public List<SelectListItem> HopDongs { get; set; } = [];
     [ValidateNever] public List<DonGiaDichVu> DonGias { get; set; } = [];
-    [ValidateNever] public List<HoaDon> DaPhatHanh { get; set; } = [];
+    [ValidateNever] public List<HoaDonGanDayViewModel> DaPhatHanh { get; set; } = [];
     [ValidateNever] public bool SanSang { get; set; }
 }

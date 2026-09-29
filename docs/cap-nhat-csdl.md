@@ -17,9 +17,11 @@ Mở http://localhost:5247/Account/Login. Nếu dùng file khác, đặt `$env:D
 
 `--check-database` và khởi động web chỉ đọc schema, không tự sửa. Thiếu bảng/cột cần thiết thì dừng với hướng dẫn cập nhật trước khi nhận request.
 
-## Phiên bản 1
+## Các phiên bản cập nhật
 
-Phiên bản hiện tại là **2 (S1-03)**: bổ sung `tai_khoan.must_change_password` mặc định false và unique index email chuẩn hoá/số điện thoại. Các tài khoản cũ không tự bị ép đổi mật khẩu. Nếu dữ liệu trùng, phiên bản 2 rollback và báo lỗi để kiểm tra; không tự gộp/xoá. Hướng dẫn chức năng: [s1-03-tai-khoan.md](s1-03-tai-khoan.md).
+Phiên bản hiện tại trong mã nguồn là **3 (S1-10)**: bổ sung/kiểm tra nhật ký hoạt động, snapshot tên người thực hiện và trigger chặn sửa/xóa. Bước v3 kiểm tra schema, integrity/FK và ghi phiên bản trong cùng transaction; không suy đoán tên cho nhật ký cũ thiếu snapshot.
+
+Phiên bản 2 (S1-03) bổ sung `tai_khoan.must_change_password` mặc định false và unique index email chuẩn hoá/số điện thoại. Các tài khoản cũ không tự bị ép đổi mật khẩu. Nếu dữ liệu trùng, phiên bản 2 rollback và báo lỗi để kiểm tra; không tự gộp/xoá. Phạm vi chức năng và kiểm thử được tổng hợp trong [tiến độ dự án](tien-do.md).
 
 `Data/DatabaseUpdates.cs` gom các bước auth, phòng, phân quyền, mật khẩu/phiên và bảng hồ sơ đã có trong code/SQL hiện tại. Không triển khai toàn bộ 22 bảng tham chiếu. Quan hệ thuê chưa có vẫn được xử lý theo cơ chế giới hạn quyền của HoSoAccess.
 

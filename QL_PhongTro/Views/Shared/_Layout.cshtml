@@ -37,8 +37,20 @@
 @foreach (var module in group) {
 var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
 <a class="sidebar-link @(Context.Request.Path.StartsWithSegments(url) ? "is-active" : "")" data-menu-module="@module.Code" href="@url">@module.Name <span aria-hidden="true">↗</span></a>
-@if (module.Code == "PHONG_TRO" && User.IsInRole("CHU_NHA")) {
-<a class="sidebar-link @(Context.Request.Path.StartsWithSegments("/DichVu") ? "is-active" : "")" asp-controller="DichVu" asp-action="Index">Dịch vụ và đơn giá <span aria-hidden="true">↗</span></a>
+@if (module.Code == "PHONG_TRO") {
+    <a class="sidebar-link @(Context.Request.Path.Equals("/PhongTro/ToaNha", StringComparison.OrdinalIgnoreCase) ? "is-active" : "")"
+       asp-controller="PhongTro"
+       asp-action="ToaNha">
+        Quản lý tòa nhà <span aria-hidden="true">↗</span>
+    </a>
+
+    @if (User.IsInRole("CHU_NHA")) {
+        <a class="sidebar-link @(Context.Request.Path.StartsWithSegments("/DichVu") ? "is-active" : "")"
+           asp-controller="DichVu"
+           asp-action="Index">
+            Dịch vụ và đơn giá <span aria-hidden="true">↗</span>
+        </a>
+    }
 }
 }
 </section>
