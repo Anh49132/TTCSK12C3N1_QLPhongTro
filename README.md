@@ -65,3 +65,7 @@ dotnet build .\QL_PhongTro\QL_PhongTro.csproj
 Các view `.cshtml` được biên dịch cùng dự án C#. Dùng `dotnet watch` khi phát triển để cập nhật thay đổi giao diện.
 
 Build Debug ở trên phù hợp để chạy và báo cáo local. Build Release hiện yêu cầu cấu hình license hợp lệ cho `SixLabors.ImageSharp` 4.1.2; nếu chưa có license, bước build Release sẽ dừng thay vì chỉ cảnh báo. Không thêm khóa license vào Git; cấu hình qua secret của môi trường triển khai.
+
+## Nhật ký hoạt động S1-10
+
+ADMIN xem tại `/NhatKy`. Schema v3 cần updater; trong giai đoạn kiểm thử này chỉ nâng cấp bản sao SQLite, chưa cập nhật DB local thật. Xem [phạm vi, cách chạy và kiểm thử S1-10](docs/s1-10-nhat-ky.md).

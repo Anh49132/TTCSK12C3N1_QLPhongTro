@@ -41,3 +41,5 @@ obj/
 *.sqlite.before-local-admin-*.bak*
 *.sqlite.before-auth-*.bak*
 *.sqlite.update.lock
+
+/data/S1-10-verification/

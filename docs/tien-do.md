@@ -1,5 +1,12 @@
 # Tiến độ dự án
 
+## S1-10 EP-01 — Nhật ký hoạt động (29/09/2026)
+
+- Đã triển khai audit cùng transaction cho tài khoản, tòa nhà/phòng, dịch vụ/đơn giá và hóa đơn S1-09 hiện có; allowlist JSON, snapshot người/role, trang ADMIN với lọc kết hợp và UTC+7. EF + trigger SQLite chặn sửa/xóa.
+- Updater v3 có backup, kiểm tra schema và rollback khi lỗi; chỉ chạy trên bản sao, SHA-256 DB local gốc giữ nguyên. Không staging/Docker, không commit/push; giữ nguyên project test va chạm tên.
+- Build Debug PASS; HTTP S1-10, schema lỗi/lặp lại/bảo toàn, console EF/rollback và hồi quy S1-03/updater PASS. App đã chạy localhost:5247 trên bản sao rồi dừng. Chưa nghiệm thu UI đồ họa/SMTP thật/concurrency.
+- Còn cảnh báo ImageSharp license, CS8601 tại AuthController:34,52 và NU1900 do NuGet không truy cập được. Diff task sạch; diff toàn repo còn whitespace trong project test có sẵn. Phạm vi, giới hạn, lệnh chạy và test: [s1-10-nhat-ky.md](s1-10-nhat-ky.md).
+
 ## Tinh gọn cấu hình dự án (28/09/2026)
 
 - Loại bỏ môi trường staging thử nghiệm gồm Docker/Compose, reset-seed, trang tổng quan và liên kết giao diện; đây không phải phần triển khai Nhật ký hoạt động S1-10 theo backlog.

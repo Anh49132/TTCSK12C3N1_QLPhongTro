@@ -3,8 +3,9 @@ using QL_PhongTro.Models;
 
 namespace QL_PhongTro.Data;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpContextAccessor? httpContext = null) : DbContext(options)
 {
+    public DbSet<NhatKyHoatDong> NhatKyHoatDongs => Set<NhatKyHoatDong>();
     public DbSet<DichVu> DichVus => Set<DichVu>();
     public DbSet<CauHinhDichVu> CauHinhDichVus => Set<CauHinhDichVu>();
     public DbSet<KhoiTaoDichVu> KhoiTaoDichVus => Set<KhoiTaoDichVu>();

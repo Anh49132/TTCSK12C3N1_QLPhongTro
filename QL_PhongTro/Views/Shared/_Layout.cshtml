@@ -17,7 +17,7 @@
 <a class="home-link" asp-controller="Home" asp-action="Index">Trang chủ</a>
 @if (User.Identity?.IsAuthenticated == true) {
 <a asp-controller="Account" asp-action="ChangePassword">Đổi mật khẩu</a>
-@if (User.IsInRole("ADMIN")) { <a asp-controller="ManagedAccounts" asp-action="Index">Quản lý tài khoản</a> }
+@if (User.IsInRole("ADMIN")) { <a asp-controller="ManagedAccounts" asp-action="Index">Quản lý tài khoản</a> <a asp-controller="NhatKy" asp-action="Index">Nhật ký hoạt động</a> }
 @if (User.IsInRole("KHACH_THUE")) { <a asp-controller="HoSo" asp-action="Index">Hồ sơ cá nhân</a> }
 <a asp-controller="HoSo" asp-action="Xem">Xem hồ sơ</a>
 <span class="account-name">@User.Identity.Name</span>
