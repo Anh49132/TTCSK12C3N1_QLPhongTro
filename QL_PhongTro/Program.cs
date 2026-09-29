@@ -32,24 +32,6 @@ var databasePath = string.IsNullOrWhiteSpace(configuredDatabasePath)
         ? configuredDatabasePath
         : Path.Combine(builder.Environment.ContentRootPath, configuredDatabasePath));
 
-var resetStagingDemo = args.Contains("--reset-staging-demo");
-if (builder.Environment.IsStaging() && string.IsNullOrWhiteSpace(configuredDatabasePath))
-    throw new InvalidOperationException("Staging requires an explicit DatabasePath; the local development database is never a staging default.");
-if (resetStagingDemo)
-{
-    if (!builder.Environment.IsStaging())
-        throw new InvalidOperationException("--reset-staging-demo is available only in the Staging environment.");
-    if (!bool.TryParse(builder.Configuration["Staging:AllowReset"], out var allowReset) || !allowReset)
-        throw new InvalidOperationException("Set Staging:AllowReset=true explicitly before resetting staging data.");
-    if (string.Equals(Path.GetFullPath(databasePath), Path.GetFullPath(Path.Combine(dataDir, "local-dev.sqlite")), StringComparison.OrdinalIgnoreCase))
-        throw new InvalidOperationException("Refusing to reset the local development database.");
-    var demoPassword = builder.Configuration["Staging:DemoPassword"];
-    if (string.IsNullOrWhiteSpace(demoPassword))
-        throw new InvalidOperationException("Set Staging:DemoPassword through an environment secret before seeding.");
-    await StagingDemoSeeder.ResetAsync(databasePath, Path.Combine(dataDir, "permissions.seed.json"), demoPassword);
-    return;
-}
-
 var initFlags = new[] { "--create-permission-demo", "--initialize-permissions", "--initialize-password-security", "--initialize-services", "--initialize-service-invoices" };
 bool isInit = args.Any(a => initFlags.Contains(a));
 
@@ -72,6 +54,29 @@ if (!File.Exists(databasePath))
     {
         throw new FileNotFoundException("Existing local SQLite database was not found; refusing to create a new database.", databasePath);
     }
+}
+
+if (args.Contains("--update-database"))
+{
+    DatabaseUpdates.Update(databasePath, Path.Combine(dataDir, "permissions.seed.json"));
+    return;
+}
+if (args.Contains("--check-database"))
+{
+    DatabaseUpdates.Check(databasePath);
+    Console.WriteLine("Database schema is ready.");
+    return;
+}
+if (args.Contains("--create-local-admin"))
+{
+    if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException("--create-local-admin is available only in Development.");
+    DatabaseUpdates.Check(databasePath);
+    LocalAdminInitializer.Create(databasePath,
+        builder.Configuration["LocalAdmin:Email"],
+        builder.Configuration["LocalAdmin:Password"],
+        builder.Configuration["LocalAdmin:Phone"]);
+    return;
 }
 
 var demoIndex = Array.IndexOf(args, "--create-permission-demo");
@@ -136,6 +141,7 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.Configure<PasswordResetOptions>(builder.Configuration.GetSection("PasswordReset"));
 builder.Services.AddScoped<IPasswordEmailSender, PasswordEmailSender>();
+builder.Services.AddScoped<ITemporaryPasswordEmailSender, PasswordEmailSender>();
 builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddScoped<SessionVersionStore>();
 builder.Services.AddScoped<DichVuService>();
@@ -147,13 +153,18 @@ builder.Services.AddAuthentication()
 {
     options.Events = new JwtBearerEvents
     {
-        OnTokenValidated = context =>
+        OnTokenValidated = async context =>
         {
             var id = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             var version = context.Principal?.FindFirst(SessionVersionStore.ClaimType)?.Value;
             if (!int.TryParse(id, out var accountId) || !context.HttpContext.RequestServices.GetRequiredService<SessionVersionStore>().IsValid(accountId, version))
                 context.Fail("Phiên đăng nhập đã bị vô hiệu hóa.");
-            return Task.CompletedTask;
+            if (int.TryParse(id, out var currentId))
+            {
+                var account = await context.HttpContext.RequestServices.GetRequiredService<AppDbContext>().TaiKhoans.AsNoTracking().SingleOrDefaultAsync(a => a.Id == currentId);
+                if (account is null || !account.DangHoatDong || account.MustChangePassword)
+                    context.Fail("Tài khoản chưa được phép sử dụng phiên này.");
+            }
         }
     };
     options.TokenValidationParameters = new TokenValidationParameters
@@ -182,19 +193,14 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
+app.UseMiddleware<RequirePasswordChangeMiddleware>();
 app.UseMiddleware<TokenBlacklistMiddleware>();
 app.UseAuthorization();
 app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
 
 
 
-using (var scope = app.Services.CreateScope())
-{
-    AuthSchemaInitializer.Initialize(databasePath);
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
-    RoomSchemaInitializer.EnsureSchema(db);
-}
+DatabaseUpdates.Check(databasePath);
 
 
 app.MapRazorPages();

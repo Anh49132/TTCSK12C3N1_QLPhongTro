@@ -53,11 +53,21 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
             new Claim(ClaimTypes.Role, user.VaiTro ?? ""),
             new Claim(SessionVersionStore.ClaimType, sessionVersion)
         }, CookieAuthenticationDefaults.AuthenticationScheme);
+await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
 
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+        // S1-03: Check MustChangePassword (from dev)
+        if (user.MustChangePassword) return RedirectToAction(nameof(ChangePassword));
 
         return Url.IsLocalUrl(request.ReturnUrl) ? LocalRedirect(request.ReturnUrl!) : RedirectToAction("Index", "Home");
     }
+
+    [HttpGet]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult SessionStatus() => Json(new
+    {
+        authenticated = User.Identity?.IsAuthenticated == true,
+        mustChangePassword = User.FindFirst("must_change_password")?.Value == "true"
+    });
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -133,7 +143,12 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
         };
 
         db.TaiKhoans.Add(user);
-        await db.SaveChangesAsync();
+        try { await db.SaveChangesAsync(); }
+        catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.Sqlite.SqliteException { SqliteErrorCode: 19 })
+        {
+            ModelState.AddModelError("", "Email hoặc số điện thoại đã được sử dụng.");
+            return View(model);
+        }
 
         var claims = new[]
         {
