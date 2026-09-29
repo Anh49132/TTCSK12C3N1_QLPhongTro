@@ -1,0 +1,44 @@
+@model QL_PhongTro.ViewModels.NhatKyViewModel
+@using QL_PhongTro.ViewModels
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Nhật ký hoạt động";
+    string Pretty(string? json) {
+        if (json is null) return "—";
+        try { using var doc = JsonDocument.Parse(json); return JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }); }
+        catch (JsonException) { return "Dữ liệu lịch sử không phải JSON hợp lệ"; }
+    }
+}
+<p class="eyebrow">HỆ THỐNG</p>
+<h1>Nhật ký hoạt động</h1>
+<p>Thời gian Việt Nam (UTC+7). Nhật ký chỉ đọc; tên và vai trò được lưu tại thời điểm thao tác.</p>
+<form method="get" class="row g-3 mb-4">
+    <div class="col-md-3"><label asp-for="TuNgay" class="form-label">Từ ngày</label><input asp-for="TuNgay" type="date" class="form-control" /></div>
+    <div class="col-md-3"><label asp-for="DenNgay" class="form-label">Đến ngày</label><input asp-for="DenNgay" type="date" class="form-control" /></div>
+    <div class="col-md-3"><label asp-for="NguoiThucHienId" class="form-label">Người thực hiện</label><select asp-for="NguoiThucHienId" class="form-select"><option value="">Tất cả</option>
+    @foreach (var actor in Model.Actors) { <option value="@actor.Id">@(actor.Name ?? "Chưa có tên lịch sử") (#@actor.Id)</option> }
+    </select></div>
+    <div class="col-md-3"><label asp-for="LoaiDoiTuong" class="form-label">Loại đối tượng</label><select asp-for="LoaiDoiTuong" class="form-select"><option value="">Tất cả</option>
+    @foreach (var type in NhatKyViewModel.Types) { <option value="@type.Key">@type.Value</option> }
+    </select></div>
+    <div><button class="btn btn-primary" type="submit">Lọc nhật ký</button> <a asp-action="Index" class="btn btn-outline-secondary">Xóa bộ lọc</a></div>
+</form>
+<p>@Model.Total bản ghi · Trang @Model.Page/@Model.Pages</p>
+<div class="table-responsive"><table class="table align-top"><thead><tr><th>Thời điểm</th><th>Người thực hiện</th><th>Vai trò</th><th>Hành động</th><th>Đối tượng</th><th>Trước / sau</th></tr></thead><tbody>
+@foreach (var row in Model.Rows) {
+<tr data-audit-id="@row.Id">
+<td>@row.ThoiDiem.AddHours(7).ToString("dd/MM/yyyy HH:mm:ss")</td>
+<td>@(row.TenNguoiThucHien ?? "Chưa có tên lịch sử") <span class="text-muted">#@row.NguoiThucHienId</span></td>
+<td>@row.VaiTroLucThucHien</td><td>@NhatKyViewModel.ActionName(row.HanhDong)</td>
+<td>@(NhatKyViewModel.Types.GetValueOrDefault(row.LoaiDoiTuong, row.LoaiDoiTuong)) #@row.DoiTuongId</td>
+<td><details><summary>Xem giá trị trước / sau</summary><strong>Trước</strong><pre class="text-wrap">@Pretty(row.DuLieuTruoc)</pre><strong>Sau</strong><pre class="text-wrap">@Pretty(row.DuLieuSau)</pre>
+@if (row.HanhDong == "GUI_LAI_MAT_KHAU_TAM") { <p>Đã thay mật khẩu tạm và thu hồi phiên; không lưu giá trị mật khẩu.</p> }
+</details></td></tr>
+}
+@if (Model.Rows.Count == 0) { <tr><td colspan="6">Không có nhật ký phù hợp.</td></tr> }
+</tbody></table></div>
+<nav aria-label="Phân trang nhật ký">
+@foreach (var pageNumber in new[] { Model.Page - 1, Model.Page + 1 }.Where(p => p >= 1 && p <= Model.Pages)) {
+<a class="btn btn-outline-primary" asp-action="Index" asp-route-page="@pageNumber" asp-route-tuNgay="@Model.TuNgay?.ToString("yyyy-MM-dd")" asp-route-denNgay="@Model.DenNgay?.ToString("yyyy-MM-dd")" asp-route-nguoiThucHienId="@Model.NguoiThucHienId" asp-route-loaiDoiTuong="@Model.LoaiDoiTuong">@(pageNumber < Model.Page ? "Trang trước" : "Trang sau")</a>
+}
+</nav>

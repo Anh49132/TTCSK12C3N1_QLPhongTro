@@ -79,6 +79,7 @@ public sealed class ManagedAccountsController(AppDbContext db, ITemporaryPasswor
         var account = await db.TaiKhoans.SingleOrDefaultAsync(a => a.Id == id && a.MustChangePassword && a.DangHoatDong);
         if (account is null || account.VaiTro is not ("CHU_NHA" or "QUAN_LY")) return NotFound();
         var password = TemporaryPassword();
+        db.TemporaryPasswordResentFor = account.Id;
         account.MatKhau = BCrypt.Net.BCrypt.HashPassword(password);
         account.NgayCapNhat = DateTime.UtcNow;
         account.RefreshTokenHash = null; account.RefreshTokenExpiry = null;
