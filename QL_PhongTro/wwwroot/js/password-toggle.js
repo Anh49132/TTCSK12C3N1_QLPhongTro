@@ -5,5 +5,8 @@ document.addEventListener('click', event => {
     if (!input) return;
     const visible = input.type === 'text';
     input.type = visible ? 'password' : 'text';
-    button.textContent = visible ? 'Hiện' : 'Ẩn';
+    const label = visible ? 'Hiện mật khẩu' : 'Ẩn mật khẩu';
+    button.setAttribute('aria-pressed', String(!visible));
+    button.setAttribute('aria-label', label);
+    button.title = label;
 });
