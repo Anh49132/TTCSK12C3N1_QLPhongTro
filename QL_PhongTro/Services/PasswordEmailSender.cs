@@ -27,7 +27,14 @@ public interface ITemporaryPasswordEmailSender
     Task SendTemporaryAsync(string email, string name, string role, string password);
 }
 
-public sealed class PasswordEmailSender(IOptions<PasswordResetOptions> options, IWebHostEnvironment environment) : IPasswordEmailSender, ITemporaryPasswordEmailSender
+public interface IRegistrationEmailSender
+{
+    Task<EmailDeliveryMode> SendConfirmationAsync(string email, string name, string code);
+}
+
+public enum EmailDeliveryMode { Pickup, Smtp }
+
+public sealed class PasswordEmailSender(IOptions<PasswordResetOptions> options, IWebHostEnvironment environment) : IPasswordEmailSender, ITemporaryPasswordEmailSender, IRegistrationEmailSender
 {
     public Task SendAsync(string email, string resetUrl) => DeliverAsync(email, "Đặt lại mật khẩu Nhà Trọ",
         "Bạn đã yêu cầu đặt lại mật khẩu Nhà Trọ. Mở liên kết sau trong vòng 30 phút; liên kết chỉ dùng được một lần:\n\n" + resetUrl + "\n\nNếu bạn không yêu cầu, hãy bỏ qua email này.");
@@ -41,6 +48,13 @@ public sealed class PasswordEmailSender(IOptions<PasswordResetOptions> options, 
             throw new InvalidOperationException("Configure a trusted PublicBaseUrl.");
         return DeliverAsync(email, "Tài khoản Nhà Trọ – yêu cầu đổi mật khẩu lần đầu",
             $"Xin chào {name},\n\nQuản trị viên đã cấp tài khoản Nhà Trọ cho bạn.\nVai trò: {role}\nEmail đăng nhập: {email}\nMật khẩu tạm: {password}\nĐăng nhập: {url.TrimEnd('/')}/Account/Login\n\nBạn bắt buộc đặt mật khẩu mới ngay lần đăng nhập đầu tiên trước khi sử dụng hệ thống. Không chia sẻ mật khẩu này. Nếu bạn không yêu cầu tài khoản, hãy liên hệ quản trị viên.");
+    }
+
+    public async Task<EmailDeliveryMode> SendConfirmationAsync(string email, string name, string code)
+    {
+        await DeliverAsync(email, "Xác nhận tài khoản Nhà Trọ",
+            $"Xin chào {name},\n\nMã xác nhận tài khoản của bạn là: {code}\n\nMã có hiệu lực trong 15 phút. Nếu bạn không thực hiện đăng ký, hãy bỏ qua email này.");
+        return string.IsNullOrWhiteSpace(options.Value.PickupDirectory) ? EmailDeliveryMode.Smtp : EmailDeliveryMode.Pickup;
     }
 
     private async Task DeliverAsync(string email, string subject, string body)
@@ -71,6 +85,7 @@ public sealed class PasswordEmailSender(IOptions<PasswordResetOptions> options, 
             client.Host = settings.Host; client.Port = settings.Port; client.EnableSsl = settings.EnableSsl;
             if (!string.IsNullOrWhiteSpace(settings.Username)) client.Credentials = new NetworkCredential(settings.Username, settings.Password);
         }
-        await client.SendMailAsync(message);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        await client.SendMailAsync(message, timeout.Token);
     }
 }

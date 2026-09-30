@@ -58,9 +58,11 @@ public class CredentialValidationService(AppDbContext db, ITimeProvider timeProv
 
         bool isEmail = input.Contains("@");
         var user = await _db.TaiKhoans
-            .FirstOrDefaultAsync(u => isEmail ? u.Email == input.ToLower() : u.SoDienThoai == input);
+            .FirstOrDefaultAsync(u => !u.IsDeleted && (isEmail ? u.Email == input.ToLower() : u.SoDienThoai == input));
 
-        if (user is null || !user.DangHoatDong)
+        // Tai khoan da xoa hoa chua xac nhan email deu tra cung thong bao chung
+        // "khong chinh xac" de khong lo tai khoan co that ra.
+        if (user is null || !user.DangHoatDong || !user.EmailConfirmed)
         {
             BurnPasswordTiming(request.MatKhau);
             return new CredentialValidationResult { Success = false, Error = "Thông tin đăng nhập không chính xác" };
@@ -98,9 +100,9 @@ public class CredentialValidationService(AppDbContext db, ITimeProvider timeProv
 
         bool isEmail = input.Contains("@");
         var user = await _db.TaiKhoans
-            .FirstOrDefaultAsync(u => isEmail ? u.Email == input.ToLower() : u.SoDienThoai == input);
+            .FirstOrDefaultAsync(u => !u.IsDeleted && (isEmail ? u.Email == input.ToLower() : u.SoDienThoai == input));
 
-        if (user is null) return (false, 0);
+        if (user is null || !user.DangHoatDong || !user.EmailConfirmed) return (false, 0);
 
         var now = _timeProvider.UtcNow;
         if (user.LockedUntil is not null && user.LockedUntil > now)

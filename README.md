@@ -10,22 +10,61 @@
 
 ## Chạy dự án
 
-Mở Terminal tại thư mục chứa README này:
+### Chạy hằng ngày
+
+Mở terminal tại thư mục chứa README (`D:\DEV\TTCS_T926_K12C3_N1` trên máy hiện tại). Nếu app đang chạy, dừng bằng Ctrl+C trong terminal của app trước khi chạy lại. Nếu cần nhận email thật, thực hiện mục **Nhận mã xác nhận qua Gmail** trước.
 
 ```powershell
-# Dừng phiên QL_PhongTro cũ nếu terminal trước đã đóng hoặc không còn thấy dòng "Now listening"
-Get-Process QL_PhongTro -ErrorAction SilentlyContinue | Stop-Process -Force
-
-dotnet restore .\QL_PhongTro\QL_PhongTro.csproj
-dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --update-database
-$env:LocalAdmin__Email = 'admin-local@example.test'
-$env:LocalAdmin__Password = 'ThayBangMatKhauManh123!'
-$env:LocalAdmin__Phone = '0900000000'
-dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --create-local-admin
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
 ```
 
 Truy cập http://localhost:5247. Giữ terminal đang hiện `Now listening on: http://localhost:5247` mở trong lúc sử dụng. Muốn dừng server, bấm vào đúng terminal đó, nhấn Ctrl+C và chờ dấu nhắc `PS C:\...>` xuất hiện lại rồi mới build hoặc chạy lần nữa.
+
+Không cần cập nhật database hoặc tạo ADMIN mỗi lần chạy. Web tự nâng schema v4 lên v5 có backup để hỗ trợ xóa/tái sử dụng email và SĐT; tài khoản đã xóa không còn trong danh sách. Tài khoản mới đang chờ xác nhận thì tiếp tục nhập/gửi lại mã, không cần xóa rồi đăng ký lại.
+
+### Chuẩn bị lần đầu hoặc nâng schema cũ
+
+Giữ file SQLite hiện có và dừng app trước khi chạy. Với schema cũ hơn v4 hoặc khi nhận thay đổi CSDL yêu cầu cập nhật, làm theo [hướng dẫn cập nhật SQLite](docs/cap-nhat-csdl.md):
+
+```powershell
+dotnet restore .\QL_PhongTro\QL_PhongTro.csproj
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http -- --update-database
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http -- --check-database
+```
+
+Chỉ tạo ADMIN nếu chưa có tài khoản quản trị; xem mục **Tài khoản quản trị local**. Nếu có lỗi, dừng và xử lý lỗi trước khi chạy bước tiếp theo.
+
+### Nhận mã xác nhận qua Gmail
+
+Các lệnh chạy app ở trên **không cấu hình Gmail**. Development mặc định lưu thư `.eml` vào `%TEMP%\s105-mail-preview`, không gửi tới hộp thư. Nếu dùng `$env:...`, phải cấu hình trong cùng terminal chạy app; terminal mới không giữ các biến của terminal cũ.
+
+Sau Ctrl+C, kiểm tra chế độ gửi (không hiện mật khẩu, không gửi thư):
+
+```powershell
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http -- --check-email-config
+```
+
+Để gửi Gmail thật, đặt các biến dưới đây rồi chạy app trong **cùng terminal**. Dùng mật khẩu ứng dụng Google của tài khoản gửi; không nhập mật khẩu vào chat hoặc commit vào file cấu hình.
+
+```powershell
+$env:PasswordReset__PickupDirectory = ' ' # Dấu cách để ghi đè chế độ lưu file
+$env:PasswordReset__Host = 'smtp.gmail.com'
+$env:PasswordReset__Port = '587'
+$env:PasswordReset__EnableSsl = 'true'
+$env:PasswordReset__Username = Read-Host 'Gmail gui thu'
+$env:PasswordReset__From = $env:PasswordReset__Username
+$smtpSecret = Read-Host 'Mat khau ung dung Google' -AsSecureString
+$env:PasswordReset__Password = [System.Net.NetworkCredential]::new('', $smtpSecret).Password
+$env:PasswordReset__PublicBaseUrl = 'http://localhost:5247'
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http -- --check-email-config
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
+```
+
+Sau đó chọn **Gửi lại mã**. Trang sẽ báo riêng chế độ thử nghiệm, lỗi gửi, hoặc SMTP đã nhận thư. SMTP nhận thư chưa chứng minh thư đã tới inbox; kiểm tra cả Spam. Xem [hướng dẫn mật khẩu ứng dụng Google](https://support.google.com/mail/answer/185833?hl=vi).
+
+Kết quả `--check-email-config`: `PICKUP` nghĩa là chỉ lưu file; `SMTP` nghĩa là dùng máy chủ gửi thư. Với Gmail, host phải là `smtp.gmail.com`, port `587`, TLS `True` và username/password/sender đều `configured: True`. Lệnh này chỉ kiểm tra cấu hình, chưa thử kết nối hoặc xác thực Gmail.
+
+### Xử lý lỗi khởi động
 
 Nếu terminal đã hiện dấu nhắc `PS C:\...>` nhưng website vẫn truy cập được, server đang chạy ở terminal hoặc tiến trình khác. Dừng tiến trình cũ bằng:
 
@@ -35,6 +74,10 @@ Get-Process QL_PhongTro -ErrorAction SilentlyContinue | Stop-Process -Force
 
 Lỗi `MSB3021` hoặc `MSB3027` kèm thông báo `QL_PhongTro.exe ... being used by another process` có nghĩa là server cũ đang khóa file build. Chạy lệnh dừng ở trên, đợi vài giây rồi chạy lại lệnh `dotnet run`. Lỗi SQLite như `no such table` có nguyên nhân khác; làm theo quy trình `--update-database` và tài liệu `docs/cap-nhat-csdl.md`.
 
+**`FileLoadException`, `0x800711C7`, “An Application Control policy has blocked this file”**: Windows chặn thực thi DLL trước khi app chạy. Build có thể thành công nhưng web, updater và kiểm tra SMTP đều chưa chạy được. Không chạy lặp lại lệnh tạo ADMIN/cập nhật DB để xử lý lỗi này.
+
+Trên máy đã kiểm tra, nhật ký `Microsoft-Windows-CodeIntegrity/Operational` có event 3077, policy `VerifiedAndReputableDesktop` (Smart App Control), chặn `QL_PhongTro.dll` chưa ký số. Đây không phải cảnh báo license ImageSharp hoặc bằng chứng ổ D chỉ đọc. Kiểm tra tại **Windows Security → App & browser control → Smart App Control settings**. Dùng bản build ký số được tin cậy để giữ bảo vệ; nếu chủ máy cá nhân chọn tắt Smart App Control cho môi trường phát triển, cần hiểu thay đổi áp dụng toàn máy. Máy do tổ chức quản lý cần quản trị viên xử lý. Xem [hướng dẫn Microsoft](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions). README không tự thay đổi chính sách bảo mật.
+
 Lệnh `--update-database` sao lưu rồi cập nhật schema còn thiếu; nên dừng ứng dụng trước khi chạy. Ứng dụng yêu cầu file SQLite đã tồn tại và không tự tạo lại CSDL nền. Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt biến môi trường `DatabasePath` để dùng file riêng.
 
 Schema dịch vụ/hóa đơn S1-09 là module tùy chọn và không được tự ghi vào CSDL local. Khi chưa cài module này, ứng dụng tài khoản/phân quyền/phòng vẫn khởi động; các trang dịch vụ và hóa đơn chưa dùng được. Xem mục **Dịch vụ và hóa đơn tối thiểu (S1-09)** trong [bàn giao dự án](docs/tien-do.md) để chuẩn bị fixture riêng.
@@ -42,6 +85,20 @@ Schema dịch vụ/hóa đơn S1-09 là module tùy chọn và không được t
 ## Tài khoản quản trị local
 
 Đặt `LocalAdmin__Email`, `LocalAdmin__Password`, `LocalAdmin__Phone` trong terminal local, sau đó chạy `--create-local-admin` sau `--update-database`. Không ghi thông tin thật vào README, `appsettings*.json`, commit hoặc log. Lệnh chỉ chạy trong Development, không ghi đè tài khoản đã có và sao lưu trước khi tạo. Mật khẩu trong SQLite được lưu dưới dạng băm BCrypt. Xoá các biến môi trường khỏi terminal sau khi dùng nếu máy được chia sẻ.
+
+Chỉ chạy khi cần tạo ADMIN lần đầu trên DB đã sẵn sàng:
+
+```powershell
+$env:LocalAdmin__Email = Read-Host 'Email ADMIN'
+$env:LocalAdmin__Phone = Read-Host 'So dien thoai ADMIN (10 chu so, bat dau bang 0)'
+$adminSecret = Read-Host 'Mat khau ADMIN (it nhat 8 ky tu, co chu va so)' -AsSecureString
+$env:LocalAdmin__Password = [System.Net.NetworkCredential]::new('', $adminSecret).Password
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http -- --create-local-admin
+Remove-Item Env:\LocalAdmin__Password
+Remove-Variable adminSecret
+```
+
+Các biến `LocalAdmin__...` chỉ phục vụ tạo tài khoản, không cấu hình Gmail. Nếu ADMIN đã tồn tại, dùng tài khoản đó để đăng nhập.
 
 Chạy trong lúc phát triển:
 

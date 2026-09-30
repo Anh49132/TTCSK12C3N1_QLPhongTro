@@ -24,6 +24,8 @@ public class TaiKhoan
 
     public bool DangHoatDong { get; set; }
     public bool MustChangePassword { get; set; }
+    public bool EmailConfirmed { get; set; } = true;
+    public bool IsDeleted { get; set; }
     public bool IsStaff { get; set; }
     public bool IsSuperuser { get; set; }
     public int? FailedLoginCount { get; set; }

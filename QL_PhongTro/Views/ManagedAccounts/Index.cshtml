@@ -28,6 +28,9 @@
 <form asp-action="Resend" method="post" onsubmit="return confirm('Tạo mật khẩu tạm mới và gửi lại email? Mật khẩu tạm cũ sẽ mất hiệu lực.');"><input type="hidden" name="id" value="@account.Id" /><button class="btn btn-sm btn-outline-secondary">Gửi lại mật khẩu tạm</button></form>
 }
 }
+@if (account.VaiTro is not "ADMIN" && !account.IsDeleted) {
+<form asp-action="Delete" method="post" onsubmit="return confirm('Xóa tài khoản này? Email và số điện thoại sẽ dùng đăng ký lại được. Dữ liệu lịch sử được giữ lại.');"><input type="hidden" name="id" value="@account.Id" /><input type="hidden" name="confirmed" value="true" /><button class="btn btn-sm btn-outline-danger">Xóa</button></form>
+}
 </td></tr>
 }
 @if (Model.Total == 0) { <tr><td colspan="7">Không có tài khoản phù hợp.</td></tr> }

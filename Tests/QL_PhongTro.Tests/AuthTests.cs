@@ -40,24 +40,19 @@ public class AuthTests : IDisposable
         _appPath = Path.Combine(directory?.FullName ?? throw new Exception("Repository not found"), "QL_PhongTro");
         
         _testDatabasePath = Path.Combine(Path.GetTempPath(), $"test_db_{Guid.NewGuid():N}.sqlite");
-        
-        // First, create EF Core tables using a direct DbContext
-        var connectionString = new SqliteConnectionStringBuilder
+
+        // Prepare the disposable copy exactly like a deployment: start from the repository
+        // database and run the published migrations. EnsureCreated already contains the newest
+        // columns, which then collides with the migration that adds them.
+        using (var original = new SqliteConnection("Data Source=" + Path.Combine(_appPath, "Data", "local-dev.sqlite") + ";Mode=ReadOnly"))
+        using (var copy = new SqliteConnection("Data Source=" + _testDatabasePath))
         {
-            DataSource = _testDatabasePath, Mode = SqliteOpenMode.ReadWriteCreate, ForeignKeys = true
-        }.ToString();
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connectionString).Options;
-        using (var db = new AppDbContext(options))
-        {
-            db.Database.EnsureCreated();
+            original.Open();
+            copy.Open();
+            original.BackupDatabase(copy);
         }
-        
-        // Then run initializers to add extra tables
-        AuthSchemaInitializer.Initialize(_testDatabasePath);
-        PasswordSchemaInitializer.Initialize(_testDatabasePath);
-        PermissionSchemaInitializer.Initialize(_testDatabasePath, Path.Combine(_appPath, "Data", "permissions.seed.json"));
         // The app refuses to start on a database below the current schema version, so the
-        // disposable copy must be brought to the same version a deployed database has.
+        // disposable copy must reach the same version a deployed database has.
         DatabaseUpdates.Update(_testDatabasePath, Path.Combine(_appPath, "Data", "permissions.seed.json"));
         
         // Now create the factory with the same database path

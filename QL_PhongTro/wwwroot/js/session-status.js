@@ -2,9 +2,9 @@
     async function checkSession() {
         try {
             const response = await fetch('/Account/SessionStatus', { cache: 'no-store', credentials: 'same-origin' });
-            if (!response.ok) return;
+            if (!response.ok) { window.location.replace('/Account/Login?timeout=true'); return; }
             const state = await response.json();
-            if (!state.authenticated) window.location.replace('/Account/Login');
+            if (!state.authenticated) window.location.replace('/Account/Login?timeout=true');
             else if (state.mustChangePassword && !location.pathname.toLowerCase().startsWith('/account/changepassword'))
                 window.location.replace('/Account/ChangePassword');
         } catch { /* The server still checks authorization on every data request. */ }

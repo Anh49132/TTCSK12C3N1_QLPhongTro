@@ -11,20 +11,6 @@
             var countdownTimer = document.getElementById('countdownTimer');
             var countdownInterval = null;
 
-            var passwordInput = document.getElementById('MatKhau');
-            var passwordToggle = document.getElementById('togglePassword');
-            if (passwordInput && passwordToggle) {
-                passwordToggle.addEventListener('click', function () {
-                    var showing = passwordInput.type === 'text';
-                    passwordInput.type = showing ? 'password' : 'text';
-                    passwordToggle.setAttribute('aria-pressed', showing ? 'false' : 'true');
-                    var label = showing ? 'Xem mật khẩu' : 'Ẩn mật khẩu';
-                    passwordToggle.setAttribute('aria-label', label);
-                    passwordToggle.setAttribute('title', label);
-                    passwordInput.focus();
-                });
-            }
-
             function showLockout(seconds) {
                 errorEl.textContent = '';
                 lockoutAlert.classList.remove('d-none');
@@ -112,6 +98,7 @@
                 <p class="eyebrow">CHÀO MỪNG TRỞ LẠI</p>
                 <h1>Đăng nhập</h1>
                 @if (TempData["PasswordSuccess"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+                @if (ViewData["TimeoutMessage"] is string timeout) { <div class="alert alert-warning" role="alert">@timeout</div> }
                 <p class="auth-description">Tiếp tục quản lý không gian sống của bạn.</p>
                 <form id="loginForm" method="post" data-use-api="false" novalidate>
                     <div class="text-danger" role="alert" id="loginError">@if (!ViewData.ModelState.IsValid) { <div>@Html.ValidationSummary(false)</div> }</div>
@@ -125,17 +112,8 @@
                         <label asp-for="MatKhau" class="form-label">Mật khẩu</label>
                         <div class="password-field">
                             <input asp-for="MatKhau" class="form-control" autocomplete="current-password" placeholder="Nhập mật khẩu" />
-                            <button type="button" class="password-toggle" id="togglePassword" aria-label="Xem mật khẩu" aria-pressed="false" title="Xem mật khẩu">
-                                <svg class="icon-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                                    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path>
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                </svg>
-                                <svg class="icon-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                                    <path d="M10.6 6.2A9.9 9.9 0 0 1 12 6c6.4 0 10 6 10 6a18 18 0 0 1-3.2 3.9M6.6 6.7A18 18 0 0 0 2 12s3.6 6 10 6a9.8 9.8 0 0 0 4.2-.9"></path>
-                                    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>
-                                    <path d="m3 3 18 18"></path>
-                                </svg>
-                            </button>
+                            @* Nut xem/ẩn mật khẩu dùng chung với trang đổi mật khẩu (partial của đồng đội) để không trùng chức năng. *@
+                            <partial name="_PasswordToggle" model='@("MatKhau")' />
                         </div>
                         <span asp-validation-for="MatKhau" class="text-danger"></span>
                     </div>
@@ -156,3 +134,4 @@
         </div>
     </div>
 </div>
+

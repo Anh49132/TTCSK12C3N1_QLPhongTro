@@ -20,7 +20,7 @@
 @if (User.IsInRole("ADMIN")) { <a asp-controller="ManagedAccounts" asp-action="Index">Quản lý tài khoản</a> <a asp-controller="NhatKy" asp-action="Index">Nhật ký hoạt động</a> }
 @if (User.IsInRole("KHACH_THUE")) { <a asp-controller="HoSo" asp-action="Index">Hồ sơ cá nhân</a> }
 <a asp-controller="HoSo" asp-action="Xem">Xem hồ sơ</a>
-<span class="account-name">@User.Identity.Name</span>
+<span class="account-name">@User.Identity.Name · @User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</span>
 <form asp-controller="Account" asp-action="Logout" method="post" id="logoutForm"><button class="btn btn-outline-primary" type="submit" id="logoutBtn">Đăng xuất</button></form>
 } else {
 <a asp-controller="Account" asp-action="Login" id="loginBtn">Đăng nhập</a>
@@ -65,6 +65,7 @@ var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
 <script src="~/js/site.js" asp-append-version="true"></script>
 <script src="~/js/logout-confirm.js" asp-append-version="true"></script>
 <script src="~/js/auth-interceptor.js" asp-append-version="true"></script>
+<script src="~/js/password-toggle.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 @if (User.Identity?.IsAuthenticated == true) {
 <script src="~/js/session-status.js" asp-append-version="true"></script>

@@ -13,7 +13,7 @@ using QL_PhongTro.ViewModels;
 
 namespace QL_PhongTro.Controllers;
 
-[Authorize]
+[Authorize(Roles = "CHU_NHA,QUAN_LY,ADMIN")]
 [ModuleAccess("PHONG_TRO")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class PhongTroController(AppDbContext db) : Controller

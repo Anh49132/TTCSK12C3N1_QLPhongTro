@@ -59,6 +59,9 @@ public sealed class PermissionTests : IDisposable
         var before = SnapshotBusinessData();
         PermissionSchemaInitializer.Initialize(database, Path.Combine(appPath, "Data", "permissions.seed.json"));
         Assert.Equal(before, SnapshotBusinessData());
+        // The app refuses to start below the current schema version; the disposable copy must
+        // reach the same version a deployed database has.
+        DatabaseUpdates.Update(database, Path.Combine(appPath, "Data", "permissions.seed.json"));
         var hash = BCrypt.Net.BCrypt.HashPassword("DemoPass123!");
         foreach (var role in roles)
         {
@@ -175,7 +178,8 @@ public sealed class PermissionTests : IDisposable
             {
                 var marker = "data-menu-module=\"" + modules[m] + "\"";
                 var allowed = levels[m][r] != "NONE";
-                Assert.Equal(allowed,home.Contains(marker));
+                var showMenu = allowed && !(roles[r] == "KHACH_THUE" && modules[m] == "PHONG_TRO");
+                Assert.Equal(showMenu,home.Contains(marker));
                 var api = await client.GetAsync("/api/modules/" + modules[m]);
                 Assert.Equal(allowed ? HttpStatusCode.OK : HttpStatusCode.Forbidden,api.StatusCode);
                 var page = await client.GetAsync("/Modules/" + modules[m]);
@@ -241,6 +245,12 @@ public sealed class PermissionTests : IDisposable
         foreach(var role in new[] {"KHACH_THUE","QUAN_LY","ADMIN"})
         {
             using var client = await Login(role);
+            if (role == "KHACH_THUE")
+            {
+                Assert.Equal(HttpStatusCode.Forbidden,(await client.GetAsync("/PhongTro")).StatusCode);
+                Assert.Equal(HttpStatusCode.Forbidden,(await client.GetAsync("/PhongTro/ToaNha")).StatusCode);
+                continue;
+            }
             Assert.Equal(HttpStatusCode.OK,(await client.GetAsync("/PhongTro")).StatusCode);
             Assert.DoesNotContain("href=\"/PhongTro/Create",await client.GetStringAsync("/PhongTro"));
             foreach(var action in new[] {"Create","CreateBulk","TaoToaNha"})

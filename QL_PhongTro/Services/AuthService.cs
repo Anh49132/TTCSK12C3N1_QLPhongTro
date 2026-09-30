@@ -23,9 +23,14 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
 
     public async Task<(bool success, LoginResponse? response, string? error)> LoginAsync(LoginRequest request)
     {
+        // Serialize credential verification/token persistence with password reset (from dev).
+        await using var transaction = await _db.Database.BeginTransactionAsync();
         var validation = await _credentialValidator.ValidateAsync(request);
         if (!validation.Success)
         {
+            // Phai commit de bo dem dang nhap sai va thoi gian khoa duoc ghi lai;
+            // neu bo qua, transaction se rollback va tai khoan khong bao gio bi khoa.
+            await transaction.CommitAsync();
             return (false, null, validation.Error);
         }
 
@@ -47,6 +52,7 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
 
         await _db.SaveChangesAsync();
 
+        await transaction.CommitAsync();
         return (true, new LoginResponse
         {
             AccessToken = accessToken,
@@ -65,9 +71,9 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
         var tokenHash = ComputeHash(refreshToken);
         var now = _timeProvider.UtcNow;
         var user = await _db.TaiKhoans
-            .FirstOrDefaultAsync(u => u.RefreshTokenHash == tokenHash && u.RefreshTokenExpiry > now && u.DangHoatDong);
+            .FirstOrDefaultAsync(u => !u.IsDeleted && u.RefreshTokenHash == tokenHash && u.RefreshTokenExpiry > now && u.DangHoatDong);
 
-        if (user is null || user.MustChangePassword)
+        if (user is null || !user.EmailConfirmed || user.MustChangePassword)
         {
             return (false, null, "Refresh token không hợp lệ hoặc đã hết hạn");
         }
@@ -98,7 +104,7 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
     {
         var tokenHash = ComputeHash(refreshToken);
         var user = await _db.TaiKhoans
-            .FirstOrDefaultAsync(u => u.RefreshTokenHash == tokenHash);
+            .FirstOrDefaultAsync(u => !u.IsDeleted && u.RefreshTokenHash == tokenHash);
 
         if (user is not null)
         {
