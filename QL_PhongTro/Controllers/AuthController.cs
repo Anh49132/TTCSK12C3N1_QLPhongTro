@@ -17,7 +17,7 @@ public class AuthController(AuthService authService, JwtSettings jwtSettings) : 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request?.Email) && string.IsNullOrWhiteSpace(request?.SoDienThoai))
+        if (string.IsNullOrWhiteSpace(request?.TaiKhoanDangNhap))
         {
             return BadRequest(new AuthErrorResponse { Error = "VALIDATION_ERROR", Message = "Phải nhập email hoặc số điện thoại", Code = 400 });
         }

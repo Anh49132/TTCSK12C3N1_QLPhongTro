@@ -32,6 +32,7 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddSingleton<QL_PhongTro.Services.GiayToImageStore>();
 builder.Services.AddScoped<QL_PhongTro.Services.HoSoAccess>();
+builder.Services.AddScoped<QL_PhongTro.Services.ICredentialValidationService, QL_PhongTro.Services.CredentialValidationService>();
 
 var dataDir = Path.Combine(builder.Environment.ContentRootPath, "Data");
 var configuredDatabasePath = builder.Configuration["DatabasePath"];
@@ -41,8 +42,29 @@ var databasePath = string.IsNullOrWhiteSpace(configuredDatabasePath)
         ? configuredDatabasePath
         : Path.Combine(builder.Environment.ContentRootPath, configuredDatabasePath));
 
+var initFlags = new[] { "--create-permission-demo", "--initialize-permissions", "--initialize-password-security", "--initialize-services", "--initialize-service-invoices" };
+bool isInit = args.Any(a => initFlags.Contains(a));
+
+// If database doesn't exist, create it via EF EnsureCreated (for init commands or dev)
 if (!File.Exists(databasePath))
-    throw new FileNotFoundException("Existing local SQLite database was not found; refusing to create a new database.", databasePath);
+{
+    if (isInit || builder.Environment.IsDevelopment())
+    {
+        var connStr = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath, Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadWriteCreate, ForeignKeys = true
+        }.ToString();
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connStr).Options;
+        using var db = new AppDbContext(options);
+        db.Database.EnsureCreated();
+        // Also run auth schema init to add missing columns
+        AuthSchemaInitializer.Initialize(databasePath);
+    }
+    else
+    {
+        throw new FileNotFoundException("Existing local SQLite database was not found; refusing to create a new database.", databasePath);
+    }
+}
 
 if (args.Contains("--update-database"))
 {

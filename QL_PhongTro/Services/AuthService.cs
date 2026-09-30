@@ -10,45 +10,32 @@ using QL_PhongTro.ViewModels.Auth;
 
 namespace QL_PhongTro.Services;
 
-public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings jwtSettings, ITimeProvider timeProvider)
+public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings jwtSettings, ITimeProvider timeProvider, ICredentialValidationService credentialValidator)
 {
     private readonly AppDbContext _db = db;
     private readonly TokenService _tokenService = tokenService;
     private readonly JwtSettings _jwtSettings = jwtSettings;
     private readonly ITimeProvider _timeProvider = timeProvider;
+    private readonly ICredentialValidationService _credentialValidator = credentialValidator;
 
     private const int MaxFailedAttempts = 5;
     private const int LockoutMinutes = 15;
 
     public async Task<(bool success, LoginResponse? response, string? error)> LoginAsync(LoginRequest request)
     {
-        // Serialize credential verification/token persistence with password reset.
+        // Serialize credential verification/token persistence with password reset (from dev).
         await using var transaction = await _db.Database.BeginTransactionAsync();
-        var emailNorm = request.Email?.Trim().ToLower();
-        var phoneNorm = request.SoDienThoai?.Trim();
-
-        var user = await _db.TaiKhoans
-            .FirstOrDefaultAsync(u => !u.IsDeleted && (u.Email.Trim().ToLower() == emailNorm || u.SoDienThoai == phoneNorm));
-
-        if (user is null || !user.DangHoatDong || !user.EmailConfirmed)
+        var validation = await _credentialValidator.ValidateAsync(request);
+        if (!validation.Success)
         {
-            await Task.Delay(1000);
-            return (false, null, "Sai email/SĐT hoặc mật khẩu");
-        }
-
-        var now = _timeProvider.UtcNow;
-        if (user.LockedUntil is not null && user.LockedUntil > now)
-        {
-            var remaining = (int)Math.Ceiling((user.LockedUntil.Value - now).TotalMinutes);
-            return (false, null, $"Tài khoản đã khoá. Vui lòng thử lại sau {remaining} phút");
-        }
-
-        if (!BCrypt.Net.BCrypt.Verify(request.MatKhau ?? string.Empty, user.MatKhau))
-        {
-            await HandleFailedLogin(user, now);
+            // Phai commit de bo dem dang nhap sai va thoi gian khoa duoc ghi lai;
+            // neu bo qua, transaction se rollback va tai khoan khong bao gio bi khoa.
             await transaction.CommitAsync();
-            return (false, null, "Sai email/SĐT hoặc mật khẩu");
+            return (false, null, validation.Error);
         }
+
+        var user = validation.User!;
+        var now = _timeProvider.UtcNow;
 
         if (user.MustChangePassword)
             return (false, null, "Bạn phải đăng nhập tại /Account/Login và đổi mật khẩu tạm trước khi sử dụng API.");
@@ -134,45 +121,16 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
         return (true, "Đăng xuất thành công");
     }
 
-    public async Task<(bool blocked, int remainingMinutes)> CheckLockoutAsync(string emailOrPhone)
+    public async Task<(bool blocked, int remainingMinutes)> CheckLockoutAsync(string taiKhoanDangNhap)
     {
-        var emailNorm = emailOrPhone.Trim().ToLower();
-        var phoneNorm = emailOrPhone.Trim();
-
-        var user = await _db.TaiKhoans
-            .FirstOrDefaultAsync(u => !u.IsDeleted && (u.Email.Trim().ToLower() == emailNorm || u.SoDienThoai == phoneNorm));
-
-        if (user is null) return (false, 0);
-
-        var now = _timeProvider.UtcNow;
-        if (user.LockedUntil is not null && user.LockedUntil > now)
-        {
-            return (true, (int)Math.Ceiling((user.LockedUntil.Value - now).TotalMinutes));
-        }
-
-        if (user.FailedLoginCount >= MaxFailedAttempts)
-        {
-            user.LockedUntil = now.AddMinutes(LockoutMinutes);
-            await _db.SaveChangesAsync();
-            return (true, LockoutMinutes);
-        }
-
-        return (false, 0);
+        return await _credentialValidator.CheckLockoutAsync(taiKhoanDangNhap);
     }
 
-    private async Task HandleFailedLogin(TaiKhoan user, DateTime now)
+    private static string ComputeHash(string input)
     {
-        var windowStart = now.AddMinutes(-15);
-
-        user.FailedLoginCount = (user.FailedLoginCount ?? 0) + 1;
-        user.NgayCapNhat = now;
-
-        if (user.FailedLoginCount >= MaxFailedAttempts)
-        {
-            user.LockedUntil = now.AddMinutes(LockoutMinutes);
-        }
-
-        await _db.SaveChangesAsync();
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
+        return Convert.ToBase64String(bytes);
     }
 
     private async Task HandleSuccessfulLogin(TaiKhoan user, DateTime now)
@@ -181,12 +139,5 @@ public class AuthService(AppDbContext db, TokenService tokenService, JwtSettings
         user.LockedUntil = null;
         user.NgayCapNhat = now;
         await _db.SaveChangesAsync();
-    }
-
-    private static string ComputeHash(string input)
-    {
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
-        var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
-        return Convert.ToBase64String(bytes);
     }
 }

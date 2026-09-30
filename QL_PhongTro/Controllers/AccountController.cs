@@ -5,17 +5,14 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
-
+using QL_PhongTro.ViewModels.Auth;
 using QL_PhongTro.ViewModels;
 using Microsoft.EntityFrameworkCore;
-
 using QL_PhongTro.Services;
-using QL_PhongTro.ViewModels.Auth;
-
 
 namespace QL_PhongTro.Controllers;
 
-public partial class AccountController(AppDbContext db, RegistrationSettings settings, SessionVersionStore sessions, IRegistrationEmailSender registrationEmail) : Controller
+public partial class AccountController(AppDbContext db, RegistrationSettings settings, SessionVersionStore sessions, ICredentialValidationService credentialValidator, AuthService authService, IRegistrationEmailSender registrationEmail) : Controller
 {
     private static bool ValidatePhone(string? phone) =>
         !string.IsNullOrWhiteSpace(phone) && Regex.IsMatch(phone, @"^0\d{9}$");
@@ -27,45 +24,95 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
     [HttpGet]
     public IActionResult Login(string? returnUrl = null, bool timeout = false)
     {
+        // Thong diep het phien (tu dev) giu nguyen tren trang dang nhap.
         if (timeout) ViewData["TimeoutMessage"] = "Phiên đăng nhập đã hết hạn sau 30 phút. Vui lòng đăng nhập lại.";
-        return View(new LoginViewModel { ReturnUrl = returnUrl });
+        return View(new LoginRequest { ReturnUrl = returnUrl });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login(LoginViewModel model)
+    public async Task<IActionResult> Login(LoginRequest request)
     {
-        if (!ModelState.IsValid) return View(model);
-        var identifier = model.Identifier.Trim().ToLowerInvariant();
-        var account = await db.TaiKhoans.AsNoTracking().FirstOrDefaultAsync(a =>
-            !a.IsDeleted && (a.Email.Trim().ToLower() == identifier || a.SoDienThoai == identifier));
-        bool valid = false;
-        try { valid = BCrypt.Net.BCrypt.Verify(model.Password, account?.MatKhau ?? DummyHash); }
-        catch (BCrypt.Net.SaltParseException) { }
-        if (!valid || account is null || !account.DangHoatDong || !account.EmailConfirmed)
+        // S1-02: trinh duyet gui bang fetch de nhan duoc access token + refresh token
+        // va luu xuong thiet bi. Van giu duong POST binh thuong de hoat dong khi
+        // khong co JavaScript.
+        var isAjax = string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!ModelState.IsValid)
         {
-            ModelState.AddModelError("", "Thông tin đăng nhập không hợp lệ.");
-            return View(model);
+            var invalid = ModelState.Values.SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage).FirstOrDefault() ?? "Thông tin đăng nhập không hợp lệ.";
+            if (isAjax) return Json(new { success = false, message = invalid, locked = false, remainingMinutes = 0 });
+            return View(request);
         }
-        var sessionVersion = sessions.Capture(account.Id, account.MatKhau);
+
+        // Validate credentials using shared service (MVC cookie auth flow)
+        var validation = await credentialValidator.ValidateAsync(request);
+
+        if (!validation.Success)
+        {
+            if (isAjax)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = validation.Error ?? "Thông tin đăng nhập không hợp lệ.",
+                    locked = validation.IsLocked,
+                    remainingMinutes = validation.LockoutRemainingMinutes
+                });
+            }
+            ModelState.AddModelError("", validation.Error ?? "Thông tin đăng nhập không hợp lệ.");
+            return View(request);
+        }
+
+        var user = validation.User!;
+        var sessionVersion = sessions.Capture(user.Id, user.MatKhau);
         if (sessionVersion is null)
         {
-            ModelState.AddModelError("", "Thông tin đăng nhập vừa thay đổi. Vui lòng đăng nhập lại.");
-            return View(model);
+            const string changed = "Thông tin đăng nhập vừa thay đổi. Vui lòng đăng nhập lại.";
+            if (isAjax) return Json(new { success = false, message = changed, locked = false, remainingMinutes = 0 });
+            ModelState.AddModelError("", changed);
+            return View(request);
         }
+
         var identity = new ClaimsIdentity(new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, account.Id.ToString()),
-            new Claim(ClaimTypes.Name, account.HoTen),
-            new Claim(ClaimTypes.Role, account.VaiTro ?? ""),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.HoTen),
+            new Claim(ClaimTypes.Role, user.VaiTro ?? ""),
             new Claim(SessionVersionStore.ClaimType, sessionVersion)
         }, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-        if (account.MustChangePassword) return RedirectToAction(nameof(ChangePassword));
-        return Url.IsLocalUrl(model.ReturnUrl) ? LocalRedirect(model.ReturnUrl!) : RedirectToAction("Index", "Home");
-    }
 
-    private static readonly string DummyHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
+        // S1-03: Check MustChangePassword (from dev)
+        if (user.MustChangePassword)
+        {
+            return isAjax
+                ? Json(new { success = true, mustChangePassword = true, returnUrl = Url.Action("ChangePassword", "Account") })
+                : (IActionResult)RedirectToAction(nameof(ChangePassword));
+        }
+
+        // S1-02: phát access token (30 phut) + refresh token (7 ngay) cho phia may.
+        if (isAjax)
+        {
+            var (issued, tokens, error) = await authService.LoginAsync(request);
+            if (!issued)
+            {
+                return Json(new { success = false, message = error ?? "Đăng nhập thất bại", locked = false, remainingMinutes = 0 });
+            }
+            return Json(new
+            {
+                success = true,
+                mustChangePassword = false,
+                accessToken = tokens!.AccessToken,
+                refreshToken = tokens.RefreshToken,
+                returnUrl = Url.IsLocalUrl(request.ReturnUrl) ? request.ReturnUrl : Url.Action("Index", "Home")!
+            });
+        }
+
+        return Url.IsLocalUrl(request.ReturnUrl) ? LocalRedirect(request.ReturnUrl!) : RedirectToAction("Index", "Home");
+    }
 
     [HttpGet]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
@@ -79,6 +126,9 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
+        // For proper dual auth logout: need to revoke tokens if user has them
+        // Since we only have cookie here, we sign out the cookie
+        // The refresh token revocation would require the refresh token which we don't have in cookie-only flow
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction(nameof(Login));
     }
@@ -89,7 +139,6 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
         Response.StatusCode = StatusCodes.Status403Forbidden;
         Response.Headers.CacheControl = "no-store";
         return View();
-
     }
 
     public IActionResult Register() => View();

@@ -6,7 +6,7 @@ public static class PasswordSchemaInitializer
 {
     public static void Initialize(string databasePath)
     {
-        using var c = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = databasePath, Mode = SqliteOpenMode.ReadWrite }.ToString());
+        using var c = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = databasePath, Mode = SqliteOpenMode.ReadWriteCreate }.ToString());
         c.Open();
         using var check = c.CreateCommand();
         check.CommandText = "SELECT id, email, mat_khau, dang_hoat_dong, vai_tro, ngay_cap_nhat FROM tai_khoan LIMIT 0";

@@ -30,7 +30,7 @@ public static class PermissionSchemaInitializer
 
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
-            DataSource = databasePath, Mode = SqliteOpenMode.ReadWrite, ForeignKeys = true
+            DataSource = databasePath, Mode = SqliteOpenMode.ReadWriteCreate, ForeignKeys = true
         }.ToString());
         connection.Open();
         using (var check = connection.CreateCommand())

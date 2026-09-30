@@ -12,8 +12,8 @@
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.2" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="../docs/sql/S1-09-dich-vu.sql" LogicalName="S1-09-dich-vu.sql" />
-    <EmbeddedResource Include="../docs/sql/S1-09-hoa-don.sql" LogicalName="S1-09-hoa-don.sql" />
+    <EmbeddedResource Include="..\docs\sql\S1-09-dich-vu.sql" LogicalName="S1-09-dich-vu.sql" />
+    <EmbeddedResource Include="..\docs\sql\S1-09-hoa-don.sql" LogicalName="S1-09-hoa-don.sql" />
     <Compile Remove="Tests\**\*.cs" />
     <None Include="Tests\**\*.cs" />
   </ItemGroup>
