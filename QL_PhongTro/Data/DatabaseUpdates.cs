@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 5;
+    private const int CurrentVersion = 6;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -36,7 +36,7 @@ public static class DatabaseUpdates
 
     public static void Check(string path) => Check(path, true);
 
-    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true)
+    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true, bool requireRentalRequests = true)
     {
         using var c = Open(path, true);
         var problems = new List<string>();
@@ -44,6 +44,7 @@ public static class DatabaseUpdates
         var contracts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "hop_dong", "ky_hop_dong" };
         var services = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "dich_vu", "cau_hinh_dich_vu", "khoi_tao_dich_vu" };
         var invoices = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "hoa_don", "chi_tiet_hoa_don", "hop_dong_dich_vu" };
+        var rentalRequests = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "yeu_cau_thue", "yeu_cau_thue_lich_su", "thong_bao" };
         var requiredOptional = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (contracts.Any(table => HasTable(c, table))) requiredOptional.UnionWith(contracts);
         if (services.Any(table => HasTable(c, table))) requiredOptional.UnionWith(services);
@@ -59,6 +60,9 @@ public static class DatabaseUpdates
             if (table == "nhat_ky_hoat_dong" && !requireAudit) continue;
             var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table);
             if (isOptional && !requiredOptional.Contains(table)) continue;
+            // Version 6 tables are still being created while this step runs, so the updater
+            // itself must not demand them yet.
+            if (!requireRentalRequests && rentalRequests.Contains(table)) continue;
             var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
             var columns = entity.GetProperties().Select(p => p.GetColumnName(store)!)
                 .Where(column => requireAccountSecurity || table != "tai_khoan" || column is not ("email_confirmed" or "is_deleted"));
@@ -174,12 +178,12 @@ public static class DatabaseUpdates
         }
         if (version < 3)
         {
-            Check(path, false, false);
+            Check(path, false, false, false);
             AuditSchema.Upgrade(c);
         }
         if (version < 4)
         {
-            Check(path, true, false);
+            Check(path, true, false, false);
             using var tx = c.BeginTransaction();
             using var command = c.CreateCommand();
             command.Transaction = tx;
@@ -198,6 +202,68 @@ public static class DatabaseUpdates
             tx.Commit();
         }
         AccountReuseSchema.Ensure(path);
+        if (version < 6)
+        {
+            Check(path, true, true, false);
+            using var tx = c.BeginTransaction();
+            using var command = c.CreateCommand();
+            command.Transaction = tx;
+            command.CommandText = """
+                CREATE TABLE yeu_cau_thue (
+                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    ma_yeu_cau TEXT NOT NULL UNIQUE,
+                    phong_id INTEGER NOT NULL REFERENCES phong_tro(id) ON DELETE RESTRICT,
+                    khach_thue_id INTEGER NOT NULL REFERENCES khach_thue(id) ON DELETE RESTRICT,
+                    loai_yeu_cau TEXT NOT NULL CHECK (loai_yeu_cau IN ('XEM_PHONG','THUE_NGAY')),
+                    ngay_mong_muon TEXT NOT NULL,
+                    so_nguoi_du_kien INTEGER NOT NULL CHECK (so_nguoi_du_kien > 0),
+                    loi_nhan TEXT NULL,
+                    lich_hen TEXT NULL,
+                    lich_hen_cu TEXT NULL,
+                    da_doi_lich INTEGER NOT NULL DEFAULT 0 CHECK (da_doi_lich IN (0,1)),
+                    trang_thai TEXT NOT NULL DEFAULT 'MOI'
+                        CHECK (trang_thai IN ('MOI','DA_HEN_LICH','DA_DUYET','TU_CHOI','DA_HUY')),
+                    ly_do_tu_choi TEXT NULL,
+                    ghi_chu_tu_choi TEXT NULL,
+                    nguoi_xu_ly_id INTEGER NULL REFERENCES tai_khoan(id) ON DELETE RESTRICT,
+                    ngay_xu_ly TEXT NULL,
+                    ngay_tao TEXT NOT NULL,
+                    phien_ban INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE INDEX ix_yeu_cau_thue_khach ON yeu_cau_thue(khach_thue_id, ngay_tao);
+                CREATE INDEX ix_yeu_cau_thue_phong_trang_thai ON yeu_cau_thue(phong_id, trang_thai);
+                CREATE TABLE yeu_cau_thue_lich_su (
+                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    yeu_cau_thue_id INTEGER NOT NULL REFERENCES yeu_cau_thue(id) ON DELETE RESTRICT,
+                    trang_thai_cu TEXT NULL,
+                    trang_thai_moi TEXT NOT NULL,
+                    hanh_dong TEXT NOT NULL,
+                    nguoi_thuc_hien_id INTEGER NULL REFERENCES tai_khoan(id) ON DELETE RESTRICT,
+                    ten_nguoi_thuc_hien TEXT NULL,
+                    vai_tro_luc_thuc_hien TEXT NULL,
+                    lich_hen_cu TEXT NULL,
+                    lich_hen_moi TEXT NULL,
+                    ly_do_tu_choi TEXT NULL,
+                    ghi_chu_tu_choi TEXT NULL,
+                    thoi_diem TEXT NOT NULL
+                );
+                CREATE INDEX ix_yeu_cau_thue_lich_su ON yeu_cau_thue_lich_su(yeu_cau_thue_id, thoi_diem);
+                CREATE TABLE thong_bao (
+                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    nguoi_nhan_id INTEGER NOT NULL REFERENCES tai_khoan(id) ON DELETE RESTRICT,
+                    loai TEXT NOT NULL,
+                    tieu_de TEXT NOT NULL,
+                    noi_dung TEXT NOT NULL,
+                    duong_dan TEXT NULL,
+                    da_doc INTEGER NOT NULL DEFAULT 0 CHECK (da_doc IN (0,1)),
+                    ngay_tao TEXT NOT NULL
+                );
+                CREATE INDEX ix_thong_bao_nguoi ON thong_bao(nguoi_nhan_id, da_doc, ngay_tao);
+                INSERT INTO app_schema_version(version,applied_at) VALUES(6,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                """;
+            command.ExecuteNonQuery();
+            tx.Commit();
+        }
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }
