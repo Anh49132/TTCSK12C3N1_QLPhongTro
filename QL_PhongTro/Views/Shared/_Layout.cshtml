@@ -1,5 +1,6 @@
 @inject QL_PhongTro.Authorization.PermissionService Permissions
-@{ var menu = await Permissions.MenuAsync(); }
+@{ var menu = await Permissions.MenuAsync();
+   var isPropertyPage = string.Equals(ViewContext.RouteData.Values["controller"]?.ToString(), "PhongTro", StringComparison.OrdinalIgnoreCase); }
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -7,6 +8,7 @@
 <title>@ViewData["Title"] - Nhà Trọ</title>
 <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
 <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+@if (isPropertyPage) { <link rel="stylesheet" href="~/css/property-management.css" asp-append-version="true" /> }
 </head>
 <body>
 <a class="skip-link" href="#main-content">Đến nội dung chính</a>
@@ -57,7 +59,9 @@ var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
 }
 </nav></aside>
 }
-<main id="main-content" class="app-content">@RenderBody()</main>
+<main id="main-content" class="app-content @(isPropertyPage ? "property-management" : "")">
+@if (isPropertyPage) { <partial name="_PropertyNotifications" /> }
+@RenderBody()</main>
 </div>
 <footer class="site-footer"><div><a class="footer-brand" asp-controller="Home" asp-action="Index">Nhà Trọ.</a><span>Một nơi ở tốt. Một cách quản lý tốt hơn.</span></div><span>© @DateTime.Now.Year · Quản lý phòng trọ</span></footer>
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
@@ -67,6 +71,10 @@ var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
 <script src="~/js/auth-interceptor.js" asp-append-version="true"></script>
 <script src="~/js/password-toggle.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
+@if (isPropertyPage) {
+    <partial name="_PropertyConfirm" />
+    <script src="~/js/property-management.js" asp-append-version="true"></script>
+}
 @if (User.Identity?.IsAuthenticated == true) {
 <script src="~/js/session-status.js" asp-append-version="true"></script>
 }

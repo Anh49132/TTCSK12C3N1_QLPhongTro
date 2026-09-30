@@ -105,13 +105,13 @@ public class PhongTroController(AppDbContext db) : Controller
         var options = await GetBuildingOptions(ownerId.Value);
         if (options.Count == 0)
         {
-            TempData["RoomMessage"] = "Hãy khai báo tòa nhà trước khi thêm phòng.";
+            TempData["RoomWarning"] = "Hãy khai báo tòa nhà trước khi thêm phòng.";
             return RedirectToAction(nameof(TaoToaNha));
         }
 
         var selectedBuildingId = options.Any(building => building.Value == toaNhaId?.ToString())
             ? toaNhaId
-            : int.Parse(options[0].Value);
+            : null;
 
         return View(new TaoPhongViewModel
         {
@@ -131,13 +131,13 @@ public class PhongTroController(AppDbContext db) : Controller
         var options = await GetBuildingOptions(ownerId.Value);
         if (options.Count == 0)
         {
-            TempData["RoomMessage"] = "Hãy khai báo tòa nhà trước khi tạo phòng hàng loạt.";
+            TempData["RoomWarning"] = "Hãy khai báo tòa nhà trước khi tạo phòng hàng loạt.";
             return RedirectToAction(nameof(TaoToaNha));
         }
 
         var selectedBuildingId = options.Any(building => building.Value == toaNhaId?.ToString())
             ? toaNhaId
-            : int.Parse(options[0].Value);
+            : null;
 
         return View(new TaoPhongHangLoatViewModel
         {
@@ -203,7 +203,7 @@ public class PhongTroController(AppDbContext db) : Controller
             return View(model);
         }
 
-        TempData["RoomMessage"] = "Đã lưu phòng mới.";
+        TempData["RoomMessage"] = "Đã thêm phòng thành công.";
         return RedirectToAction(nameof(Index), new { toaNhaId = building.Id });
     }
 
@@ -283,7 +283,7 @@ public class PhongTroController(AppDbContext db) : Controller
             return View(model);
         }
 
-        TempData["RoomMessage"] = $"Đã tạo {rooms.Count} phòng.";
+        TempData["RoomMessage"] = $"Đã tạo {rooms.Count} phòng thành công.";
         return RedirectToAction(nameof(Index), new { toaNhaId = building!.Id });
     }
 
@@ -307,6 +307,7 @@ public class PhongTroController(AppDbContext db) : Controller
             return Forbid();
 
         model.QuanLyOptions = await GetManagerOptions();
+        ValidateManager(model);
         if (!ModelState.IsValid)
             return View(model);
 
@@ -328,10 +329,12 @@ public class PhongTroController(AppDbContext db) : Controller
         db.ToaNhas.Add(building);
         await db.SaveChangesAsync();
 
+        TempData["RoomMessage"] = "Đã thêm tòa nhà thành công.";
         return RedirectToAction(nameof(Create), new { toaNhaId = building.Id });
     }
 
     [HttpGet]
+    [ModuleAccess("PHONG_TRO", write: true)]
     public async Task<IActionResult> SuaToaNha(int id)
     {
         var building = await GetOwnedBuilding(id);
@@ -354,6 +357,7 @@ public class PhongTroController(AppDbContext db) : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [ModuleAccess("PHONG_TRO", write: true)]
     public async Task<IActionResult> SuaToaNha(int id, TaoToaNhaViewModel model)
     {
         var building = await GetOwnedBuilding(id);
@@ -361,6 +365,7 @@ public class PhongTroController(AppDbContext db) : Controller
             return NotFound();
 
         model.QuanLyOptions = await GetManagerOptions();
+        ValidateManager(model);
         if (!ModelState.IsValid)
             return View(model);
 
@@ -373,12 +378,13 @@ public class PhongTroController(AppDbContext db) : Controller
         building.QuanLyId = model.QuanLyId;
         building.GhiChu = model.GhiChu?.Trim();
         await db.SaveChangesAsync();
-        TempData["RoomMessage"] = "Đã cập nhật thông tin tòa nhà.";
+        TempData["RoomMessage"] = "Đã cập nhật tòa nhà thành công.";
         return RedirectToAction(nameof(ToaNha));
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [ModuleAccess("PHONG_TRO", write: true)]
     public async Task<IActionResult> XoaToaNha(int id)
     {
         var building = await GetOwnedBuilding(id);
@@ -387,18 +393,24 @@ public class PhongTroController(AppDbContext db) : Controller
 
         if (await db.PhongTros.AnyAsync(room => room.ToaNhaId == id))
         {
-            TempData["RoomMessage"] = "Không thể xóa tòa nhà đang có phòng. Hãy chuyển sang ngừng hoạt động nếu không còn sử dụng.";
+            TempData["RoomError"] = "Không thể xóa tòa nhà đang có phòng. Hãy chuyển sang ngừng hoạt động nếu không còn sử dụng.";
             return RedirectToAction(nameof(ToaNha));
         }
 
         db.ToaNhas.Remove(building);
-        await db.SaveChangesAsync();
-        TempData["RoomMessage"] = "Đã xóa tòa nhà không còn phòng.";
+        try { await db.SaveChangesAsync(); }
+        catch (DbUpdateException)
+        {
+            TempData["RoomError"] = "Không thể xóa tòa nhà đang được sử dụng hoặc vừa thay đổi. Vui lòng tải lại danh sách.";
+            return RedirectToAction(nameof(ToaNha));
+        }
+        TempData["RoomMessage"] = "Đã xóa tòa nhà thành công.";
         return RedirectToAction(nameof(ToaNha));
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [ModuleAccess("PHONG_TRO", write: true)]
     public async Task<IActionResult> NgungHoatDong(int id)
     {
         var building = await GetOwnedBuilding(id);
@@ -413,6 +425,85 @@ public class PhongTroController(AppDbContext db) : Controller
 
     private int? CurrentAccountId() =>
         int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId) ? accountId : null;
+
+    private void ValidateManager(TaoToaNhaViewModel model)
+    {
+        if (model.QuanLyId is not null && !model.QuanLyOptions.Any(x => x.Value == model.QuanLyId.ToString()))
+            ModelState.AddModelError(nameof(model.QuanLyId), "Vui lòng chọn người quản lý đang hoạt động trong danh sách.");
+    }
+
+    [HttpGet, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> Edit(int id)
+    {
+        var room = await GetOwnedRoom(id);
+        if (room is null) return NotFound();
+        ViewData["RoomId"] = id;
+        return View("Create", new TaoPhongViewModel
+        {
+            ToaNhaId = room.ToaNhaId, MaPhong = room.MaPhong, Tang = room.Tang,
+            DienTich = room.DienTich, GiaThue = room.GiaThue,
+            GiaThueDisplay = room.GiaThue.ToString(CultureInfo.InvariantCulture),
+            SoNguoiToiDa = room.SoNguoiToiDa, TrangThai = Enum.Parse<TrangThaiPhong>(room.TrangThai),
+            ToaNhaOptions = await GetBuildingOptions(CurrentAccountId()!.Value)
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> Edit(int id, TaoPhongViewModel model)
+    {
+        var room = await GetOwnedRoom(id);
+        if (room is null) return NotFound();
+        ViewData["RoomId"] = id;
+        model.ToaNhaOptions = await GetBuildingOptions(CurrentAccountId()!.Value);
+        if (model.ToaNhaId != room.ToaNhaId)
+            ModelState.AddModelError(nameof(model.ToaNhaId), "Không thể chuyển phòng sang tòa nhà khác.");
+        BindRentPrice(nameof(model.GiaThue), model.GiaThueDisplay, price => model.GiaThue = price);
+        var code = model.MaPhong?.Trim() ?? string.Empty;
+        if (await db.PhongTros.AnyAsync(x => x.ToaNhaId == room.ToaNhaId && x.MaPhong == code && x.Id != id))
+            ModelState.AddModelError(nameof(model.MaPhong), "Mã phòng đã được sử dụng trong tòa nhà này.");
+        if (!ModelState.IsValid) return View("Create", model);
+        room.MaPhong = code;
+        room.Tang = model.Tang!.Value;
+        room.DienTich = model.DienTich!.Value;
+        room.GiaThue = model.GiaThue!.Value;
+        room.SoNguoiToiDa = model.SoNguoiToiDa!.Value;
+        room.TrangThai = model.TrangThai!.Value.ToString();
+        try { await db.SaveChangesAsync(); }
+        catch (DbUpdateException ex)
+        {
+            ModelState.AddModelError(string.Empty, IsRoomCodeConflict(ex)
+                ? "Mã phòng đã được sử dụng trong tòa nhà này."
+                : "Không thể cập nhật phòng lúc này. Vui lòng thử lại.");
+            return View("Create", model);
+        }
+        TempData["RoomMessage"] = "Đã cập nhật phòng thành công.";
+        return RedirectToAction(nameof(Index), new { toaNhaId = room.ToaNhaId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var room = await GetOwnedRoom(id);
+        if (room is null) return NotFound();
+        if (room.TrangThai is "DANG_THUE" or "DA_DAT_COC")
+        {
+            TempData["RoomError"] = "Không thể xóa phòng đang thuê hoặc đã đặt cọc.";
+            return RedirectToAction(nameof(Index), new { toaNhaId = room.ToaNhaId });
+        }
+        db.PhongTros.Remove(room);
+        try { await db.SaveChangesAsync(); }
+        catch (DbUpdateException)
+        {
+            TempData["RoomError"] = "Không thể xóa phòng đang được hợp đồng hoặc dữ liệu khác sử dụng. Vui lòng tải lại danh sách.";
+            return RedirectToAction(nameof(Index), new { toaNhaId = room.ToaNhaId });
+        }
+        TempData["RoomMessage"] = "Đã xóa phòng thành công.";
+        return RedirectToAction(nameof(Index), new { toaNhaId = room.ToaNhaId });
+    }
+
+    private Task<PhongTro?> GetOwnedRoom(int id) => db.PhongTros.SingleOrDefaultAsync(room =>
+        room.Id == id && db.ToaNhas.Any(building => building.Id == room.ToaNhaId &&
+            building.ChuNhaId == CurrentAccountId() && building.DangHoatDong));
 
     private IQueryable<PhongTro> GetRoomQuery(int buildingId, TrangThaiPhong? status)
     {

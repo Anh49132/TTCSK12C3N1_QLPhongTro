@@ -24,11 +24,6 @@
     </div>
 </section>
 
-@if (TempData["RoomMessage"] is string message)
-{
-    <div class="alert alert-success" role="status">@message</div>
-}
-
 @if (Model.ToaNhaOptions.Count == 0)
 {
     <div class="border-top border-bottom py-4">
@@ -93,6 +88,7 @@ else
                         <th scope="col">Giá thuê / tháng</th>
                         <th scope="col">Số người tối đa</th>
                         <th scope="col">Trạng thái</th>
+                        @if (canWrite) { <th scope="col">Thao tác</th> }
                     </tr>
                 </thead>
                 <tbody>
@@ -120,6 +116,18 @@ else
                             <td>@room.GiaThue.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) đ</td>
                             <td>@room.SoNguoiToiDa</td>
                             <td><span class="badge @statusClass">@statusLabel</span></td>
+                            @if (canWrite)
+                            {
+                                <td>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <a asp-action="Edit" asp-route-id="@room.Id" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                                        <form asp-action="Delete" asp-route-id="@room.Id" method="post"
+                                              data-confirm="Bạn có chắc muốn xóa phòng @room.MaPhong? Thao tác này không thể hoàn tác. Phòng có dữ liệu liên quan sẽ không được xóa.">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            }
                         </tr>
                     }
                 </tbody>

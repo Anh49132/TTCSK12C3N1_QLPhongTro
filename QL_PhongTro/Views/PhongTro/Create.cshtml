@@ -1,23 +1,26 @@
 @model QL_PhongTro.ViewModels.TaoPhongViewModel
 
 @{
-    ViewData["Title"] = "Thêm phòng";
+    var isEdit = ViewData["RoomId"] is int;
+    ViewData["Title"] = isEdit ? "Sửa phòng" : "Thêm phòng";
 }
 
 <div class="mb-4">
     <a asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId" class="link-secondary">Quản lý phòng</a>
-    <h1 class="h2 mt-2">Thêm phòng</h1>
-    <a asp-action="CreateBulk" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-secondary mt-2">Tạo nhanh nhiều phòng</a>
+    <h1 class="h2 mt-2">@ViewData["Title"]</h1>
+    <p class="text-secondary">Nhập thông tin phòng. Giá thuê được tính theo tháng, đơn vị VND.</p>
+    @if (!isEdit) { <a asp-action="CreateBulk" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-secondary mt-2">Tạo nhanh nhiều phòng</a> }
 </div>
 
-<form asp-action="Create" method="post" class="row g-3" novalidate>
+<form asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@ViewData["RoomId"]" method="post" class="row g-3 property-form" novalidate>
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
     <div class="col-12 col-md-6">
         <label asp-for="ToaNhaId" class="form-label"></label>
-        <select asp-for="ToaNhaId" asp-items="Model.ToaNhaOptions" class="form-select">
+        <select asp-for="ToaNhaId" asp-items="Model.ToaNhaOptions" class="form-select" disabled="@isEdit">
             <option value="">Chọn tòa nhà</option>
         </select>
+        @if (isEdit) { <input type="hidden" asp-for="ToaNhaId" id="edit-building-id" /> }
         <span asp-validation-for="ToaNhaId" class="text-danger"></span>
     </div>
     <div class="col-12 col-md-6">
@@ -53,7 +56,7 @@
         <span asp-validation-for="TrangThai" class="text-danger"></span>
     </div>
     <div class="col-12 d-flex gap-2 pt-2">
-        <button type="submit" class="btn btn-primary">Lưu phòng</button>
+        <button type="submit" class="btn btn-primary">@(isEdit ? "Lưu thay đổi" : "Thêm phòng")</button>
         <a asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-secondary">Hủy</a>
     </div>
 </form>
