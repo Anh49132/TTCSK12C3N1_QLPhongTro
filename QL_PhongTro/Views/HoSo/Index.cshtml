@@ -1,4 +1,4 @@
-@model QL_PhongTro.ViewModels.HoSoViewModel
+﻿@model QL_PhongTro.ViewModels.HoSoViewModel
 @{
     ViewData["Title"] = "Hồ sơ cá nhân";
 }
@@ -6,15 +6,7 @@
     <div class="col-lg-7">
         <h1>Hồ sơ cá nhân</h1>
         <a asp-action="Xem">Xem hồ sơ đã lưu</a>
-        @if (TempData["HoSoSuccess"] is string message)
-        {
-            <div class="alert alert-success" role="status">@message</div>
-        }
-        @if (TempData["HoSoError"] is string error)
-        {
-            <div class="alert alert-danger" role="alert">@error</div>
-        }
-        <form asp-controller="HoSo" asp-action="Index" method="post" enctype="multipart/form-data">
+<form asp-controller="HoSo" asp-action="Index" method="post" enctype="multipart/form-data">
             <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
             <div class="mb-3">
                 <label asp-for="HoTen" class="form-label"></label>

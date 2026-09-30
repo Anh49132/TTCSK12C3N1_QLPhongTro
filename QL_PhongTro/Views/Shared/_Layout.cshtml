@@ -1,69 +1,32 @@
-@inject QL_PhongTro.Authorization.PermissionService Permissions
-@{ var menu = await Permissions.MenuAsync();
-   var isPropertyPage = string.Equals(ViewContext.RouteData.Values["controller"]?.ToString(), "PhongTro", StringComparison.OrdinalIgnoreCase); }
+@{ var isPropertyPage = ViewContext.RouteData.Values["controller"]?.ToString() == "PhongTro"; }
 <!DOCTYPE html>
 <html lang="vi">
 <head>
 <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>@ViewData["Title"] - Nhà Trọ</title>
 <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-<link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-@if (isPropertyPage) { <link rel="stylesheet" href="~/css/property-management.css" asp-append-version="true" /> }
+<link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/components.css" asp-append-version="true" />
 </head>
 <body>
 <a class="skip-link" href="#main-content">Đến nội dung chính</a>
-<header class="site-header">
-<nav class="header-inner" aria-label="Điều hướng chính">
-<a class="brand" asp-controller="Home" asp-action="Index"><span class="brand-mark" aria-hidden="true">⌂</span><span>Nhà Trọ<span class="brand-caption">QUẢN LÝ KHÔNG GIAN SỐNG</span></span></a>
-<div class="header-actions">
-<a class="home-link" asp-controller="Home" asp-action="Index">Trang chủ</a>
-@if (User.Identity?.IsAuthenticated == true) {
-<a asp-controller="Account" asp-action="ChangePassword">Đổi mật khẩu</a>
-@if (User.IsInRole("ADMIN")) { <a asp-controller="ManagedAccounts" asp-action="Index">Quản lý tài khoản</a> <a asp-controller="NhatKy" asp-action="Index">Nhật ký hoạt động</a> }
-@if (User.IsInRole("KHACH_THUE")) { <a asp-controller="HoSo" asp-action="Index">Hồ sơ cá nhân</a> }
-<a asp-controller="HoSo" asp-action="Xem">Xem hồ sơ</a>
-<span class="account-name">@User.Identity.Name · @User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</span>
-<form asp-controller="Account" asp-action="Logout" method="post" id="logoutForm"><button class="btn btn-outline-primary" type="submit" id="logoutBtn">Đăng xuất</button></form>
-} else {
-<a asp-controller="Account" asp-action="Login" id="loginBtn">Đăng nhập</a>
-<a asp-controller="Account" asp-action="Register" class="btn btn-primary" id="registerBtn">Tạo tài khoản ↗</a>
-}
-</div>
-</nav>
+<aside id="app-sidebar" class="dashboard-sidebar" aria-label="Điều hướng ứng dụng">
+<partial name="_Sidebar" />
+<partial name="_AccountMenu" />
+</aside>
+<button type="button" class="sidebar-backdrop" id="sidebar-backdrop" aria-label="Đóng thanh điều hướng" hidden></button>
+<div class="dashboard-main" id="dashboard-main">
+<header class="dashboard-header">
+<button type="button" id="sidebar-toggle" class="icon-button" aria-label="Thu gọn thanh điều hướng" aria-controls="app-sidebar" aria-expanded="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>
+<span class="page-title">@ViewData["Title"]</span>
 </header>
-<div class="app-shell @(menu.Count > 0 ? "with-sidebar" : "")">
-@if (menu.Count > 0) {
-<aside class="app-sidebar"><p class="eyebrow">KHÔNG GIAN LÀM VIỆC</p><nav aria-label="Menu chức năng">
-@foreach (var group in menu.GroupBy(m => m.GroupName).OrderBy(g => g.Key == "Hệ thống" ? 1 : 0)) {
-<section data-menu-group="@group.Key"><h2>@group.Key</h2>
-@foreach (var module in group) {
-var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
-<a class="sidebar-link @(Context.Request.Path.StartsWithSegments(url) ? "is-active" : "")" data-menu-module="@module.Code" href="@url">@module.Name <span aria-hidden="true">↗</span></a>
-@if (module.Code == "PHONG_TRO") {
-    <a class="sidebar-link @(Context.Request.Path.Equals("/PhongTro/ToaNha", StringComparison.OrdinalIgnoreCase) ? "is-active" : "")"
-       asp-controller="PhongTro"
-       asp-action="ToaNha">
-        Quản lý tòa nhà <span aria-hidden="true">↗</span>
-    </a>
-
-    @if (User.IsInRole("CHU_NHA")) {
-        <a class="sidebar-link @(Context.Request.Path.StartsWithSegments("/DichVu") ? "is-active" : "")"
-           asp-controller="DichVu"
-           asp-action="Index">
-            Dịch vụ và đơn giá <span aria-hidden="true">↗</span>
-        </a>
-    }
-}
-}
-</section>
-}
-</nav></aside>
-}
-<main id="main-content" class="app-content @(isPropertyPage ? "property-management" : "")">
+<main id="main-content" class="app-content @(isPropertyPage ? "property-management" : "")" tabindex="-1">
 @if (isPropertyPage) { <partial name="_PropertyNotifications" /> }
-@RenderBody()</main>
+@RenderBody()
+</main>
 </div>
-<footer class="site-footer"><div><a class="footer-brand" asp-controller="Home" asp-action="Index">Nhà Trọ.</a><span>Một nơi ở tốt. Một cách quản lý tốt hơn.</span></div><span>© @DateTime.Now.Year · Quản lý phòng trọ</span></footer>
+<partial name="_Toast" />
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
@@ -72,8 +35,8 @@ var url = QL_PhongTro.Authorization.PermissionService.Url(module.Code);
 <script src="~/js/password-toggle.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 @if (isPropertyPage) {
-    <partial name="_PropertyConfirm" />
-    <script src="~/js/property-management.js" asp-append-version="true"></script>
+<partial name="_PropertyConfirm" />
+<script src="~/js/property-management.js" asp-append-version="true"></script>
 }
 @if (User.Identity?.IsAuthenticated == true) {
 <script src="~/js/session-status.js" asp-append-version="true"></script>

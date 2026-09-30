@@ -1,0 +1,30 @@
+﻿@{
+    var name = User.Identity?.Name ?? "Tài khoản";
+    var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    var action = ViewContext.RouteData.Values["action"]?.ToString();
+}
+<div class="sidebar-account" id="account-menu">
+@if (User.Identity?.IsAuthenticated == true) {
+<div class="account-popover" id="account-popover" hidden>
+<nav aria-label="Tài khoản cá nhân">
+@if (User.IsInRole("ADMIN")) {
+<a href="@Url.Action("Index", "ManagedAccounts")" aria-current="@(controller == "ManagedAccounts" ? "page" : null)">Quản lý tài khoản</a>
+}
+<a href="@Url.Action("Xem", "HoSo")" aria-current="@(controller == "HoSo" && action == "Xem" ? "page" : null)">Xem hồ sơ</a>
+<a href="@Url.Action("ChangePassword", "Account")" aria-current="@(controller == "Account" && action == "ChangePassword" ? "page" : null)">Đổi mật khẩu</a>
+@if (User.IsInRole("ADMIN")) {
+<a href="@Url.Action("Index", "NhatKy")" aria-current="@(controller == "NhatKy" ? "page" : null)">Nhật ký hoạt động</a>
+}
+</nav><hr />
+<form asp-controller="Account" asp-action="Logout" method="post" id="logoutForm"><button type="submit" id="logoutBtn">Đăng xuất</button></form>
+</div>
+<button type="button" class="account-trigger" id="account-toggle" aria-controls="account-popover" aria-expanded="false">
+<span class="account-avatar" aria-hidden="true">@(string.IsNullOrWhiteSpace(name) ? "N" : System.Globalization.StringInfo.GetNextTextElement(name).ToUpperInvariant())</span>
+<span class="account-label"><strong>@name</strong><small>@role</small></span><span aria-hidden="true">⌃</span>
+</button>
+} else {
+<a href="@Url.Action("Login", "Account")" id="loginBtn" class="sidebar-link">Đăng nhập</a>
+<a href="@Url.Action("Register", "Account")" id="registerBtn" class="sidebar-link">Tạo tài khoản</a>
+}
+</div>

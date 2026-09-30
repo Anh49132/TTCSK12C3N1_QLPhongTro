@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -38,9 +38,9 @@ public class DichVuController(AppDbContext db, DichVuService services) : Control
     [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
     public async Task<IActionResult> Initialize(int toaNhaId)
     {
-        try { await services.KhoiTaoMacDinhAsync(AccountId, toaNhaId); }
+        try { await services.KhoiTaoMacDinhAsync(AccountId, toaNhaId); TempData["Success"] = "Đã tạo dịch vụ mặc định thành công."; }
         catch (UnauthorizedAccessException) { return Forbid(); }
-        catch (InvalidOperationException ex) { TempData["DichVuError"] = ex.Message; }
+        catch (InvalidOperationException ex) { TempData["Error"] = ex.Message; }
         return RedirectToAction(nameof(Index), new { toaNhaId });
     }
 
@@ -70,7 +70,7 @@ public class DichVuController(AppDbContext db, DichVuService services) : Control
             if (!ModelState.IsValid) return View("Manage", model);
             if (initial) await services.SuaGiaBanDauAsync(AccountId, model.ToaNhaId, model.DichVuId, model.DonGia!.Value, model.GiaCu);
             else await services.DoiGiaAsync(AccountId, model.ToaNhaId, model.DichVuId, model.DonGia!.Value, model.TuNgay!.Value, model.PhienBan);
-            TempData["DichVuMessage"] = "Đã lưu đơn giá dịch vụ.";
+            TempData["Success"] = "Đã cập nhật đơn giá dịch vụ thành công.";
         }
         catch (UnauthorizedAccessException) { return Forbid(); }
         catch (InvalidOperationException ex) { ModelState.AddModelError("", ex.Message); return View("Manage", model); }
@@ -84,10 +84,10 @@ public class DichVuController(AppDbContext db, DichVuService services) : Control
         {
             if (!tuNgay.HasValue || !ModelState.IsValid) throw new InvalidOperationException("Ngày hiệu lực không hợp lệ.");
             await services.DoiTrangThaiAsync(AccountId, toaNhaId, dichVuId, active, tuNgay.Value, phienBan);
-            TempData["DichVuMessage"] = "Đã lưu lịch thay đổi trạng thái dịch vụ.";
+            TempData["Success"] = "Đã cập nhật lịch thay đổi trạng thái dịch vụ thành công.";
         }
         catch (UnauthorizedAccessException) { return Forbid(); }
-        catch (InvalidOperationException ex) { TempData["DichVuError"] = ex.Message; }
+        catch (InvalidOperationException ex) { TempData["Error"] = ex.Message; }
         return RedirectToAction(nameof(Manage), new { toaNhaId, dichVuId });
     }
 
@@ -97,11 +97,11 @@ public class DichVuController(AppDbContext db, DichVuService services) : Control
         try
         {
             await services.XoaAsync(AccountId, toaNhaId, dichVuId);
-            TempData["DichVuMessage"] = "Đã xóa dịch vụ khỏi tòa nhà.";
+            TempData["Success"] = "Đã xóa dịch vụ khỏi tòa nhà thành công.";
         }
         catch (UnauthorizedAccessException) { return Forbid(); }
-        catch (InvalidOperationException ex) { TempData["DichVuError"] = ex.Message; }
-        catch (DbUpdateException) { TempData["DichVuError"] = "Dịch vụ đang được tham chiếu hoặc vừa thay đổi. Hãy tải lại; có thể ngừng áp dụng thay vì xóa."; }
+        catch (InvalidOperationException ex) { TempData["Error"] = ex.Message; }
+        catch (DbUpdateException) { TempData["Error"] = "Dịch vụ đang được tham chiếu hoặc vừa thay đổi. Hãy tải lại; có thể ngừng áp dụng thay vì xóa."; }
         return RedirectToAction(nameof(Index), new { toaNhaId });
     }
 
@@ -126,7 +126,7 @@ public class DichVuController(AppDbContext db, DichVuService services) : Control
         }
         try { await services.ThemAsync(AccountId, model); }
         catch (UnauthorizedAccessException) { return Forbid(); }
-        TempData["DichVuMessage"] = "Đã thêm dịch vụ và đơn giá.";
+        TempData["Success"] = "Đã tạo dịch vụ và đơn giá thành công.";
         return RedirectToAction(nameof(Index), new { toaNhaId = model.ToaNhaId });
     }
 }

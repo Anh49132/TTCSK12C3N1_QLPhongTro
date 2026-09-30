@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Microsoft.Data.Sqlite;
@@ -203,7 +203,7 @@ public class PhongTroController(AppDbContext db) : Controller
             return View(model);
         }
 
-        TempData["RoomMessage"] = "Đã thêm phòng thành công.";
+        TempData["Success"] = "Đã thêm phòng thành công.";
         return RedirectToAction(nameof(Index), new { toaNhaId = building.Id });
     }
 
@@ -283,7 +283,7 @@ public class PhongTroController(AppDbContext db) : Controller
             return View(model);
         }
 
-        TempData["RoomMessage"] = $"Đã tạo {rooms.Count} phòng thành công.";
+        TempData["Success"] = $"Đã tạo {rooms.Count} phòng thành công.";
         return RedirectToAction(nameof(Index), new { toaNhaId = building!.Id });
     }
 
@@ -329,7 +329,7 @@ public class PhongTroController(AppDbContext db) : Controller
         db.ToaNhas.Add(building);
         await db.SaveChangesAsync();
 
-        TempData["RoomMessage"] = "Đã thêm tòa nhà thành công.";
+        TempData["Success"] = "Đã thêm tòa nhà thành công.";
         return RedirectToAction(nameof(Create), new { toaNhaId = building.Id });
     }
 
@@ -378,7 +378,7 @@ public class PhongTroController(AppDbContext db) : Controller
         building.QuanLyId = model.QuanLyId;
         building.GhiChu = model.GhiChu?.Trim();
         await db.SaveChangesAsync();
-        TempData["RoomMessage"] = "Đã cập nhật tòa nhà thành công.";
+        TempData["Success"] = "Đã cập nhật tòa nhà thành công.";
         return RedirectToAction(nameof(ToaNha));
     }
 
@@ -393,7 +393,7 @@ public class PhongTroController(AppDbContext db) : Controller
 
         if (await db.PhongTros.AnyAsync(room => room.ToaNhaId == id))
         {
-            TempData["RoomError"] = "Không thể xóa tòa nhà đang có phòng. Hãy chuyển sang ngừng hoạt động nếu không còn sử dụng.";
+            TempData["Error"] = "Không thể xóa tòa nhà đang có phòng. Hãy chuyển sang ngừng hoạt động nếu không còn sử dụng.";
             return RedirectToAction(nameof(ToaNha));
         }
 
@@ -401,10 +401,10 @@ public class PhongTroController(AppDbContext db) : Controller
         try { await db.SaveChangesAsync(); }
         catch (DbUpdateException)
         {
-            TempData["RoomError"] = "Không thể xóa tòa nhà đang được sử dụng hoặc vừa thay đổi. Vui lòng tải lại danh sách.";
+            TempData["Error"] = "Không thể xóa tòa nhà đang được sử dụng hoặc vừa thay đổi. Vui lòng tải lại danh sách.";
             return RedirectToAction(nameof(ToaNha));
         }
-        TempData["RoomMessage"] = "Đã xóa tòa nhà thành công.";
+        TempData["Success"] = "Đã xóa tòa nhà thành công.";
         return RedirectToAction(nameof(ToaNha));
     }
 
@@ -419,7 +419,7 @@ public class PhongTroController(AppDbContext db) : Controller
 
         building.DangHoatDong = false;
         await db.SaveChangesAsync();
-        TempData["RoomMessage"] = "Đã chuyển tòa nhà sang ngừng hoạt động.";
+        TempData["Success"] = "Đã chuyển tòa nhà sang ngừng hoạt động.";
         return RedirectToAction(nameof(ToaNha));
     }
 
@@ -476,7 +476,7 @@ public class PhongTroController(AppDbContext db) : Controller
                 : "Không thể cập nhật phòng lúc này. Vui lòng thử lại.");
             return View("Create", model);
         }
-        TempData["RoomMessage"] = "Đã cập nhật phòng thành công.";
+        TempData["Success"] = "Đã cập nhật phòng thành công.";
         return RedirectToAction(nameof(Index), new { toaNhaId = room.ToaNhaId });
     }
 
@@ -487,17 +487,17 @@ public class PhongTroController(AppDbContext db) : Controller
         if (room is null) return NotFound();
         if (room.TrangThai is "DANG_THUE" or "DA_DAT_COC")
         {
-            TempData["RoomError"] = "Không thể xóa phòng đang thuê hoặc đã đặt cọc.";
+            TempData["Error"] = "Không thể xóa phòng đang thuê hoặc đã đặt cọc.";
             return RedirectToAction(nameof(Index), new { toaNhaId = room.ToaNhaId });
         }
         db.PhongTros.Remove(room);
         try { await db.SaveChangesAsync(); }
         catch (DbUpdateException)
         {
-            TempData["RoomError"] = "Không thể xóa phòng đang được hợp đồng hoặc dữ liệu khác sử dụng. Vui lòng tải lại danh sách.";
+            TempData["Error"] = "Không thể xóa phòng đang được hợp đồng hoặc dữ liệu khác sử dụng. Vui lòng tải lại danh sách.";
             return RedirectToAction(nameof(Index), new { toaNhaId = room.ToaNhaId });
         }
-        TempData["RoomMessage"] = "Đã xóa phòng thành công.";
+        TempData["Success"] = "Đã xóa phòng thành công.";
         return RedirectToAction(nameof(Index), new { toaNhaId = room.ToaNhaId });
     }
 

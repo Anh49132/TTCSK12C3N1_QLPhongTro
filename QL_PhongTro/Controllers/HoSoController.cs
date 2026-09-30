@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -95,7 +95,7 @@ public class HoSoController(AppDbContext db, GiayToImageStore images, HoSoAccess
         }
         if (newFront is not null) images.Delete(oldFront);
         if (newBack is not null) images.Delete(oldBack);
-        TempData["HoSoSuccess"] = isNew
+        TempData["Success"] = isNew
             ? "Đã tạo hồ sơ cá nhân thành công."
             : "Đã cập nhật hồ sơ cá nhân thành công.";
         return RedirectToAction(nameof(Index));
@@ -109,7 +109,7 @@ public class HoSoController(AppDbContext db, GiayToImageStore images, HoSoAccess
         var profile = await db.KhachThues.SingleOrDefaultAsync(x => x.TaiKhoanId == tenant.Id);
         if (profile is null)
         {
-            TempData["HoSoError"] = "Bạn chưa có hồ sơ để xóa.";
+            TempData["Error"] = "Bạn chưa có hồ sơ để xóa.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -120,18 +120,18 @@ public class HoSoController(AppDbContext db, GiayToImageStore images, HoSoAccess
         }
         catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.Sqlite.SqliteException { SqliteExtendedErrorCode: 787 })
         {
-            TempData["HoSoError"] = "Không thể xóa hồ sơ đang được hợp đồng hoặc dữ liệu khác sử dụng.";
+            TempData["Error"] = "Không thể xóa hồ sơ đang được hợp đồng hoặc dữ liệu khác sử dụng.";
             return RedirectToAction(nameof(Index));
         }
         catch (DbUpdateException)
         {
-            TempData["HoSoError"] = "Không thể xóa hồ sơ lúc này. Vui lòng thử lại.";
+            TempData["Error"] = "Không thể xóa hồ sơ lúc này. Vui lòng thử lại.";
             return RedirectToAction(nameof(Index));
         }
 
         images.Delete(profile.AnhGiayToTruoc);
         images.Delete(profile.AnhGiayToSau);
-        TempData["HoSoSuccess"] = "Đã xóa hồ sơ cá nhân thành công.";
+        TempData["Success"] = "Đã xóa hồ sơ cá nhân thành công.";
         return RedirectToAction(nameof(Index));
     }
 
