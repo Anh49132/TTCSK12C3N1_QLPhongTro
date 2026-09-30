@@ -10,6 +10,10 @@
         {
             <div class="alert alert-success" role="status">@message</div>
         }
+        @if (TempData["HoSoError"] is string error)
+        {
+            <div class="alert alert-danger" role="alert">@error</div>
+        }
         <form asp-controller="HoSo" asp-action="Index" method="post" enctype="multipart/form-data">
             <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
             <div class="mb-3">
@@ -19,7 +23,8 @@
             </div>
             <div class="mb-3">
                 <label asp-for="NgaySinh" class="form-label"></label>
-                <input asp-for="NgaySinh" class="form-control" type="date" asp-format="{0:yyyy-MM-dd}" />
+                <input asp-for="NgaySinh" class="form-control" type="date" asp-format="{0:yyyy-MM-dd}"
+                       max="@DateTime.Today.ToString("yyyy-MM-dd")" />
                 <span asp-validation-for="NgaySinh" class="text-danger"></span>
             </div>
             <div class="mb-3">
@@ -65,6 +70,13 @@
             </div>
             <button type="submit" class="btn btn-primary">Lưu hồ sơ</button>
         </form>
+        @if (Model.CoHoSo)
+        {
+            <form asp-controller="HoSo" asp-action="Xoa" method="post" id="delete-profile-form" class="mt-3">
+                <p class="form-text">Xóa hồ sơ sẽ xóa thông tin và ảnh giấy tờ đã khai báo. Tài khoản đăng nhập vẫn được giữ lại.</p>
+                <button type="submit" class="btn btn-outline-danger">Xóa hồ sơ</button>
+            </form>
+        }
     </div>
 </div>
 @section Scripts {

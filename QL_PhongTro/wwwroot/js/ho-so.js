@@ -1,4 +1,16 @@
 $(function () {
+    $('#delete-profile-form').on('submit', function (event) {
+        if (!window.confirm('Bạn có chắc muốn xóa hồ sơ cá nhân và ảnh giấy tờ đã lưu? Thao tác này không thể hoàn tác.')) {
+            event.preventDefault();
+        }
+    });
+    $.validator.addMethod('notfuturedate', function (value, element) {
+        return this.optional(element) || value <= element.max;
+    }, 'Ngày sinh không được sau ngày hiện tại.');
+    $('#NgaySinh').rules('add', { notfuturedate: true });
+    $('#NgaySinh').on('input change', function () {
+        $(this).valid();
+    });
     $('#SoCanCuoc').on('input blur', function () {
         $(this).valid();
     });

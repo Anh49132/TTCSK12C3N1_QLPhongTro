@@ -61,9 +61,7 @@ public class PhongTroController(AppDbContext db) : Controller
 
         var selectedId = buildings.Any(building => building.Value == toaNhaId?.ToString())
             ? toaNhaId
-            : buildings.FirstOrDefault() is { } firstBuilding
-                ? int.Parse(firstBuilding.Value)
-                : null;
+            : null;
 
         var rooms = selectedId is null
             ? []

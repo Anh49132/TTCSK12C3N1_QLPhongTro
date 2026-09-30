@@ -16,7 +16,7 @@ using Xunit;
 
 namespace QL_PhongTro.Tests;
 
-public sealed class PermissionTests : IDisposable
+public sealed partial class PermissionTests : IDisposable
 {
     private readonly string temp = Path.Combine(Path.GetTempPath(), "s104-" + Guid.NewGuid().ToString("N"));
     private readonly string database;
