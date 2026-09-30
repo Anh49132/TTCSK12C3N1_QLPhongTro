@@ -37,6 +37,7 @@ public sealed class PermissionService(AppDbContext db, IHttpContextAccessor acce
     {
         "TAI_KHOAN" => "/Permissions",
         "PHONG_TRO" => "/PhongTro",
+        "YEU_CAU_THUE" => "/YeuCauThue",
         _ => "/Modules/" + Uri.EscapeDataString(code)
     };
 }
