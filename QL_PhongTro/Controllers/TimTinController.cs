@@ -12,10 +12,13 @@ public class TimTinController(AppDbContext db) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(
-        [Bind("QuanHuyen,GiaToiThieu,GiaToiDa,DienTichToiThieu,DienTichToiDa,SoNguoiToiDa")] TimTinViewModel model,
+        [Bind("QuanHuyen,GiaToiThieu,GiaToiDa,DienTichToiThieu,DienTichToiDa,SoNguoiToiDa,SapXep,Trang")] TimTinViewModel model,
         CancellationToken cancellationToken)
     {
         model.QuanHuyen = model.QuanHuyen?.Trim();
+        if (string.IsNullOrEmpty(model.SapXep)) model.SapXep = "moi-nhat";
+        if (model.SapXep is not ("moi-nhat" or "gia-tang" or "gia-giam"))
+            ModelState.AddModelError(nameof(model.SapXep), "Cách sắp xếp không hợp lệ.");
         if (model.GiaToiThieu > model.GiaToiDa)
             ModelState.AddModelError(nameof(model.GiaToiDa), "Giá thuê tối thiểu không được lớn hơn giá thuê tối đa.");
         if (model.DienTichToiThieu > model.DienTichToiDa)
@@ -60,6 +63,7 @@ public class TimTinController(AppDbContext db) : Controller
                         && tin.NgayHetHan != null && tin.NgayHetHan >= now
                     select new TinTimKiem
                     {
+                        Id = tin.Id, NgayDang = tin.NgayDang,
                         TieuDe = tin.TieuDe, DiaChi = toa.DiaChi,
                         QuanHuyen = toa.QuanHuyen == null ? null : toa.QuanHuyen.Trim(),
                         GiaThue = phong.GiaThue, DienTich = phong.DienTich,
@@ -77,7 +81,16 @@ public class TimTinController(AppDbContext db) : Controller
             query = query.Where(t => t.DienTich <= model.DienTichToiDa.Value);
         if (model.SoNguoiToiDa.HasValue)
             query = query.Where(t => t.SoNguoiToiDa == model.SoNguoiToiDa.Value);
-        model.TinDangs = await query.ToListAsync(cancellationToken);
+        model.TongKetQua = await query.CountAsync(cancellationToken);
+        model.Trang = Math.Clamp(model.Trang, 1, Math.Max(1, model.TongTrang));
+        var ordered = model.SapXep switch
+        {
+            "gia-tang" => query.OrderBy(t => t.GiaThue).ThenByDescending(t => t.Id),
+            "gia-giam" => query.OrderByDescending(t => t.GiaThue).ThenByDescending(t => t.Id),
+            _ => query.OrderByDescending(t => t.NgayDang).ThenByDescending(t => t.Id)
+        };
+        model.TinDangs = await ordered.Skip((model.Trang - 1) * TimTinViewModel.KichThuocTrang)
+            .Take(TimTinViewModel.KichThuocTrang).ToListAsync(cancellationToken);
         return View(model);
     }
 }

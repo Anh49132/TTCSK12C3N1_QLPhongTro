@@ -4,6 +4,11 @@ namespace QL_PhongTro.ViewModels;
 
 public class TimTinViewModel
 {
+    public const int KichThuocTrang = 12;
+    public string SapXep { get; set; } = "moi-nhat";
+    public int Trang { get; set; } = 1;
+    public int TongKetQua { get; set; }
+    public int TongTrang => (int)Math.Ceiling(TongKetQua / (double)KichThuocTrang);
     public string? QuanHuyen { get; set; }
     [Range(0, long.MaxValue, ErrorMessage = "Giá thuê phải là số không âm.")]
     public long? GiaToiThieu { get; set; }
@@ -23,6 +28,8 @@ public class TimTinViewModel
 
 public class TinTimKiem
 {
+    public int Id { get; set; }
+    public DateTime? NgayDang { get; set; }
     public string TieuDe { get; set; } = "";
     public string DiaChi { get; set; } = "";
     public string? QuanHuyen { get; set; }

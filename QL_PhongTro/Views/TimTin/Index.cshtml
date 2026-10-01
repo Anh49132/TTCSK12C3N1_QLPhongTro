@@ -14,6 +14,15 @@
     <span asp-validation-for="QuanHuyen" class="text-danger"></span>
     <div class="row g-3 mb-3">
         <div class="col-12 col-md-6">
+            <label asp-for="SapXep" class="form-label">Sắp xếp</label>
+            <select asp-for="SapXep" class="form-select">
+                <option value="moi-nhat">Mới đăng nhất</option>
+                <option value="gia-tang">Giá tăng dần</option>
+                <option value="gia-giam">Giá giảm dần</option>
+            </select>
+            <span asp-validation-for="SapXep" class="text-danger"></span>
+        </div>
+        <div class="col-12 col-md-6">
             <label asp-for="GiaToiThieu" class="form-label">Giá thuê tối thiểu (đ/tháng)</label>
             <input asp-for="GiaToiThieu" type="number" min="0" step="1" class="form-control" />
             <span asp-validation-for="GiaToiThieu" class="text-danger"></span>
@@ -53,7 +62,11 @@
 }
 else if (ViewData.ModelState.IsValid)
 {
-    <p role="status">@Model.TinDangs.Count tin phù hợp</p>
+    <p role="status">@Model.TongKetQua tin phù hợp · @Model.TongTrang trang</p>
+    @if (Model.TongTrang > 0)
+    {
+        <p>Trang @Model.Trang / @Model.TongTrang</p>
+    }
     <div class="row g-3">
         @foreach (var tin in Model.TinDangs)
         {
@@ -67,4 +80,40 @@ else if (ViewData.ModelState.IsValid)
             </div>
         }
     </div>
+    @if (Model.TongTrang > 1)
+    {
+        var routes = new Dictionary<string, string>
+        {
+            ["QuanHuyen"] = Model.QuanHuyen ?? "",
+            ["GiaToiThieu"] = Model.GiaToiThieu?.ToString(CultureInfo.InvariantCulture) ?? "",
+            ["GiaToiDa"] = Model.GiaToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",
+            ["DienTichToiThieu"] = Model.DienTichToiThieu?.ToString(CultureInfo.InvariantCulture) ?? "",
+            ["DienTichToiDa"] = Model.DienTichToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",
+            ["SoNguoiToiDa"] = Model.SoNguoiToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",
+            ["SapXep"] = Model.SapXep
+        };
+        <nav aria-label="Chuyển trang kết quả" class="mt-4">
+            <ul class="pagination flex-wrap">
+                @if (Model.Trang > 1)
+                {
+                    <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="routes" asp-route-Trang="@(Model.Trang - 1)">Trang trước</a></li>
+                }
+                @for (var pageNumber = Math.Max(1, Model.Trang - 2); pageNumber <= Math.Min(Model.TongTrang, Model.Trang + 2); pageNumber++)
+                {
+                    if (pageNumber == Model.Trang)
+                    {
+                        <li class="page-item active"><span class="page-link" aria-current="page">@pageNumber</span></li>
+                    }
+                    else
+                    {
+                        <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="routes" asp-route-Trang="@pageNumber">@pageNumber</a></li>
+                    }
+                }
+                @if (Model.Trang < Model.TongTrang)
+                {
+                    <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="routes" asp-route-Trang="@(Model.Trang + 1)">Trang sau</a></li>
+                }
+            </ul>
+        </nav>
+    }
 }

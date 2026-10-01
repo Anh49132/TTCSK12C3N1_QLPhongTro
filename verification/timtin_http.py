@@ -15,7 +15,7 @@ import socket
 import sqlite3
 import subprocess
 import time
-from urllib.parse import urlencode
+from urllib.parse import urlencode, parse_qs, urlsplit, urljoin
 from urllib.request import urlopen
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -34,6 +34,7 @@ def main():
     global DLL
     parser = argparse.ArgumentParser()
     parser.add_argument('--runtime', type=Path, default=DLL, help='Path to the built QL_PhongTro.dll')
+    parser.add_argument('--task3', action='store_true', help='Also verify sorting and pagination with 25 synthetic listings')
     parser.add_argument('--serve', action='store_true', help='Keep the tested synthetic demo running')
     args = parser.parse_args()
     DLL = args.runtime.resolve()
@@ -181,6 +182,91 @@ def main():
             page = request(filters)
             assert message in page and not re.search(r'<h2[^>]*>TIN-', page), (filters, 'validation failed')
         checks.append(f'HTTP: {len(cases)} valid/combined/boundary/blank cases and {len(errors)} invalid cases; selections retained; hidden/expired/draft/rented/NULL expiry excluded')
+        if args.task3:
+            listings = []
+            with sqlite3.connect(database) as c:
+                c.execute('PRAGMA foreign_keys=ON')
+                c.execute('INSERT INTO toa_nha(chu_nha_id,ten_toa_nha,dia_chi,quan_huyen) VALUES(?,?,?,?)',
+                          (owner, 'Tòa phân trang mẫu', 'Địa chỉ mẫu', 'Quận 3'))
+                building = c.execute('SELECT last_insert_rowid()').fetchone()[0]
+                for i in range(1, 26):
+                    price = 1000000 + i * 100000
+                    date = f'2026-01-{(i * 7) % 25 + 1:02d} 00:00:00' if i < 25 else None
+                    c.execute("INSERT INTO phong_tro(toa_nha_id,ma_phong,tang,dien_tich,gia_thue,so_nguoi_toi_da,trang_thai,ngay_tao) VALUES(?,?,1,25,?,5,'TRONG',?)",
+                              (building, f'PAGE-{i}', price, now))
+                    room = c.execute('SELECT last_insert_rowid()').fetchone()[0]
+                    c.execute("INSERT INTO tin_dang(phong_id,nguoi_dang_id,tieu_de,trang_thai,ngay_dang,ngay_het_han,ngay_tao) VALUES(?,?,?,'DANG_HIEN_THI',?,'2099-01-01 00:00:00',?)",
+                              (room, owner, f'TIN-P{i:02d}', date, now))
+                    listings.append((f'P{i:02d}', price, date or '', c.execute('SELECT last_insert_rowid()').fetchone()[0]))
+
+            def titles(page):
+                return re.findall(r'<h2[^>]*>TIN-([^<]+)</h2>', page)
+
+            tested = 0
+            for mode in ('moi-nhat', 'gia-tang', 'gia-giam'):
+                ordered = sorted(listings, key=(lambda t: (t[2], t[3])) if mode == 'moi-nhat'
+                                 else (lambda t: (t[1], -t[3] if mode == 'gia-tang' else t[3])), reverse=mode != 'gia-tang')
+                combined = []
+                for number in (1, 2, 3):
+                    page = request({'QuanHuyen': 'Quận 3', 'SapXep': mode, 'Trang': number})
+                    expected = [t[0] for t in ordered[(number - 1) * 12:number * 12]]
+                    assert titles(page) == expected, (mode, number, titles(page), expected)
+                    assert '25 tin phù hợp · 3 trang' in page
+                    assert f'Trang {number} / 3' in page
+                    assert 'aria-label="Chuyển trang kết quả"' in page
+                    combined.extend(titles(page))
+                    tested += 1
+                assert len(set(combined)) == 25
+            default = request({'QuanHuyen': 'Quận 3'})
+            assert titles(default) == titles(request({'QuanHuyen': 'Quận 3', 'SapXep': 'moi-nhat'}))
+            tested += 1
+            for count in (0, 11, 12, 13):
+                page = request({'QuanHuyen': 'Quận 3', 'GiaToiDa': 1000000 + count * 100000})
+                assert len(titles(page)) == min(count, 12)
+                assert f'{count} tin phù hợp · {(count + 11) // 12} trang' in page
+                assert ('aria-label="Chuyển trang kết quả"' in page) == (count > 12)
+                tested += 1
+            for number, expected_number in ((0, 1), (-1, 1), (999999, 3)):
+                page = request({'QuanHuyen': 'Quận 3', 'Trang': number})
+                assert f'Trang {expected_number} / 3' in page
+                tested += 1
+            filters = {'QuanHuyen': 'Quận 3', 'GiaToiThieu': '1100000', 'GiaToiDa': '3500000',
+                       'DienTichToiThieu': '25', 'DienTichToiDa': '25', 'SoNguoiToiDa': '5', 'SapXep': 'gia-tang'}
+            page = request(filters)
+            links = re.findall(r'href="([^"]+)"[^>]*>Trang sau</a>', page)
+            assert len(links) == 1
+            target = links[0]
+            query = parse_qs(urlsplit(target).query)
+            assert all(query[k] == [v] for k, v in filters.items()) and query['Trang'] == ['2']
+            with urlopen(urljoin(base, target), timeout=15) as response:
+                second = html.unescape(response.read().decode())
+            assert titles(second) == [t[0] for t in listings[12:24]]
+            # A filter/sort form on page 2 must omit Trang; its GET submission starts at 1.
+            form = re.search(r'<form\b.*?</form>', second, flags=re.S).group(0)
+            assert 'method="get"' in form and not re.search(r'name="Trang"', form, flags=re.I)
+            assert 'selected="selected" value="gia-tang"' in form or re.search(r'<option(?=[^>]*value="gia-tang")(?=[^>]*selected)', form)
+            changed = dict(filters, SapXep='gia-giam')
+            assert 'Trang 1 / 3' in request(changed)
+            changed = dict(filters, GiaToiThieu='1200000')
+            assert 'Trang 1 / 2' in request(changed)
+            tested += 4
+            # Equal prices/dates use descending unique ID to avoid unstable page boundaries.
+            with sqlite3.connect(database) as c:
+                c.execute("UPDATE phong_tro SET gia_thue=2000000 WHERE toa_nha_id=?", (building,))
+                c.execute("UPDATE tin_dang SET ngay_dang='2026-01-01 00:00:00' WHERE phong_id IN (SELECT id FROM phong_tro WHERE toa_nha_id=?)", (building,))
+            for mode in ('moi-nhat', 'gia-tang', 'gia-giam'):
+                page = request({'QuanHuyen': 'Quận 3', 'SapXep': mode})
+                assert titles(page) == [t[0] for t in reversed(listings[-12:])]
+                tested += 1
+            # Restore useful varied demo data after the tie checks.
+            with sqlite3.connect(database) as c:
+                for name, price, date, identity in listings:
+                    c.execute('UPDATE tin_dang SET ngay_dang=? WHERE id=?', (date or None, identity))
+                    c.execute('UPDATE phong_tro SET gia_thue=? WHERE id=(SELECT phong_id FROM tin_dang WHERE id=?)', (price, identity))
+            page = request({'SapXep': 'invalid'})
+            assert 'Cách sắp xếp không hợp lệ.' in page and not titles(page)
+            tested += 1
+            checks.append(f'Task 3: {tested} sorting/pagination/count/link/reset/tie/invalid-mode checks PASS; each page <=12 listings')
         result = {'url': base + '/TimTin', 'database': str(database), 'pid': server.pid, 'checks': checks}
         (folder / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
         (folder.parent / 'latest.txt').write_text(str(folder), encoding='utf-8')

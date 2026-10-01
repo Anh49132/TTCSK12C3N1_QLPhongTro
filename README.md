@@ -217,7 +217,7 @@ Build Debug ở trên phù hợp để chạy và báo cáo local. Build Release
 
 ADMIN xem tại `/NhatKy`. Mã hiện tại yêu cầu schema nhật ký v3; kiểm tra schema của đúng database trước khi chạy và chỉ nâng cấp DB đang dùng khi được yêu cầu. Xem mục **Nhật ký hoạt động (S1-10)** trong [bàn giao dự án](docs/tien-do.md).
 
-### Database local và tìm tin (Task 1, 2)
+### Database local và tìm tin (Task 1, 2, 3)
 
 Database local đã bỏ theo dõi Git. **Sao lưu DB riêng ra ngoài repository trước lần pull nhận thay đổi này**, vì Git có thể xóa file từng theo dõi. Không chép đè DB đang sử dụng.
 
@@ -243,7 +243,7 @@ dotnet run --project QL_PhongTro --launch-profile http
 
 Updater tạo backup cạnh DB trước ghi, thêm v6 trong transaction và kiểm tra integrity/FK. Nếu đã có bảng `tin_dang` chưa được quản lý phiên bản, updater từ chối để kiểm tra thủ công; không xóa bảng/chạy initializer để thay DB cũ. Giữ backup ngoài Git. Chỉ nâng cấp trên bản sao khi kiểm thử.
 
-Mở `/TimTin`, kết hợp quận/huyện, giá thuê (VND nguyên), diện tích (m², nhập `20.5` cho 20,5 m²) và số người ở tối đa. Khoảng bao gồm cả hai biên; bỏ trống bỏ qua điều kiện. Số người lọc đúng sức chứa đã chọn. Form giữ điều kiện, báo lỗi min > max. Chỉ hiển thị tin DANG_HIEN_THI còn hạn UTC; hạn NULL bị loại. Không chọn quận thì tìm mọi khu vực. Không có sắp xếp/phân trang/gợi ý. DB thiếu bảng tin báo chưa sẵn sàng.
+Mở `/TimTin`, kết hợp quận/huyện, giá thuê (VND nguyên), diện tích (m², nhập `20.5` cho 20,5 m²) và số người ở tối đa. Khoảng bao gồm cả hai biên; bỏ trống bỏ qua điều kiện. Số người lọc đúng sức chứa đã chọn. Form giữ điều kiện, báo lỗi min > max. Chỉ hiển thị tin DANG_HIEN_THI còn hạn UTC; hạn NULL bị loại. Không chọn quận thì tìm mọi khu vực. Có sắp xếp và phân trang theo Task 3; chưa có gợi ý khi không có kết quả. DB thiếu bảng tin báo chưa sẵn sàng.
 
 **Kiểm thử và demo dữ liệu giả riêng** (Python 3, không cần package Python):
 
@@ -256,3 +256,14 @@ python verification/timtin_http.py --serve
 Script tạo DB mới/schema v6 và tin giả, chạy 25 ca HTTP; nâng cấp chỉ trên bản sao read-only backup của DB nguồn và đối chiếu bảo toàn dữ liệu/hash. Nguồn mặc định là local-dev.sqlite; chọn nguồn khác bằng `TIMTIN_SOURCE_DATABASE` (không đổi DB nguồn). Không đưa dữ liệu nguồn vào demo. Nếu chưa có DB nguồn, dùng DB riêng đã khởi tạo làm nguồn. Script in URL/PID, giữ demo chạy với `--serve`; bỏ cờ này thì dừng sau kiểm thử. Trên Windows server nền chạy ẩn. `data/timtin-demo/latest.txt` trỏ thư mục kết quả có `result.json` và log. Xác nhận PID đúng trước khi `Stop-Process -Id <PID>`; không dừng các server khác. Nếu sandbox chặn Event Log/Data Protection, chạy từ terminal Windows bình thường.
 
 Chọn Quận 2, giá 2000000..2000000, diện tích 20.5..20.5, sức chứa 3 → chỉ TIN-C. Demo public không cần đăng nhập; không có tài khoản dùng được hoặc mật khẩu cố định. Không seed dữ liệu giả vào DB đang sử dụng.
+
+Task 3: chọn Mới đăng nhất (mặc định, ngày đăng NULL xếp cuối), Giá tăng dần hoặc Giá giảm dần rồi bấm Tìm kiếm. Mỗi trang tối đa 12 tin; tổng kết quả/tổng trang hiện phía trên. Link chuyển trang giữ lọc và sắp xếp, tìm lại từ form luôn về trang 1. Trùng ngày/giá dùng ID giảm dần. Không đổi schema/database cho Task 3.
+
+Kiểm thử/demo Task 3 với 25 tin giả Quận 3 (3 trang: 12/12/1):
+
+```powershell
+dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore -o data/task1-build/task3-runtime
+python verification/timtin_http.py --runtime data/task1-build/task3-runtime/QL_PhongTro.dll --task3 --serve
+```
+
+Script cũng chạy lại 25 ca Task 1/2; chỉ dùng DB mới/bản sao, không ghi database nguồn. URL và PID in sau khi PASS; bỏ --serve để tự dừng server sau kiểm thử. Chưa xác nhận hiệu năng dưới 2 giây hoặc UI bằng trình duyệt đồ họa.
