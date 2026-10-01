@@ -17,4 +17,4 @@ public class GuiYeuCauViewModel
     public string? LoiNhan { get; set; }
 }
 
-public record ChiTietTinDangViewModel(TinDang Tin, PhongTro Phong, GuiYeuCauViewModel Form);
+public record ChiTietTinDangViewModel(TinDang Tin, PhongTro Phong, GuiYeuCauViewModel Form, DateOnly Today);

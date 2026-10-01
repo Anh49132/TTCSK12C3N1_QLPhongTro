@@ -19,7 +19,11 @@
                     <option value="">Chọn loại yêu cầu</option><option value="XEM_PHONG">Xem phòng</option><option value="THUE_NGAY">Thuê ngay</option>
                 </select><span asp-validation-for="Form.LoaiYeuCau" class="text-danger"></span></div>
             <div class="mb-3"><label asp-for="Form.NgayMongMuon" class="form-label">Ngày mong muốn *</label>
-                <input asp-for="Form.NgayMongMuon" type="date" class="form-control" required />
+                <input asp-for="Form.NgayMongMuon" type="date" class="form-control" required
+                       min="@Model.Today.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)"
+                       max="@Model.Today.AddDays(60).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)"
+                       aria-describedby="desired-date-help" />
+                <div id="desired-date-help" class="form-text">Chọn ngày từ @Model.Today.ToString("dd/MM/yyyy") đến @Model.Today.AddDays(60).ToString("dd/MM/yyyy") (tối đa 60 ngày kể từ hôm nay).</div>
                 <span asp-validation-for="Form.NgayMongMuon" class="text-danger"></span></div>
             <div class="mb-3"><label asp-for="Form.SoNguoiDuKien" class="form-label">Số người dự kiến ở *</label>
                 <input asp-for="Form.SoNguoiDuKien" type="number" min="1" step="1" class="form-control" required />
@@ -36,3 +40,29 @@ else if (User.Identity?.IsAuthenticated != true)
     <a class="btn btn-primary" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Url.Action("ChiTiet", new { id = Model.Tin.Id })">Đăng nhập để gửi yêu cầu</a>
 }
 else { <p>Chức năng gửi yêu cầu dành cho tài khoản Khách thuê.</p> }
+
+@section Scripts {
+    <script>
+        const desiredDate = document.getElementById('Form_NgayMongMuon');
+        if (desiredDate) {
+            const dateError = document.querySelector('[data-valmsg-for="Form.NgayMongMuon"]');
+            function validateDesiredDate() {
+                desiredDate.setCustomValidity('');
+                let message = '';
+                if (desiredDate.validity.rangeUnderflow)
+                    message = 'Ngày mong muốn không được là ngày trong quá khứ.';
+                else if (desiredDate.validity.rangeOverflow)
+                    message = 'Ngày mong muốn không được quá 60 ngày kể từ hôm nay.';
+                else if (desiredDate.validity.valueMissing || desiredDate.validity.badInput)
+                    message = 'Vui lòng nhập ngày mong muốn hợp lệ.';
+                desiredDate.setCustomValidity(message);
+                desiredDate.setAttribute('aria-invalid', message ? 'true' : 'false');
+                dateError.textContent = message;
+                dateError.classList.toggle('field-validation-error', !!message);
+                dateError.classList.toggle('field-validation-valid', !message);
+            }
+            desiredDate.addEventListener('input', validateDesiredDate);
+            desiredDate.addEventListener('invalid', validateDesiredDate);
+        }
+    </script>
+}

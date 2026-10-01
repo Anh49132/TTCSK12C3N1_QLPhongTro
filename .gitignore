@@ -39,6 +39,7 @@ obj/
 
 # Tests output
 **/TestResults/
+/data/test-results/
 
 
 # Password reset schema backups

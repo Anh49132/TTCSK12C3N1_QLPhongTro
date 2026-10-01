@@ -95,7 +95,7 @@ dotnet run --project QL_PhongTro --launch-profile http
 
 Khách thuê vào **Tin đăng cho thuê** → chi tiết tin → **Gửi yêu cầu**, chọn Xem phòng/Thuê ngay, ngày mong muốn, số người và lời nhắn tùy chọn. Gửi thành công chuyển ngay đến trang có mã `YC-yyyyMM-xxxx` (tháng Việt Nam). Profile tối thiểu được tạo từ tài khoản nếu chưa có; không yêu cầu nhập căn cước để gửi yêu cầu. Yêu cầu liên kết profile/tài khoản và tin từ URL, không nhận ID khách từ form. Mã tăng từ 0001 theo từng tháng, tối đa 9999 mã/tháng; hết mã báo lỗi và không lưu yêu cầu.
 
-Task chỉ có trang xem danh sách/chi tiết tối thiểu; chưa có chức năng chủ nhà tạo/duyệt tin. Tin public phải đang hiển thị, còn hạn và phòng trống. Không thêm kiểm tra ngày quá khứ/60 ngày, sức chứa hoặc yêu cầu đang mở trùng; số người vẫn phải là số nguyên dương. Chưa triển khai duyệt, giữ chỗ, hủy hoặc hợp đồng.
+Task chỉ có trang xem danh sách/chi tiết tối thiểu; chưa có chức năng chủ nhà tạo/duyệt tin. Tin public phải đang hiển thị, còn hạn và phòng trống. Ngày mong muốn chỉ được từ hôm nay đến 60 ngày sau, gồm cả hai đầu, theo múi giờ Việt Nam. Biểu mẫu giới hạn ngày chọn và báo lỗi tại trường ngày; server cũng từ chối ngày ngoài khoảng khi gửi POST trực tiếp. Chưa kiểm tra sức chứa hoặc yêu cầu đang mở trùng; số người vẫn phải là số nguyên dương. Thay đổi giới hạn ngày không cần cập nhật schema database. Chưa triển khai duyệt, giữ chỗ, hủy hoặc hợp đồng.
 
 ### Kiểm thử và demo bằng dữ liệu giả riêng
 

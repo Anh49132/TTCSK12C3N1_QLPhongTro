@@ -8,9 +8,23 @@ using QL_PhongTro.ViewModels;
 namespace QL_PhongTro.Services;
 
 public sealed class RequestCodeExhaustedException() : Exception("Đã hết mã yêu cầu trong tháng. Vui lòng liên hệ quản lý.");
+public sealed class DesiredDateException(string message) : Exception(message);
 
 public class YeuCauThueService(AppDbContext db, ITimeProvider clock)
 {
+    public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
+        DateTime.SpecifyKind(clock.UtcNow, DateTimeKind.Utc),
+        TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh")));
+
+    public string? ValidateDesiredDate(DateOnly? date)
+    {
+        var today = Today;
+        if (date is null) return "Vui lòng nhập ngày mong muốn hợp lệ.";
+        if (date < today) return "Ngày mong muốn không được là ngày trong quá khứ.";
+        if (date > today.AddDays(60)) return "Ngày mong muốn không được quá 60 ngày kể từ hôm nay.";
+        return null;
+    }
+
     public IQueryable<TinDang> PublicListings()
     {
         var now = clock.UtcNow;
@@ -29,6 +43,8 @@ public class YeuCauThueService(AppDbContext db, ITimeProvider clock)
 
     public async Task<YeuCauThue?> Send(int listingId, int accountId, GuiYeuCauViewModel form)
     {
+        if (ValidateDesiredDate(form.NgayMongMuon) is { } dateError)
+            throw new DesiredDateException(dateError);
         // Serialize counter allocation and profile creation across all web processes.
         await db.Database.OpenConnectionAsync();
         using var tx = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);

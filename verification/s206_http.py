@@ -125,8 +125,27 @@ def verify():
         assert code == 302 and headers['Location'] == '/TinDang'
         for hidden in query("SELECT id FROM tin_dang WHERE trang_thai<>'DANG_HIEN_THI'"):
             assert tenant.request('/TinDang/ChiTiet/'+str(hidden[0]))[0] == 404
-        valid = {'Form.LoaiYeuCau':'XEM_PHONG', 'Form.NgayMongMuon':'2026-10-15', 'Form.SoNguoiDuKien':2,
+        today = datetime.now(timezone(timedelta(hours=7))).date()
+        last_day = today + timedelta(days=60)
+        code, body, _ = tenant.request(path)
+        date_input = re.search(r'<input[^>]*name="Form.NgayMongMuon"[^>]*>', body).group(0)
+        assert f'min="{today.isoformat()}"' in date_input
+        assert f'max="{last_day.isoformat()}"' in date_input
+        valid = {'Form.LoaiYeuCau':'XEM_PHONG', 'Form.NgayMongMuon':today.isoformat(), 'Form.SoNguoiDuKien':2,
                  'Form.LoiNhan':'<script>alert(1)</script>', 'KhachThueId':999, 'TaiKhoanId':admin, 'TinDangId':999}
+        before_invalid = {table: query(f'SELECT * FROM {table}') for table in
+                          ['yeu_cau_thue','khach_thue','rental_request_counter','nhat_ky_hoat_dong']}
+        for kind in ['XEM_PHONG','THUE_NGAY']:
+            for date, message in [(today-timedelta(days=1), 'Ngày mong muốn không được là ngày trong quá khứ.'),
+                                  (today+timedelta(days=61), 'Ngày mong muốn không được quá 60 ngày kể từ hôm nay.')]:
+                # Direct HTTP POST with a real CSRF token bypasses browser min/max validation.
+                code, body, _ = tenant.post(post, dict(valid, **{'Form.LoaiYeuCau':kind,
+                                            'Form.NgayMongMuon':date.isoformat()}), path)
+                assert code == 200
+                field_error = re.search(r'<span[^>]*data-valmsg-for="Form.NgayMongMuon"[^>]*>(.*?)</span>', body, re.S)
+                assert field_error and message in unescape(field_error.group(1)), body
+                assert f'value="{date.isoformat()}"' in body
+        assert all(query(f'SELECT * FROM {table}') == rows for table, rows in before_invalid.items()), 'Invalid dates changed data'
         for missing in ['Form.LoaiYeuCau','Form.NgayMongMuon','Form.SoNguoiDuKien']:
             invalid = dict(valid); invalid.pop(missing)
             code, body, _ = tenant.post(post, invalid, path)
@@ -141,8 +160,9 @@ def verify():
         assert staff.post(post, valid, path)[0] == 403
         month = datetime.now(timezone(timedelta(hours=7))).strftime('%Y%m')
         locations = []
-        for kind in ['XEM_PHONG','THUE_NGAY']:
-            code, _, headers = tenant.post(post, dict(valid, **{'Form.LoaiYeuCau':kind}), path)
+        for kind, date in [('XEM_PHONG',today),('THUE_NGAY',last_day)]:
+            code, _, headers = tenant.post(post, dict(valid, **{'Form.LoaiYeuCau':kind,
+                                             'Form.NgayMongMuon':date.isoformat()}), path)
             assert code == 302
             locations.append(headers['Location'])
             code, body, _ = tenant.request(headers['Location'])
@@ -153,12 +173,13 @@ def verify():
                       FROM yeu_cau_thue r JOIN khach_thue k ON k.id=r.khach_thue_id ORDER BY r.id''')
         account = query("SELECT id FROM tai_khoan WHERE email='s206-tenant1@example.test'")[0][0]
         assert [r[0] for r in rows] == ['XEM_PHONG','THUE_NGAY']
-        assert all(r[1:3] == (listing,account) and r[4:7] == ('2026-10-15',2,valid['Form.LoiNhan']) for r in rows)
+        assert all(r[1:3] == (listing,account) and r[4:7] == (date.isoformat(),2,valid['Form.LoiNhan'])
+                   for r, date in zip(rows, [today,last_day]))
         assert len({r[3] for r in rows}) == 2
         other = Browser(); assert other.login('s206-tenant2@example.test', password)[0] == 302
         assert other.request(locations[0])[0] == 404
-        # Latest task excludes capacity, 60-day and duplicate-open checks.
-        assert tenant.post(post, dict(valid, **{'Form.NgayMongMuon':'2027-12-31','Form.SoNguoiDuKien':10}), path)[0] == 302
+        # Capacity and duplicate-open checks remain outside this task.
+        assert tenant.post(post, dict(valid, **{'Form.SoNguoiDuKien':10}), path)[0] == 302
         browsers = [Browser() for _ in range(4)]
         for b in browsers:
             assert b.login('s206-tenant1@example.test', password)[0] == 302
@@ -194,7 +215,7 @@ def verify():
             'email':'s206-tenant1@example.test','password':password}, ensure_ascii=False, indent=2), encoding='utf-8')
         if BASE == 'http://localhost:5266':
             (ROOT / 'data/S2-06/latest.txt').write_text(str(FOLDER), encoding='utf-8')
-        print('PASS: new DB/refuse overwrite, upgrade copy/preservation/backup/idempotence, both request types, required/invalid fields, CSRF/roles/ownership, code format/concurrency, public listing checks, audit/rollback/counter exhaustion, integrity/FK', flush=True)
+        print('PASS: new DB/refuse overwrite, upgrade copy/preservation/backup/idempotence, both request types, today/+60 accepted, yesterday/+61 rejected at date field via direct POST without data changes, form min/max, required/invalid fields, CSRF/roles/ownership, code format/concurrency, public listing checks, audit/rollback/counter exhaustion, integrity/FK', flush=True)
     finally:
         p.terminate(); p.wait(timeout=15)
 
