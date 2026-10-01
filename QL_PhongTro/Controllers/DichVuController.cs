@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Authorization;
 using QL_PhongTro.Data;
+using QL_PhongTro.Models;
 using QL_PhongTro.Services;
 using QL_PhongTro.ViewModels;
 
@@ -31,6 +33,8 @@ public class DichVuController(AppDbContext db, DichVuService services, DichVuPho
         if (!await services.SoHuuToaNhaAsync(AccountId, model.ToaNhaId)) return Forbid();
         if (!await services.SanSangAsync()) return RedirectToAction(nameof(Index), new { toaNhaId = model.ToaNhaId });
         model.TenToaNha = await db.ToaNhas.Where(x => x.Id == model.ToaNhaId).Select(x => x.TenToaNha).SingleAsync();
+        ValidateUtility(nameof(model.Dien), model.Dien);
+        ValidateUtility(nameof(model.Nuoc), model.Nuoc);
         if (!ModelState.IsValid) return View(model);
         try
         {
@@ -41,6 +45,27 @@ public class DichVuController(AppDbContext db, DichVuService services, DichVuPho
         catch (UnauthorizedAccessException) { return Forbid(); }
         catch (DbUpdateException) { ModelState.AddModelError("", "Không lưu được cấu hình. Hãy tải lại trang và thử lại."); }
         return View(model);
+    }
+
+    private void ValidateUtility(string prefix, CauHinhTienDichVuViewModel input)
+    {
+        if (input.CachTinh is CachTinhDichVu.TheoChiSo or CachTinhDichVu.TheoNguoi)
+        {
+            var unused = input.CachTinh == CachTinhDichVu.TheoChiSo
+                ? nameof(input.TienMotNguoi) : nameof(input.DonGiaChiSo);
+            ModelState.Remove($"{prefix}.{unused}");
+        }
+        // MVC may skip IValidatableObject when an unused numeric field fails binding.
+        // Recheck the selected field without clearing its binding errors or attempted value.
+        foreach (var error in input.Validate(new ValidationContext(input)))
+        {
+            foreach (var member in error.MemberNames)
+            {
+                var key = $"{prefix}.{member}";
+                if (!ModelState.TryGetValue(key, out var state) || state.Errors.Count == 0)
+                    ModelState.AddModelError(key, error.ErrorMessage!);
+            }
+        }
     }
     private Task<List<SelectListItem>> ToaNhasAsync() => db.ToaNhas.AsNoTracking()
         .Where(x => x.ChuNhaId == AccountId && x.DangHoatDong).OrderBy(x => x.TenToaNha)

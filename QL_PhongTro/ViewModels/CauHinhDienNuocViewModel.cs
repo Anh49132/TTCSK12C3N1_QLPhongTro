@@ -17,6 +17,7 @@ public class CauHinhTienDichVuViewModel : IValidatableObject
     public string CachTinh { get; set; } = CachTinhDichVu.TheoChiSo;
     public long? DonGiaChiSo { get; set; }
     public long? TienMotNguoi { get; set; }
+    public string TruongGiaApDung => CachTinh == CachTinhDichVu.TheoChiSo ? nameof(DonGiaChiSo) : nameof(TienMotNguoi);
     public long? GiaApDung => CachTinh == CachTinhDichVu.TheoChiSo ? DonGiaChiSo : TienMotNguoi;
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
@@ -25,9 +26,9 @@ public class CauHinhTienDichVuViewModel : IValidatableObject
             yield return new ValidationResult("Hãy chọn cách tính hợp lệ.", [nameof(CachTinh)]);
         else if (!GiaApDung.HasValue)
             yield return new ValidationResult("Hãy nhập mức giá cho cách tính đã chọn.",
-                [CachTinh == CachTinhDichVu.TheoChiSo ? nameof(DonGiaChiSo) : nameof(TienMotNguoi)]);
+                [TruongGiaApDung]);
         else if (GiaApDung <= 0)
             yield return new ValidationResult("Mức giá phải là số nguyên đồng lớn hơn 0.",
-                [CachTinh == CachTinhDichVu.TheoChiSo ? nameof(DonGiaChiSo) : nameof(TienMotNguoi)]);
+                [TruongGiaApDung]);
     }
 }

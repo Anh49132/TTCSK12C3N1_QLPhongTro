@@ -21,12 +21,12 @@
                     </select>
                     <div data-price="THEO_CHI_SO" hidden="@(item.Value.CachTinh != CachTinhDichVu.TheoChiSo)">
                         <label class="form-label" for="@(item.Prefix)_DonGiaChiSo">Đơn giá (VND/@item.Unit)</label>
-                        @Html.TextBox(item.Prefix + ".DonGiaChiSo", item.Value.DonGiaChiSo, new { @class = "form-control", type = "number", step = "1", id = item.Prefix + "_DonGiaChiSo" })
+                        @Html.TextBox(item.Prefix + ".DonGiaChiSo", item.Value.DonGiaChiSo, new { @class = "form-control", type = "number", min = "1", step = "1", id = item.Prefix + "_DonGiaChiSo", data_val = "true", data_val_required = "Hãy nhập mức giá cho cách tính đã chọn.", data_val_range = "Mức giá phải là số nguyên đồng lớn hơn 0.", data_val_range_min = "1", data_val_range_max = "9223372036854775807", data_val_number = "Mức giá phải là số nguyên đồng lớn hơn 0." })
                         @Html.ValidationMessage(item.Prefix + ".DonGiaChiSo", null, new { @class = "text-danger" })
                     </div>
                     <div data-price="THEO_NGUOI" hidden="@(item.Value.CachTinh != CachTinhDichVu.TheoNguoi)">
                         <label class="form-label" for="@(item.Prefix)_TienMotNguoi">Tiền một người một tháng (VND/người/tháng)</label>
-                        @Html.TextBox(item.Prefix + ".TienMotNguoi", item.Value.TienMotNguoi, new { @class = "form-control", type = "number", step = "1", id = item.Prefix + "_TienMotNguoi" })
+                        @Html.TextBox(item.Prefix + ".TienMotNguoi", item.Value.TienMotNguoi, new { @class = "form-control", type = "number", min = "1", step = "1", id = item.Prefix + "_TienMotNguoi", data_val = "true", data_val_required = "Hãy nhập mức giá cho cách tính đã chọn.", data_val_range = "Mức giá phải là số nguyên đồng lớn hơn 0.", data_val_range_min = "1", data_val_range_max = "9223372036854775807", data_val_number = "Mức giá phải là số nguyên đồng lớn hơn 0." })
                         @Html.ValidationMessage(item.Prefix + ".TienMotNguoi", null, new { @class = "text-danger" })
                     </div>
                 </fieldset>
@@ -37,5 +37,6 @@
     <a asp-controller="PhongTro" asp-action="ToaNha" class="btn btn-outline-secondary">Về danh sách tòa nhà</a>
 </form>
 @section Scripts {
+    <partial name="_ValidationScriptsPartial" />
     <script src="~/js/electric-water-config.js" asp-append-version="true"></script>
 }
