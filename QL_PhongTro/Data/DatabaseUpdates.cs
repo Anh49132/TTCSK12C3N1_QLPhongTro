@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 5;
+    private const int CurrentVersion = 6;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -36,7 +36,7 @@ public static class DatabaseUpdates
 
     public static void Check(string path) => Check(path, true);
 
-    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true)
+    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true, bool requirePublicListings = true)
     {
         using var c = Open(path, true);
         var problems = new List<string>();
@@ -57,6 +57,7 @@ public static class DatabaseUpdates
         {
             var table = entity.GetTableName()!;
             if (table == "nhat_ky_hoat_dong" && !requireAudit) continue;
+            if (!requirePublicListings && table is "tin_dang" or "anh_phong") continue;
             var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table);
             if (isOptional && !requiredOptional.Contains(table)) continue;
             var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
@@ -174,12 +175,12 @@ public static class DatabaseUpdates
         }
         if (version < 3)
         {
-            Check(path, false, false);
+            Check(path, false, false, false);
             AuditSchema.Upgrade(c);
         }
         if (version < 4)
         {
-            Check(path, true, false);
+            Check(path, true, false, false);
             using var tx = c.BeginTransaction();
             using var command = c.CreateCommand();
             command.Transaction = tx;
@@ -193,6 +194,43 @@ public static class DatabaseUpdates
                     requested_at INTEGER NOT NULL
                 );
                 INSERT INTO app_schema_version(version,applied_at) VALUES(4,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                """;
+            command.ExecuteNonQuery();
+            tx.Commit();
+        }
+        AccountReuseSchema.Ensure(path);
+        if (version < 6)
+        {
+            using var tx = c.BeginTransaction();
+            using var command = c.CreateCommand();
+            command.Transaction = tx;
+            command.CommandText = """
+                CREATE TABLE tin_dang (
+                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    phong_id INTEGER NOT NULL REFERENCES phong_tro(id) ON DELETE RESTRICT,
+                    nguoi_dang_id INTEGER NOT NULL REFERENCES tai_khoan(id) ON DELETE RESTRICT,
+                    tin_goc_id INTEGER REFERENCES tin_dang(id) ON DELETE RESTRICT,
+                    tieu_de TEXT NOT NULL CHECK(length(tieu_de) <= 200),
+                    noi_dung TEXT,
+                    ngay_dang TEXT,
+                    ngay_het_han TEXT,
+                    trang_thai TEXT NOT NULL DEFAULT 'NHAP' CHECK(length(trang_thai) <= 25),
+                    ngay_tao TEXT NOT NULL
+                );
+                CREATE INDEX ix_tin_dang_phong_id_trang_thai ON tin_dang(phong_id, trang_thai);
+                CREATE INDEX ix_tin_dang_trang_thai_ngay_het_han ON tin_dang(trang_thai, ngay_het_han);
+                CREATE UNIQUE INDEX ux_tin_dang_phong_dang_hien_thi ON tin_dang(phong_id) WHERE trang_thai = 'DANG_HIEN_THI';
+                CREATE TABLE anh_phong (
+                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    phong_id INTEGER NOT NULL REFERENCES phong_tro(id) ON DELETE RESTRICT,
+                    duong_dan TEXT NOT NULL CHECK(length(duong_dan) <= 500),
+                    duong_dan_anh_nho TEXT CHECK(duong_dan_anh_nho IS NULL OR length(duong_dan_anh_nho) <= 500),
+                    thu_tu INTEGER NOT NULL CHECK(thu_tu BETWEEN 1 AND 8),
+                    mo_ta TEXT CHECK(mo_ta IS NULL OR length(mo_ta) <= 255),
+                    ngay_tao TEXT NOT NULL,
+                    UNIQUE(phong_id, thu_tu)
+                );
+                INSERT INTO app_schema_version(version,applied_at) VALUES(6,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
                 """;
             command.ExecuteNonQuery();
             tx.Commit();

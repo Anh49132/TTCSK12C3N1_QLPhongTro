@@ -15,11 +15,13 @@ dotnet run --project QL_PhongTro --launch-profile http
 
 Mở http://localhost:5247/Account/Login. Nếu dùng file khác, đặt `$env:DatabasePath = 'C:\duong-dan\database.sqlite'` trong cùng terminal trước các lệnh trên. Đường dẫn phải trỏ file đã tồn tại; công cụ không tạo lại CSDL nền.
 
-`--check-database` chỉ đọc schema. Web kiểm tra bảng/cột trước khi nhận request; riêng schema v4 được tự nâng lên v5 như mô tả dưới đây. Không cần chạy SQL/lệnh sửa dữ liệu mỗi lần xóa tài khoản.
+`--check-database` chỉ đọc schema. Web kiểm tra bảng/cột trước khi nhận request; sau khi pull v6, phải chạy updater để thêm bảng tin/ảnh trước khi khởi động web. Updater áp dụng bước tài khoản v4 → v5 nếu còn thiếu; không chạy SQL thủ công mỗi lần xóa tài khoản.
 
 ## Các phiên bản cập nhật
 
-Phiên bản hiện tại là **5**. `AccountReuseSchema` kiểm tra phiên bản, định nghĩa hai index UNIQUE và khóa ngoại; sao lưu `*.before-account-reuse-<id>.bak`, rồi thay hai index bằng UNIQUE có điều kiện `WHERE is_deleted = 0`. Chỉ tài khoản chưa xóa (kể cả đang khóa) giữ chỗ email/số điện thoại. ID và thông tin liên hệ cũ được giữ nguyên. Bước này tự chạy khi khởi động web v4, hoặc qua updater; chạy lại v5 chỉ kiểm tra. Schema/index lạ bị từ chối, không tự dựng lại bảng. Cần quyền ghi DB và tạo backup cạnh DB.
+Phiên bản hiện tại là **6**. v6 bổ sung `tin_dang` và `anh_phong` cho trang chi tiết tin công khai; dữ liệu phòng (giá, diện tích, sức chứa, tiền cọc và mô tả) vẫn lấy từ `phong_tro`. Tin phải đang hiển thị, chưa hết hạn, gắn với phòng trống và tòa nhà đang hoạt động mới được trả về công khai. Mỗi phòng chỉ có tối đa một tin đang hiển thị; thứ tự ảnh từ 1 đến 8.
+
+`AccountReuseSchema` kiểm tra phiên bản, định nghĩa hai index UNIQUE và khóa ngoại; sao lưu `*.before-account-reuse-<id>.bak`, rồi thay hai index bằng UNIQUE có điều kiện `WHERE is_deleted = 0`. Chỉ tài khoản chưa xóa (kể cả đang khóa) giữ chỗ email/số điện thoại. ID và thông tin liên hệ cũ được giữ nguyên. Bước v4 → v5 chạy trong updater; các schema từ v5 trở lên chỉ được kiểm tra lại. Schema/index lạ bị từ chối, không tự dựng lại bảng. Cần quyền ghi DB và tạo backup cạnh DB.
 
 v5 đồng thời vô hiệu hóa phiên/reset của tài khoản đã xóa từ trước và chuyển tòa của Quản lý đã xóa về chưa phân công. Toàn bộ bước nâng cấp nằm trong transaction; không xóa tài khoản, hồ sơ, hợp đồng hoặc nhật ký. Đây là sửa dữ liệu hạ tầng khi nâng cấp, không giả lập một ADMIN để ghi nhật ký nghiệp vụ. Xóa mới qua web vẫn ghi audit cùng transaction với bỏ phân công và thu hồi phiên.
 
