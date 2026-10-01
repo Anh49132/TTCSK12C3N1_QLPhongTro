@@ -21,6 +21,8 @@ DBML là văn bản UTF-8, không cần cài trình phân tích DBML để đọ
 
 ## Quy tắc giữ tương thích
 
+- Sau khi pull thay đổi CSDL, làm theo [quy trình cập nhật SQLite](cap-nhat-csdl.md): dừng app, chạy `--update-database`, rồi `--check-database`. Ngoại lệ theo yêu cầu xóa tài khoản: web tự nâng v4 lên v5 sau kiểm tra schema và sao lưu, để giải phóng email/số điện thoại của tài khoản đã xóa; không cần chạy lệnh mỗi lần xóa. Các schema cũ hơn vẫn cần updater. Mỗi PR đổi schema phải kèm bước nâng cấp có phiên bản và xác minh bảo toàn dữ liệu trên bản sao.
+
 - Yêu cầu trực tiếp mới nhất của người dùng ưu tiên hơn ghi chú cũ trong tài liệu.
 - Giữ nguyên chức năng và quy tắc nghiệp vụ hiện hành khi thay công nghệ.
 - Giữ nguyên CSDL cũ: trước khi ánh xạ, kiểm tra bảng, cột, khóa và kiểu dữ liệu thực tế. Nếu schema thực tế khác DBML, báo rõ và không tự sửa schema.

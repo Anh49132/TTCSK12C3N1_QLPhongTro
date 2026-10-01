@@ -1,0 +1,56 @@
+@model QL_PhongTro.ViewModels.TaoDichVuViewModel
+@{ ViewData["Title"] = "Thêm dịch vụ"; }
+<section class="mb-4">
+    <p class="text-uppercase text-secondary small">Dịch vụ và đơn giá</p>
+    <h1 class="h2">Thêm dịch vụ</h1>
+    <p class="text-secondary">Khai báo dịch vụ áp dụng chung cho các phòng trong tòa nhà.</p>
+</section>
+@if (Model.ToaNhas.Count == 0)
+{
+    <div class="alert alert-info">Bạn cần khai báo tòa nhà trước khi thêm dịch vụ.</div>
+    <a class="btn btn-primary" asp-controller="PhongTro" asp-action="TaoToaNha">Khai báo tòa nhà</a>
+}
+else
+{
+    <form asp-action="Create" method="post" class="row g-3" style="max-width:760px">
+        <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+        <div class="col-12">
+            <label asp-for="ToaNhaId" class="form-label"></label>
+            <select asp-for="ToaNhaId" asp-items="Model.ToaNhas" class="form-select"><option value="">Chọn tòa nhà</option></select>
+            <span asp-validation-for="ToaNhaId" class="text-danger"></span>
+        </div>
+        <div class="col-12">
+            <label asp-for="TenDichVu" class="form-label"></label>
+            <input asp-for="TenDichVu" class="form-control" maxlength="100" placeholder="Ví dụ: Điện sinh hoạt" />
+            <span asp-validation-for="TenDichVu" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="CachTinh" class="form-label"></label>
+            <select asp-for="CachTinh" class="form-select" aria-describedby="cach-tinh-help">
+                <option value="">Chọn cách tính</option>
+                <option value="THEO_CHI_SO">Theo chỉ số</option>
+                <option value="THEO_NGUOI">Theo đầu người</option>
+                <option value="CO_DINH">Cố định theo phòng</option>
+            </select>
+            <span asp-validation-for="CachTinh" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="DonViTinh" class="form-label"></label>
+            <input asp-for="DonViTinh" class="form-control" maxlength="30" aria-describedby="cach-tinh-help" />
+            <span asp-validation-for="DonViTinh" class="text-danger"></span>
+        </div>
+        <p id="cach-tinh-help" class="text-secondary small mb-0">Theo chỉ số: kWh, m³…; theo đầu người: người/tháng; cố định: phòng/tháng.</p>
+        <div class="col-md-6">
+            <label asp-for="DonGia" class="form-label"></label>
+            <input asp-for="DonGia" class="form-control" type="number" min="0" step="1" inputmode="numeric" aria-describedby="gia-help" />
+            <div id="gia-help" class="form-text">Nhập số nguyên đồng không âm, không dùng dấu phân cách. Ví dụ: 3500.</div>
+            <span asp-validation-for="DonGia" class="text-danger"></span>
+        </div>
+        <p class="text-secondary small mb-0">Dịch vụ mới ở trạng thái đang áp dụng, sử dụng từ ngày khai báo.</p>
+        <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Lưu dịch vụ</button>
+            <a asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-secondary">Quay lại</a>
+        </div>
+    </form>
+}
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
