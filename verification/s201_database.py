@@ -1,4 +1,4 @@
-"""Verify v7 on a read-only backup of local SQLite; never write to the source."""
+"""Verify v8 on a read-only backup of local SQLite; never write to the source."""
 import hashlib
 import os
 from pathlib import Path
@@ -41,7 +41,7 @@ with tempfile.TemporaryDirectory(prefix="s201-upgrade-") as folder:
     run(copy, "--update-database")
     run(copy, "--check-database")
     with sqlite3.connect(copy) as db:
-        assert db.execute("SELECT MAX(version) FROM app_schema_version").fetchone() == (7,)
+        assert db.execute("SELECT MAX(version) FROM app_schema_version").fetchone() == (8,)
         for table in tables:
             selected_columns = ','.join('"' + column.replace('"', '""') + '"' for column in columns[table])
             assert db.execute('SELECT ' + selected_columns + ' FROM "' + table + '"').fetchall() == rows[table], table
@@ -67,4 +67,4 @@ with tempfile.TemporaryDirectory(prefix="s201-upgrade-") as folder:
     run(fresh, "--initialize-database", False)
     assert digest(fresh) == initialized
 assert digest(source) == original, "Source changed"
-print("PASS: v7 backup, data preservation, integrity/FK, repeat update, new initialization, no overwrite, source unchanged")
+print("PASS: v8 backup, data preservation, integrity/FK, repeat update, new initialization, no overwrite, source unchanged")

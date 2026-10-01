@@ -9,6 +9,7 @@
 }
 <h1 class="h2">Dịch vụ phòng @Model.MaPhong</h1>
 <p>Giá riêng chỉ áp dụng cho phòng này; để trống giá riêng hoặc xóa giá riêng sẽ dùng đơn giá chung của tòa nhà.</p>
+<p>Bỏ dịch vụ vẫn tính hết tháng hiện tại, ngừng từ ngày đầu tháng sau. Hóa đơn đã phát hành giữ nguyên.</p>
 <a asp-controller="PhongTro" asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId">Về danh sách phòng</a>
 <div class="table-responsive mt-3">
     <table class="table align-middle">
@@ -18,7 +19,9 @@
         @foreach (var item in Model.DichVus.Where(x => x.DaChon))
         {
             <tr data-service-id="@item.Id">
-                <th scope="row">@item.Ten</th>
+                <th scope="row">@item.Ten
+                    @if (item.NgungTuKy.HasValue) { <small class="d-block text-warning">Chờ ngừng từ @item.NgungTuKy.Value.ToString("dd/MM/yyyy")</small> }
+                </th>
                 <td>@(item.Gia is null ? "Chưa có giá đang áp dụng" : item.Gia.DonGia.ToString("N0", culture) + " / " + item.Gia.DonViTinh)</td>
                 <td>
                     @(item.DonGiaHieuLuc?.ToString("N0", culture) ?? "Chưa có giá")
@@ -48,8 +51,8 @@
                         <form asp-action="Set" method="post" class="d-inline">
                             <input type="hidden" name="phongId" value="@Model.PhongId" />
                             <input type="hidden" name="dichVuToaNhaId" value="@item.Id" />
-                            <input type="hidden" name="enabled" value="false" />
-                            <button class="btn btn-sm btn-outline-danger" aria-label="Bỏ @item.Ten">Bỏ khỏi phòng</button>
+                            <input type="hidden" name="enabled" value="@(item.NgungTuKy.HasValue ? "true" : "false")" />
+                            <button class="btn btn-sm btn-outline-danger">@(item.NgungTuKy.HasValue ? "Hủy yêu cầu ngừng" : "Ngừng từ kỳ sau")</button>
                         </form>
                     </td>
                 }
@@ -60,7 +63,7 @@
     </table>
 </div>
 @if (!Model.DichVus.Any(x => x.DaChon)) { <p>Phòng chưa có dịch vụ.</p> }
-<p class="text-secondary">Tổng chỉ gồm dịch vụ cố định theo phòng đã có giá đang áp dụng; chưa gồm tiền thuê, điện nước theo chỉ số, phí theo người và dịch vụ chưa có giá. Thay đổi này chưa áp dụng vào hóa đơn.</p>
+<p class="text-secondary">Tổng hiện tại gồm cả dịch vụ chờ ngừng; chỉ cộng dịch vụ cố định có giá đang áp dụng, chưa gồm tiền thuê và phí biến đổi. Khi thêm lại dịch vụ đã ngừng, dịch vụ áp dụng lại từ đầu tháng hiện tại; các kỳ đã ngừng trước đó vẫn giữ nguyên.</p>
 @if (write && Model.DichVus.Any(x => !x.DaChon))
 {
     <form asp-action="Set" method="post" class="d-flex flex-wrap gap-2 align-items-end">
@@ -74,4 +77,24 @@
             <input id="new-price" name="donGiaRieng" type="number" min="0" step="1" class="form-control" placeholder="Để trống dùng giá chung" /></div>
         <button class="btn btn-primary">Thêm vào phòng</button>
     </form>
+}
+else if (write)
+{
+    <div class="alert alert-info mt-3" role="status">
+        Phòng đã dùng tất cả dịch vụ đang khai báo ở tòa nhà.
+        <a asp-controller="DichVu" asp-action="Create" asp-route-toaNhaId="@Model.ToaNhaId">Khai báo dịch vụ mới cho tòa nhà</a>
+        để dịch vụ xuất hiện trong danh sách thêm vào phòng.
+    </div>
+}
+@if (Model.LichSuNgung.Count > 0)
+{
+    <h2 class="h4 mt-4">Lịch sử ngừng dịch vụ</h2>
+    <div class="table-responsive"><table class="table">
+        <thead><tr><th>Dịch vụ</th><th>Yêu cầu lúc (giờ Việt Nam)</th><th>Ngừng tính từ</th><th>Áp dụng lại từ</th></tr></thead>
+        <tbody>@foreach (var removal in Model.LichSuNgung)
+        {
+            <tr><td>@removal.DichVuPhong.DichVuToaNha.DichVu.TenDichVu</td><td>@removal.YeuCauLucUtc.AddHours(7).ToString("dd/MM/yyyy HH:mm:ss")</td>
+            <td>@removal.NgungTuKy.ToString("dd/MM/yyyy")</td><td>@(removal.ApDungLaiTuKy == removal.NgungTuKy ? "Đã hủy yêu cầu ngừng" : removal.ApDungLaiTuKy?.ToString("dd/MM/yyyy") ?? "Chưa áp dụng lại")</td></tr>
+        }</tbody>
+    </table></div>
 }

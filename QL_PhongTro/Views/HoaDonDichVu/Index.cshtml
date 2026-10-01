@@ -13,8 +13,9 @@ else
 {
     <form method="get" class="d-flex flex-wrap gap-2 align-items-end my-3">
         <input name="toaNhaId" value="@Model.ToaNhaId" type="hidden" />
+        <div><label for="contract-filter" class="form-label">Hợp đồng / phòng</label><select id="contract-filter" asp-for="HopDongId" asp-items="Model.HopDongs" class="form-select"></select></div>
         <div><label for="apply-date" class="form-label">Ngày áp dụng đơn giá</label><input id="apply-date" name="ngayApDung" type="date" value="@Model.NgayApDung?.ToString("yyyy-MM-dd")" class="form-control" required /></div>
-        <button class="btn btn-outline-primary">Xem đơn giá tại ngày chọn</button>
+        <button class="btn btn-outline-primary">Xem dịch vụ của phòng trong kỳ</button>
     </form>
     <p class="text-secondary">Hóa đơn tháng @Model.NgayApDung?.ToString("MM/yyyy") gồm tiền phòng theo hợp đồng và các dịch vụ được chọn. Chỉ hỗ trợ hợp đồng thuê trọn tháng; chưa hỗ trợ trả phòng hoặc gia hạn giữa tháng.</p>
     @if (Model.HopDongs.Count == 0) { <div class="alert alert-info">Chưa có hợp đồng đang hiệu lực trong tòa nhà.</div> }
@@ -24,7 +25,7 @@ else
             <div asp-validation-summary="All" class="text-danger" role="alert"></div>
             <input asp-for="ToaNhaId" type="hidden" /><input asp-for="NgayApDung" type="hidden" />
             <div class="row g-3 mb-3">
-                <div class="col-md-8"><label asp-for="HopDongId" class="form-label">Hợp đồng</label><select asp-for="HopDongId" asp-items="Model.HopDongs" class="form-select"><option value="">Chọn hợp đồng</option></select></div>
+                <div class="col-md-8"><input asp-for="HopDongId" type="hidden" /><p>Hợp đồng: <strong>@Model.HopDongs.FirstOrDefault(x => x.Value == Model.HopDongId?.ToString())?.Text</strong></p></div>
                 <div class="col-md-4"><label asp-for="SoNguoi" class="form-label">Số người tính phí</label><input asp-for="SoNguoi" type="number" min="1" step="1" class="form-control" /></div>
             </div>
             <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Chọn</th><th>Dịch vụ</th><th>Đơn giá</th><th>Số lượng tính phí</th></tr></thead><tbody>
@@ -41,7 +42,7 @@ else
                 } else { <span>@(price.CachTinh == CachTinhDichVu.TheoNguoi ? "Theo số người ở trên" : "1 phòng/tháng")</span> }</td></tr>
             }
             </tbody></table></div>
-            <p class="small text-secondary">Dịch vụ chưa thiết lập giá hoặc ngừng áp dụng tại ngày chọn không được chọn mới. Tiền phòng lấy theo hợp đồng; từng khoản làm tròn đến đồng. Sau phát hành, nội dung và đơn giá được giữ nguyên.</p>
+            <p class="small text-secondary">Bỏ dịch vụ giữa tháng vẫn tính hết tháng đó, ngừng từ kỳ sau. Danh sách đã lọc theo phòng và kỳ đang chọn. Nếu không còn dịch vụ, hóa đơn chỉ gồm tiền phòng. Sau phát hành, nội dung và đơn giá được giữ nguyên.</p>
             <button type="submit" class="btn btn-primary">Phát hành hóa đơn</button>
         </form>
     }

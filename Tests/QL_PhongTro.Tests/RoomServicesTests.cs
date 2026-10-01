@@ -18,7 +18,7 @@ using Xunit;
 
 namespace QL_PhongTro.Tests;
 
-public sealed class RoomServicesTests : IDisposable
+public sealed partial class RoomServicesTests : IDisposable
 {
     private readonly string folder = Path.Combine(Path.GetTempPath(), "s201-" + Guid.NewGuid().ToString("N"));
     private readonly string path;
@@ -95,7 +95,8 @@ public sealed class RoomServicesTests : IDisposable
         await rooms.DatDichVuAsync(1, a.Id, parking, true); // idempotent retry
         Assert.Equal(150000m, (await rooms.XemAsync(1, a.Id)).TongCoDinh);
         await rooms.DatDichVuAsync(1, a.Id, internet, false);
-        Assert.Equal(50000m, (await rooms.XemAsync(1, a.Id)).TongCoDinh);
+        Assert.Equal(150000m, (await rooms.XemAsync(1, a.Id)).TongCoDinh); // still billed for the current month
+        Assert.NotNull((await rooms.XemAsync(1, a.Id)).DichVus.Single(x => x.Id == internet).NgungTuKy);
         Assert.Equal(100000m, (await rooms.XemAsync(1, b.Id)).TongCoDinh);
         var late = await AddService(db, "Late default", 7000);
         Assert.DoesNotContain((await rooms.XemAsync(1, b.Id)).DichVus, x => x.Id == late && x.DaChon);
@@ -145,6 +146,7 @@ public sealed class RoomServicesTests : IDisposable
         await Assert.ThrowsAnyAsync<Exception>(() => Rooms(db).DatDichVuAsync(1, a.Id, service, false));
         using var fresh = Context();
         Assert.Single(await fresh.DichVuPhongs.Where(x => x.PhongId == a.Id).ToListAsync());
+        Assert.Empty(await fresh.NgungDichVuPhongs.ToListAsync());
     }
 
     [Fact]
@@ -158,7 +160,7 @@ public sealed class RoomServicesTests : IDisposable
         using (var c = Open())
         using (var cmd = c.CreateCommand())
         {
-            cmd.CommandText = "DROP TABLE dich_vu_phong; DROP TABLE dich_vu_toa_nha; DELETE FROM app_schema_version WHERE version IN (6,7);";
+            cmd.CommandText = "DROP TABLE ngung_dich_vu_phong; DROP TABLE dich_vu_phong; DROP TABLE dich_vu_toa_nha; DELETE FROM app_schema_version WHERE version IN (6,7,8);";
             cmd.ExecuteNonQuery();
         }
         SqliteConnection.ClearAllPools();
@@ -212,8 +214,8 @@ public sealed class RoomServicesTests : IDisposable
         var serviceId = (await db.DichVuToaNhas.FindAsync(catalogId))!.DichVuId;
         await Assert.ThrowsAsync<InvalidOperationException>(() => new DichVuService(db).XoaAsync(1, 1, serviceId));
         await Rooms(db).DatDichVuAsync(1, room.Id, catalogId, false);
-        await new DichVuService(db).XoaAsync(1, 1, serviceId);
-        Assert.Empty((await Rooms(db).XemAsync(1, room.Id)).DichVus);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new DichVuService(db).XoaAsync(1, 1, serviceId));
+        Assert.Single(await db.NgungDichVuPhongs.ToListAsync()); // retain historical billing reference
     }
 
     [Fact]

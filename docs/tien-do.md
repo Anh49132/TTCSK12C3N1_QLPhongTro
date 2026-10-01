@@ -1,5 +1,20 @@
 # Tiến độ và bàn giao dự án
 
+## Quy ước README ADMIN local (02/10/2026)
+
+- Khôi phục khối chạy nhanh trong README theo đúng yêu cầu: dừng phiên cũ, restore, updater, cấu hình ADMIN mẫu, tạo ADMIN và chạy web. Giữ nguyên thông tin ADMIN mẫu trong các lần cập nhật sau, trừ khi người dùng yêu cầu đổi; ghi quy ước tại `00-huong-dan.md`.
+- Giữ hướng dẫn máy mới khởi tạo DB và máy có DB giữ dữ liệu. ADMIN đã tồn tại thì bỏ qua lệnh tạo; ví dụ không thay đổi mật khẩu tài khoản cũ.
+- Xác minh: đọc cấu hình tạo ADMIN và kiểm tra diff tài liệu; không chạy khối lệnh, build/test hoặc thao tác database trong lần sửa README này. Chưa commit/push.
+
+## S2-01 — ngừng dịch vụ phòng theo kỳ hóa đơn (02/10/2026)
+
+- Hoàn thành bốn tiêu chí: ghi `yeu_cau_luc_utc` và `ngung_tu_ky`; PO chốt bỏ giữa tháng vẫn tính hết tháng đó, ngừng từ ngày đầu tháng sau; hóa đơn cũ hiển thị snapshot đã phát hành; kỳ sau không còn dịch vụ đã ngừng, phòng khác không đổi.
+- Migration **v8** thêm `ngung_dich_vu_phong`, liên kết lựa chọn phòng/dịch vụ, unique cho lần ngừng đang mở và lịch sử áp dụng lại. Không xóa lựa chọn, giá riêng hoặc hóa đơn; updater tạo backup, chạy transaction và kiểm tra integrity/FK. DB local thực tế vẫn v5, chỉ được kiểm tra read-only; chưa chạy updater trên file local.
+- `DichVuPhongService` tập trung quy tắc kỳ Việt Nam, áp dụng cho cả màn hình phòng, form hóa đơn và lúc phát hành để chống gửi form cũ. Hóa đơn chỉ đọc dòng `chi_tiet_hoa_don` snapshot khi xem lại. Có thể phát hành hóa đơn chỉ gồm tiền phòng khi phòng không còn dịch vụ trong kỳ.
+- Xác minh thực tế: **40/40 xUnit PASS**, gồm hóa đơn cũ, kỳ hiện tại/kỳ sau, hai phòng độc lập, form HTTP, quyền/CSRF, giá riêng, migration v7→v8 và ranh giới cuối tháng/múi giờ Việt Nam. `python verification/s201_database.py` PASS trên bản sao v5→v8, giữ dữ liệu/hash nguồn, backup, integrity/FK, chạy lặp và khởi tạo mới không ghi đè. Build PASS; cảnh báo ImageSharp và CS8601 cũ vẫn có.
+- Demo mới `verification/ServiceRemovalDemo`: chỉ tạo dữ liệu giả trong `data/service-removal-demo/` (ignore), có `DEMO-A`, `DEMO-B`, Gửi xe 100.000đ và hóa đơn kỳ trước; README có cách chạy. Không commit credential/demo DB. Chưa nghiệm thu trực quan bằng browser hoặc SMTP thật.
+- File thay đổi chính: RoomServiceRemovalSchema/model/SQL v8, service/controller/view dịch vụ phòng và hóa đơn, test `RoomServicesTests.Invoices.cs`, verification và README/tài liệu CSDL. Không commit/push. File project test có thay đổi sẵn trước task, giữ riêng khi stage.
+
 ## S2-01 — đơn giá riêng dịch vụ phòng (01/10/2026)
 
 - Bổ sung `don_gia_rieng` nullable vào từng liên kết phòng/dịch vụ; khi chưa đặt giá riêng dùng giá chung. Chủ nhà nhập giá lúc gán dịch vụ, cập nhật hoặc xóa giá riêng để quay về giá chung.

@@ -5,8 +5,14 @@ using QL_PhongTro.ViewModels;
 
 namespace QL_PhongTro.Services;
 
-public sealed class DichVuPhongService(AppDbContext db, DichVuService prices)
+public sealed class DichVuPhongService(AppDbContext db, DichVuService prices, ITimeProvider? time = null)
 {
+    private DateTime UtcNow => time?.UtcNow ?? DateTime.UtcNow;
+    private DateOnly HomNay => DateOnly.FromDateTime(UtcNow.AddHours(7));
+    // PO confirmed: charge the whole current Vietnam calendar month; stop next month.
+    public static DateOnly KyNgung(DateTime utc) => DauKy(DateOnly.FromDateTime(utc.AddHours(7))).AddMonths(1);
+    private static DateOnly DauKy(DateOnly date) => new(date.Year, date.Month, 1);
+
     // TODO(PO S2-01): Confirm snapshot-at-creation policy. Changing defaults never
     // backfills existing rooms. Keep this decision here for single and bulk creation.
     // Caller saves the room graph and audit in one transaction; no price is copied.
@@ -51,7 +57,20 @@ public sealed class DichVuPhongService(AppDbContext db, DichVuService prices)
             db.DichVuPhongs.Add(new DichVuPhong { PhongId = roomId, DichVuToaNhaId = catalogId, DonGiaRieng = donGiaRieng });
         else if (enabled && existing is not null && donGiaRieng.HasValue)
             existing.DonGiaRieng = donGiaRieng;
-        if (!enabled && existing is not null) db.DichVuPhongs.Remove(existing);
+        if (existing is not null)
+        {
+            var removal = await db.NgungDichVuPhongs.SingleOrDefaultAsync(x => x.DichVuPhongId == existing.Id && x.ApDungLaiTuKy == null);
+            if (!enabled && removal is null)
+                db.NgungDichVuPhongs.Add(new NgungDichVuPhong
+                { DichVuPhongId = existing.Id, YeuCauLucUtc = UtcNow, NgungTuKy = KyNgung(UtcNow) });
+            else if (enabled && removal is not null)
+            {
+                // Cancelling a pending stop leaves an empty interval. Re-enabling later
+                // closes it at the current month, preserving every previously stopped month.
+                removal.ApDungLaiTuKy = DauKy(HomNay) < removal.NgungTuKy ? removal.NgungTuKy : DauKy(HomNay);
+                removal.ApDungLaiLucUtc = UtcNow;
+            }
+        }
         await db.SaveChangesAsync();
         await tx.CommitAsync();
     }
@@ -77,13 +96,32 @@ public sealed class DichVuPhongService(AppDbContext db, DichVuService prices)
             .Where(x => x.ToaNhaId == room.ToaNhaId).OrderBy(x => x.DichVu.TenDichVu).ToListAsync();
         var selected = await db.DichVuPhongs.AsNoTracking().Where(x => x.PhongId == roomId)
             .ToDictionaryAsync(x => x.DichVuToaNhaId, x => x.DonGiaRieng);
+        var removals = await db.NgungDichVuPhongs.AsNoTracking().Include(x => x.DichVuPhong).ThenInclude(x => x.DichVuToaNha).ThenInclude(x => x.DichVu)
+            .Where(x => x.DichVuPhong.PhongId == roomId).OrderByDescending(x => x.Id).ToListAsync();
         var model = new DichVuPhongViewModel { PhongId = room.Id, MaPhong = room.MaPhong, ToaNhaId = room.ToaNhaId };
+        model.LichSuNgung = removals;
         foreach (var item in catalog)
         {
-            var price = await prices.LayDonGiaAsync(accountId, room.ToaNhaId, item.DichVuId, DichVuService.HomNay());
+            var price = await prices.LayDonGiaAsync(accountId, room.ToaNhaId, item.DichVuId, HomNay);
             var isSelected = selected.TryGetValue(item.Id, out var roomPrice);
-            model.DichVus.Add(new(item.Id, item.DichVu.TenDichVu, isSelected, price, isSelected ? roomPrice : null));
+            var pending = removals.SingleOrDefault(x => x.DichVuPhong.DichVuToaNhaId == item.Id && x.ApDungLaiTuKy == null);
+            isSelected &= pending is null || pending.NgungTuKy > HomNay;
+            model.DichVus.Add(new(item.Id, item.DichVu.TenDichVu, isSelected, price, isSelected ? roomPrice : null, pending?.NgungTuKy));
         }
         return model;
+    }
+
+    // Both the invoice form and publication use this period-based rule. Never use
+    // today's room selection to reconstruct an issued invoice's immutable lines.
+    public async Task<DonGiaDichVu?> LayGiaHoaDonAsync(int accountId, int roomId, int serviceId, DateOnly date)
+    {
+        var room = await PhongAsync(accountId, roomId);
+        var month = DauKy(date);
+        var selection = await db.DichVuPhongs.AsNoTracking().SingleOrDefaultAsync(x => x.PhongId == roomId && x.DichVuToaNha.DichVuId == serviceId);
+        if (selection is not null && await db.NgungDichVuPhongs.AnyAsync(x => x.DichVuPhongId == selection.Id && x.NgungTuKy <= month &&
+            (x.ApDungLaiTuKy == null || x.ApDungLaiTuKy > month))) return null;
+        var price = await prices.LayDonGiaAsync(accountId, room.ToaNhaId, serviceId, date);
+        // Preserve the pre-existing building-price path for rooms without selection history.
+        return price is not null && selection?.DonGiaRieng is { } ownPrice ? price with { DonGia = ownPrice } : price;
     }
 }

@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 7;
+    private const int CurrentVersion = 8;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -56,7 +56,7 @@ public static class DatabaseUpdates
         foreach (var entity in db.Model.GetEntityTypes())
         {
             var table = entity.GetTableName()!;
-            if (!requireRoomServices && table is "dich_vu_toa_nha" or "dich_vu_phong") continue;
+            if (!requireRoomServices && table is "dich_vu_toa_nha" or "dich_vu_phong" or "ngung_dich_vu_phong") continue;
             if (table == "nhat_ky_hoat_dong" && !requireAudit) continue;
             var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table);
             if (isOptional && !requiredOptional.Contains(table)) continue;
@@ -211,6 +211,7 @@ public static class DatabaseUpdates
         AccountReuseSchema.Ensure(path);
         if (version < 6) RoomServicesSchema.Upgrade(c);
         if (version < 7) RoomServicePriceSchema.Upgrade(c);
+        if (version < 8) RoomServiceRemovalSchema.Upgrade(c);
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }

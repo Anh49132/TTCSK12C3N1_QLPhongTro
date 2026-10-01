@@ -25,24 +25,24 @@ dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --initialize-database
 
 Lệnh tạo file mới từ schema nền và các bước cập nhật đã phiên bản hóa, chỉ nạp vai trò/quyền, không tạo tài khoản hoặc dữ liệu demo. Lệnh từ chối file đã tồn tại; nếu khởi tạo thất bại, giữ file để kiểm tra và chọn đường dẫn mới khi thử lại.
 
-Máy **đã có database cần giữ dữ liệu**, hoặc vừa khôi phục bản sao của chính mình:
+Khối lệnh chạy nhanh cố định cho máy **đã có database cần giữ dữ liệu**, hoặc vừa khởi tạo/khôi phục bản sao của chính mình:
+
+Quy ước cập nhật README: luôn giữ khối lệnh dưới đây và nguyên các giá trị ADMIN local `admin-local@example.test`, `ThayBangMatKhauManh123!`, `0900000000`; chỉ thay đổi khi người dùng yêu cầu trực tiếp. Đây là cấu hình mẫu cho máy local. Nếu ADMIN đã tồn tại, bỏ qua lệnh `--create-local-admin` và đăng nhập bằng mật khẩu hiện có; lệnh này không đổi mật khẩu tài khoản cũ.
 
 ```powershell
+# Dừng phiên QL_PhongTro cũ nếu terminal trước đã đóng hoặc không còn thấy dòng "Now listening"
+Get-Process QL_PhongTro -ErrorAction SilentlyContinue | Stop-Process -Force
+
+dotnet restore .\QL_PhongTro\QL_PhongTro.csproj
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --update-database
-dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database
-```
-
-Updater kiểm tra schema, sao lưu và nâng lên v7; không tạo lại database. Web không tự nâng schema v6 lên v7. Chỉ tạo ADMIN nếu máy chưa có tài khoản, với cấu hình riêng:
-
-```powershell
-$env:LocalAdmin__Email = Read-Host 'Email ADMIN local'
-$env:LocalAdmin__Phone = Read-Host 'So dien thoai ADMIN local'
-$adminSecret = Read-Host 'Mat khau ADMIN local' -AsSecureString
-$env:LocalAdmin__Password = [System.Net.NetworkCredential]::new('', $adminSecret).Password
+$env:LocalAdmin__Email = 'admin-local@example.test'
+$env:LocalAdmin__Password = 'ThayBangMatKhauManh123!'
+$env:LocalAdmin__Phone = '0900000000'
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --create-local-admin
-Remove-Item Env:LocalAdmin__Password
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
 ```
+
+Updater kiểm tra schema, sao lưu và nâng lên v8; không tạo lại database. Web không tự nâng schema v7 lên v8. Sau khi cập nhật, có thể kiểm tra chỉ đọc bằng `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database`.
 Truy cập http://localhost:5247. Giữ terminal đang hiện `Now listening on: http://localhost:5247` mở trong lúc sử dụng. Muốn dừng server, bấm vào đúng terminal đó, nhấn Ctrl+C và chờ dấu nhắc `PS C:\...>` xuất hiện lại rồi mới build hoặc chạy lần nữa.
 
 Không cần cập nhật database hoặc tạo ADMIN mỗi lần chạy. Sau khi pull thay đổi schema, chạy updater một lần. Tài khoản mới đang chờ xác nhận thì tiếp tục nhập/gửi lại mã, không cần xóa rồi đăng ký lại.
@@ -90,13 +90,27 @@ Trên máy đã kiểm tra, nhật ký `Microsoft-Windows-CodeIntegrity/Operatio
 
 Lệnh `--update-database` sao lưu rồi cập nhật schema còn thiếu; nên dừng ứng dụng trước khi chạy. Ứng dụng yêu cầu file SQLite đã tồn tại và không tự tạo lại CSDL nền. Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt biến môi trường `DatabasePath` để dùng file riêng.
 
-Schema v6 bổ sung dịch vụ S1-09 nếu chưa có và hai bảng `dich_vu_toa_nha`, `dich_vu_phong`. Schema v7 thêm cột giá riêng nullable theo từng cặp phòng/dịch vụ; giá riêng thắng giá chung và không thay đổi snapshot hóa đơn. Hợp đồng/hóa đơn vẫn là module tùy chọn, không được tự triển khai bởi S2-01.
+Schema v6 bổ sung dịch vụ S1-09 nếu chưa có và hai bảng `dich_vu_toa_nha`, `dich_vu_phong`. Schema v7 thêm cột giá riêng nullable theo từng cặp phòng/dịch vụ; giá riêng thắng giá chung và không thay đổi snapshot hóa đơn. Schema v8 bổ sung lịch sử ngừng dịch vụ phòng. Hợp đồng/hóa đơn vẫn là module tùy chọn, không được tự triển khai bởi S2-01.
 
 ### Dịch vụ tòa nhà và phòng (S2-01)
 
 Chủ nhà mở `/DichVu`, khai báo tên/đơn giá và bật “Áp dụng mặc định”. Từ danh sách phòng chọn **Dịch vụ** để thêm/bỏ và xem tổng dịch vụ cố định dự kiến/tháng. Khi gán dịch vụ có thể nhập đơn giá riêng; bảng hiển thị giá chung, giá áp dụng, đánh dấu giá riêng khác giá chung và cho sửa hoặc quay lại giá chung. Giá riêng chỉ áp dụng cho phòng đó. Phòng mới (đơn hoặc hàng loạt) nhận lựa chọn mặc định tại lúc tạo; thay đổi mặc định không cập nhật các phòng cũ. Phòng có trước migration giữ nguyên dữ liệu và bắt đầu với danh sách lựa chọn mới rỗng; chủ nhà chọn dịch vụ cần dùng.
 
-Tổng không gồm tiền thuê, phí theo chỉ số/theo người hoặc dịch vụ chưa có giá đang áp dụng. Bỏ dịch vụ khỏi phòng chưa điều chỉnh hóa đơn giữa kỳ; hóa đơn hiện tại giữ snapshot hiện có.
+Tổng không gồm tiền thuê, phí theo chỉ số/theo người hoặc dịch vụ chưa có giá đang áp dụng. PO đã chốt: bỏ dịch vụ giữa tháng vẫn tính hết tháng đó và ngừng từ ngày đầu tháng sau. Hóa đơn đã phát hành hiển thị snapshot tên, đơn giá và thành tiền đã lưu; không đọc lại trạng thái dịch vụ phòng hiện tại. Khi phát hành hóa đơn, chọn hợp đồng/phòng và kỳ để danh sách dịch vụ được lọc theo đúng phòng và tháng.
+
+### Demo bỏ dịch vụ khỏi phòng
+
+Tạo fixture hoàn toàn giả trên database mới, không ghi database local:
+
+```powershell
+dotnet run --project .\verification\ServiceRemovalDemo\ServiceRemovalDemo.csproj -- .
+$demoAccessPath = (Get-Content -Raw data\service-removal-demo\latest.txt).Trim()
+$demo = Get-Content -Raw $demoAccessPath | ConvertFrom-Json
+$env:DatabasePath = $demo.database
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
+```
+
+Mở file `access.json` tại đường dẫn trong `latest.txt` để lấy email/mật khẩu fixture. Đăng nhập Chủ nhà, vào **Phòng → Dịch vụ** của `DEMO-A`, bấm **Ngừng từ kỳ sau** tại Gửi xe. Mở lại hóa đơn kỳ trước để thấy Gửi xe vẫn là 100.000đ. Vào **Lập hóa đơn**, chọn `HD-DEMO-A` và kỳ sau ngày ngừng: danh sách không còn Gửi xe; phát hành sẽ chỉ còn tiền phòng. Chọn `HD-DEMO-B` cùng kỳ vẫn thấy Gửi xe. Database, credential và backup demo nằm trong `data/` đã được Git ignore.
 
 Kiểm thử không cần database cá nhân: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj`. Kiểm tra nâng cấp trên bản sao database local: build trước rồi chạy `python verification/s201_database.py`. Không commit database, backup, file phụ SQLite hoặc cấu hình bí mật.
 

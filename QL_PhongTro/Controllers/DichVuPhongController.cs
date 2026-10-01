@@ -33,7 +33,7 @@ public class DichVuPhongController(DichVuPhongService services) : Controller
         try
         {
             await services.DatDichVuAsync(AccountId, phongId, dichVuToaNhaId, enabled, donGiaRieng);
-            TempData["Success"] = "Đã cập nhật dịch vụ của phòng.";
+            TempData["Success"] = enabled ? "Đã cập nhật dịch vụ của phòng." : "Đã ghi nhận ngừng dịch vụ từ kỳ sau; kỳ hiện tại vẫn tính đủ và hóa đơn cũ giữ nguyên.";
         }
         catch (UnauthorizedAccessException) { return Forbid(); }
         catch (DbUpdateException) { TempData["Error"] = "Dịch vụ vừa thay đổi. Vui lòng tải lại và thử lại."; }
