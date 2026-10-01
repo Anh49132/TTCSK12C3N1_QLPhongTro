@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 5;
+    private const int CurrentVersion = 8;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -34,9 +34,9 @@ public static class DatabaseUpdates
         return Convert.ToInt64(cmd.ExecuteScalar()) != 0;
     }
 
-    public static void Check(string path) => Check(path, true);
+    public static void Check(string path) => Check(path, true, true, true);
 
-    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true)
+    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true, bool requireRoomServices = false)
     {
         using var c = Open(path, true);
         var problems = new List<string>();
@@ -56,6 +56,7 @@ public static class DatabaseUpdates
         foreach (var entity in db.Model.GetEntityTypes())
         {
             var table = entity.GetTableName()!;
+            if (!requireRoomServices && table is "dich_vu_toa_nha" or "dich_vu_phong" or "ngung_dich_vu_phong") continue;
             if (table == "nhat_ky_hoat_dong" && !requireAudit) continue;
             var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table);
             if (isOptional && !requiredOptional.Contains(table)) continue;
@@ -99,6 +100,15 @@ public static class DatabaseUpdates
     {
         // Prevent two updater processes from interleaving. Stop web instances before updating.
         using var updateLock = new FileStream(path + ".update.lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        using (var readOnly = Open(path, true))
+        {
+            using var probe = readOnly.CreateCommand();
+            probe.CommandText = "PRAGMA integrity_check";
+            if (probe.ExecuteScalar()?.ToString() != "ok") throw new InvalidOperationException("Integrity check failed.");
+            probe.CommandText = "PRAGMA foreign_key_check";
+            using var reader = probe.ExecuteReader();
+            if (reader.Read()) throw new InvalidOperationException("Foreign key check failed.");
+        }
         using var c = Open(path, false);
         if (!HasTable(c, "tai_khoan")) throw new InvalidOperationException("Missing existing tai_khoan table; refusing to create a replacement database.");
         var version = 0;
@@ -116,6 +126,7 @@ public static class DatabaseUpdates
             Console.WriteLine($"Database already up to date (version {CurrentVersion}). No changes.");
             return;
         }
+        if (version >= 5) Check(path, true);
         var backupPath = path + ".before-update-" + Guid.NewGuid().ToString("N") + ".bak";
         using (var backup = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = backupPath }.ToString()))
         {
@@ -198,6 +209,9 @@ public static class DatabaseUpdates
             tx.Commit();
         }
         AccountReuseSchema.Ensure(path);
+        if (version < 6) RoomServicesSchema.Upgrade(c);
+        if (version < 7) RoomServicePriceSchema.Upgrade(c);
+        if (version < 8) RoomServiceRemovalSchema.Upgrade(c);
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }

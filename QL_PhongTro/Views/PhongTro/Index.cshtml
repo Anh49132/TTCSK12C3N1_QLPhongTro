@@ -110,7 +110,9 @@ else
                             _ => "text-bg-secondary"
                         };
                         <tr>
-                            <th scope="row">@room.MaPhong</th>
+                            <th scope="row">@room.MaPhong
+                                @if (User.IsInRole("CHU_NHA")) { <a class="d-block small" asp-controller="DichVuPhong" asp-action="Index" asp-route-phongId="@room.Id">Dịch vụ</a> }
+                            </th>
                             <td>@room.Tang</td>
                             <td>@room.DienTich.ToString("N2", CultureInfo.GetCultureInfo("vi-VN")) m²</td>
                             <td>@room.GiaThue.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) đ</td>

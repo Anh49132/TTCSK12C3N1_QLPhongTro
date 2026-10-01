@@ -33,6 +33,7 @@ public sealed partial class DichVuService
                 db.DichVus.Add(catalog);
             }
             if (catalog.Id != 0 && await db.CauHinhDichVus.AnyAsync(x => x.ToaNhaId == buildingId && x.DichVuId == catalog.Id && x.PhongId == null)) continue;
+            db.DichVuToaNhas.Add(new DichVuToaNha { ToaNhaId = buildingId, DichVu = catalog, ApDungMacDinh = true });
             db.CauHinhDichVus.Add(new CauHinhDichVu
             {
                 ToaNhaId = buildingId, DichVu = catalog, CachTinh = definition.CachTinh, DonViTinh = definition.DonVi,
@@ -134,6 +135,13 @@ public sealed partial class DichVuService
         if (reason is not null) throw new InvalidOperationException(reason);
         if (await db.CauHinhDichVus.AnyAsync(x => x.ToaNhaId == buildingId && x.DichVuId == serviceId && x.PhongId != null))
             throw new InvalidOperationException("Dịch vụ đang có cấu hình riêng của phòng; không thể xóa.");
+        var buildingService = await db.DichVuToaNhas.SingleOrDefaultAsync(x => x.ToaNhaId == buildingId && x.DichVuId == serviceId);
+        if (buildingService is not null)
+        {
+            if (await db.DichVuPhongs.AnyAsync(x => x.DichVuToaNhaId == buildingService.Id))
+                throw new InvalidOperationException("Dịch vụ đang được phòng sử dụng; không thể xóa.");
+            db.DichVuToaNhas.Remove(buildingService);
+        }
         var catalog = versions[0].DichVu;
         db.CauHinhDichVus.RemoveRange(versions);
         await db.SaveChangesAsync();

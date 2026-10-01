@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -13,7 +13,7 @@ namespace QL_PhongTro.Controllers;
 [Authorize(Roles = "CHU_NHA")]
 [ModuleAccess("PHONG_TRO")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class DichVuController(AppDbContext db, DichVuService services) : Controller
+public class DichVuController(AppDbContext db, DichVuService services, DichVuPhongService roomServices) : Controller
 {
     private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
     private Task<List<SelectListItem>> ToaNhasAsync() => db.ToaNhas.AsNoTracking()
@@ -30,6 +30,7 @@ public class DichVuController(AppDbContext db, DichVuService services) : Control
         return View(new DanhSachDichVuViewModel
         {
             ToaNhaId = selected, ToaNhas = buildings, SanSang = ready,
+            MacDinhIds = ready && selected.HasValue ? (await db.DichVuToaNhas.Where(x => x.ToaNhaId == selected && x.ApDungMacDinh).Select(x => x.DichVuId).ToListAsync()).ToHashSet() : [],
             CanKhoiTao = ready && selected.HasValue && !await services.DaKhoiTaoAsync(AccountId, selected.Value),
             DichVus = ready && selected.HasValue ? await services.DanhSachAsync(AccountId, selected.Value) : []
         });
@@ -39,6 +40,16 @@ public class DichVuController(AppDbContext db, DichVuService services) : Control
     public async Task<IActionResult> Initialize(int toaNhaId)
     {
         try { await services.KhoiTaoMacDinhAsync(AccountId, toaNhaId); TempData["Success"] = "Đã tạo dịch vụ mặc định thành công."; }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { TempData["Error"] = ex.Message; }
+        return RedirectToAction(nameof(Index), new { toaNhaId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> SetDefault(int toaNhaId, int dichVuId, bool enabled)
+    {
+        if (!ModelState.IsValid) return BadRequest();
+        try { await roomServices.DatMacDinhAsync(AccountId, toaNhaId, dichVuId, enabled); }
         catch (UnauthorizedAccessException) { return Forbid(); }
         catch (InvalidOperationException ex) { TempData["Error"] = ex.Message; }
         return RedirectToAction(nameof(Index), new { toaNhaId });

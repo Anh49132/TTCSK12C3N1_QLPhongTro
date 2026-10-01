@@ -47,6 +47,7 @@ else
             <span asp-validation-for="DonGia" class="text-danger"></span>
         </div>
         <p class="text-secondary small mb-0">Dịch vụ mới ở trạng thái đang áp dụng, sử dụng từ ngày khai báo.</p>
+        <div class="col-12"><input asp-for="ApDungMacDinh" class="form-check-input" /> <label asp-for="ApDungMacDinh" class="form-check-label"></label></div>
         <div class="col-12 d-flex gap-2">
             <button type="submit" class="btn btn-primary">Lưu dịch vụ</button>
             <a asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-secondary">Quay lại</a>

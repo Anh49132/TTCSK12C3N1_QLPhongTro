@@ -55,6 +55,7 @@ public sealed partial class DichVuService(AppDbContext db, IOptions<DichVuMacDin
             TuNgay = HomNay(), NguoiTaoId = accountId, NgayTao = DateTime.UtcNow
         };
         db.CauHinhDichVus.Add(price);
+        db.DichVuToaNhas.Add(new DichVuToaNha { ToaNhaId = price.ToaNhaId, DichVu = price.DichVu, ApDungMacDinh = input.ApDungMacDinh });
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         return price.Id;
