@@ -1,0 +1,18 @@
+using QL_PhongTro.Models;
+using QL_PhongTro.Services;
+
+namespace QL_PhongTro.ViewModels;
+
+public record DongDichVuPhong(int Id, string Ten, bool DaChon, DonGiaDichVu? Gia)
+{
+    public decimal? TongThang => Gia?.CachTinh == CachTinhDichVu.CoDinh ? Gia.DonGia : null;
+}
+
+public class DichVuPhongViewModel
+{
+    public int PhongId { get; set; }
+    public int ToaNhaId { get; set; }
+    public string MaPhong { get; set; } = "";
+    public List<DongDichVuPhong> DichVus { get; set; } = [];
+    public decimal TongCoDinh => DichVus.Where(x => x.DaChon).Sum(x => x.TongThang ?? 0m);
+}

@@ -1,5 +1,20 @@
 # Tiến độ và bàn giao dự án
 
+## S2-01 — dịch vụ tòa/phòng (01/10/2026)
+
+- Nhánh `feature/S2-01/building-room-services`. Hoàn thành cờ mặc định cấp tòa, gán khi tạo phòng đơn/hàng loạt, thêm/bỏ độc lập từng phòng, bảng dịch vụ và tổng cố định/tháng theo giá chung hiện hành. Giữ quyền sở hữu/PHONG_TRO, CSRF và audit; không thêm thư viện.
+- Thành phần: model/EF/audit `DichVuToaNha`, `DichVuPhong`; `DichVuPhongService`, controller/ViewModel/View tương ứng; tích hợp `DichVuService`, `DichVuController`, `PhongTroController` và Razor hiện có. Tổng dùng decimal, chỉ cộng CO_DINH có giá đang áp dụng; chưa gồm tiền thuê/phí biến đổi/dịch vụ chưa chốt giá.
+- Migration **v6**: `RoomServicesSchema`, `docs/sql/S2-01-dich-vu-phong.sql`, updater; kiểm tra chỉ đọc, backup, transaction, unique/FK và chặn dịch vụ khác tòa. Cài schema dịch vụ S1-09 nếu chưa có; không cài hợp đồng/hóa đơn. Backfill danh mục tòa từ giá cũ, năm mã gợi ý bật mặc định; phòng có trước migration chưa có lựa chọn mới.
+- Giả định chờ PO: đổi/thêm mặc định **không tự gán phòng cũ**, tập trung tại `GanMacDinhChoPhongMoiAsync` với TODO. Không làm giá riêng hoặc tác động hóa đơn. Mô tả PR sẵn tại [pr-s2-01.md](pr-s2-01.md); chưa tạo PR từ xa, chưa commit/push.
+- Máy mới: `--initialize-database` tạo file mới bằng baseline + updater, chỉ seed vai trò/quyền; từ chối ghi đè, không có ADMIN/mật khẩu cố định. Máy có DB: dừng app, `--update-database`, `--check-database`. Sau đó chạy web, Chủ nhà vào `/DichVu`, chọn **Dịch vụ** trên danh sách phòng. Chi tiết trong README và cap-nhat-csdl.md.
+- Đã `git rm --cached` đúng `QL_PhongTro/Data/local-dev.sqlite`, giữ file trên máy; mở rộng ignore database/sidecar/backup/data local. **Đồng đội cần sao lưu DB ra ngoài repository trước lần pull nhận thay đổi bỏ theo dõi**, vì Git có thể xóa file từng được theo dõi.
+- Xác minh thực tế: build thành công; **32/32 xUnit PASS** (7 test S2-01: mặc định, cô lập phòng, tổng/giá chung, quyền, CSRF, audit rollback, migration và HTTP tạo đơn/hàng loạt/hiển thị riêng). Fixture Auth/Permission nay tạo DB tạm từ script, không dùng DB cá nhân và không đặt DatabasePath toàn process. `python verification/s201_database.py` PASS: bản sao local v5 → v6, giữ toàn bộ dòng cũ, backup, integrity/FK, chạy lại không đổi, khởi tạo mới/từ chối ghi đè, hash nguồn không đổi.
+- DB local thực tế vẫn **v5**, chưa nâng cấp; chỉ kiểm tra nguồn bằng kết nối read-only. Chưa nghiệm thu đồ họa trình duyệt, SMTP hoặc fixture S109 lịch sử; các công cụ demo/schema cũ cần rà soát trước khi dùng với v6. Build còn cảnh báo ImageSharp có sẵn; full build trước đó có CS8601 cũ trong AuthController.
+- Lint thực tế: `dotnet format --verify-no-changes` PASS cho C# mới (app và RoomServicesTests); `dotnet format style`/`analyzers --severity warn` PASS trên các file C# ứng dụng thay đổi. `git diff --check` phần task PASS; toàn working tree còn dòng trống cuối project test có sẵn trước task. Đã kiểm tra status/staged và ignore: staged chỉ có việc bỏ theo dõi DB, không có database/backup/bí mật được thêm mới.
+- Bước tiếp: PO chốt chính sách phòng cũ; review mô tả PR, thử nâng cấp trên bản sao máy đồng đội và nghiệm thu UI. File `Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj` có thay đổi sẵn trước task, giữ nguyên để chủ máy quyết định stage.
+
+Các mục dưới đây là bàn giao trước S2-01; thông tin v6/quy trình database ở trên và README thay thế ghi chú cũ tương ứng.
+
 Cập nhật: 29/09/2026. Tổng hợp tài liệu S1-03, S1-04, S1-05, S1-09 (chức năng/demo), S1-10 và tiến độ cũ. Kết quả kiểm thử từ các phiên trước được ghi riêng, không phải lần chạy mới khi biên tập tài liệu.
 
 ## Trạng thái hiện tại

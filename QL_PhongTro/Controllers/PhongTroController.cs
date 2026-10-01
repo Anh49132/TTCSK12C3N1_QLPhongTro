@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Microsoft.Data.Sqlite;
@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Data;
 using QL_PhongTro.Authorization;
 using QL_PhongTro.Models;
+using QL_PhongTro.Services;
 using QL_PhongTro.ViewModels;
 
 namespace QL_PhongTro.Controllers;
@@ -16,7 +17,7 @@ namespace QL_PhongTro.Controllers;
 [Authorize(Roles = "CHU_NHA,QUAN_LY,ADMIN")]
 [ModuleAccess("PHONG_TRO")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class PhongTroController(AppDbContext db) : Controller
+public class PhongTroController(AppDbContext db, DichVuPhongService roomServices) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> ToaNha(string? tuKhoa)
@@ -191,6 +192,7 @@ public class PhongTroController(AppDbContext db) : Controller
         };
 
         db.PhongTros.Add(room);
+        await roomServices.GanMacDinhChoPhongMoiAsync([room]);
         try
         {
             await db.SaveChangesAsync();
@@ -268,6 +270,7 @@ public class PhongTroController(AppDbContext db) : Controller
         }).ToList();
 
         db.PhongTros.AddRange(rooms);
+        await roomServices.GanMacDinhChoPhongMoiAsync(rooms);
         try
         {
             await db.SaveChangesAsync();

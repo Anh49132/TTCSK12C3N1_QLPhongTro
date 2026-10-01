@@ -1,0 +1,52 @@
+@model QL_PhongTro.ViewModels.DichVuPhongViewModel
+@using System.Globalization
+@using QL_PhongTro.Models
+@inject QL_PhongTro.Authorization.PermissionService Permissions
+@{
+    ViewData["Title"] = "Dịch vụ phòng " + Model.MaPhong;
+    var write = await Permissions.AllowsAsync("PHONG_TRO", true);
+    var culture = CultureInfo.GetCultureInfo("vi-VN");
+}
+<h1 class="h2">Dịch vụ phòng @Model.MaPhong</h1>
+<p>Đơn giá chung đang có hiệu lực của tòa nhà. Thêm hoặc bỏ chỉ thay đổi phòng này.</p>
+<a asp-controller="PhongTro" asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId">Về danh sách phòng</a>
+<div class="table-responsive mt-3">
+    <table class="table align-middle">
+        <caption>Dịch vụ riêng của phòng @Model.MaPhong</caption>
+        <thead><tr><th>Dịch vụ</th><th>Đơn giá chung (VND)</th><th>Dự kiến/tháng (VND)</th>@if (write) { <th>Thao tác</th> }</tr></thead>
+        <tbody>
+        @foreach (var item in Model.DichVus.Where(x => x.DaChon))
+        {
+            <tr data-service-id="@item.Id">
+                <th scope="row">@item.Ten</th>
+                <td>@(item.Gia is null ? "Chưa có giá đang áp dụng" : item.Gia.DonGia.ToString("N0", culture) + " / " + item.Gia.DonViTinh)</td>
+                <td>@(item.TongThang?.ToString("N0", culture) ?? "Chưa tính")</td>
+                @if (write)
+                {
+                    <td><form asp-action="Set" method="post">
+                        <input type="hidden" name="phongId" value="@Model.PhongId" />
+                        <input type="hidden" name="dichVuToaNhaId" value="@item.Id" />
+                        <input type="hidden" name="enabled" value="false" />
+                        <button class="btn btn-sm btn-outline-danger" aria-label="Bỏ @item.Ten">Bỏ khỏi phòng</button>
+                    </form></td>
+                }
+            </tr>
+        }
+        </tbody>
+        <tfoot><tr><th>Tổng chi phí dịch vụ cố định dự kiến/tháng</th><td></td><td data-total="@Model.TongCoDinh">@Model.TongCoDinh.ToString("N0", culture) đ</td>@if (write) { <td></td> }</tr></tfoot>
+    </table>
+</div>
+@if (!Model.DichVus.Any(x => x.DaChon)) { <p>Phòng chưa có dịch vụ.</p> }
+<p class="text-secondary">Tổng chỉ gồm dịch vụ cố định theo phòng đã có giá đang áp dụng; chưa gồm tiền thuê, điện nước theo chỉ số, phí theo người và dịch vụ chưa có giá. Thay đổi này chưa áp dụng vào hóa đơn.</p>
+@if (write && Model.DichVus.Any(x => !x.DaChon))
+{
+    <form asp-action="Set" method="post" class="d-flex flex-wrap gap-2 align-items-end">
+        <input type="hidden" name="phongId" value="@Model.PhongId" />
+        <input type="hidden" name="enabled" value="true" />
+        <div><label for="service" class="form-label">Thêm dịch vụ của tòa nhà</label>
+        <select id="service" name="dichVuToaNhaId" class="form-select">
+            @foreach (var item in Model.DichVus.Where(x => !x.DaChon)) { <option value="@item.Id">@item.Ten</option> }
+        </select></div>
+        <button class="btn btn-primary">Thêm vào phòng</button>
+    </form>
+}

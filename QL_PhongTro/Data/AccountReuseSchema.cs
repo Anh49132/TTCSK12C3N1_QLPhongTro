@@ -21,7 +21,7 @@ public static class AccountReuseSchema
         cmd.Transaction = tx;
         cmd.CommandText = "SELECT MAX(version) FROM app_schema_version";
         var version = Convert.ToInt32(cmd.ExecuteScalar());
-        if (version is not (4 or 5)) throw new InvalidOperationException("Account reuse requires schema v4 or v5; no changes made.");
+        if (version < 4 || version > 6) throw new InvalidOperationException("Account reuse requires schema v4-v6; no changes made.");
         // Refuse unknown UNIQUE constraints (including SQLite autoindexes) rather than
         // rebuild a referenced table or silently leave a constraint blocking reuse.
         cmd.CommandText = "PRAGMA index_list(tai_khoan)";
@@ -33,12 +33,12 @@ public static class AccountReuseSchema
         {
             cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type='index' AND name=$name AND tbl_name='tai_khoan'";
             cmd.Parameters.Clear(); cmd.Parameters.AddWithValue("$name", name);
-            var expected = sql + (version == 5 ? " WHERE is_deleted = 0" : "");
+            var expected = sql + (version >= 5 ? " WHERE is_deleted = 0" : "");
             if (cmd.ExecuteScalar() as string != expected)
                 throw new InvalidOperationException("Unexpected account index definition: " + name);
         }
         cmd.Parameters.Clear();
-        if (version == 5) { tx.Commit(); return; }
+        if (version >= 5) { tx.Commit(); return; }
         cmd.CommandText = "PRAGMA foreign_key_check";
         using (var reader = cmd.ExecuteReader())
             if (reader.Read()) throw new InvalidOperationException("Existing foreign key violations; account update cancelled.");
