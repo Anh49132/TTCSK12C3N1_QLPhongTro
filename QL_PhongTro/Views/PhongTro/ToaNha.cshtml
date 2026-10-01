@@ -47,6 +47,10 @@ else
                             <a asp-action="SuaToaNha" asp-route-id="@building.Id" class="btn btn-sm btn-outline-secondary">Sửa</a>
                             @if (building.DangHoatDong)
                             {
+                                @if (User.IsInRole("CHU_NHA"))
+                                {
+                                    <a asp-controller="DichVu" asp-action="DienNuoc" asp-route-toaNhaId="@building.Id" class="btn btn-sm btn-outline-primary">Cấu hình điện nước</a>
+                                }
                                 <form asp-action="NgungHoatDong" method="post" data-confirm="Ngừng hoạt động tòa nhà @building.TenToaNha? Tòa nhà sẽ không còn xuất hiện trong danh sách chọn khi quản lý phòng."><input type="hidden" name="id" value="@building.Id" /><button class="btn btn-sm btn-outline-warning" type="submit">Ngừng hoạt động</button></form>
                             }
                             <form asp-action="XoaToaNha" method="post" data-confirm="Bạn có chắc muốn xóa tòa nhà @building.TenToaNha? Thao tác này không thể hoàn tác. Tòa nhà có phòng hoặc dữ liệu liên quan sẽ không được xóa."><input type="hidden" name="id" value="@building.Id" /><button class="btn btn-sm btn-outline-danger" type="submit">Xóa</button></form>

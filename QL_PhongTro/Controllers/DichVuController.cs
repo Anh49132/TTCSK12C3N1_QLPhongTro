@@ -16,6 +16,32 @@ namespace QL_PhongTro.Controllers;
 public class DichVuController(AppDbContext db, DichVuService services, DichVuPhongService roomServices) : Controller
 {
     private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
+
+    [HttpGet, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> DienNuoc(int toaNhaId)
+    {
+        if (!await services.SoHuuToaNhaAsync(AccountId, toaNhaId)) return Forbid();
+        if (!await services.SanSangAsync()) return RedirectToAction(nameof(Index), new { toaNhaId });
+        return View(await services.LayCauHinhDienNuocAsync(AccountId, toaNhaId));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> DienNuoc(CauHinhDienNuocViewModel model)
+    {
+        if (!await services.SoHuuToaNhaAsync(AccountId, model.ToaNhaId)) return Forbid();
+        if (!await services.SanSangAsync()) return RedirectToAction(nameof(Index), new { toaNhaId = model.ToaNhaId });
+        model.TenToaNha = await db.ToaNhas.Where(x => x.Id == model.ToaNhaId).Select(x => x.TenToaNha).SingleAsync();
+        if (!ModelState.IsValid) return View(model);
+        try
+        {
+            await services.LuuCauHinhDienNuocAsync(AccountId, model);
+            TempData["Success"] = "Đã lưu cấu hình điện nước thành công.";
+            return RedirectToAction(nameof(DienNuoc), new { toaNhaId = model.ToaNhaId });
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (DbUpdateException) { ModelState.AddModelError("", "Không lưu được cấu hình. Hãy tải lại trang và thử lại."); }
+        return View(model);
+    }
     private Task<List<SelectListItem>> ToaNhasAsync() => db.ToaNhas.AsNoTracking()
         .Where(x => x.ChuNhaId == AccountId && x.DangHoatDong).OrderBy(x => x.TenToaNha)
         .Select(x => new SelectListItem(x.TenToaNha, x.Id.ToString())).ToListAsync();

@@ -1,0 +1,41 @@
+@model QL_PhongTro.ViewModels.CauHinhDienNuocViewModel
+@using QL_PhongTro.Models
+@{
+    ViewData["Title"] = "Cấu hình điện nước";
+}
+<h1 class="h2">Cấu hình điện nước</h1>
+<p class="lead">Tòa nhà: <strong>@Model.TenToaNha</strong></p>
+<form asp-action="DienNuoc" method="post">
+    <input asp-for="ToaNhaId" type="hidden" />
+    <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+    <div class="row g-4 mb-4">
+        @foreach (var item in new[] { (Prefix: "Dien", Name: "điện", Unit: "kWh", Value: Model.Dien), (Prefix: "Nuoc", Name: "nước", Unit: "m³", Value: Model.Nuoc) })
+        {
+            <div class="col-12 col-md-6">
+                <fieldset class="border rounded p-3 h-100" data-utility>
+                    <legend class="h5 float-none w-auto px-2">Tiền @item.Name</legend>
+                    <label class="form-label" for="@(item.Prefix)_CachTinh">Cách tính tiền @item.Name</label>
+                    <select class="form-select mb-3" id="@(item.Prefix)_CachTinh" name="@(item.Prefix).CachTinh" data-method>
+                        <option value="THEO_CHI_SO" selected="@(item.Value.CachTinh == CachTinhDichVu.TheoChiSo)">Theo chỉ số đồng hồ</option>
+                        <option value="THEO_NGUOI" selected="@(item.Value.CachTinh == CachTinhDichVu.TheoNguoi)">Khoán theo đầu người</option>
+                    </select>
+                    <div data-price="THEO_CHI_SO" hidden="@(item.Value.CachTinh != CachTinhDichVu.TheoChiSo)">
+                        <label class="form-label" for="@(item.Prefix)_DonGiaChiSo">Đơn giá (VND/@item.Unit)</label>
+                        @Html.TextBox(item.Prefix + ".DonGiaChiSo", item.Value.DonGiaChiSo, new { @class = "form-control", type = "number", step = "1", id = item.Prefix + "_DonGiaChiSo" })
+                        @Html.ValidationMessage(item.Prefix + ".DonGiaChiSo", null, new { @class = "text-danger" })
+                    </div>
+                    <div data-price="THEO_NGUOI" hidden="@(item.Value.CachTinh != CachTinhDichVu.TheoNguoi)">
+                        <label class="form-label" for="@(item.Prefix)_TienMotNguoi">Tiền một người một tháng (VND/người/tháng)</label>
+                        @Html.TextBox(item.Prefix + ".TienMotNguoi", item.Value.TienMotNguoi, new { @class = "form-control", type = "number", step = "1", id = item.Prefix + "_TienMotNguoi" })
+                        @Html.ValidationMessage(item.Prefix + ".TienMotNguoi", null, new { @class = "text-danger" })
+                    </div>
+                </fieldset>
+            </div>
+        }
+    </div>
+    <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
+    <a asp-controller="PhongTro" asp-action="ToaNha" class="btn btn-outline-secondary">Về danh sách tòa nhà</a>
+</form>
+@section Scripts {
+    <script src="~/js/electric-water-config.js" asp-append-version="true"></script>
+}
