@@ -49,3 +49,7 @@ python verification/database_updates.py
 ```
 
 Script chỉ thao tác bản sao tạm: thiếu schema, backup, giữ dữ liệu, integrity/FK, chạy lại không cấp lại quyền, từ chối phiên bản tương lai/file không tồn tại. Không chạy bộ test cũ có nguy cơ xóa DB mặc định.
+
+## v6 — tin đăng cho Task 1 và 2
+
+Dừng web, chọn đúng DatabasePath, chạy `--update-database` rồi `--check-database`. Bước v6 thêm `tin_dang` với FK, index và unique một tin DANG_HIEN_THI mỗi phòng trong transaction; updater sao lưu trước ghi, kiểm tra integrity/FK và giữ mọi dữ liệu cũ. Không seed tin/tài khoản. Bảng tin chưa có phiên bản bị từ chối để rà soát, không tự ghi đè. Máy mới dùng `--initialize-database` trên đường dẫn chưa tồn tại; lệnh từ chối ghi đè và dùng updater chung. Kiểm thử bằng `verification/timtin_http.py` trên file mới/bản sao theo README.

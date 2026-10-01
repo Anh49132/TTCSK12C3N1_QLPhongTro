@@ -217,11 +217,42 @@ Build Debug ở trên phù hợp để chạy và báo cáo local. Build Release
 
 ADMIN xem tại `/NhatKy`. Mã hiện tại yêu cầu schema nhật ký v3; kiểm tra schema của đúng database trước khi chạy và chỉ nâng cấp DB đang dùng khi được yêu cầu. Xem mục **Nhật ký hoạt động (S1-10)** trong [bàn giao dự án](docs/tien-do.md).
 
-### Database local và tìm tin (Task 1)
+### Database local và tìm tin (Task 1, 2)
 
-Database local đã bỏ theo dõi Git. **Sao lưu DB riêng ra ngoài repository trước lần pull nhận thay đổi này**, vì Git có thể xóa file từng theo dõi; khôi phục bản riêng nếu cần, không ghi đè file đang sử dụng.
+Database local đã bỏ theo dõi Git. **Sao lưu DB riêng ra ngoài repository trước lần pull nhận thay đổi này**, vì Git có thể xóa file từng theo dõi. Không chép đè DB đang sử dụng.
 
-- Máy mới: startup hiện có dùng EnsureCreated trong Development và khởi tạo schema auth khi thiếu file; Task 1 không thay đổi quy trình này hoặc tạo ADMIN/demo. Cấu hình ADMIN riêng theo hướng dẫn trên. Schema nền chưa có bảng tin đăng.
-- Máy đã có DB: giữ file riêng, đặt DatabasePath nếu lưu ngoài repo. Task 1 không sửa schema. Không dùng khởi tạo để thay DB cũ; updater hiện chưa có bảng tin_dang. Cần bổ sung bảng bằng quy trình nâng cấp có phiên bản/sao lưu trong task riêng trước khi demo tìm tin.
+Dùng đúng `DatabasePath` trong cùng terminal; mặc định `QL_PhongTro/Data/local-dev.sqlite`. Web không tự tạo database thiếu, không tự cài bảng tin. Schema v6 chỉ thêm bảng tin/index/FK; không tự tạo tin, tài khoản hoặc mật khẩu.
 
-Mở `/TimTin`, chọn quận/huyện rồi bấm Tìm kiếm, hoặc chọn Tất cả quận/huyện. Danh sách quận/huyện lấy từ dữ liệu tòa nhà hiện có, bỏ khoảng trắng và giá trị rỗng; giữ khu vực đã chọn sau khi tìm. Chỉ hiển thị tin DANG_HIEN_THI còn hạn (UTC, hạn NULL bị loại); không chọn khu vực trả tin hợp lệ ở mọi quận/huyện. DB thiếu bảng tin sẽ báo chức năng chưa sẵn sàng.
+**Máy mới chưa có database:** chọn đường dẫn mới, rồi khởi tạo (lệnh từ chối file đã tồn tại):
+
+```powershell
+$env:DatabasePath = Join-Path (Get-Location) 'data/my-local.sqlite'
+dotnet run --project QL_PhongTro -- --initialize-database
+dotnet run --project QL_PhongTro -- --check-database
+```
+
+ADMIN dùng cấu hình riêng và `--create-local-admin` theo hướng dẫn phía trên; không đưa credential lên Git.
+
+**Máy đã có database:** dừng app dùng file đó, giữ dữ liệu riêng, chọn đúng DatabasePath rồi chạy:
+
+```powershell
+dotnet run --project QL_PhongTro -- --update-database
+dotnet run --project QL_PhongTro -- --check-database
+dotnet run --project QL_PhongTro --launch-profile http
+```
+
+Updater tạo backup cạnh DB trước ghi, thêm v6 trong transaction và kiểm tra integrity/FK. Nếu đã có bảng `tin_dang` chưa được quản lý phiên bản, updater từ chối để kiểm tra thủ công; không xóa bảng/chạy initializer để thay DB cũ. Giữ backup ngoài Git. Chỉ nâng cấp trên bản sao khi kiểm thử.
+
+Mở `/TimTin`, kết hợp quận/huyện, giá thuê (VND nguyên), diện tích (m², nhập `20.5` cho 20,5 m²) và số người ở tối đa. Khoảng bao gồm cả hai biên; bỏ trống bỏ qua điều kiện. Số người lọc đúng sức chứa đã chọn. Form giữ điều kiện, báo lỗi min > max. Chỉ hiển thị tin DANG_HIEN_THI còn hạn UTC; hạn NULL bị loại. Không chọn quận thì tìm mọi khu vực. Không có sắp xếp/phân trang/gợi ý. DB thiếu bảng tin báo chưa sẵn sàng.
+
+**Kiểm thử và demo dữ liệu giả riêng** (Python 3, không cần package Python):
+
+```powershell
+dotnet restore QL_PhongTro/QL_PhongTro.csproj --source https://api.nuget.org/v3/index.json
+dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore -o data/task1-build/runtime
+python verification/timtin_http.py --serve
+```
+
+Script tạo DB mới/schema v6 và tin giả, chạy 25 ca HTTP; nâng cấp chỉ trên bản sao read-only backup của DB nguồn và đối chiếu bảo toàn dữ liệu/hash. Nguồn mặc định là local-dev.sqlite; chọn nguồn khác bằng `TIMTIN_SOURCE_DATABASE` (không đổi DB nguồn). Không đưa dữ liệu nguồn vào demo. Nếu chưa có DB nguồn, dùng DB riêng đã khởi tạo làm nguồn. Script in URL/PID, giữ demo chạy với `--serve`; bỏ cờ này thì dừng sau kiểm thử. Trên Windows server nền chạy ẩn. `data/timtin-demo/latest.txt` trỏ thư mục kết quả có `result.json` và log. Xác nhận PID đúng trước khi `Stop-Process -Id <PID>`; không dừng các server khác. Nếu sandbox chặn Event Log/Data Protection, chạy từ terminal Windows bình thường.
+
+Chọn Quận 2, giá 2000000..2000000, diện tích 20.5..20.5, sức chứa 3 → chỉ TIN-C. Demo public không cần đăng nhập; không có tài khoản dùng được hoặc mật khẩu cố định. Không seed dữ liệu giả vào DB đang sử dụng.

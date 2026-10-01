@@ -42,28 +42,16 @@ var databasePath = string.IsNullOrWhiteSpace(configuredDatabasePath)
         ? configuredDatabasePath
         : Path.Combine(builder.Environment.ContentRootPath, configuredDatabasePath));
 
-var initFlags = new[] { "--create-permission-demo", "--initialize-permissions", "--initialize-password-security", "--initialize-services", "--initialize-service-invoices" };
-bool isInit = args.Any(a => initFlags.Contains(a));
+if (args.Contains("--initialize-database"))
+{
+    LocalDatabaseInitializer.Create(databasePath, Path.Combine(dataDir, "permissions.seed.json"));
+    return;
+}
 
-// If database doesn't exist, create it via EF EnsureCreated (for init commands or dev)
+// A missing database requires the explicit initializer; startup never creates it.
 if (!File.Exists(databasePath))
 {
-    if (isInit || builder.Environment.IsDevelopment())
-    {
-        var connStr = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
-        {
-            DataSource = databasePath, Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadWriteCreate, ForeignKeys = true
-        }.ToString();
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connStr).Options;
-        using var db = new AppDbContext(options);
-        db.Database.EnsureCreated();
-        // Also run auth schema init to add missing columns
-        AuthSchemaInitializer.Initialize(databasePath);
-    }
-    else
-    {
-        throw new FileNotFoundException("Existing local SQLite database was not found; refusing to create a new database.", databasePath);
-    }
+    throw new FileNotFoundException("Local database not found. Run --initialize-database explicitly on a new path.", databasePath);
 }
 
 if (args.Contains("--update-database"))

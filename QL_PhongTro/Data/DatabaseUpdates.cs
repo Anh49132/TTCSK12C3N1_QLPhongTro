@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 5;
+    private const int CurrentVersion = 6;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -55,7 +55,9 @@ public static class DatabaseUpdates
         }
         foreach (var entity in db.Model.GetEntityTypes())
         {
-            var table = entity.GetTableName()!;
+            if (entity.GetViewName() is not null) continue;
+            var table = entity.GetTableName();
+            if (table is null) continue; // Read-only view mappings are checked separately.
             if (table == "nhat_ky_hoat_dong" && !requireAudit) continue;
             var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table);
             if (isOptional && !requiredOptional.Contains(table)) continue;
@@ -68,6 +70,14 @@ public static class DatabaseUpdates
         Probe("password_reset_request", ["id", "email_key", "requested_at"]);
         Probe("account_session_version", ["account_id", "version"]);
         if (requireAccountSecurity) Probe("email_confirmation", ["account_id", "token_hash", "expires_at", "requested_at"]);
+        if (HasTable(c, "tin_dang"))
+            TinDangSchema.Validate(c);
+        else if (HasTable(c, "app_schema_version"))
+        {
+            using var command = c.CreateCommand();
+            command.CommandText = "SELECT COALESCE(MAX(version),0) FROM app_schema_version";
+            if (Convert.ToInt32(command.ExecuteScalar()) >= 6) problems.Add("tin_dang: missing version 6 listing table");
+        }
         if (HasTable(c, "app_module") && HasTable(c, "app_role") && HasTable(c, "role_permission"))
         {
             using var cmd = c.CreateCommand();
@@ -109,6 +119,7 @@ public static class DatabaseUpdates
             version = Convert.ToInt32(cmd.ExecuteScalar());
         }
         if (version > CurrentVersion) throw new InvalidOperationException("Database is newer than this code. Pull the matching branch before updating.");
+        if (version >= 5) Check(path); // Read-only schema preflight before any upgrade writes.
         if (version == CurrentVersion)
         {
             Check(path);
@@ -198,6 +209,7 @@ public static class DatabaseUpdates
             tx.Commit();
         }
         AccountReuseSchema.Ensure(path);
+        if (version < 6) TinDangSchema.Upgrade(c);
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }

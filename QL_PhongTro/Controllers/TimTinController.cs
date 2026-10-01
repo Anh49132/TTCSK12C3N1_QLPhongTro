@@ -11,13 +11,23 @@ namespace QL_PhongTro.Controllers;
 public class TimTinController(AppDbContext db) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> Index(string? quanHuyen, CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(
+        [Bind("QuanHuyen,GiaToiThieu,GiaToiDa,DienTichToiThieu,DienTichToiDa,SoNguoiToiDa")] TimTinViewModel model,
+        CancellationToken cancellationToken)
     {
-        var model = new TimTinViewModel { QuanHuyen = quanHuyen?.Trim() };
+        model.QuanHuyen = model.QuanHuyen?.Trim();
+        if (model.GiaToiThieu > model.GiaToiDa)
+            ModelState.AddModelError(nameof(model.GiaToiDa), "Giá thuê tối thiểu không được lớn hơn giá thuê tối đa.");
+        if (model.DienTichToiThieu > model.DienTichToiDa)
+            ModelState.AddModelError(nameof(model.DienTichToiDa), "Diện tích tối thiểu không được lớn hơn diện tích tối đa.");
         // Districts come from the existing building data; no separate catalogue is needed.
         model.QuanHuyens = await db.ToaNhas.AsNoTracking()
             .Where(t => t.QuanHuyen != null && t.QuanHuyen.Trim() != "")
             .Select(t => t.QuanHuyen!.Trim()).Distinct().OrderBy(q => q)
+            .ToListAsync(cancellationToken);
+        model.SoNguoiOptions = await db.PhongTros.AsNoTracking()
+            .Where(p => p.SoNguoiToiDa > 0)
+            .Select(p => p.SoNguoiToiDa).Distinct().OrderBy(n => n)
             .ToListAsync(cancellationToken);
 
         // Do not create or upgrade a local database from a search request.
@@ -33,12 +43,13 @@ public class TimTinController(AppDbContext db) : Controller
             await db.Database.CloseConnectionAsync();
         }
 
-        if (!model.SchemaReady) return View(model);
         if (!string.IsNullOrEmpty(model.QuanHuyen) && !model.QuanHuyens.Contains(model.QuanHuyen))
         {
             ModelState.AddModelError(nameof(model.QuanHuyen), "Quận/huyện không thuộc danh sách hiện có.");
-            return View(model);
         }
+        if (model.SoNguoiToiDa.HasValue && !model.SoNguoiOptions.Contains(model.SoNguoiToiDa.Value))
+            ModelState.AddModelError(nameof(model.SoNguoiToiDa), "Số người ở tối đa không thuộc danh sách hiện có.");
+        if (!model.SchemaReady || !ModelState.IsValid) return View(model);
 
         // Expiration is a UTC timestamp; equality is still within the validity period.
         var now = DateTime.UtcNow;
@@ -51,10 +62,21 @@ public class TimTinController(AppDbContext db) : Controller
                     {
                         TieuDe = tin.TieuDe, DiaChi = toa.DiaChi,
                         QuanHuyen = toa.QuanHuyen == null ? null : toa.QuanHuyen.Trim(),
-                        GiaThue = phong.GiaThue, DienTich = phong.DienTich
+                        GiaThue = phong.GiaThue, DienTich = phong.DienTich,
+                        SoNguoiToiDa = phong.SoNguoiToiDa
                     };
         if (!string.IsNullOrEmpty(model.QuanHuyen))
             query = query.Where(t => t.QuanHuyen == model.QuanHuyen);
+        if (model.GiaToiThieu.HasValue)
+            query = query.Where(t => t.GiaThue >= model.GiaToiThieu.Value);
+        if (model.GiaToiDa.HasValue)
+            query = query.Where(t => t.GiaThue <= model.GiaToiDa.Value);
+        if (model.DienTichToiThieu.HasValue)
+            query = query.Where(t => t.DienTich >= model.DienTichToiThieu.Value);
+        if (model.DienTichToiDa.HasValue)
+            query = query.Where(t => t.DienTich <= model.DienTichToiDa.Value);
+        if (model.SoNguoiToiDa.HasValue)
+            query = query.Where(t => t.SoNguoiToiDa == model.SoNguoiToiDa.Value);
         model.TinDangs = await query.ToListAsync(cancellationToken);
         return View(model);
     }
