@@ -146,6 +146,7 @@ builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddScoped<SessionVersionStore>();
 builder.Services.AddScoped<DichVuService>();
 builder.Services.AddScoped<YeuCauThueService>();
+builder.Services.AddScoped<DichVuPhongService>();
 builder.Services.AddScoped<HoaDonDichVuService>();
 builder.Services.Configure<DichVuMacDinhOptions>(builder.Configuration.GetSection("DichVuMacDinh"));
 

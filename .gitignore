@@ -55,3 +55,14 @@ obj/
 
 /data/S1-10-verification/
 /data/service-demo/
+
+# Local databases, sidecars, backups and verification artifacts
+*.sqlite
+*.sqlite3
+*.db
+*-wal
+*-shm
+*-journal
+*.bak
+*.update.lock
+/data/

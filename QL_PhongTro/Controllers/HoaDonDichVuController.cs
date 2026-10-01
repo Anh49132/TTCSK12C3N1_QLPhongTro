@@ -21,34 +21,49 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
     {
         model.SanSang = await invoices.SanSangAsync();
         if (!model.SanSang) return;
-        model.HopDongs = await (from h in db.HopDongs join p in db.PhongTros on h.PhongId equals p.Id
-            where p.ToaNhaId == model.ToaNhaId && h.TrangThai == "DANG_HIEU_LUC"
-            orderby p.MaPhong select new SelectListItem(h.MaHopDong + " · " + p.MaPhong, h.Id.ToString())).ToListAsync();
+        model.HopDongs = await (from h in db.HopDongs
+                                join p in db.PhongTros on h.PhongId equals p.Id
+                                where p.ToaNhaId == model.ToaNhaId && h.TrangThai == "DANG_HIEU_LUC"
+                                orderby p.MaPhong
+                                select new SelectListItem(h.MaHopDong + " · " + p.MaPhong, h.Id.ToString())).ToListAsync();
         var date = model.NgayApDung ?? DichVuService.HomNay();
+        model.DonGias.Clear();
+        model.HopDongId ??= model.HopDongs.Count > 0 ? int.Parse(model.HopDongs[0].Value) : null;
+        var roomId = await (from h in db.HopDongs
+                            join p in db.PhongTros on h.PhongId equals p.Id
+                            where h.Id == model.HopDongId && p.ToaNhaId == model.ToaNhaId && h.TrangThai == "DANG_HIEU_LUC"
+                            select (int?)p.Id).SingleOrDefaultAsync();
         foreach (var id in (await services.DanhSachAsync(AccountId, model.ToaNhaId)).Select(x => x.DichVuId).Distinct())
         {
-            var price = await services.LayDonGiaAsync(AccountId, model.ToaNhaId, id, date);
+            var price = roomId.HasValue ? await new DichVuPhongService(db, services).LayGiaHoaDonAsync(AccountId, roomId.Value, id, date) : null;
             if (price is not null) model.DonGias.Add(price);
         }
-        model.DaPhatHanh = await (from hd in db.HoaDons join h in db.HopDongs on hd.HopDongId equals h.Id
-            join p in db.PhongTros on h.PhongId equals p.Id
-            join t in db.ToaNhas on p.ToaNhaId equals t.Id
-            where p.ToaNhaId == model.ToaNhaId && t.ChuNhaId == AccountId
-            orderby hd.Id descending
-            select new HoaDonGanDayViewModel
-            {
-                Id = hd.Id, MaHoaDon = hd.MaHoaDon, MaPhong = p.MaPhong, TenToaNha = t.TenToaNha,
-                Thang = hd.Thang, Nam = hd.Nam, NgayChot = hd.NgayChot, TongTien = hd.TongTien
-            }).Take(30).ToListAsync();
+        model.DaPhatHanh = await (from hd in db.HoaDons
+                                  join h in db.HopDongs on hd.HopDongId equals h.Id
+                                  join p in db.PhongTros on h.PhongId equals p.Id
+                                  join t in db.ToaNhas on p.ToaNhaId equals t.Id
+                                  where p.ToaNhaId == model.ToaNhaId && t.ChuNhaId == AccountId
+                                  orderby hd.Id descending
+                                  select new HoaDonGanDayViewModel
+                                  {
+                                      Id = hd.Id,
+                                      MaHoaDon = hd.MaHoaDon,
+                                      MaPhong = p.MaPhong,
+                                      TenToaNha = t.TenToaNha,
+                                      Thang = hd.Thang,
+                                      Nam = hd.Nam,
+                                      NgayChot = hd.NgayChot,
+                                      TongTien = hd.TongTien
+                                  }).Take(30).ToListAsync();
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(int toaNhaId, DateOnly? ngayApDung)
+    public async Task<IActionResult> Index(int toaNhaId, DateOnly? ngayApDung, int? hopDongId)
     {
         if (!await services.SoHuuToaNhaAsync(AccountId, toaNhaId)) return Forbid();
-        var model = new LapHoaDonDichVuViewModel { ToaNhaId = toaNhaId, NgayApDung = ngayApDung ?? DichVuService.HomNay() };
+        var model = new LapHoaDonDichVuViewModel { ToaNhaId = toaNhaId, HopDongId = hopDongId, NgayApDung = ngayApDung ?? DichVuService.HomNay() };
         await FillAsync(model);
-        model.Dong = model.DonGias.Select(x => new DongDichVuInput { DichVuId = x.DichVuId, CauHinhId = x.CauHinhId, DonGiaDaXem = x.DonGia }).ToList();
+        model.Dong = model.DonGias.Select(x => new DongDichVuInput { Chon = true, DichVuId = x.DichVuId, CauHinhId = x.CauHinhId, DonGiaDaXem = x.DonGia }).ToList();
         return View(model);
     }
 
@@ -77,8 +92,11 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
     [HttpGet]
     public async Task<IActionResult> Details(int id)
     {
-        var context = await (from hd in db.HoaDons join h in db.HopDongs on hd.HopDongId equals h.Id
-            join p in db.PhongTros on h.PhongId equals p.Id where hd.Id == id select new { p.ToaNhaId }).SingleOrDefaultAsync();
+        var context = await (from hd in db.HoaDons
+                             join h in db.HopDongs on hd.HopDongId equals h.Id
+                             join p in db.PhongTros on h.PhongId equals p.Id
+                             where hd.Id == id
+                             select new { p.ToaNhaId }).SingleOrDefaultAsync();
         if (context is null) return NotFound();
         if (!await services.SoHuuToaNhaAsync(AccountId, context.ToaNhaId)) return Forbid();
         ViewData["ToaNhaId"] = context.ToaNhaId;

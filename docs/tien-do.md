@@ -1,8 +1,53 @@
 # Tiến độ và bàn giao dự án
 
 Cập nhật: 02/10/2026. Kết quả các phiên trước giữ theo từng mục; kết quả kiểm thử S2-06 được ghi riêng dưới đây.
+## Quy ước README ADMIN local (02/10/2026)
+
+- Khôi phục khối chạy nhanh trong README theo đúng yêu cầu: dừng phiên cũ, restore, updater, cấu hình ADMIN mẫu, tạo ADMIN và chạy web. Giữ nguyên thông tin ADMIN mẫu trong các lần cập nhật sau, trừ khi người dùng yêu cầu đổi; ghi quy ước tại `00-huong-dan.md`.
+- Giữ hướng dẫn máy mới khởi tạo DB và máy có DB giữ dữ liệu. ADMIN đã tồn tại thì bỏ qua lệnh tạo; ví dụ không thay đổi mật khẩu tài khoản cũ.
+- Xác minh: đọc cấu hình tạo ADMIN và kiểm tra diff tài liệu; không chạy khối lệnh, build/test hoặc thao tác database trong lần sửa README này. Chưa commit/push.
+
+## S2-01 — ngừng dịch vụ phòng theo kỳ hóa đơn (02/10/2026)
+
+- Hoàn thành bốn tiêu chí: ghi `yeu_cau_luc_utc` và `ngung_tu_ky`; PO chốt bỏ giữa tháng vẫn tính hết tháng đó, ngừng từ ngày đầu tháng sau; hóa đơn cũ hiển thị snapshot đã phát hành; kỳ sau không còn dịch vụ đã ngừng, phòng khác không đổi.
+- Migration **v8** thêm `ngung_dich_vu_phong`, liên kết lựa chọn phòng/dịch vụ, unique cho lần ngừng đang mở và lịch sử áp dụng lại. Không xóa lựa chọn, giá riêng hoặc hóa đơn; updater tạo backup, chạy transaction và kiểm tra integrity/FK. DB local thực tế vẫn v5, chỉ được kiểm tra read-only; chưa chạy updater trên file local.
+- `DichVuPhongService` tập trung quy tắc kỳ Việt Nam, áp dụng cho cả màn hình phòng, form hóa đơn và lúc phát hành để chống gửi form cũ. Hóa đơn chỉ đọc dòng `chi_tiet_hoa_don` snapshot khi xem lại. Có thể phát hành hóa đơn chỉ gồm tiền phòng khi phòng không còn dịch vụ trong kỳ.
+- Xác minh thực tế: **40/40 xUnit PASS**, gồm hóa đơn cũ, kỳ hiện tại/kỳ sau, hai phòng độc lập, form HTTP, quyền/CSRF, giá riêng, migration v7→v8 và ranh giới cuối tháng/múi giờ Việt Nam. `python verification/s201_database.py` PASS trên bản sao v5→v8, giữ dữ liệu/hash nguồn, backup, integrity/FK, chạy lặp và khởi tạo mới không ghi đè. Build PASS; cảnh báo ImageSharp và CS8601 cũ vẫn có.
+- Demo mới `verification/ServiceRemovalDemo`: chỉ tạo dữ liệu giả trong `data/service-removal-demo/` (ignore), có `DEMO-A`, `DEMO-B`, Gửi xe 100.000đ và hóa đơn kỳ trước; README có cách chạy. Không commit credential/demo DB. Chưa nghiệm thu trực quan bằng browser hoặc SMTP thật.
+- File thay đổi chính: RoomServiceRemovalSchema/model/SQL v8, service/controller/view dịch vụ phòng và hóa đơn, test `RoomServicesTests.Invoices.cs`, verification và README/tài liệu CSDL. Không commit/push. File project test có thay đổi sẵn trước task, giữ riêng khi stage.
+
+## S2-01 — đơn giá riêng dịch vụ phòng (01/10/2026)
+
+- Bổ sung `don_gia_rieng` nullable vào từng liên kết phòng/dịch vụ; khi chưa đặt giá riêng dùng giá chung. Chủ nhà nhập giá lúc gán dịch vụ, cập nhật hoặc xóa giá riêng để quay về giá chung.
+- Bảng dịch vụ phòng hiển thị giá chung, giá áp dụng, cảnh báo khi giá riêng khác giá chung và tổng dịch vụ cố định dự kiến theo giá áp dụng. Audit ghi nhận thay đổi giá riêng; quyền chủ nhà, CSRF và kiểm tra tòa/phòng tiếp tục ở backend.
+- Migration v7: `RoomServicePriceSchema`, `docs/sql/S2-01-gia-rieng-dich-vu-phong.sql`; nâng cấp theo updater có backup/transaction, không đổi các lựa chọn hiện hữu hoặc hóa đơn. Không mở rộng hành vi hóa đơn khi bỏ dịch vụ giữa kỳ.
+- Xác minh lần này: `dotnet restore` và `dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore` PASS. Theo yêu cầu, không chạy test. Không mở hoặc nâng cấp DB local; cần cập nhật bằng `--update-database` trước khi chạy web dùng schema v7.
+- Còn lại: demo trực tiếp kịch bản giá riêng gửi xe và các phòng dùng giá chung; nghiệm thu ảnh hưởng lên hóa đơn giữa kỳ chưa nằm trong phạm vi. Chưa commit/push.
+
+## S2-01 — dịch vụ tòa/phòng (01/10/2026)
+
+- Nhánh `feature/S2-01/building-room-services`. Hoàn thành cờ mặc định cấp tòa, gán khi tạo phòng đơn/hàng loạt, thêm/bỏ độc lập từng phòng, bảng dịch vụ và tổng cố định/tháng theo giá chung hiện hành. Giữ quyền sở hữu/PHONG_TRO, CSRF và audit; không thêm thư viện.
+- Thành phần: model/EF/audit `DichVuToaNha`, `DichVuPhong`; `DichVuPhongService`, controller/ViewModel/View tương ứng; tích hợp `DichVuService`, `DichVuController`, `PhongTroController` và Razor hiện có. Tổng dùng decimal, chỉ cộng CO_DINH có giá đang áp dụng; chưa gồm tiền thuê/phí biến đổi/dịch vụ chưa chốt giá.
+- Migration **v6**: `RoomServicesSchema`, `docs/sql/S2-01-dich-vu-phong.sql`, updater; kiểm tra chỉ đọc, backup, transaction, unique/FK và chặn dịch vụ khác tòa. Cài schema dịch vụ S1-09 nếu chưa có; không cài hợp đồng/hóa đơn. Backfill danh mục tòa từ giá cũ, năm mã gợi ý bật mặc định; phòng có trước migration chưa có lựa chọn mới.
+- Giả định chờ PO: đổi/thêm mặc định **không tự gán phòng cũ**, tập trung tại `GanMacDinhChoPhongMoiAsync` với TODO. Không làm giá riêng hoặc tác động hóa đơn. Mô tả PR sẵn tại [pr-s2-01.md](pr-s2-01.md); chưa tạo PR từ xa, chưa commit/push.
+- Máy mới: `--initialize-database` tạo file mới bằng baseline + updater, chỉ seed vai trò/quyền; từ chối ghi đè, không có ADMIN/mật khẩu cố định. Máy có DB: dừng app, `--update-database`, `--check-database`. Sau đó chạy web, Chủ nhà vào `/DichVu`, chọn **Dịch vụ** trên danh sách phòng. Chi tiết trong README và cap-nhat-csdl.md.
+- Đã `git rm --cached` đúng `QL_PhongTro/Data/local-dev.sqlite`, giữ file trên máy; mở rộng ignore database/sidecar/backup/data local. **Đồng đội cần sao lưu DB ra ngoài repository trước lần pull nhận thay đổi bỏ theo dõi**, vì Git có thể xóa file từng được theo dõi.
+- Xác minh thực tế: build thành công; **32/32 xUnit PASS** (7 test S2-01: mặc định, cô lập phòng, tổng/giá chung, quyền, CSRF, audit rollback, migration và HTTP tạo đơn/hàng loạt/hiển thị riêng). Fixture Auth/Permission nay tạo DB tạm từ script, không dùng DB cá nhân và không đặt DatabasePath toàn process. `python verification/s201_database.py` PASS: bản sao local v5 → v6, giữ toàn bộ dòng cũ, backup, integrity/FK, chạy lại không đổi, khởi tạo mới/từ chối ghi đè, hash nguồn không đổi.
+- DB local thực tế vẫn **v5**, chưa nâng cấp; chỉ kiểm tra nguồn bằng kết nối read-only. Chưa nghiệm thu đồ họa trình duyệt, SMTP hoặc fixture S109 lịch sử; các công cụ demo/schema cũ cần rà soát trước khi dùng với v6. Build còn cảnh báo ImageSharp có sẵn; full build trước đó có CS8601 cũ trong AuthController.
+- Lint thực tế: `dotnet format --verify-no-changes` PASS cho C# mới (app và RoomServicesTests); `dotnet format style`/`analyzers --severity warn` PASS trên các file C# ứng dụng thay đổi. `git diff --check` phần task PASS; toàn working tree còn dòng trống cuối project test có sẵn trước task. Đã kiểm tra status/staged và ignore: staged chỉ có việc bỏ theo dõi DB, không có database/backup/bí mật được thêm mới.
+- Bước tiếp: PO chốt chính sách phòng cũ; review mô tả PR, thử nâng cấp trên bản sao máy đồng đội và nghiệm thu UI. File `Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj` có thay đổi sẵn trước task, giữ nguyên để chủ máy quyết định stage.
+
+Các mục dưới đây là bàn giao trước S2-01; thông tin v6/quy trình database ở trên và README thay thế ghi chú cũ tương ứng.
+
+Cập nhật: 29/09/2026. Tổng hợp tài liệu S1-03, S1-04, S1-05, S1-09 (chức năng/demo), S1-10 và tiến độ cũ. Kết quả kiểm thử từ các phiên trước được ghi riêng, không phải lần chạy mới khi biên tập tài liệu.
 
 ## Trạng thái hiện tại
+
+### Bàn giao nhánh giới hạn sức chứa (02/10/2026)
+
+- Theo yêu cầu push `feature/S2-06/validate-room-occupancy-limit`, commit AC sức chứa rồi hợp nhất nhánh đích `ca9c469`, giữ cả S2-06 và dịch vụ/phòng S2-01. Giải quyết xung đột DbContext, đăng ký service/CLI, initializer và tài liệu; giữ cấu hình ADMIN riêng thay vì mật khẩu cố định. Không force-push, không thay database local. Project test có thay đổi sẵn tiếp tục giữ local, không stage.
+- Sau merge: build Debug PASS; toàn xUnit **44/44 PASS**, 0 lỗi/0 bỏ qua (`data/test-results/occupancy-merge-regression.trx`); HTTP S2-06 PASS trên DB giả mới `data/S2-06/20261002-024157-1f4175`, server tự dừng. Fixture Auth/Permission mới tự tạo DB tạm, không cần DB mặc định. DB mặc định vẫn chưa tồn tại. Chưa chạy lại UI/mobile hoặc nâng cấp DB nguồn trong lượt merge.
+- Trạng thái schema sau merge: nền **v8** theo nhánh đích, rental_request_schema=1 cài riêng. Ghi chú v5 bên dưới thuộc lượt trước merge; máy có DB giữ dữ liệu dùng updater có backup theo README/cap-nhat-csdl.md khi được phép cập nhật. Không chạy updater trên DB thật trong task push. AC sức chứa không bổ sung bước schema.
 
 ### S2-06 — giới hạn số người dự kiến ở (02/10/2026)
 

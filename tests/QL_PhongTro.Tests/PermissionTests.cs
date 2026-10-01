@@ -5,9 +5,11 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using QL_PhongTro.Data;
 using Xunit;
@@ -46,11 +48,7 @@ public sealed partial class PermissionTests : IDisposable
         appPath = Path.Combine(directory?.FullName ?? throw new Exception("Repository not found"), "QL_PhongTro");
         Directory.CreateDirectory(temp);
         database = Path.Combine(temp, "test.sqlite");
-        using (var original = new SqliteConnection("Data Source=" + Path.Combine(appPath, "Data", "local-dev.sqlite") + ";Mode=ReadOnly"))
-        using (var copy = new SqliteConnection("Data Source=" + database))
-        {
-            original.Open(); copy.Open(); original.BackupDatabase(copy);
-        }
+        LocalDatabaseInitializer.Create(database, Path.Combine(appPath, "Data", "permissions.seed.json"));
         // Run all initializers to ensure schema is complete
         AuthSchemaInitializer.Initialize(database);
         PasswordSchemaInitializer.Initialize(database);
@@ -76,6 +74,8 @@ public sealed partial class PermissionTests : IDisposable
             builder.UseContentRoot(appPath);
             builder.UseSetting("DatabasePath", database);
             builder.UseEnvironment("Development");
+            builder.ConfigureLogging(logging => logging.ClearProviders());
+            builder.ConfigureServices(services => services.AddDataProtection().UseEphemeralDataProtectionProvider());
         });
     }
 

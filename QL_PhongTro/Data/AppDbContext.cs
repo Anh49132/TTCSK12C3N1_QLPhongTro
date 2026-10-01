@@ -8,6 +8,9 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
     public DbSet<TinDang> TinDangs => Set<TinDang>();
     public DbSet<YeuCauThue> YeuCauThues => Set<YeuCauThue>();
     public DbSet<NhatKyHoatDong> NhatKyHoatDongs => Set<NhatKyHoatDong>();
+    public DbSet<DichVuToaNha> DichVuToaNhas => Set<DichVuToaNha>();
+    public DbSet<NgungDichVuPhong> NgungDichVuPhongs => Set<NgungDichVuPhong>();
+    public DbSet<DichVuPhong> DichVuPhongs => Set<DichVuPhong>();
     public DbSet<DichVu> DichVus => Set<DichVu>();
     public DbSet<CauHinhDichVu> CauHinhDichVus => Set<CauHinhDichVu>();
     public DbSet<KhoiTaoDichVu> KhoiTaoDichVus => Set<KhoiTaoDichVu>();
@@ -34,6 +37,17 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         modelBuilder.Entity<YeuCauThue>().HasOne<TinDang>().WithMany().HasForeignKey(x => x.TinDangId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<YeuCauThue>().HasOne<KhachThue>().WithMany().HasForeignKey(x => x.KhachThueId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<YeuCauThue>().HasOne<TaiKhoan>().WithMany().HasForeignKey(x => x.NguoiXuLyId).OnDelete(DeleteBehavior.Restrict);
+        var removal = modelBuilder.Entity<NgungDichVuPhong>();
+        removal.HasOne(x => x.DichVuPhong).WithMany().HasForeignKey(x => x.DichVuPhongId).OnDelete(DeleteBehavior.Restrict);
+        removal.HasIndex(x => x.DichVuPhongId).IsUnique().HasFilter("ap_dung_lai_tu_ky IS NULL");
+        var catalog = modelBuilder.Entity<DichVuToaNha>();
+        catalog.HasIndex(x => new { x.ToaNhaId, x.DichVuId }).IsUnique();
+        catalog.HasOne(x => x.DichVu).WithMany().HasForeignKey(x => x.DichVuId).OnDelete(DeleteBehavior.Restrict);
+        catalog.HasOne<ToaNha>().WithMany().HasForeignKey(x => x.ToaNhaId).OnDelete(DeleteBehavior.Restrict);
+        var selection = modelBuilder.Entity<DichVuPhong>();
+        selection.HasIndex(x => new { x.PhongId, x.DichVuToaNhaId }).IsUnique();
+        selection.HasOne(x => x.Phong).WithMany().HasForeignKey(x => x.PhongId).OnDelete(DeleteBehavior.Cascade);
+        selection.HasOne(x => x.DichVuToaNha).WithMany().HasForeignKey(x => x.DichVuToaNhaId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<HopDongDichVu>().HasIndex(x => new { x.HopDongId, x.DichVuId }).IsUnique();
         modelBuilder.Entity<HopDongDichVu>().HasOne<HopDongThamChieu>().WithMany().HasForeignKey(x => x.HopDongId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<HopDongDichVu>().HasOne<DichVu>().WithMany().HasForeignKey(x => x.DichVuId).OnDelete(DeleteBehavior.Restrict);

@@ -5,6 +5,7 @@ Mỗi người giữ dữ liệu SQLite riêng. Pull mã nguồn không cập nh
 Trước lần pull bỏ theo dõi `QL_PhongTro/Data/local-dev.sqlite`, dừng app và sao lưu DB ra ngoài repository vì Git có thể xóa file trước đây được theo dõi. Máy mới chưa có DB dùng `--initialize-database` (từ chối ghi đè), cấu hình ADMIN riêng; xem README.
 
 Module S2-06 được cài riêng bằng `--initialize-rental-requests` sau kiểm tra schema nền v5. Phiên bản module là `rental_request_schema=1`, không đổi phiên bản nền. Cài mới có backup `*.before-rental-<id>.bak`, transaction; không thay dữ liệu cũ, không seed tin hoặc yêu cầu. Web không tự cài module. Quy trình demo/kiểm thử trên DB mới và bản sao được ghi tại README; không chạy initializer trên DB thật khi chưa được yêu cầu.
+**S2-01 bỏ database khỏi Git:** trước lần pull nhận thay đổi này, dừng app và sao lưu database local ra ngoài repository, vì Git có thể xóa file trước đây được theo dõi. Khôi phục bản của chính mình nếu cần, không ghi đè file đang tồn tại. Máy mới dùng `--initialize-database` (từ chối file đã tồn tại), rồi tạo ADMIN qua cấu hình riêng; xem [README](../README.md).
 
 ## Sau khi pull
 
@@ -19,11 +20,15 @@ dotnet run --project QL_PhongTro --launch-profile http
 
 Mở http://localhost:5247/Account/Login. Nếu dùng file khác, đặt `$env:DatabasePath = 'C:\duong-dan\database.sqlite'` trong cùng terminal trước các lệnh trên. Đường dẫn phải trỏ file đã tồn tại; công cụ không tạo lại CSDL nền.
 
-`--check-database` chỉ đọc schema. Web kiểm tra bảng/cột trước khi nhận request; riêng schema v4 được tự nâng lên v5 như mô tả dưới đây. Không cần chạy SQL/lệnh sửa dữ liệu mỗi lần xóa tài khoản.
+`--check-database` chỉ đọc schema. Web kiểm tra bảng/cột trước khi nhận request; nhánh S2-01 yêu cầu cập nhật v8 bằng updater trước khi chạy web. Không cần chạy SQL/lệnh sửa dữ liệu mỗi lần xóa tài khoản.
 
 ## Các phiên bản cập nhật
 
-Phiên bản hiện tại là **5**. `AccountReuseSchema` kiểm tra phiên bản, định nghĩa hai index UNIQUE và khóa ngoại; sao lưu `*.before-account-reuse-<id>.bak`, rồi thay hai index bằng UNIQUE có điều kiện `WHERE is_deleted = 0`. Chỉ tài khoản chưa xóa (kể cả đang khóa) giữ chỗ email/số điện thoại. ID và thông tin liên hệ cũ được giữ nguyên. Bước này tự chạy khi khởi động web v4, hoặc qua updater; chạy lại v5 chỉ kiểm tra. Schema/index lạ bị từ chối, không tự dựng lại bảng. Cần quyền ghi DB và tạo backup cạnh DB.
+Phiên bản hiện tại là **8**. v6 (`RoomServicesSchema`, `sql/S2-01-dich-vu-phong.sql`) bổ sung danh mục tòa có cờ mặc định (`dich_vu_toa_nha`) và lựa chọn phòng (`dich_vu_phong`), khóa ngoại/unique và trigger chặn gán dịch vụ khác tòa. Nếu chưa có S1-09, cài ba bảng dịch vụ từ script đã có trong cùng transaction; schema S1-09 không đầy đủ bị từ chối. v7 (`RoomServicePriceSchema`, `sql/S2-01-gia-rieng-dich-vu-phong.sql`) thêm `don_gia_rieng` nullable trên cặp phòng/dịch vụ; giá NULL tiếp tục dùng giá chung, dữ liệu lựa chọn cũ được giữ nguyên. v8 (`RoomServiceRemovalSchema`, `sql/S2-01-ngung-dich-vu-phong.sql`) thêm lịch sử ngừng/áp dụng lại theo kỳ, giữ liên kết phòng/dịch vụ và không sửa hóa đơn đã phát hành. Updater kiểm tra chỉ đọc trước khi ghi, tạo backup, kiểm tra integrity/FK và ghi version trong transaction. Chạy lại không đổi dữ liệu.
+
+Các dịch vụ cấp tòa đã có được đưa vào danh mục mới; năm mã gợi ý DIEN/NUOC/RAC/GUI_XE/INTERNET được bật mặc định, dịch vụ khác tắt. Phòng cũ không tự nhận lựa chọn; chủ nhà cấu hình trên trang dịch vụ phòng. Giá riêng lưu theo từng lựa chọn và ưu tiên hơn giá chung; sửa giá chung không ghi đè giá riêng. PO chốt v8: yêu cầu ngừng trong tháng vẫn áp dụng hết tháng đó, bắt đầu loại dịch vụ từ ngày đầu tháng sau; áp dụng lại không xóa lịch sử đã ngừng. Giá/lịch sử cũ và hóa đơn không đổi. Mặc định chỉ được lấy khi tạo phòng mới. Không cài thêm schema hợp đồng/hóa đơn.
+
+v5: `AccountReuseSchema` kiểm tra phiên bản, định nghĩa hai index UNIQUE và khóa ngoại; sao lưu `*.before-account-reuse-<id>.bak`, rồi thay hai index bằng UNIQUE có điều kiện `WHERE is_deleted = 0`. Chỉ tài khoản chưa xóa (kể cả đang khóa) giữ chỗ email/số điện thoại. ID và thông tin liên hệ cũ được giữ nguyên. Updater giữ nguyên bước này; ở v5–v8 chỉ kiểm tra. Schema/index lạ bị từ chối, không tự dựng lại bảng. Cần quyền ghi DB và tạo backup cạnh DB.
 
 v5 đồng thời vô hiệu hóa phiên/reset của tài khoản đã xóa từ trước và chuyển tòa của Quản lý đã xóa về chưa phân công. Toàn bộ bước nâng cấp nằm trong transaction; không xóa tài khoản, hồ sơ, hợp đồng hoặc nhật ký. Đây là sửa dữ liệu hạ tầng khi nâng cấp, không giả lập một ADMIN để ghi nhật ký nghiệp vụ. Xóa mới qua web vẫn ghi audit cùng transaction với bỏ phân công và thu hồi phiên.
 
@@ -49,7 +54,7 @@ Trước khi merge: build, kiểm thử nâng cấp từ CSDL phiên bản trư�
 Kiểm chứng tự động hiện tại (Python 3, .NET 10, sau build):
 
 ```powershell
-python verification/database_updates.py
+python verification/s201_database.py
 ```
 
-Script chỉ thao tác bản sao tạm: thiếu schema, backup, giữ dữ liệu, integrity/FK, chạy lại không cấp lại quyền, từ chối phiên bản tương lai/file không tồn tại. Không chạy bộ test cũ có nguy cơ xóa DB mặc định.
+Script chỉ thao tác bản sao tạm: backup, giữ dữ liệu, integrity/FK, chạy lại không đổi dữ liệu; khởi tạo file mới không có tài khoản, từ chối ghi đè và xác nhận hash nguồn không đổi. Bộ xUnit hiện dùng database tạm khởi tạo từ script, không phụ thuộc database local. Công cụ `verification/database_updates.py` và fixture S109 lịch sử chưa được cập nhật/nghiệm thu cho v7.
