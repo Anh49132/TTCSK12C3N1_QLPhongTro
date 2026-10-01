@@ -22,15 +22,40 @@ public class DichVuPhongController(DichVuPhongService services) : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
-    public async Task<IActionResult> Set(int phongId, int dichVuToaNhaId, bool enabled)
+    public async Task<IActionResult> Set(int phongId, int dichVuToaNhaId, bool enabled, long? donGiaRieng)
     {
         if (!ModelState.IsValid) return BadRequest();
+        if (donGiaRieng < 0)
+        {
+            TempData["Error"] = "Đơn giá riêng phải là số nguyên không âm.";
+            return RedirectToAction(nameof(Index), new { phongId });
+        }
         try
         {
-            await services.DatDichVuAsync(AccountId, phongId, dichVuToaNhaId, enabled);
+            await services.DatDichVuAsync(AccountId, phongId, dichVuToaNhaId, enabled, donGiaRieng);
             TempData["Success"] = "Đã cập nhật dịch vụ của phòng.";
         }
         catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (DbUpdateException) { TempData["Error"] = "Dịch vụ vừa thay đổi. Vui lòng tải lại và thử lại."; }
+        return RedirectToAction(nameof(Index), new { phongId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> SetPrice(int phongId, int dichVuToaNhaId, long? donGiaRieng)
+    {
+        if (!ModelState.IsValid) return BadRequest();
+        if (donGiaRieng < 0)
+        {
+            TempData["Error"] = "Đơn giá riêng phải là số nguyên không âm.";
+            return RedirectToAction(nameof(Index), new { phongId });
+        }
+        try
+        {
+            await services.DatDonGiaRiengAsync(AccountId, phongId, dichVuToaNhaId, donGiaRieng);
+            TempData["Success"] = donGiaRieng is null ? "Đã chuyển dịch vụ về đơn giá chung." : "Đã cập nhật đơn giá riêng.";
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException) { return NotFound(); }
         catch (DbUpdateException) { TempData["Error"] = "Dịch vụ vừa thay đổi. Vui lòng tải lại và thử lại."; }
         return RedirectToAction(nameof(Index), new { phongId });
     }

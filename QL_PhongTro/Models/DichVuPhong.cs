@@ -20,4 +20,5 @@ public class DichVuPhong
     public PhongTro Phong { get; set; } = null!;
     [Column("dich_vu_toa_nha_id")] public int DichVuToaNhaId { get; set; }
     public DichVuToaNha DichVuToaNha { get; set; } = null!;
+    [Column("don_gia_rieng")] public long? DonGiaRieng { get; set; }
 }

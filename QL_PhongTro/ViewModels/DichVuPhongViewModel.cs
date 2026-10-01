@@ -3,9 +3,11 @@ using QL_PhongTro.Services;
 
 namespace QL_PhongTro.ViewModels;
 
-public record DongDichVuPhong(int Id, string Ten, bool DaChon, DonGiaDichVu? Gia)
+public record DongDichVuPhong(int Id, string Ten, bool DaChon, DonGiaDichVu? Gia, long? DonGiaRieng)
 {
-    public decimal? TongThang => Gia?.CachTinh == CachTinhDichVu.CoDinh ? Gia.DonGia : null;
+    public long? DonGiaHieuLuc => DonGiaRieng ?? Gia?.DonGia;
+    public bool KhacGiaChung => DonGiaRieng is not null && Gia is not null && DonGiaRieng != Gia.DonGia;
+    public decimal? TongThang => Gia?.CachTinh == CachTinhDichVu.CoDinh ? DonGiaHieuLuc : null;
 }
 
 public class DichVuPhongViewModel

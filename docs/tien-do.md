@@ -1,5 +1,13 @@
 # Tiến độ và bàn giao dự án
 
+## S2-01 — đơn giá riêng dịch vụ phòng (01/10/2026)
+
+- Bổ sung `don_gia_rieng` nullable vào từng liên kết phòng/dịch vụ; khi chưa đặt giá riêng dùng giá chung. Chủ nhà nhập giá lúc gán dịch vụ, cập nhật hoặc xóa giá riêng để quay về giá chung.
+- Bảng dịch vụ phòng hiển thị giá chung, giá áp dụng, cảnh báo khi giá riêng khác giá chung và tổng dịch vụ cố định dự kiến theo giá áp dụng. Audit ghi nhận thay đổi giá riêng; quyền chủ nhà, CSRF và kiểm tra tòa/phòng tiếp tục ở backend.
+- Migration v7: `RoomServicePriceSchema`, `docs/sql/S2-01-gia-rieng-dich-vu-phong.sql`; nâng cấp theo updater có backup/transaction, không đổi các lựa chọn hiện hữu hoặc hóa đơn. Không mở rộng hành vi hóa đơn khi bỏ dịch vụ giữa kỳ.
+- Xác minh lần này: `dotnet restore` và `dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore` PASS. Theo yêu cầu, không chạy test. Không mở hoặc nâng cấp DB local; cần cập nhật bằng `--update-database` trước khi chạy web dùng schema v7.
+- Còn lại: demo trực tiếp kịch bản giá riêng gửi xe và các phòng dùng giá chung; nghiệm thu ảnh hưởng lên hóa đơn giữa kỳ chưa nằm trong phạm vi. Chưa commit/push.
+
 ## S2-01 — dịch vụ tòa/phòng (01/10/2026)
 
 - Nhánh `feature/S2-01/building-room-services`. Hoàn thành cờ mặc định cấp tòa, gán khi tạo phòng đơn/hàng loạt, thêm/bỏ độc lập từng phòng, bảng dịch vụ và tổng cố định/tháng theo giá chung hiện hành. Giữ quyền sở hữu/PHONG_TRO, CSRF và audit; không thêm thư viện.

@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 6;
+    private const int CurrentVersion = 7;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -210,6 +210,7 @@ public static class DatabaseUpdates
         }
         AccountReuseSchema.Ensure(path);
         if (version < 6) RoomServicesSchema.Upgrade(c);
+        if (version < 7) RoomServicePriceSchema.Upgrade(c);
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }

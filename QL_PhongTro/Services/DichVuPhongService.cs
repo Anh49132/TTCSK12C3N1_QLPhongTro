@@ -39,15 +39,33 @@ public sealed class DichVuPhongService(AppDbContext db, DichVuService prices)
         return room;
     }
 
-    public async Task DatDichVuAsync(int accountId, int roomId, int catalogId, bool enabled)
+    public async Task DatDichVuAsync(int accountId, int roomId, int catalogId, bool enabled, long? donGiaRieng = null)
     {
+        if (donGiaRieng < 0) throw new ArgumentOutOfRangeException(nameof(donGiaRieng));
         await using var tx = await db.Database.BeginTransactionAsync();
         var room = await PhongAsync(accountId, roomId);
         if (!await db.DichVuToaNhas.AnyAsync(x => x.Id == catalogId && x.ToaNhaId == room.ToaNhaId))
             throw new UnauthorizedAccessException();
         var existing = await db.DichVuPhongs.SingleOrDefaultAsync(x => x.PhongId == roomId && x.DichVuToaNhaId == catalogId);
-        if (enabled && existing is null) db.DichVuPhongs.Add(new DichVuPhong { PhongId = roomId, DichVuToaNhaId = catalogId });
+        if (enabled && existing is null)
+            db.DichVuPhongs.Add(new DichVuPhong { PhongId = roomId, DichVuToaNhaId = catalogId, DonGiaRieng = donGiaRieng });
+        else if (enabled && existing is not null && donGiaRieng.HasValue)
+            existing.DonGiaRieng = donGiaRieng;
         if (!enabled && existing is not null) db.DichVuPhongs.Remove(existing);
+        await db.SaveChangesAsync();
+        await tx.CommitAsync();
+    }
+
+    public async Task DatDonGiaRiengAsync(int accountId, int roomId, int catalogId, long? donGiaRieng)
+    {
+        if (donGiaRieng < 0) throw new ArgumentOutOfRangeException(nameof(donGiaRieng));
+        await using var tx = await db.Database.BeginTransactionAsync();
+        var room = await PhongAsync(accountId, roomId);
+        if (!await db.DichVuToaNhas.AnyAsync(x => x.Id == catalogId && x.ToaNhaId == room.ToaNhaId))
+            throw new UnauthorizedAccessException();
+        var selected = await db.DichVuPhongs.SingleOrDefaultAsync(x => x.PhongId == roomId && x.DichVuToaNhaId == catalogId)
+            ?? throw new InvalidOperationException("Dịch vụ không được gán cho phòng này.");
+        selected.DonGiaRieng = donGiaRieng;
         await db.SaveChangesAsync();
         await tx.CommitAsync();
     }
@@ -58,12 +76,13 @@ public sealed class DichVuPhongService(AppDbContext db, DichVuService prices)
         var catalog = await db.DichVuToaNhas.AsNoTracking().Include(x => x.DichVu)
             .Where(x => x.ToaNhaId == room.ToaNhaId).OrderBy(x => x.DichVu.TenDichVu).ToListAsync();
         var selected = await db.DichVuPhongs.AsNoTracking().Where(x => x.PhongId == roomId)
-            .Select(x => x.DichVuToaNhaId).ToListAsync();
+            .ToDictionaryAsync(x => x.DichVuToaNhaId, x => x.DonGiaRieng);
         var model = new DichVuPhongViewModel { PhongId = room.Id, MaPhong = room.MaPhong, ToaNhaId = room.ToaNhaId };
         foreach (var item in catalog)
         {
             var price = await prices.LayDonGiaAsync(accountId, room.ToaNhaId, item.DichVuId, DichVuService.HomNay());
-            model.DichVus.Add(new(item.Id, item.DichVu.TenDichVu, selected.Contains(item.Id), price));
+            var isSelected = selected.TryGetValue(item.Id, out var roomPrice);
+            model.DichVus.Add(new(item.Id, item.DichVu.TenDichVu, isSelected, price, isSelected ? roomPrice : null));
         }
         return model;
     }

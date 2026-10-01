@@ -158,7 +158,7 @@ public sealed class RoomServicesTests : IDisposable
         using (var c = Open())
         using (var cmd = c.CreateCommand())
         {
-            cmd.CommandText = "DROP TABLE dich_vu_phong; DROP TABLE dich_vu_toa_nha; DELETE FROM app_schema_version WHERE version=6;";
+            cmd.CommandText = "DROP TABLE dich_vu_phong; DROP TABLE dich_vu_toa_nha; DELETE FROM app_schema_version WHERE version IN (6,7);";
             cmd.ExecuteNonQuery();
         }
         SqliteConnection.ClearAllPools();

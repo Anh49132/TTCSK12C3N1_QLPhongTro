@@ -1,4 +1,4 @@
-"""Verify v6 on a read-only backup of local SQLite; never write to the source."""
+"""Verify v7 on a read-only backup of local SQLite; never write to the source."""
 import hashlib
 import os
 from pathlib import Path
@@ -35,14 +35,18 @@ with tempfile.TemporaryDirectory(prefix="s201-upgrade-") as folder:
     src.close()
     with sqlite3.connect(copy) as db:
         tables = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('sqlite_sequence','app_schema_version')")]
+        columns = {table: [r[1] for r in db.execute('PRAGMA table_info("' + table + '")')] for table in tables}
         rows = {table: db.execute('SELECT * FROM "' + table + '"').fetchall() for table in tables}
     db.close()
     run(copy, "--update-database")
     run(copy, "--check-database")
     with sqlite3.connect(copy) as db:
-        assert db.execute("SELECT MAX(version) FROM app_schema_version").fetchone() == (6,)
+        assert db.execute("SELECT MAX(version) FROM app_schema_version").fetchone() == (7,)
         for table in tables:
-            assert db.execute('SELECT * FROM "' + table + '"').fetchall() == rows[table], table
+            selected_columns = ','.join('"' + column.replace('"', '""') + '"' for column in columns[table])
+            assert db.execute('SELECT ' + selected_columns + ' FROM "' + table + '"').fetchall() == rows[table], table
+        room_service_columns = {row[1] for row in db.execute('PRAGMA table_info("dich_vu_phong")')}
+        assert "don_gia_rieng" in room_service_columns
         assert db.execute("PRAGMA integrity_check").fetchone() == ("ok",)
         assert not db.execute("PRAGMA foreign_key_check").fetchall()
     db.close()
@@ -63,4 +67,4 @@ with tempfile.TemporaryDirectory(prefix="s201-upgrade-") as folder:
     run(fresh, "--initialize-database", False)
     assert digest(fresh) == initialized
 assert digest(source) == original, "Source changed"
-print("PASS: v6 backup, data preservation, integrity/FK, repeat update, new initialization, no overwrite, source unchanged")
+print("PASS: v7 backup, data preservation, integrity/FK, repeat update, new initialization, no overwrite, source unchanged")

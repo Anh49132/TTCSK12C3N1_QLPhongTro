@@ -17,15 +17,15 @@ dotnet run --project QL_PhongTro --launch-profile http
 
 Mở http://localhost:5247/Account/Login. Nếu dùng file khác, đặt `$env:DatabasePath = 'C:\duong-dan\database.sqlite'` trong cùng terminal trước các lệnh trên. Đường dẫn phải trỏ file đã tồn tại; công cụ không tạo lại CSDL nền.
 
-`--check-database` chỉ đọc schema. Web kiểm tra bảng/cột trước khi nhận request; nhánh S2-01 yêu cầu cập nhật v6 bằng updater trước khi chạy web. Không cần chạy SQL/lệnh sửa dữ liệu mỗi lần xóa tài khoản.
+`--check-database` chỉ đọc schema. Web kiểm tra bảng/cột trước khi nhận request; nhánh S2-01 yêu cầu cập nhật v7 bằng updater trước khi chạy web. Không cần chạy SQL/lệnh sửa dữ liệu mỗi lần xóa tài khoản.
 
 ## Các phiên bản cập nhật
 
-Phiên bản hiện tại là **6**. `RoomServicesSchema` và `sql/S2-01-dich-vu-phong.sql` bổ sung danh mục tòa có cờ mặc định (`dich_vu_toa_nha`) và lựa chọn phòng (`dich_vu_phong`), khóa ngoại/unique và trigger chặn gán dịch vụ khác tòa. Không lưu giá riêng. Nếu chưa có S1-09, cài ba bảng dịch vụ từ script đã có trong cùng transaction; schema S1-09 không đầy đủ bị từ chối. Updater kiểm tra chỉ đọc trước khi ghi, tạo backup, kiểm tra integrity/FK và ghi version trong transaction. Chạy lại không đổi dữ liệu.
+Phiên bản hiện tại là **7**. v6 (`RoomServicesSchema`, `sql/S2-01-dich-vu-phong.sql`) bổ sung danh mục tòa có cờ mặc định (`dich_vu_toa_nha`) và lựa chọn phòng (`dich_vu_phong`), khóa ngoại/unique và trigger chặn gán dịch vụ khác tòa. Nếu chưa có S1-09, cài ba bảng dịch vụ từ script đã có trong cùng transaction; schema S1-09 không đầy đủ bị từ chối. v7 (`RoomServicePriceSchema`, `sql/S2-01-gia-rieng-dich-vu-phong.sql`) thêm `don_gia_rieng` nullable trên cặp phòng/dịch vụ; giá NULL tiếp tục dùng giá chung, dữ liệu lựa chọn cũ được giữ nguyên. Updater kiểm tra chỉ đọc trước khi ghi, tạo backup, kiểm tra integrity/FK và ghi version trong transaction. Chạy lại không đổi dữ liệu.
 
-Các dịch vụ cấp tòa đã có được đưa vào danh mục mới; năm mã gợi ý DIEN/NUOC/RAC/GUI_XE/INTERNET được bật mặc định, dịch vụ khác tắt. Phòng cũ không tự nhận lựa chọn; chủ nhà cấu hình trên trang dịch vụ phòng. Giá/lịch sử cũ và hóa đơn không đổi. Mặc định chỉ được lấy khi tạo phòng mới. Không cài thêm schema hợp đồng/hóa đơn.
+Các dịch vụ cấp tòa đã có được đưa vào danh mục mới; năm mã gợi ý DIEN/NUOC/RAC/GUI_XE/INTERNET được bật mặc định, dịch vụ khác tắt. Phòng cũ không tự nhận lựa chọn; chủ nhà cấu hình trên trang dịch vụ phòng. Giá riêng lưu theo từng lựa chọn và ưu tiên hơn giá chung; sửa giá chung không ghi đè giá riêng. Giá/lịch sử cũ và hóa đơn không đổi. Mặc định chỉ được lấy khi tạo phòng mới. Không cài thêm schema hợp đồng/hóa đơn.
 
-v5: `AccountReuseSchema` kiểm tra phiên bản, định nghĩa hai index UNIQUE và khóa ngoại; sao lưu `*.before-account-reuse-<id>.bak`, rồi thay hai index bằng UNIQUE có điều kiện `WHERE is_deleted = 0`. Chỉ tài khoản chưa xóa (kể cả đang khóa) giữ chỗ email/số điện thoại. ID và thông tin liên hệ cũ được giữ nguyên. Updater giữ nguyên bước này; ở v5/v6 chỉ kiểm tra. Schema/index lạ bị từ chối, không tự dựng lại bảng. Cần quyền ghi DB và tạo backup cạnh DB.
+v5: `AccountReuseSchema` kiểm tra phiên bản, định nghĩa hai index UNIQUE và khóa ngoại; sao lưu `*.before-account-reuse-<id>.bak`, rồi thay hai index bằng UNIQUE có điều kiện `WHERE is_deleted = 0`. Chỉ tài khoản chưa xóa (kể cả đang khóa) giữ chỗ email/số điện thoại. ID và thông tin liên hệ cũ được giữ nguyên. Updater giữ nguyên bước này; ở v5/v6/v7 chỉ kiểm tra. Schema/index lạ bị từ chối, không tự dựng lại bảng. Cần quyền ghi DB và tạo backup cạnh DB.
 
 v5 đồng thời vô hiệu hóa phiên/reset của tài khoản đã xóa từ trước và chuyển tòa của Quản lý đã xóa về chưa phân công. Toàn bộ bước nâng cấp nằm trong transaction; không xóa tài khoản, hồ sơ, hợp đồng hoặc nhật ký. Đây là sửa dữ liệu hạ tầng khi nâng cấp, không giả lập một ADMIN để ghi nhật ký nghiệp vụ. Xóa mới qua web vẫn ghi audit cùng transaction với bỏ phân công và thu hồi phiên.
 
@@ -54,4 +54,4 @@ Kiểm chứng tự động hiện tại (Python 3, .NET 10, sau build):
 python verification/s201_database.py
 ```
 
-Script chỉ thao tác bản sao tạm: backup, giữ dữ liệu, integrity/FK, chạy lại không đổi dữ liệu; khởi tạo file mới không có tài khoản, từ chối ghi đè và xác nhận hash nguồn không đổi. Bộ xUnit hiện dùng database tạm khởi tạo từ script, không phụ thuộc database local. Công cụ `verification/database_updates.py` và fixture S109 lịch sử chưa được cập nhật/nghiệm thu cho v6.
+Script chỉ thao tác bản sao tạm: backup, giữ dữ liệu, integrity/FK, chạy lại không đổi dữ liệu; khởi tạo file mới không có tài khoản, từ chối ghi đè và xác nhận hash nguồn không đổi. Bộ xUnit hiện dùng database tạm khởi tạo từ script, không phụ thuộc database local. Công cụ `verification/database_updates.py` và fixture S109 lịch sử chưa được cập nhật/nghiệm thu cho v7.

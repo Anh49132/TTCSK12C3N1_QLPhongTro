@@ -32,7 +32,7 @@ dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --update-database
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database
 ```
 
-Updater kiểm tra schema, sao lưu và nâng lên v6; không tạo lại database. Web không tự nâng lên v6. Chỉ tạo ADMIN nếu máy chưa có tài khoản, với cấu hình riêng:
+Updater kiểm tra schema, sao lưu và nâng lên v7; không tạo lại database. Web không tự nâng schema v6 lên v7. Chỉ tạo ADMIN nếu máy chưa có tài khoản, với cấu hình riêng:
 
 ```powershell
 $env:LocalAdmin__Email = Read-Host 'Email ADMIN local'
@@ -90,13 +90,13 @@ Trên máy đã kiểm tra, nhật ký `Microsoft-Windows-CodeIntegrity/Operatio
 
 Lệnh `--update-database` sao lưu rồi cập nhật schema còn thiếu; nên dừng ứng dụng trước khi chạy. Ứng dụng yêu cầu file SQLite đã tồn tại và không tự tạo lại CSDL nền. Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt biến môi trường `DatabasePath` để dùng file riêng.
 
-Schema v6 bổ sung dịch vụ S1-09 nếu chưa có và hai bảng `dich_vu_toa_nha`, `dich_vu_phong`. Hợp đồng/hóa đơn vẫn là module tùy chọn, không được tự triển khai bởi S2-01.
+Schema v6 bổ sung dịch vụ S1-09 nếu chưa có và hai bảng `dich_vu_toa_nha`, `dich_vu_phong`. Schema v7 thêm cột giá riêng nullable theo từng cặp phòng/dịch vụ; giá riêng thắng giá chung và không thay đổi snapshot hóa đơn. Hợp đồng/hóa đơn vẫn là module tùy chọn, không được tự triển khai bởi S2-01.
 
 ### Dịch vụ tòa nhà và phòng (S2-01)
 
-Chủ nhà mở `/DichVu`, khai báo tên/đơn giá và bật “Áp dụng mặc định”. Từ danh sách phòng chọn **Dịch vụ** để thêm/bỏ và xem tổng dịch vụ cố định dự kiến/tháng theo giá chung hiện hành. Phòng mới (đơn hoặc hàng loạt) nhận lựa chọn mặc định tại lúc tạo; thay đổi mặc định không cập nhật các phòng cũ. Phòng có trước migration giữ nguyên dữ liệu và bắt đầu với danh sách lựa chọn mới rỗng; chủ nhà chọn dịch vụ cần dùng.
+Chủ nhà mở `/DichVu`, khai báo tên/đơn giá và bật “Áp dụng mặc định”. Từ danh sách phòng chọn **Dịch vụ** để thêm/bỏ và xem tổng dịch vụ cố định dự kiến/tháng. Khi gán dịch vụ có thể nhập đơn giá riêng; bảng hiển thị giá chung, giá áp dụng, đánh dấu giá riêng khác giá chung và cho sửa hoặc quay lại giá chung. Giá riêng chỉ áp dụng cho phòng đó. Phòng mới (đơn hoặc hàng loạt) nhận lựa chọn mặc định tại lúc tạo; thay đổi mặc định không cập nhật các phòng cũ. Phòng có trước migration giữ nguyên dữ liệu và bắt đầu với danh sách lựa chọn mới rỗng; chủ nhà chọn dịch vụ cần dùng.
 
-Tổng không gồm tiền thuê, phí theo chỉ số/theo người hoặc dịch vụ chưa có giá đang áp dụng. Không có đơn giá riêng theo phòng và chưa nối lựa chọn này vào hóa đơn.
+Tổng không gồm tiền thuê, phí theo chỉ số/theo người hoặc dịch vụ chưa có giá đang áp dụng. Bỏ dịch vụ khỏi phòng chưa điều chỉnh hóa đơn giữa kỳ; hóa đơn hiện tại giữ snapshot hiện có.
 
 Kiểm thử không cần database cá nhân: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj`. Kiểm tra nâng cấp trên bản sao database local: build trước rồi chạy `python verification/s201_database.py`. Không commit database, backup, file phụ SQLite hoặc cấu hình bí mật.
 
