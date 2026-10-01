@@ -45,6 +45,8 @@ public static class DatabaseUpdates
         var services = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "dich_vu", "cau_hinh_dich_vu", "khoi_tao_dich_vu" };
         var invoices = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "hoa_don", "chi_tiet_hoa_don", "hop_dong_dich_vu" };
         var requiredOptional = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var rental = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "tin_dang", "yeu_cau_thue" };
+        if (rental.Any(table => HasTable(c, table))) requiredOptional.UnionWith(rental);
         if (contracts.Any(table => HasTable(c, table))) requiredOptional.UnionWith(contracts);
         if (services.Any(table => HasTable(c, table))) requiredOptional.UnionWith(services);
         if (invoices.Any(table => HasTable(c, table)))
@@ -57,7 +59,7 @@ public static class DatabaseUpdates
         {
             var table = entity.GetTableName()!;
             if (table == "nhat_ky_hoat_dong" && !requireAudit) continue;
-            var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table);
+            var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table) || rental.Contains(table);
             if (isOptional && !requiredOptional.Contains(table)) continue;
             var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
             var columns = entity.GetProperties().Select(p => p.GetColumnName(store)!)

@@ -17,10 +17,13 @@ Mở Terminal tại thư mục chứa README này:
 Get-Process QL_PhongTro -ErrorAction SilentlyContinue | Stop-Process -Force
 
 dotnet restore .\QL_PhongTro\QL_PhongTro.csproj
+# Máy mới: chỉ chạy khi file DatabasePath chưa tồn tại; lệnh từ chối ghi đè.
+# dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --initialize-database
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --update-database
-$env:LocalAdmin__Email = 'admin-local@example.test'
-$env:LocalAdmin__Password = 'ThayBangMatKhauManh123!'
-$env:LocalAdmin__Phone = '0900000000'
+$env:LocalAdmin__Email = Read-Host 'Email ADMIN local'
+$localAdminSecret = Read-Host 'Mat khau ADMIN local' -AsSecureString
+$env:LocalAdmin__Password = [System.Net.NetworkCredential]::new('', $localAdminSecret).Password
+$env:LocalAdmin__Phone = Read-Host 'So dien thoai ADMIN local'
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --create-local-admin
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
 ```
@@ -29,7 +32,7 @@ Truy cập http://localhost:5247. Giữ terminal đang hiện `Now listening on:
 
 Không cần cập nhật database hoặc tạo ADMIN mỗi lần chạy. Web tự nâng schema v4 lên v5 có backup để hỗ trợ xóa/tái sử dụng email và SĐT; tài khoản đã xóa không còn trong danh sách. Tài khoản mới đang chờ xác nhận thì tiếp tục nhập/gửi lại mã, không cần xóa rồi đăng ký lại.
 
-Khối lệnh trên dùng tài khoản mẫu cho môi trường local. Lệnh tạo ADMIN không ghi đè tài khoản đã có, nên mật khẩu mẫu không thay đổi mật khẩu hiện tại. Nếu có lỗi, dừng và xử lý lỗi trước khi chạy bước tiếp theo. Xem thêm [hướng dẫn cập nhật SQLite](docs/cap-nhat-csdl.md).
+Khối lệnh trên nhận cấu hình ADMIN riêng trên máy. Lệnh tạo ADMIN không ghi đè tài khoản đã có. Nếu có lỗi, dừng và xử lý lỗi trước khi chạy bước tiếp theo. Xem thêm [hướng dẫn cập nhật SQLite](docs/cap-nhat-csdl.md).
 
 ### Nhận mã xác nhận qua Gmail
 
@@ -74,9 +77,51 @@ Lệnh `--update-database` sao lưu rồi cập nhật schema còn thiếu; nên
 
 Schema dịch vụ/hóa đơn S1-09 là module tùy chọn và không được tự ghi vào CSDL local. Khi chưa cài module này, ứng dụng tài khoản/phân quyền/phòng vẫn khởi động; các trang dịch vụ và hóa đơn chưa dùng được. Xem mục **Dịch vụ và hóa đơn tối thiểu (S1-09)** trong [bàn giao dự án](docs/tien-do.md) để chuẩn bị fixture riêng.
 
+## Database riêng và S2-06: gửi yêu cầu từ tin đăng
+
+**Trước lần pull nhận thay đổi bỏ theo dõi `QL_PhongTro/Data/local-dev.sqlite`, mỗi thành viên phải dừng app và sao lưu database local ra ngoài repository. Git có thể xóa file đang được theo dõi khi pull.** File trên máy thực hiện task vẫn được giữ nguyên bởi `git rm --cached`. Không chép DB của thành viên khác vào repo; DB, WAL/SHM/journal, backup và credential demo đều bị ignore.
+
+- Máy mới chưa có DB: đặt `DatabasePath` tới file riêng chưa tồn tại, chạy `--initialize-database`, rồi `--check-database`. Khởi tạo schema nền v5 và quyền module; không tạo tài khoản, dữ liệu cá nhân hoặc demo. Lệnh từ chối file đã tồn tại; web không tự tạo database. ADMIN dùng cấu hình riêng như trên.
+- Máy đã có DB: kiểm tra đúng `DatabasePath`, dừng app, sao lưu ngoài repository và chạy `--check-database` trước. Khi schema nền cần nâng cấp, dùng `--update-database` có backup, không chạy khởi tạo hoặc chép đè. Nếu lỗi schema lạ, dừng để rà soát.
+- Để sử dụng S2-06 trên DB đã kiểm tra: chạy `--initialize-rental-requests` một lần trên đúng `DatabasePath`, rồi `--check-database`. Module có phiên bản riêng `rental_request_schema=1`, giữ schema nền v5. Cài mới tạo backup `*.before-rental-<id>.bak`, transaction và bảng tin/yêu cầu/bộ đếm; chạy lại không ghi dữ liệu. Schema module chưa có phiên bản hoặc không đầy đủ bị từ chối. Web không tự cài module.
+
+Ví dụ sau khi đã chọn và kiểm tra DB phù hợp:
+
+```powershell
+dotnet run --project QL_PhongTro -- --initialize-rental-requests
+dotnet run --project QL_PhongTro -- --check-database
+dotnet run --project QL_PhongTro --launch-profile http
+```
+
+Khách thuê vào **Tin đăng cho thuê** → chi tiết tin → **Gửi yêu cầu**, chọn Xem phòng/Thuê ngay, ngày mong muốn, số người và lời nhắn tùy chọn. Gửi thành công chuyển ngay đến trang có mã `YC-yyyyMM-xxxx` (tháng Việt Nam). Profile tối thiểu được tạo từ tài khoản nếu chưa có; không yêu cầu nhập căn cước để gửi yêu cầu. Yêu cầu liên kết profile/tài khoản và tin từ URL, không nhận ID khách từ form. Mã tăng từ 0001 theo từng tháng, tối đa 9999 mã/tháng; hết mã báo lỗi và không lưu yêu cầu.
+
+Task chỉ có trang xem danh sách/chi tiết tối thiểu; chưa có chức năng chủ nhà tạo/duyệt tin. Tin public phải đang hiển thị, còn hạn và phòng trống. Không thêm kiểm tra ngày quá khứ/60 ngày, sức chứa hoặc yêu cầu đang mở trùng; số người vẫn phải là số nguyên dương. Chưa triển khai duyệt, giữ chỗ, hủy hoặc hợp đồng.
+
+### Kiểm thử và demo bằng dữ liệu giả riêng
+
+```powershell
+dotnet build QL_PhongTro/QL_PhongTro.csproj -c Debug -o data/S2-06/runtime
+python verification/s206_http.py
+```
+
+Script tạo DB mới chỉ có dữ liệu giả, tài khoản với mật khẩu ngẫu nhiên và một tin public; kiểm thử HTTP tại cổng 5266 rồi dừng server. Khi nguồn local tồn tại, chỉ đọc schema/sao lưu SQLite nhất quán và thử nâng cấp trên bản sao; đối chiếu dữ liệu cũ, SHA-256 nguồn. Không dùng DB đang sử dụng làm fixture. Nếu sandbox chặn Windows Event Log/Data Protection, chạy script trong terminal Windows bình thường.
+
+Sau khi script PASS, chạy demo đã có (cổng 5266 phải trống):
+
+```powershell
+$s206Folder = Get-Content data/S2-06/latest.txt -Raw
+$s206Access = Get-Content (Join-Path $s206Folder 'access.json') -Raw | ConvertFrom-Json
+$s206Access | Select-Object email,password,listing
+$env:DatabasePath = $s206Access.database
+$env:ASPNETCORE_ENVIRONMENT = 'Development'
+dotnet data/S2-06/runtime/QL_PhongTro.dll --contentRoot "$PWD/QL_PhongTro" --urls http://localhost:5266
+```
+
+Đăng nhập bằng thông tin local vừa đọc; mở `http://localhost:5266/TinDang`, gửi yêu cầu và xem mã. Credential chỉ lưu tại `data/S2-06/.../access.json` đã ignore, không chia sẻ file này. Dừng bằng Ctrl+C. Muốn quay về DB mặc định, xóa biến `DatabasePath` khỏi terminal. Demo không chứa dữ liệu cá nhân từ DB nguồn.
+
 ## Tài khoản quản trị local
 
-Các lệnh tạo ADMIN mẫu đã có trong mục **Chạy dự án**. Lệnh chỉ chạy trong Development, không ghi đè tài khoản đã có và sao lưu trước khi tạo. Mật khẩu trong SQLite được lưu dưới dạng băm BCrypt.
+Các lệnh tạo ADMIN bằng cấu hình riêng đã có trong mục **Chạy dự án**. Lệnh chỉ chạy trong Development, không ghi đè tài khoản đã có và sao lưu trước khi tạo. Mật khẩu trong SQLite được lưu dưới dạng băm BCrypt.
 
 Các biến `LocalAdmin__...` chỉ phục vụ tạo tài khoản, không cấu hình Gmail. Nếu ADMIN đã tồn tại, dùng tài khoản đó để đăng nhập.
 
