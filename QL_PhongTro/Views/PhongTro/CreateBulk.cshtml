@@ -1,0 +1,64 @@
+@model QL_PhongTro.ViewModels.TaoPhongHangLoatViewModel
+
+@{
+    ViewData["Title"] = "Tạo nhanh phòng";
+}
+
+<div class="mb-4">
+    <a asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId" class="link-secondary">Quản lý phòng</a>
+    <h1 class="h2 mt-2">Tạo nhanh phòng</h1>
+</div>
+
+<form asp-action="CreateBulk" method="post" class="row g-3 property-form" novalidate>
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="col-12 col-md-6">
+        <label asp-for="ToaNhaId" class="form-label"></label>
+        <select asp-for="ToaNhaId" asp-items="Model.ToaNhaOptions" class="form-select">
+            <option value="">Chọn tòa nhà</option>
+        </select>
+        <span asp-validation-for="ToaNhaId" class="text-danger"></span>
+    </div>
+    <div class="col-6 col-md-3">
+        <label asp-for="SoTang" class="form-label"></label>
+        <input asp-for="SoTang" type="number" step="1" class="form-control" />
+        <span asp-validation-for="SoTang" class="text-danger"></span>
+    </div>
+    <div class="col-6 col-md-3">
+        <label asp-for="SoPhongMoiTang" class="form-label"></label>
+        <input asp-for="SoPhongMoiTang" type="number" step="1" class="form-control" />
+        <span asp-validation-for="SoPhongMoiTang" class="text-danger"></span>
+    </div>
+    <div class="col-12 col-md-6">
+        <label asp-for="DienTich" class="form-label"></label>
+        <input asp-for="DienTich" type="number" min="0.01" step="0.01" class="form-control" />
+        <span asp-validation-for="DienTich" class="text-danger"></span>
+    </div>
+    <div class="col-12 col-md-6">
+        <label asp-for="GiaThueDisplay" class="form-label"></label>
+        <input asp-for="GiaThueDisplay" type="text" inputmode="numeric" autocomplete="off" placeholder="500.000" data-vnd-input class="form-control" />
+        <span asp-validation-for="GiaThue" class="text-danger"></span>
+    </div>
+    <div class="col-12 col-md-6">
+        <label asp-for="SoNguoiToiDa" class="form-label"></label>
+        <input asp-for="SoNguoiToiDa" type="number" min="1" step="1" class="form-control" />
+        <span asp-validation-for="SoNguoiToiDa" class="text-danger"></span>
+    </div>
+    <div class="col-12 col-md-6">
+        <label asp-for="TrangThai" class="form-label"></label>
+        <select asp-for="TrangThai" asp-items="Html.GetEnumSelectList<QL_PhongTro.ViewModels.TrangThaiPhong>()" class="form-select">
+            <option value="">Chọn trạng thái ban đầu</option>
+        </select>
+        <span asp-validation-for="TrangThai" class="text-danger"></span>
+    </div>
+    <p class="small text-secondary mb-0">Mã phòng được tạo theo tầng và thứ tự, ví dụ tầng 1 bắt đầu từ 101.</p>
+    <div class="col-12 d-flex gap-2 pt-2">
+        <button type="submit" class="btn btn-primary">Tạo phòng</button>
+        <a asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-secondary">Hủy</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/room-form.js" asp-append-version="true"></script>
+}

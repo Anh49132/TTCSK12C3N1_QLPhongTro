@@ -1,0 +1,21 @@
+@model QL_PhongTro.ViewModels.TaoToaNhaViewModel
+
+@{
+    ViewData["Title"] = "Sửa tòa nhà";
+}
+
+<div class="mb-4">
+    <a asp-action="ToaNha" class="link-secondary">Danh sách tòa nhà</a>
+    <h1 class="h2 mt-2">Sửa tòa nhà</h1>
+</div>
+
+<form asp-action="SuaToaNha" asp-route-id="@Context.Request.RouteValues["id"]" method="post" class="row g-3 property-form" novalidate>
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <partial name="_BuildingFields" model="Model" />
+    <div class="col-12 d-flex gap-2 pt-2">
+        <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+        <a asp-action="ToaNha" class="btn btn-outline-secondary">Hủy</a>
+    </div>
+</form>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
