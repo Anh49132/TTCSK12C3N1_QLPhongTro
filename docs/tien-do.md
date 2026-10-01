@@ -4,6 +4,14 @@ Cập nhật: 02/10/2026. Kết quả các phiên trước giữ theo từng m�
 
 ## Trạng thái hiện tại
 
+### Xử lý xung đột PR #24 (02/10/2026)
+
+- Nhánh nhận PR là main, đã revert tại 6d08d0f về trạng thái chỉ còn tài liệu. Theo yêu cầu xử lý xung đột và chỉ push feature/S2-06/validate-desired-date-range, merge lịch sử main vào feature bằng chiến lược ours, giữ toàn bộ cây mã/tài liệu feature đã kiểm thử; không đưa việc xóa ứng dụng vào feature.
+- PR so với main sẽ khôi phục ứng dụng và các chức năng hiện có, không chỉ riêng giới hạn ngày. Không thay schema/DB, không đưa DB/backup/credential local vào commit. Project test khác do Tests/tests vẫn giữ local.
+- Xác minh: cây mã ứng dụng/script/test trong index không đổi so với commit 0a3d675; build qua dotnet test và 4/4 DesiredDateTests PASS. Kết quả 29/29 và HTTP S2-06 PASS là lượt kiểm thử trước trên cùng mã; không chạy lại full suite trong lượt xử lý merge.
+- Chỉ push feature; chưa merge PR vào main/dev. Người duyệt cần lưu ý phạm vi khôi phục mã trước khi merge PR.
+
+
 ### S2-06 — gửi yêu cầu, mã xác nhận và giới hạn ngày (02/10/2026)
 
 - Hoàn tất AC giới hạn ngày: khoảng gồm cả hôm nay và ngày +60, theo Asia/Ho_Chi_Minh qua ITimeProvider. Controller trả lỗi tại `Form.NgayMongMuon`; service kiểm tra lại trước transaction/ghi dữ liệu. Form có min/max, hướng dẫn khoảng ngày và lỗi tiếng Việt tại trường ngày, kể cả khi nhập tay. Giữ loại yêu cầu, CSRF, quyền, mã theo tháng, audit/rollback hiện có; chưa kiểm tra sức chứa hoặc yêu cầu mở trùng.
