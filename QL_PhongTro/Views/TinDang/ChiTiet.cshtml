@@ -26,7 +26,8 @@
                 <div id="desired-date-help" class="form-text">Chọn ngày từ @Model.Today.ToString("dd/MM/yyyy") đến @Model.Today.AddDays(60).ToString("dd/MM/yyyy") (tối đa 60 ngày kể từ hôm nay).</div>
                 <span asp-validation-for="Form.NgayMongMuon" class="text-danger"></span></div>
             <div class="mb-3"><label asp-for="Form.SoNguoiDuKien" class="form-label">Số người dự kiến ở *</label>
-                <input asp-for="Form.SoNguoiDuKien" type="number" min="1" step="1" class="form-control" required />
+                <input asp-for="Form.SoNguoiDuKien" type="number" min="1" max="@Model.Phong.SoNguoiToiDa" step="1" class="form-control" required aria-describedby="capacity-help" />
+                <div id="capacity-help" class="form-text">Phòng chỉ cho phép tối đa @Model.Phong.SoNguoiToiDa người.</div>
                 <span asp-validation-for="Form.SoNguoiDuKien" class="text-danger"></span></div>
             <div class="mb-3"><label asp-for="Form.LoiNhan" class="form-label">Lời nhắn</label>
                 <textarea asp-for="Form.LoiNhan" class="form-control" rows="4" maxlength="2000"></textarea>
@@ -43,6 +44,27 @@ else { <p>Chức năng gửi yêu cầu dành cho tài khoản Khách thuê.</p>
 
 @section Scripts {
     <script>
+        const people = document.getElementById('Form_SoNguoiDuKien');
+        if (people) {
+            const capacityError = document.querySelector('[data-valmsg-for="Form.SoNguoiDuKien"]');
+            function validateCapacity() {
+                people.setCustomValidity('');
+                let message = '';
+                if (people.validity.rangeOverflow)
+                    message = `Phòng chỉ cho phép tối đa ${people.max} người.`;
+                else if (people.validity.rangeUnderflow || people.validity.stepMismatch)
+                    message = 'Số người dự kiến ở phải là số nguyên dương.';
+                else if (people.validity.valueMissing || people.validity.badInput)
+                    message = 'Vui lòng nhập số người dự kiến ở hợp lệ.';
+                people.setCustomValidity(message);
+                people.setAttribute('aria-invalid', message ? 'true' : 'false');
+                capacityError.textContent = message;
+                capacityError.classList.toggle('field-validation-error', !!message);
+                capacityError.classList.toggle('field-validation-valid', !message);
+            }
+            people.addEventListener('input', validateCapacity);
+            people.addEventListener('invalid', validateCapacity);
+        }
         const desiredDate = document.getElementById('Form_NgayMongMuon');
         if (desiredDate) {
             const dateError = document.querySelector('[data-valmsg-for="Form.NgayMongMuon"]');

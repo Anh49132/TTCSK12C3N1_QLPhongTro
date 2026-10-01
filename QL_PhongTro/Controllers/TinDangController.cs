@@ -41,6 +41,13 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests) : Co
             return request is null ? NotFound() : RedirectToAction(nameof(ThanhCong), new { id = request.Id });
         }
         catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (RoomCapacityException error)
+        {
+            ModelState.AddModelError("Form.SoNguoiDuKien", error.Message);
+            // Reflect the capacity read inside the transaction if it changed after Detail.
+            model.Phong.SoNguoiToiDa = error.Maximum;
+            return View("ChiTiet", model);
+        }
         catch (DesiredDateException error)
         {
             ModelState.AddModelError("Form.NgayMongMuon", error.Message);

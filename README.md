@@ -95,7 +95,7 @@ dotnet run --project QL_PhongTro --launch-profile http
 
 Khách thuê vào **Tin đăng cho thuê** → chi tiết tin → **Gửi yêu cầu**, chọn Xem phòng/Thuê ngay, ngày mong muốn, số người và lời nhắn tùy chọn. Gửi thành công chuyển ngay đến trang có mã `YC-yyyyMM-xxxx` (tháng Việt Nam). Profile tối thiểu được tạo từ tài khoản nếu chưa có; không yêu cầu nhập căn cước để gửi yêu cầu. Yêu cầu liên kết profile/tài khoản và tin từ URL, không nhận ID khách từ form. Mã tăng từ 0001 theo từng tháng, tối đa 9999 mã/tháng; hết mã báo lỗi và không lưu yêu cầu.
 
-Task chỉ có trang xem danh sách/chi tiết tối thiểu; chưa có chức năng chủ nhà tạo/duyệt tin. Tin public phải đang hiển thị, còn hạn và phòng trống. Ngày mong muốn chỉ được từ hôm nay đến 60 ngày sau, gồm cả hai đầu, theo múi giờ Việt Nam. Biểu mẫu giới hạn ngày chọn và báo lỗi tại trường ngày; server cũng từ chối ngày ngoài khoảng khi gửi POST trực tiếp. Chưa kiểm tra sức chứa hoặc yêu cầu đang mở trùng; số người vẫn phải là số nguyên dương. Thay đổi giới hạn ngày không cần cập nhật schema database. Chưa triển khai duyệt, giữ chỗ, hủy hoặc hợp đồng.
+Task chỉ có trang xem danh sách/chi tiết tối thiểu; chưa có chức năng chủ nhà tạo/duyệt tin. Tin public phải đang hiển thị, còn hạn và phòng trống. Ngày mong muốn chỉ được từ hôm nay đến 60 ngày sau, gồm cả hai đầu, theo múi giờ Việt Nam. Biểu mẫu giới hạn ngày chọn và báo lỗi tại trường ngày; server cũng từ chối ngày ngoài khoảng khi gửi POST trực tiếp. Số người phải là số nguyên dương và không vượt sức chứa hiện tại của phòng gắn với tin đăng. Vượt giới hạn báo “Phòng chỉ cho phép tối đa N người.” tại ô số người, không lưu yêu cầu. Chưa kiểm soát yêu cầu đang mở trùng. Giới hạn ngày/số người không cần cập nhật schema database. Chưa triển khai duyệt, giữ chỗ, hủy hoặc hợp đồng.
 
 ### Kiểm thử và demo bằng dữ liệu giả riêng
 
@@ -118,6 +118,8 @@ dotnet data/S2-06/runtime/QL_PhongTro.dll --contentRoot "$PWD/QL_PhongTro" --url
 ```
 
 Đăng nhập bằng thông tin local vừa đọc; mở `http://localhost:5266/TinDang`, gửi yêu cầu và xem mã. Credential chỉ lưu tại `data/S2-06/.../access.json` đã ignore, không chia sẻ file này. Dừng bằng Ctrl+C. Muốn quay về DB mặc định, xóa biến `DatabasePath` khỏi terminal. Demo không chứa dữ liệu cá nhân từ DB nguồn.
+
+Demo giới hạn số người: phòng S206-101 của fixture mới cho phép tối đa 4 người. Nhập 5 sẽ thấy “Phòng chỉ cho phép tối đa 4 người.” và bị chặn; nhập từ 1 đến 4 với ngày hợp lệ gửi được. Bộ HTTP kiểm tra cả POST trực tiếp vượt giới hạn, thông báo đúng sức chứa thay đổi và không ghi dữ liệu khi từ chối.
 
 ## Tài khoản quản trị local
 

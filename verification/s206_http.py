@@ -74,7 +74,7 @@ def verify():
     building = query('SELECT max(id) FROM toa_nha')[0][0]
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     query("""INSERT INTO phong_tro(toa_nha_id,ma_phong,tang,dien_tich,gia_thue,tien_coc_du_kien,so_nguoi_toi_da,trang_thai,ngay_tao)
-             VALUES (?,'S206-101',1,25,2000000,1000000,2,'TRONG',?)""", (building, now.isoformat(' ')))
+             VALUES (?,'S206-101',1,25,2000000,1000000,4,'TRONG',?)""", (building, now.isoformat(' ')))
     room = query('SELECT max(id) FROM phong_tro')[0][0]
     for state, expiry in [('DANG_HIEN_THI', now+timedelta(days=30)), ('NHAP', now+timedelta(days=30)), ('TAM_AN', now+timedelta(days=30)), ('DA_CHO_THUE', now+timedelta(days=30))]:
         query("INSERT INTO tin_dang(phong_id,nguoi_dang_id,tieu_de,noi_dung,ngay_dang,ngay_het_han,trang_thai,ngay_tao) VALUES (?,?,?,?,?,?,?,?)",
@@ -135,6 +135,20 @@ def verify():
                  'Form.LoiNhan':'<script>alert(1)</script>', 'KhachThueId':999, 'TaiKhoanId':admin, 'TinDangId':999}
         before_invalid = {table: query(f'SELECT * FROM {table}') for table in
                           ['yeu_cau_thue','khach_thue','rental_request_counter','nhat_ky_hoat_dong']}
+        people_input = re.search(r'<input[^>]*name="Form.SoNguoiDuKien"[^>]*>', body).group(0)
+        assert 'max="4"' in people_input and 'min="1"' in people_input
+        for maximum in [4, 2]:
+            # Fixture-only change proves the server reads the room's current limit.
+            query('UPDATE phong_tro SET so_nguoi_toi_da=? WHERE id=?', (maximum, room))
+            for kind in ['XEM_PHONG', 'THUE_NGAY']:
+                code, rejected, _ = tenant.post(post, dict(valid, **{
+                    'Form.LoaiYeuCau':kind, 'Form.SoNguoiDuKien':maximum+1}), path)
+                assert code == 200
+                error = re.search(r'<span[^>]*data-valmsg-for="Form.SoNguoiDuKien"[^>]*>(.*?)</span>', rejected, re.S)
+                assert error and f'Phòng chỉ cho phép tối đa {maximum} người.' in unescape(error.group(1))
+                assert f'value="{maximum+1}"' in rejected
+                assert all(query(f'SELECT * FROM {table}') == rows for table, rows in before_invalid.items()), 'Over-capacity request changed data'
+        query('UPDATE phong_tro SET so_nguoi_toi_da=4 WHERE id=?', (room,))
         for kind in ['XEM_PHONG','THUE_NGAY']:
             for date, message in [(today-timedelta(days=1), 'Ngày mong muốn không được là ngày trong quá khứ.'),
                                   (today+timedelta(days=61), 'Ngày mong muốn không được quá 60 ngày kể từ hôm nay.')]:
@@ -178,8 +192,12 @@ def verify():
         assert len({r[3] for r in rows}) == 2
         other = Browser(); assert other.login('s206-tenant2@example.test', password)[0] == 302
         assert other.request(locations[0])[0] == 404
-        # Capacity and duplicate-open checks remain outside this task.
-        assert tenant.post(post, dict(valid, **{'Form.SoNguoiDuKien':10}), path)[0] == 302
+        # All 1..4 are allowed. Duplicate-open checks remain outside this task.
+        for people in [1, 3, 4]:
+            code, _, headers = tenant.post(post, dict(valid, **{'Form.SoNguoiDuKien':people}), path)
+            assert code == 302
+            request_id = int(headers['Location'].split('/')[-1])
+            assert query('SELECT so_nguoi_du_kien FROM yeu_cau_thue WHERE id=?', (request_id,)) == [(people,)]
         browsers = [Browser() for _ in range(4)]
         for b in browsers:
             assert b.login('s206-tenant1@example.test', password)[0] == 302
@@ -187,9 +205,9 @@ def verify():
             return b.post(post, valid, path)[0]
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
             assert list(pool.map(simultaneous, browsers)) == [302]*4
-        assert query('SELECT COUNT(*),COUNT(DISTINCT ma_yeu_cau) FROM yeu_cau_thue')[0] == (7,7)
+        assert query('SELECT COUNT(*),COUNT(DISTINCT ma_yeu_cau) FROM yeu_cau_thue')[0] == (9,9)
         audit = query("SELECT du_lieu_sau FROM nhat_ky_hoat_dong WHERE loai_doi_tuong='yeu_cau_thue'")
-        assert len(audit) == 7 and all('loi_nhan' not in r[0] for r in audit)
+        assert len(audit) == 9 and all('loi_nhan' not in r[0] for r in audit)
         # Force audited save failure; both request and allocated counter must roll back.
         count_before = query('SELECT COUNT(*) FROM yeu_cau_thue')[0][0]
         counter_before = query('SELECT so_cuoi FROM rental_request_counter WHERE thang=?', (month,))[0][0]
@@ -215,7 +233,7 @@ def verify():
             'email':'s206-tenant1@example.test','password':password}, ensure_ascii=False, indent=2), encoding='utf-8')
         if BASE == 'http://localhost:5266':
             (ROOT / 'data/S2-06/latest.txt').write_text(str(FOLDER), encoding='utf-8')
-        print('PASS: new DB/refuse overwrite, upgrade copy/preservation/backup/idempotence, both request types, today/+60 accepted, yesterday/+61 rejected at date field via direct POST without data changes, form min/max, required/invalid fields, CSRF/roles/ownership, code format/concurrency, public listing checks, audit/rollback/counter exhaustion, integrity/FK', flush=True)
+        print('PASS: capacity 1..4 accepted, 5 rejected for both types without request/profile/counter/audit writes, current room limit 2 reflected in field error; new DB/refuse overwrite, optional upgrade copy, date boundaries, form min/max, required/invalid fields, CSRF/roles/ownership, code/concurrency, public listings, audit/rollback/counter exhaustion, integrity/FK', flush=True)
     finally:
         p.terminate(); p.wait(timeout=15)
 

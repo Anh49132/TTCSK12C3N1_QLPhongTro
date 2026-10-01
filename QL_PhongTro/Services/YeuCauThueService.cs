@@ -9,6 +9,10 @@ namespace QL_PhongTro.Services;
 
 public sealed class RequestCodeExhaustedException() : Exception("Đã hết mã yêu cầu trong tháng. Vui lòng liên hệ quản lý.");
 public sealed class DesiredDateException(string message) : Exception(message);
+public sealed class RoomCapacityException(int maximum) : Exception($"Phòng chỉ cho phép tối đa {maximum} người.")
+{
+    public int Maximum { get; } = maximum;
+}
 
 public class YeuCauThueService(AppDbContext db, ITimeProvider clock)
 {
@@ -52,7 +56,12 @@ public class YeuCauThueService(AppDbContext db, ITimeProvider clock)
         var account = await db.TaiKhoans.AsNoTracking().SingleOrDefaultAsync(a => a.Id == accountId
             && a.VaiTro == "KHACH_THUE" && a.DangHoatDong && !a.IsDeleted && a.EmailConfirmed && !a.MustChangePassword);
         if (account is null) throw new UnauthorizedAccessException();
-        if (!await PublicListings().AnyAsync(t => t.Id == listingId)) return null;
+        var capacity = await (from listing in PublicListings()
+                              join room in db.PhongTros.AsNoTracking() on listing.PhongId equals room.Id
+                              where listing.Id == listingId
+                              select (int?)room.SoNguoiToiDa).SingleOrDefaultAsync();
+        if (capacity is null) return null;
+        if (form.SoNguoiDuKien > capacity.Value) throw new RoomCapacityException(capacity.Value);
         var profile = await db.KhachThues.SingleOrDefaultAsync(k => k.TaiKhoanId == accountId);
         if (profile is null)
         {
