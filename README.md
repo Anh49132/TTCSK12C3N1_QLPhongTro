@@ -216,3 +216,12 @@ Build Debug ở trên phù hợp để chạy và báo cáo local. Build Release
 ## Nhật ký hoạt động S1-10
 
 ADMIN xem tại `/NhatKy`. Mã hiện tại yêu cầu schema nhật ký v3; kiểm tra schema của đúng database trước khi chạy và chỉ nâng cấp DB đang dùng khi được yêu cầu. Xem mục **Nhật ký hoạt động (S1-10)** trong [bàn giao dự án](docs/tien-do.md).
+
+### Database local và tìm tin (Task 1)
+
+Database local đã bỏ theo dõi Git. **Sao lưu DB riêng ra ngoài repository trước lần pull nhận thay đổi này**, vì Git có thể xóa file từng theo dõi; khôi phục bản riêng nếu cần, không ghi đè file đang sử dụng.
+
+- Máy mới: startup hiện có dùng EnsureCreated trong Development và khởi tạo schema auth khi thiếu file; Task 1 không thay đổi quy trình này hoặc tạo ADMIN/demo. Cấu hình ADMIN riêng theo hướng dẫn trên. Schema nền chưa có bảng tin đăng.
+- Máy đã có DB: giữ file riêng, đặt DatabasePath nếu lưu ngoài repo. Task 1 không sửa schema. Không dùng khởi tạo để thay DB cũ; updater hiện chưa có bảng tin_dang. Cần bổ sung bảng bằng quy trình nâng cấp có phiên bản/sao lưu trong task riêng trước khi demo tìm tin.
+
+Mở `/TimTin`, chọn quận/huyện rồi bấm Tìm kiếm, hoặc chọn Tất cả quận/huyện. Danh sách quận/huyện lấy từ dữ liệu tòa nhà hiện có, bỏ khoảng trắng và giá trị rỗng; giữ khu vực đã chọn sau khi tìm. Chỉ hiển thị tin DANG_HIEN_THI còn hạn (UTC, hạn NULL bị loại); không chọn khu vực trả tin hợp lệ ở mọi quận/huyện. DB thiếu bảng tin sẽ báo chức năng chưa sẵn sàng.

@@ -1,0 +1,36 @@
+@model QL_PhongTro.ViewModels.TimTinViewModel
+@using System.Globalization
+@{ ViewData["Title"] = "Tìm phòng trọ"; }
+<h1>Tìm phòng trọ</h1>
+<form asp-controller="TimTin" asp-action="Index" method="get" class="mb-4">
+    <label asp-for="QuanHuyen" class="form-label">Quận/huyện</label>
+    <select asp-for="QuanHuyen" class="form-select mb-2">
+        <option value="">Tất cả quận/huyện</option>
+        @foreach (var district in Model.QuanHuyens)
+        {
+            <option value="@district">@district</option>
+        }
+    </select>
+    <span asp-validation-for="QuanHuyen" class="text-danger"></span>
+    <button type="submit" class="btn btn-primary">Tìm kiếm</button>
+</form>
+@if (!Model.SchemaReady)
+{
+    <p role="status">Chức năng tìm tin chưa sẵn sàng trên cơ sở dữ liệu hiện tại.</p>
+}
+else if (ViewData.ModelState.IsValid)
+{
+    <p role="status">@Model.TinDangs.Count tin phù hợp</p>
+    <div class="row g-3">
+        @foreach (var tin in Model.TinDangs)
+        {
+            <div class="col-12 col-md-6 col-xl-4">
+                <article class="card h-100"><div class="card-body">
+                    <h2 class="h5">@tin.TieuDe</h2>
+                    <p>@tin.DiaChi · @tin.QuanHuyen</p>
+                    <p>@tin.GiaThue.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) đ/tháng · @tin.DienTich m²</p>
+                </div></article>
+            </div>
+        }
+    </div>
+}

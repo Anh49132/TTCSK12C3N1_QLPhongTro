@@ -193,3 +193,13 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 
 - Thay nút chữ Hiện rộng cả dòng ở Đăng nhập và Đổi mật khẩu bằng SVG con mắt nhỏ nằm bên phải bên trong ô nhập, dùng partial `_PasswordToggle`. Khi hiện mật khẩu, biểu tượng có gạch chéo; giữ thao tác bàn phím, nhãn trợ năng và `aria-pressed`. CSS riêng tránh quy tắc `.auth-card .btn` làm nút chiếm cả dòng.
 - Build Debug vào thư mục riêng PASS, không ảnh hưởng tiến trình app đang chạy; chưa kiểm tra trực quan trên trình duyệt. Không sửa DB, chưa commit/push thay đổi giao diện này.
+
+## Task 1 — lọc tin theo quận/huyện (01/10/2026)
+
+- Đã triển khai `/TimTin` (menu Tìm phòng trọ): danh sách quận/huyện DISTINCT từ dữ liệu tòa nhà, bỏ khoảng trắng và giá trị rỗng; nhận lựa chọn qua GET, lọc khớp chính xác và giữ lựa chọn sau khi hiển thị. Không chọn trả tin hợp lệ của mọi khu vực. Không cần xác nhận PO.
+- Điều kiện Task 1: `DANG_HIEN_THI`, hạn không NULL và >= thời điểm UTC hiện tại. Bỏ điều kiện bổ sung phòng TRONG/tòa hoạt động để bám yêu cầu trực tiếp mới nhất. Không thêm lọc giá/diện tích/số người, sắp xếp, phân trang, hiệu năng hay gợi ý.
+- Thành phần: `Controllers/TimTinController.cs`, `Models/TinDang.cs`, `ViewModels/TimTinViewModel.cs`, `Views/TimTin/Index.cshtml`, mapping chỉ đọc `HasNoKey().ToView` trong `Data/AppDbContext.cs`, liên kết `Views/Shared/_Sidebar.cshtml`; hướng dẫn README và ignore SQLite/backup đã có trong thay đổi Task 1. Lần chỉnh này sửa controller, README và mục bàn giao này.
+- Dùng: `dotnet run --project QL_PhongTro --launch-profile http`, mở `http://localhost:5247/TimTin`, chọn quận/huyện rồi bấm Tìm kiếm hoặc chọn Tất cả quận/huyện.
+- Xác minh lần này: đọc tài liệu, mã, cấu hình, Git status và danh sách staged; kết nối SQLite `mode=ro` tại `D:\TTCS_QLPhongTro\QL_PhongTro\Data\local-dev.sqlite`, đối chiếu schema tòa/phòng và xác nhận chưa có `tin_dang`. Không ghi DB hoặc đổi schema; không chạy build/test/HTTP/UI theo phạm vi lần này. Lần trước build gặp NU1101 do nguồn PackageANH thiếu package; chưa có bằng chứng biên dịch thành công cho Task 1.
+- Giả định: hạn là timestamp UTC, NULL không đủ điều kiện còn hạn. Quận/huyện lấy từ tòa nhà hiện có. DB thiếu bảng tin sẽ báo chức năng chưa sẵn sàng; **chưa demo được danh sách tin trên DB local này**. Bước tiếp: bổ sung schema tin bằng updater có phiên bản/sao lưu trong task được cho phép và chuẩn bị tin mẫu giả trên DB riêng trước nghiệm thu. Không tự triển khai CRUD đăng tin.
+- Git: DB local đã staged bỏ theo dõi, file trên máy vẫn còn; ignore SQLite/journal/backup. Thành viên phải sao lưu DB ra ngoài repo trước lần pull nhận thay đổi vì Git có thể xóa file từng theo dõi. Giữ thay đổi project test có sẵn; không commit/push.

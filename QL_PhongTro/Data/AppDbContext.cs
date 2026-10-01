@@ -25,6 +25,8 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Read-only mapping: search must not add this table via EnsureCreated.
+        modelBuilder.Entity<TinDang>().HasNoKey().ToView("tin_dang");
         modelBuilder.Entity<HopDongDichVu>().HasIndex(x => new { x.HopDongId, x.DichVuId }).IsUnique();
         modelBuilder.Entity<HopDongDichVu>().HasOne<HopDongThamChieu>().WithMany().HasForeignKey(x => x.HopDongId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<HopDongDichVu>().HasOne<DichVu>().WithMany().HasForeignKey(x => x.DichVuId).OnDelete(DeleteBehavior.Restrict);

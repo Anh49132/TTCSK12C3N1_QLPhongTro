@@ -1,4 +1,12 @@
 # Ignore local dev SQLite database
+*.sqlite
+*.sqlite-journal
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.bak
+*.bak-*
 **/Data/local-dev.sqlite
 **/Data/*.sqlite
 **/*.sqlite-shm
@@ -45,3 +53,4 @@ obj/
 
 /data/S1-10-verification/
 /data/service-demo/
+/data/task1-build/
