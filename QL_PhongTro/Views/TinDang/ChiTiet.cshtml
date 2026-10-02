@@ -61,4 +61,56 @@
             </div>
         </aside>
     </div>
+
+    <section class="listing-services" aria-labelledby="services-title">
+        <p class="listing-eyebrow">DỊCH VỤ VÀ CÁCH TÍNH</p>
+        <h2 id="services-title">Chi phí dịch vụ</h2>
+        <div class="service-columns">
+            <section class="service-group" aria-labelledby="usage-services-title">
+                <h3 id="usage-services-title">Theo mức sử dụng</h3>
+                @if (Model.DichVuTheoSuDung.Count == 0)
+                {
+                    <p class="listing-empty" data-testid="no-usage-services">Chưa có đơn giá dịch vụ theo mức sử dụng.</p>
+                }
+                else
+                {
+                    <div class="service-list">
+                        @foreach (var service in Model.DichVuTheoSuDung)
+                        {
+                            <article class="service-row" data-testid="usage-service">
+                                <div class="service-description">
+                                    <h4>@service.TenDichVu</h4>
+                                    <p>@QL_PhongTro.Models.CachTinhDichVu.Ten(service.CachTinh) <span>· @service.DonViTinh</span></p>
+                                </div>
+                                <p class="service-price">@service.DonGia.ToString("N0", culture)<span>đ / @service.DonViTinh</span></p>
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="service-group" aria-labelledby="fixed-services-title">
+                <h3 id="fixed-services-title">Khoản cố định hàng tháng</h3>
+                @if (Model.KhoanCoDinh.Count == 0)
+                {
+                    <p class="listing-empty" data-testid="no-fixed-services">Tin này chưa có khoản phí cố định hàng tháng.</p>
+                }
+                else
+                {
+                    <div class="service-list">
+                        @foreach (var service in Model.KhoanCoDinh)
+                        {
+                            <article class="service-row" data-testid="fixed-service">
+                                <div class="service-description">
+                                    <h4>@service.TenDichVu</h4>
+                                    <p>@service.DonViTinh</p>
+                                </div>
+                                <p class="service-price">@service.DonGia.ToString("N0", culture)<span>đ / tháng</span></p>
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+    </section>
 </article>

@@ -1,13 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Data;
+using QL_PhongTro.Models;
+using QL_PhongTro.Services;
 using QL_PhongTro.ViewModels;
 
 namespace QL_PhongTro.Controllers;
 
 [Route("TinDang")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class TinDangController(AppDbContext db) : Controller
+public class TinDangController(AppDbContext db, DichVuService services) : Controller
 {
     [HttpGet("ChiTiet/{id:int}")]
     public async Task<IActionResult> ChiTiet(int id)
@@ -39,6 +41,7 @@ public class TinDangController(AppDbContext db) : Controller
             select new
             {
                 RoomId = room.Id,
+                BuildingId = building.Id,
                 Listing = new TinDangChiTietViewModel
                 {
                     Id = post.Id,
@@ -59,6 +62,7 @@ public class TinDangController(AppDbContext db) : Controller
             return null;
 
         var listing = result.Listing;
+        var servicePrices = await GetPublicServicePricesAsync(result.BuildingId, result.RoomId);
         return new TinDangChiTietViewModel
         {
             Id = listing.Id,
@@ -81,7 +85,59 @@ public class TinDangController(AppDbContext db) : Controller
                     DuongDanAnhNho = image.DuongDanAnhNho,
                     MoTa = image.MoTa
                 })
-                .ToListAsync()
+                .ToListAsync(),
+            DichVuTheoSuDung = servicePrices.Where(price => price.CachTinh != CachTinhDichVu.CoDinh).ToList(),
+            KhoanCoDinh = servicePrices.Where(price => price.CachTinh == CachTinhDichVu.CoDinh).ToList()
         };
+    }
+
+    private async Task<List<DichVuTinChiTietViewModel>> GetPublicServicePricesAsync(int buildingId, int roomId)
+    {
+        if (!await services.SanSangAsync())
+            return [];
+
+        var today = DichVuService.HomNay();
+        var candidates = await db.CauHinhDichVus.AsNoTracking()
+            .Include(price => price.DichVu)
+            .Where(price => price.ToaNhaId == buildingId
+                && (price.PhongId == null || price.PhongId == roomId)
+                && price.TuNgay <= today
+                && (price.DenNgay == null || price.DenNgay >= today))
+            .OrderBy(price => price.DichVu.TenDichVu)
+            .ToListAsync();
+
+        var result = new List<DichVuTinChiTietViewModel>();
+        foreach (var group in candidates.GroupBy(price => price.DichVuId))
+        {
+            var roomPrices = group.Where(price => price.PhongId == roomId).ToList();
+            var selectedScope = roomPrices.Count > 0
+                ? roomPrices
+                : group.Where(price => price.PhongId is null).ToList();
+            if (selectedScope.Count != 1)
+                continue;
+
+            var price = selectedScope[0];
+            if (!price.DangApDung || !price.DaChotGia || !price.DichVu.DangHoatDong
+                || string.IsNullOrWhiteSpace(price.DichVu.TenDichVu)
+                || string.IsNullOrWhiteSpace(price.DonViTinh)
+                || !CachTinhDichVu.HopLe(price.CachTinh)
+                || price.DonGia < 0)
+                continue;
+
+            var isUtility = price.DichVu.MaDichVu.Equals("DIEN", StringComparison.OrdinalIgnoreCase)
+                || price.DichVu.MaDichVu.Equals("NUOC", StringComparison.OrdinalIgnoreCase);
+            if (isUtility && price.DonGia == 0)
+                continue;
+
+            result.Add(new DichVuTinChiTietViewModel
+            {
+                TenDichVu = price.DichVu.TenDichVu.Trim(),
+                CachTinh = price.CachTinh,
+                DonViTinh = price.DonViTinh.Trim(),
+                DonGia = price.DonGia
+            });
+        }
+
+        return result;
     }
 }
