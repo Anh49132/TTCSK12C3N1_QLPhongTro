@@ -7,7 +7,7 @@ JOIN toa_nha t ON t.id = p.toa_nha_id
 WHERE NOT EXISTS (SELECT 1 FROM yeu_cau WHERE ma_yeu_cau = 'YC-DEMO-001')
   AND k.id = (SELECT id FROM khach_thue ORDER BY id LIMIT 1);
 INSERT INTO yeu_cau (ma_yeu_cau, khach_thue_id, phong_id, toa_nha_id, loai_yeu_cau, ngay_mong_muon, trang_thai, ngay_tao)
-SELECT 'YC-DEMO-002', k.id, p.id, t.id, 'Báo hỏng thiết bị', date('now'), 'DANG_XU_LY', datetime('now', '-1 day')
+SELECT 'YC-DEMO-002', k.id, p.id, t.id, 'Báo hỏng thiết bị', date('now'), 'DA_HEN_LICH', datetime('now', '-1 day')
 FROM khach_thue k JOIN phong_tro p ON p.id = (SELECT id FROM phong_tro ORDER BY id LIMIT 1 OFFSET 1)
 JOIN toa_nha t ON t.id = p.toa_nha_id
 WHERE NOT EXISTS (SELECT 1 FROM yeu_cau WHERE ma_yeu_cau = 'YC-DEMO-002')

@@ -303,4 +303,10 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 - Dữ liệu mẫu giả nằm ở `docs/sql/S2-07-yeu-cau.sql`, chỉ dùng trên database demo/bản sao.
 - File thay đổi: model, EF mapping, updater v9, controller, view model, Razor View, SQL mẫu, README và tài liệu tiến độ.
 - Xác minh: build project chính với output riêng `S207Check` PASS, 0 lỗi; còn cảnh báo ImageSharp license và CS8601 có sẵn. Chưa chạy updater, test HTTP/UI hoặc script dữ liệu mẫu.
-- Chưa làm: bộ lọc, đánh dấu quá 24 giờ, số lượng chưa xử lý trên menu, tạo/sửa yêu cầu. Bước tiếp theo là nâng cấp trên bản sao và kiểm thử bốn trường hợp hiển thị theo AC.
+- Chưa làm: đánh dấu quá 24 giờ, số lượng chưa xử lý trên menu, tạo/sửa yêu cầu. Bộ lọc được bổ sung tại AC2 bên dưới.
+
+### S2-07 AC2 — Lọc yêu cầu (02/10/2026)
+
+- PO chốt 5 trạng thái: Mới, Đã hẹn lịch, Đã duyệt, Từ chối, Đã huỷ. `/YeuCau` nhận `trangThai` và `toaNhaId`, lấy danh sách tòa đang hoạt động của chủ nhà, hỗ trợ lọc riêng hoặc kết hợp; nút bỏ bộ lọc đưa về danh sách rộng hơn.
+- Thứ tự `ngay_tao DESC, id DESC` được giữ sau mọi bộ lọc. Không triển khai cảnh báo quá 24 giờ hoặc số lượng chưa xử lý trên menu.
+- Xác minh cần thực hiện: build, test từng trạng thái/tòa nhà/kết hợp/bỏ lọc/không có kết quả/thứ tự. Chưa chạy kiểm thử trong lượt này.

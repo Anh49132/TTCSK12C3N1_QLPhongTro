@@ -21,6 +21,7 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
     public DbSet<TaiKhoan> TaiKhoans { get; set; } = null!;
     public DbSet<ToaNha> ToaNhas { get; set; } = null!;
     public DbSet<PhongTro> PhongTros { get; set; } = null!;
+    public DbSet<YeuCau> YeuCaus { get; set; } = null!;
 
     public DbSet<AppRole> AppRoles { get; set; } = null!;
     public DbSet<AppModule> AppModules { get; set; } = null!;
@@ -140,5 +141,15 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         room.HasIndex(e => new { e.ToaNhaId, e.MaPhong }).HasDatabaseName("ux_phong_tro_toa_nha_ma_phong").IsUnique();
         room.HasIndex(e => new { e.ToaNhaId, e.TrangThai }).HasDatabaseName("ix_phong_tro_toa_nha_trang_thai");
         room.HasOne<ToaNha>().WithMany().HasForeignKey(e => e.ToaNhaId).OnDelete(DeleteBehavior.Restrict);
+        var request = modelBuilder.Entity<YeuCau>();
+        request.ToTable("yeu_cau"); request.HasKey(e => e.Id);
+        request.Property(e => e.MaYeuCau).HasColumnName("ma_yeu_cau").IsRequired().HasMaxLength(30);
+        request.Property(e => e.KhachThueId).HasColumnName("khach_thue_id"); request.Property(e => e.PhongId).HasColumnName("phong_id"); request.Property(e => e.ToaNhaId).HasColumnName("toa_nha_id");
+        request.Property(e => e.LoaiYeuCau).HasColumnName("loai_yeu_cau").IsRequired().HasMaxLength(50); request.Property(e => e.NgayMongMuon).HasColumnName("ngay_mong_muon");
+        request.Property(e => e.TrangThai).HasColumnName("trang_thai").IsRequired().HasMaxLength(25); request.Property(e => e.NgayTao).HasColumnName("ngay_tao").IsRequired();
+        request.HasIndex(e => e.MaYeuCau).IsUnique(); request.HasIndex(e => new { e.ToaNhaId, e.NgayTao });
+        request.HasOne<KhachThue>().WithMany().HasForeignKey(e => e.KhachThueId).OnDelete(DeleteBehavior.Restrict);
+        request.HasOne<PhongTro>().WithMany().HasForeignKey(e => e.PhongId).OnDelete(DeleteBehavior.Restrict);
+        request.HasOne<ToaNha>().WithMany().HasForeignKey(e => e.ToaNhaId).OnDelete(DeleteBehavior.Restrict);
     }
 }

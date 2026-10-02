@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 8;
+    private const int CurrentVersion = 9;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -212,6 +212,14 @@ public static class DatabaseUpdates
         if (version < 6) RoomServicesSchema.Upgrade(c);
         if (version < 7) RoomServicePriceSchema.Upgrade(c);
         if (version < 8) RoomServiceRemovalSchema.Upgrade(c);
+        if (version < 9)
+        {
+            Execute(c, """
+                CREATE TABLE IF NOT EXISTS yeu_cau (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, ma_yeu_cau TEXT NOT NULL UNIQUE, khach_thue_id INTEGER NOT NULL REFERENCES khach_thue(id) ON DELETE RESTRICT, phong_id INTEGER NOT NULL REFERENCES phong_tro(id) ON DELETE RESTRICT, toa_nha_id INTEGER NOT NULL REFERENCES toa_nha(id) ON DELETE RESTRICT, loai_yeu_cau TEXT NOT NULL, ngay_mong_muon TEXT, trang_thai TEXT NOT NULL DEFAULT 'MOI', ngay_tao TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS ix_yeu_cau_toa_nha_ngay_tao ON yeu_cau(toa_nha_id, ngay_tao);
+                INSERT INTO app_schema_version(version,applied_at) VALUES(9,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                """);
+        }
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }
