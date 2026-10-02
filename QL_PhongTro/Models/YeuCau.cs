@@ -5,6 +5,8 @@ public static class TrangThaiYeuCau
     public const string Moi = "MOI", DaHenLich = "DA_HEN_LICH", DaDuyet = "DA_DUYET", TuChoi = "TU_CHOI", DaHuy = "DA_HUY";
     public static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>
     { [Moi] = "Mới", [DaHenLich] = "Đã hẹn lịch", [DaDuyet] = "Đã duyệt", [TuChoi] = "Từ chối", [DaHuy] = "Đã huỷ" };
+
+    public static bool ChuaXuLy(string trangThai) => trangThai is Moi or DaHenLich;
 }
 public class YeuCau
 {

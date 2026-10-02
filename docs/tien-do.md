@@ -310,3 +310,9 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 - PO chốt 5 trạng thái: Mới, Đã hẹn lịch, Đã duyệt, Từ chối, Đã huỷ. `/YeuCau` nhận `trangThai` và `toaNhaId`, lấy danh sách tòa đang hoạt động của chủ nhà, hỗ trợ lọc riêng hoặc kết hợp; nút bỏ bộ lọc đưa về danh sách rộng hơn.
 - Thứ tự `ngay_tao DESC, id DESC` được giữ sau mọi bộ lọc. Không triển khai cảnh báo quá 24 giờ hoặc số lượng chưa xử lý trên menu.
 - Xác minh cần thực hiện: build, test từng trạng thái/tòa nhà/kết hợp/bỏ lọc/không có kết quả/thứ tự. Chưa chạy kiểm thử trong lượt này.
+
+### S2-07 AC3 — Nhận biết yêu cầu chưa xử lý quá 24 giờ (02/10/2026)
+
+- Giả định PO cần xác nhận: `Mới` và `Đã hẹn lịch` là chưa xử lý; `Đã duyệt`, `Từ chối`, `Đã huỷ` là đã có kết quả. Mốc bắt đầu tính là `ngay_tao`; đúng 24 giờ đã được đánh dấu, tính theo UTC.
+- Controller trả thêm `QuaHanChuaXuLy`; view giữ nguyên toàn bộ thông tin và tô nổi bật dòng, kèm nhãn “Quá 24 giờ, chưa xử lý”. Vì tính trên từng dòng sau truy vấn, dấu hiệu vẫn đúng khi lọc trạng thái hoặc tòa nhà.
+- Chưa có số lượng yêu cầu chưa xử lý trên menu. Build/test thực tế cần thực hiện trước nghiệm thu; database local không bị ghi.
