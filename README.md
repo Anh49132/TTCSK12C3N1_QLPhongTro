@@ -293,3 +293,8 @@ Build Debug ở trên phù hợp để chạy và báo cáo local. Build Release
 ## Nhật ký hoạt động S1-10
 
 ADMIN xem tại `/NhatKy`. Mã hiện tại yêu cầu schema nhật ký v3; kiểm tra schema của đúng database trước khi chạy và chỉ nâng cấp DB đang dùng khi được yêu cầu. Xem mục **Nhật ký hoạt động (S1-10)** trong [bàn giao dự án](docs/tien-do.md).
+### S2-07 — Danh sách yêu cầu
+
+Schema v9 thêm bảng `yeu_cau`. Với database đã có dữ liệu, dừng web rồi chạy `--update-database` và `--check-database` theo quy trình bên trên; updater sẽ sao lưu trước và giữ nguyên dữ liệu cũ. Database mới được tạo bằng `--initialize-database` sẽ có schema v9 nhưng không tự nạp dữ liệu cá nhân hay dữ liệu demo.
+
+Màn hình danh sách của chủ nhà: `/YeuCau`. Dữ liệu mẫu giả để demo nằm tại `docs/sql/S2-07-yeu-cau.sql`; chỉ chạy trên database demo/bản sao đã có tối thiểu ba khách và ba phòng, không chạy trên database local đang sử dụng.

@@ -296,3 +296,11 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 
 - Thay nút chữ Hiện rộng cả dòng ở Đăng nhập và Đổi mật khẩu bằng SVG con mắt nhỏ nằm bên phải bên trong ô nhập, dùng partial `_PasswordToggle`. Khi hiện mật khẩu, biểu tượng có gạch chéo; giữ thao tác bàn phím, nhãn trợ năng và `aria-pressed`. CSS riêng tránh quy tắc `.auth-card .btn` làm nút chiếm cả dòng.
 - Build Debug vào thư mục riêng PASS, không ảnh hưởng tiến trình app đang chạy; chưa kiểm tra trực quan trên trình duyệt. Không sửa DB, chưa commit/push thay đổi giao diện này.
+### S2-07 — Danh sách yêu cầu của chủ nhà (02/10/2026)
+
+- Đã thêm bảng `yeu_cau` ở schema v9 với mã yêu cầu, khách, phòng, tòa nhà, loại yêu cầu, ngày mong muốn, trạng thái và thời điểm tạo; không sửa database local.
+- Đã thêm `YeuCauController.Index` và `/YeuCau`: lọc theo tòa thuộc chủ nhà, trả đủ thông tin yêu cầu và sắp xếp mới nhất trước; có trạng thái danh sách rỗng.
+- Dữ liệu mẫu giả nằm ở `docs/sql/S2-07-yeu-cau.sql`, chỉ dùng trên database demo/bản sao.
+- File thay đổi: model, EF mapping, updater v9, controller, view model, Razor View, SQL mẫu, README và tài liệu tiến độ.
+- Xác minh: build project chính với output riêng `S207Check` PASS, 0 lỗi; còn cảnh báo ImageSharp license và CS8601 có sẵn. Chưa chạy updater, test HTTP/UI hoặc script dữ liệu mẫu.
+- Chưa làm: bộ lọc, đánh dấu quá 24 giờ, số lượng chưa xử lý trên menu, tạo/sửa yêu cầu. Bước tiếp theo là nâng cấp trên bản sao và kiểm thử bốn trường hợp hiển thị theo AC.
