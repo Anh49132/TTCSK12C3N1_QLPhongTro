@@ -1,0 +1,51 @@
+@model IReadOnlyList<QL_PhongTro.ViewModels.YeuCauThueItemViewModel>
+@{
+    ViewData["Title"] = "Yêu cầu thuê của tôi";
+}
+
+<section class="container-fluid">
+    <h1>Yêu cầu thuê của tôi</h1>
+    <p>Theo dõi trạng thái và lịch hẹn của các yêu cầu đã gửi.</p>
+    @if (Model.Count == 0)
+    {
+        <p class="alert alert-info" role="status">Bạn chưa có yêu cầu thuê nào.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">Mã yêu cầu</th>
+                        <th scope="col">Phòng</th>
+                        <th scope="col">Ngày gửi</th>
+                        <th scope="col">Trạng thái</th>
+                        <th scope="col">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var request in Model)
+                    {
+                        <tr data-request-id="@request.Id">
+                            <th scope="row">@request.MaYeuCau</th>
+                            <td>@request.ThongTinPhong</td>
+                            <td>@request.NgayTao.AddHours(7).ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>@request.TrangThaiHienThi</td>
+                            <td>
+                                @if (request.CoTheHuy)
+                                {
+                                    <form asp-action="Cancel" asp-route-id="@request.Id" method="post" data-cancel-form>
+                                        <button type="submit" class="btn btn-outline-danger"
+                                                onclick="return confirm('Bạn có chắc muốn huỷ yêu cầu này?')">
+                                            Huỷ yêu cầu
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

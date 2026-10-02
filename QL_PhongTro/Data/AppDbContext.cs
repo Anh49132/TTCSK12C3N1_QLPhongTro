@@ -17,6 +17,7 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
     public DbSet<HopDongDichVu> HopDongDichVus => Set<HopDongDichVu>();
     public DbSet<HoaDon> HoaDons => Set<HoaDon>();
     public DbSet<ChiTietHoaDon> ChiTietHoaDons => Set<ChiTietHoaDon>();
+    public DbSet<YeuCauThue> YeuCauThues => Set<YeuCauThue>();
     public DbSet<KhachThue> KhachThues { get; set; } = null!;
     public DbSet<TaiKhoan> TaiKhoans { get; set; } = null!;
     public DbSet<ToaNha> ToaNhas { get; set; } = null!;
@@ -49,6 +50,14 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         modelBuilder.Entity<ChiTietHoaDon>().HasOne<DichVu>().WithMany().HasForeignKey(x => x.DichVuId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<ChiTietHoaDon>().HasOne<CauHinhDichVu>().WithMany().HasForeignKey(x => x.CauHinhDichVuId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<ChiTietHoaDon>().HasOne<KyHopDongThamChieu>().WithMany().HasForeignKey(x => x.KyHopDongId).OnDelete(DeleteBehavior.Restrict);
+        var tenantRequest = modelBuilder.Entity<YeuCauThue>();
+        tenantRequest.HasOne<KhachThue>().WithMany().HasForeignKey(x => x.KhachThueId).OnDelete(DeleteBehavior.Restrict);
+        tenantRequest.HasOne<TaiKhoan>().WithMany().HasForeignKey(x => x.NguoiXuLyId).OnDelete(DeleteBehavior.Restrict);
+        tenantRequest.Property(x => x.TrangThai).IsConcurrencyToken();
+        tenantRequest.Property(x => x.PhienBan).IsConcurrencyToken();
+        tenantRequest.HasIndex(x => new { x.KhachThueId, x.NgayTao, x.Id })
+            .HasDatabaseName("ix_yeu_cau_thue_khach_ngay")
+            .IsDescending(false, true, true);
         modelBuilder.Entity<DichVu>().HasIndex(x => x.MaDichVu).IsUnique();
         modelBuilder.Entity<KhoiTaoDichVu>().HasOne<ToaNha>().WithMany().HasForeignKey(x => x.ToaNhaId).OnDelete(DeleteBehavior.Restrict);
         var servicePrice = modelBuilder.Entity<CauHinhDichVu>();

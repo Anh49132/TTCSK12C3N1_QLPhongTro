@@ -17,6 +17,7 @@ public sealed class NhatKyViewModel
         ["tai_khoan"] = "Tài khoản", ["toa_nha"] = "Tòa nhà", ["phong_tro"] = "Phòng",
         ["dich_vu"] = "Dịch vụ", ["cau_hinh_dich_vu"] = "Đơn giá dịch vụ",
         ["hoa_don"] = "Hóa đơn", ["chi_tiet_hoa_don"] = "Dòng hóa đơn / chỉ số",
+        ["yeu_cau_thue"] = "Yêu cầu thuê",
         ["hop_dong_dich_vu"] = "Dịch vụ hợp đồng", ["hop_dong"] = "Hợp đồng",
         ["chi_so_dien_nuoc"] = "Chỉ số điện nước", ["thanh_toan"] = "Thanh toán"
     };

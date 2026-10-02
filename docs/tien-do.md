@@ -1,5 +1,21 @@
 # Tiến độ và bàn giao dự án
 
+## S2-10.1 — danh sách yêu cầu thuê của khách (02/10/2026)
+
+- Hoàn tất phần danh sách “Yêu cầu thuê của tôi” theo AC mới nhất: lấy yêu cầu theo khách đăng nhập, loại bỏ dữ liệu khách khác, sắp xếp theo `NgayTao` giảm dần, hiển thị `MaYeuCau`, `ThongTinPhong`, `NgayTao`, `TrangThai` và giữ `Huỷ` chỉ ở dòng có trạng thái cho phép hủy.
+- File đã thay đổi: `QL_PhongTro/Services/YeuCauThueService.cs`, `QL_PhongTro/ViewModels/YeuCauThueViewModel.cs`, `QL_PhongTro/Views/YeuCauThue/Index.cshtml`, `Tests/QL_PhongTro.Tests/TenantRequestCancellationTests.cs`.
+- Xác minh thực tế: chạy `dotnet test .\Tests\QL_PhongTro.Tests\QL_PhongTro.Tests.csproj --no-restore --filter HttpCancellationUpdatesListAndRemovesCancelAction` và kết quả `Passed: 1, Failed: 0`.
+- Giả định: dữ liệu “phòng” trên danh sách đang lấy từ `LoaiYeuCau` hiện có trong schema (`XEM_PHONG`, `THUE_NGAY`) vì model hiện tại chưa có liên kết trực tiếp tới bảng phòng/tin đăng. Nếu business cần hiển thị chính xác tên phòng, cần bổ sung mối quan hệ dữ liệu mới theo schema đã được yêu cầu.
+
+## S2-09 — khách thuê tự hủy yêu cầu (02/10/2026)
+
+- Bổ sung trang **Yêu cầu thuê của tôi** (`/YeuCauThue`): chỉ vai trò KHACH_THUE xem danh sách của hồ sơ gắn với tài khoản; nút POST có antiforgery chỉ hiện với `MOI`/`DA_HEN_LICH`. Backend giới hạn chủ sở hữu, kiểm tra lại trạng thái, dùng concurrency token cho trạng thái/phiên bản, lưu `DA_HUY`, actor/thời điểm và audit cùng transaction. Trang hiển thị “Đã huỷ” ngay sau redirect và không còn nút cho dòng đó; trạng thái khác hoặc xung đột được báo lỗi.
+- Schema v9 bổ sung bảng tối thiểu `yeu_cau_thue` và chỉ mục tra danh sách theo khách. Updater chạy backup/versioned transaction; kiểm thử nâng v8→v9 trên DB tạm giữ nguyên account, kiểm tra integrity/FK. Hướng dẫn máy mới và máy đã có DB cập nhật trong README; xem thêm [cap-nhat-csdl.md](cap-nhat-csdl.md).
+- Phạm vi có chủ ý: không thêm luồng tạo yêu cầu, quản lý/chuyển trạng thái phía chủ nhà hoặc liên kết tin đăng/phòng. Vì vậy database mới sẽ có danh sách trống và giao diện chưa thể tạo dữ liệu yêu cầu để khách tự hủy cho tới khi có luồng tạo/nguồn dữ liệu riêng. Không seed dữ liệu giả khi nâng cấp. Tài khoản khách chưa có hồ sơ cũng thấy danh sách trống.
+- File/thành phần: model/EF/audit/updater/schema SQL v9; `YeuCauThueService`, `YeuCauThueController`, ViewModel/Razor và menu khách thuê; tests tự hủy + cập nhật hai kịch bản migration cũ; README, hướng dẫn SQLite và tiến độ. Không đổi dữ liệu/schema local, không tạo DB local.
+- Xác minh: `dotnet test .\Tests\QL_PhongTro.Tests\QL_PhongTro.Tests.csproj --no-restore` PASS **55/55**, bao gồm HTTP login/GET/POST thật trên DB test tạm, thành công cho Mới/Đã hẹn lịch, chặn Từ chối/Đã duyệt/Đã hủy và khách khác, stale status, audit, trạng thái/nút trên list, migration v8→v9. `git diff --check` PASS. Chưa xác minh trực quan bằng browser. Database mặc định `QL_PhongTro\Data\local-dev.sqlite` không tồn tại và không có `DatabasePath` environment override; không truy cập DB cá nhân.
+- Cách dùng sau pull: máy mới chạy `--initialize-database`; máy có DB dừng app, sao lưu riêng theo quy trình, chạy `--update-database`, `--check-database`, rồi đăng nhập tài khoản KHACH_THUE và mở menu **Yêu cầu thuê của tôi**. Chưa commit/push.
+
 ## Demo nghiệm thu S2-10 (02/10/2026)
 
 - Thêm `verification/prepare_s210_demo.py` và hướng dẫn README. Script chỉ tạo database mới dưới `data/s210-demo/`, dùng initializer + permission demo của dự án, dữ liệu tòa/cấu hình giả; không đọc/ghi database local. Artifact và credential thuộc `data/` đã ignore. Bản thành công mới nhất chạy ở cổng 5251; `latest.txt` trỏ tới `access.json` chứa URL, PID, database và bốn tài khoản chung mật khẩu ngẫu nhiên.

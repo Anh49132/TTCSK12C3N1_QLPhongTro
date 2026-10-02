@@ -32,6 +32,7 @@ var icon = module.Code switch { "PHONG_TRO" => "▦", "TAI_KHOAN" => "⚙", "TAI
 </section>
 }
 @if (User.IsInRole("KHACH_THUE")) {
+<a class="sidebar-link @Active(controller == "YeuCauThue")" asp-controller="YeuCauThue" asp-action="Index" aria-current="@(controller == "YeuCauThue" ? "page" : null)"><span class="menu-icon" aria-hidden="true">▤</span>Yêu cầu thuê của tôi</a>
 <a class="sidebar-link @Active(controller == "HoSo" && action == "Index")" asp-controller="HoSo" asp-action="Index"><span class="menu-icon" aria-hidden="true">○</span>Hồ sơ cá nhân</a>
 }
 </nav>

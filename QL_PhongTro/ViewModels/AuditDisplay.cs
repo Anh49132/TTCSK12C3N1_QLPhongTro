@@ -33,6 +33,7 @@ public static class AuditDisplay
         ["so_nguoi_toi_da"] = "Số người tối đa", ["trang_thai"] = "Trạng thái",
         ["ma_dich_vu"] = "Mã dịch vụ", ["ten_dich_vu"] = "Tên dịch vụ", ["phong_id"] = "Phòng",
         ["dich_vu_id"] = "Dịch vụ", ["cach_tinh"] = "Cách tính phí", ["don_vi_tinh"] = "Đơn vị tính",
+        ["ma_yeu_cau"] = "Mã yêu cầu", ["khach_thue_id"] = "Khách thuê",
         ["don_gia"] = "Đơn giá", ["tu_ngay"] = "Từ ngày", ["den_ngay"] = "Đến ngày",
         ["dang_ap_dung"] = "Tình trạng áp dụng", ["da_chot_gia"] = "Đã chốt giá", ["hop_dong_id"] = "Hợp đồng",
         ["cau_hinh_dich_vu_id"] = "Bảng giá dịch vụ", ["ma_hoa_don"] = "Mã hóa đơn", ["thang"] = "Tháng",

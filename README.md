@@ -42,7 +42,7 @@ dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --create-local-admin
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
 ```
 
-Updater kiểm tra schema, sao lưu và nâng lên v8; không tạo lại database. Web không tự nâng schema v7 lên v8. Sau khi cập nhật, có thể kiểm tra chỉ đọc bằng `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database`.
+Updater kiểm tra schema, sao lưu và nâng lên v9; không tạo lại database. Máy đã có dữ liệu cần giữ chạy updater một lần sau khi pull; máy mới dùng lệnh `--initialize-database` ở trên để tạo schema mới nhất. Bản v9 bổ sung bảng yêu cầu thuê để khách xem và tự hủy yêu cầu hợp lệ, không liên kết tin đăng hay tạo dữ liệu demo. Sau khi cập nhật, có thể kiểm tra chỉ đọc bằng `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database`.
 Truy cập http://localhost:5247. Giữ terminal đang hiện `Now listening on: http://localhost:5247` mở trong lúc sử dụng. Muốn dừng server, bấm vào đúng terminal đó, nhấn Ctrl+C và chờ dấu nhắc `PS C:\...>` xuất hiện lại rồi mới build hoặc chạy lần nữa.
 
 Không cần cập nhật database hoặc tạo ADMIN mỗi lần chạy. Sau khi pull thay đổi schema, chạy updater một lần. Tài khoản mới đang chờ xác nhận thì tiếp tục nhập/gửi lại mã, không cần xóa rồi đăng ký lại.
@@ -90,7 +90,7 @@ Trên máy đã kiểm tra, nhật ký `Microsoft-Windows-CodeIntegrity/Operatio
 
 Lệnh `--update-database` sao lưu rồi cập nhật schema còn thiếu; nên dừng ứng dụng trước khi chạy. Ứng dụng yêu cầu file SQLite đã tồn tại và không tự tạo lại CSDL nền. Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt biến môi trường `DatabasePath` để dùng file riêng.
 
-Schema v6 bổ sung dịch vụ S1-09 nếu chưa có và hai bảng `dich_vu_toa_nha`, `dich_vu_phong`. Schema v7 thêm cột giá riêng nullable theo từng cặp phòng/dịch vụ; giá riêng thắng giá chung và không thay đổi snapshot hóa đơn. Schema v8 bổ sung lịch sử ngừng dịch vụ phòng. Hợp đồng/hóa đơn vẫn là module tùy chọn, không được tự triển khai bởi S2-01.
+Schema v6 bổ sung dịch vụ S1-09 nếu chưa có và hai bảng `dich_vu_toa_nha`, `dich_vu_phong`. Schema v7 thêm cột giá riêng nullable theo từng cặp phòng/dịch vụ; giá riêng thắng giá chung và không thay đổi snapshot hóa đơn. Schema v8 bổ sung lịch sử ngừng dịch vụ phòng. Schema v9 bổ sung bảng yêu cầu thuê phục vụ danh sách/tự hủy, chưa có chức năng tạo yêu cầu hoặc liên kết tin đăng. Hợp đồng/hóa đơn vẫn là module tùy chọn, không được tự triển khai bởi S2-01.
 
 ### Dịch vụ tòa nhà và phòng (S2-01)
 

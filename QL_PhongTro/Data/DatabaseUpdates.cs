@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 8;
+    private const int CurrentVersion = 9;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -36,7 +36,7 @@ public static class DatabaseUpdates
 
     public static void Check(string path) => Check(path, true, true, true);
 
-    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true, bool requireRoomServices = false)
+    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true, bool requireRoomServices = false, bool requireTenantRequests = true)
     {
         using var c = Open(path, true);
         var problems = new List<string>();
@@ -57,6 +57,7 @@ public static class DatabaseUpdates
         {
             var table = entity.GetTableName()!;
             if (!requireRoomServices && table is "dich_vu_toa_nha" or "dich_vu_phong" or "ngung_dich_vu_phong") continue;
+            if (!requireTenantRequests && table == "yeu_cau_thue") continue;
             if (table == "nhat_ky_hoat_dong" && !requireAudit) continue;
             var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table);
             if (isOptional && !requiredOptional.Contains(table)) continue;
@@ -126,7 +127,7 @@ public static class DatabaseUpdates
             Console.WriteLine($"Database already up to date (version {CurrentVersion}). No changes.");
             return;
         }
-        if (version >= 5) Check(path, true);
+        if (version >= 5) Check(path, true, requireTenantRequests: version >= 9);
         var backupPath = path + ".before-update-" + Guid.NewGuid().ToString("N") + ".bak";
         using (var backup = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = backupPath }.ToString()))
         {
@@ -185,12 +186,12 @@ public static class DatabaseUpdates
         }
         if (version < 3)
         {
-            Check(path, false, false);
+            Check(path, false, false, requireTenantRequests: false);
             AuditSchema.Upgrade(c);
         }
         if (version < 4)
         {
-            Check(path, true, false);
+            Check(path, true, false, requireTenantRequests: false);
             using var tx = c.BeginTransaction();
             using var command = c.CreateCommand();
             command.Transaction = tx;
@@ -212,6 +213,7 @@ public static class DatabaseUpdates
         if (version < 6) RoomServicesSchema.Upgrade(c);
         if (version < 7) RoomServicePriceSchema.Upgrade(c);
         if (version < 8) RoomServiceRemovalSchema.Upgrade(c);
+        if (version < 9) YeuCauThueSchema.Upgrade(c);
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }
