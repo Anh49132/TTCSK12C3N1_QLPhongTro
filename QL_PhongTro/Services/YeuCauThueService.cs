@@ -44,8 +44,9 @@ public class YeuCauThueService(AppDbContext db, ITimeProvider clock)
     {
         var now = clock.UtcNow;
         return db.TinDangs.AsNoTracking().Where(t => t.TrangThai == "DANG_HIEN_THI"
-            && t.NgayHetHan != null && t.NgayHetHan > now
-            && db.PhongTros.Any(p => p.Id == t.PhongId && p.TrangThai == "TRONG"));
+            && (t.NgayHetHan == null || t.NgayHetHan > now)
+            && db.PhongTros.Any(p => p.Id == t.PhongId && p.TrangThai == "TRONG"
+                && db.ToaNhas.Any(b => b.Id == p.ToaNhaId && b.DangHoatDong)));
     }
 
     public async Task<bool> IsInstalled()

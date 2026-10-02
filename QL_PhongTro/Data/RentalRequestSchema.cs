@@ -15,13 +15,20 @@ public static class RentalRequestSchema
         using var check = c.CreateCommand();
         check.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('tin_dang','yeu_cau_thue','rental_request_schema','rental_request_counter')";
         var count = Convert.ToInt32(check.ExecuteScalar());
-        if (count != 0)
+        if (count != 0 && count != 1)
         {
             if (count != 4) throw new InvalidOperationException("Unknown/partial rental schema; review manually. No changes made.");
             check.CommandText = "SELECT version FROM rental_request_schema";
             if (Convert.ToInt32(check.ExecuteScalar()) != 1) throw new InvalidOperationException("Unsupported rental module version.");
             Console.WriteLine("Rental request module v1 already installed. No changes.");
             return;
+        }
+        // v9 already supplies tin_dang; DatabaseUpdates.Check validated its columns read-only.
+        if (count == 1)
+        {
+            check.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='tin_dang'";
+            if (Convert.ToInt32(check.ExecuteScalar()) != 1)
+                throw new InvalidOperationException("Unknown/partial rental schema; review manually. No changes made.");
         }
         check.CommandText = "PRAGMA foreign_key_check";
         using (var reader = check.ExecuteReader())
@@ -33,7 +40,7 @@ public static class RentalRequestSchema
         using var cmd = c.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandText = """
-            CREATE TABLE tin_dang (
+            CREATE TABLE IF NOT EXISTS tin_dang (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 phong_id INTEGER NOT NULL REFERENCES phong_tro(id) ON DELETE RESTRICT,
                 nguoi_dang_id INTEGER NOT NULL REFERENCES tai_khoan(id) ON DELETE RESTRICT,

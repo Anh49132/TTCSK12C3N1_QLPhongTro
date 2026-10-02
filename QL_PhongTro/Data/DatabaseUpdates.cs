@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 8;
+    private const int CurrentVersion = 9;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -34,9 +34,9 @@ public static class DatabaseUpdates
         return Convert.ToInt64(cmd.ExecuteScalar()) != 0;
     }
 
-    public static void Check(string path) => Check(path, true, true, true);
+    public static void Check(string path) => Check(path, true, true, true, true);
 
-    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true, bool requireRoomServices = false)
+    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true, bool requireRoomServices = false, bool requirePublicListings = false)
     {
         using var c = Open(path, true);
         var problems = new List<string>();
@@ -46,7 +46,7 @@ public static class DatabaseUpdates
         var invoices = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "hoa_don", "chi_tiet_hoa_don", "hop_dong_dich_vu" };
         var requiredOptional = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var rental = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "tin_dang", "yeu_cau_thue" };
-        if (rental.Any(table => HasTable(c, table))) requiredOptional.UnionWith(rental);
+        if (HasTable(c, "yeu_cau_thue")) requiredOptional.UnionWith(rental);
         if (contracts.Any(table => HasTable(c, table))) requiredOptional.UnionWith(contracts);
         if (services.Any(table => HasTable(c, table))) requiredOptional.UnionWith(services);
         if (invoices.Any(table => HasTable(c, table)))
@@ -60,7 +60,8 @@ public static class DatabaseUpdates
             var table = entity.GetTableName()!;
             if (!requireRoomServices && table is "dich_vu_toa_nha" or "dich_vu_phong" or "ngung_dich_vu_phong") continue;
             if (table == "nhat_ky_hoat_dong" && !requireAudit) continue;
-            var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table) || rental.Contains(table);
+            if (!requirePublicListings && (table is "tin_dang" or "anh_phong") && !HasTable(c, table)) continue;
+            var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table) || table == "yeu_cau_thue";
             if (isOptional && !requiredOptional.Contains(table)) continue;
             var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
             var columns = entity.GetProperties().Select(p => p.GetColumnName(store)!)
@@ -128,7 +129,7 @@ public static class DatabaseUpdates
             Console.WriteLine($"Database already up to date (version {CurrentVersion}). No changes.");
             return;
         }
-        if (version >= 5) Check(path, true);
+        if (version >= 5) Check(path, true, true, version >= 8, false);
         var backupPath = path + ".before-update-" + Guid.NewGuid().ToString("N") + ".bak";
         using (var backup = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = backupPath }.ToString()))
         {
@@ -187,12 +188,12 @@ public static class DatabaseUpdates
         }
         if (version < 3)
         {
-            Check(path, false, false);
+            Check(path, false, false, false);
             AuditSchema.Upgrade(c);
         }
         if (version < 4)
         {
-            Check(path, true, false);
+            Check(path, true, false, false);
             using var tx = c.BeginTransaction();
             using var command = c.CreateCommand();
             command.Transaction = tx;
@@ -214,6 +215,42 @@ public static class DatabaseUpdates
         if (version < 6) RoomServicesSchema.Upgrade(c);
         if (version < 7) RoomServicePriceSchema.Upgrade(c);
         if (version < 8) RoomServiceRemovalSchema.Upgrade(c);
+    if (version < 9)
+        {
+            using var tx = c.BeginTransaction();
+            using var command = c.CreateCommand();
+            command.Transaction = tx;
+            command.CommandText = """
+                CREATE TABLE IF NOT EXISTS tin_dang (
+                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    phong_id INTEGER NOT NULL REFERENCES phong_tro(id) ON DELETE RESTRICT,
+                    nguoi_dang_id INTEGER NOT NULL REFERENCES tai_khoan(id) ON DELETE RESTRICT,
+                    tin_goc_id INTEGER REFERENCES tin_dang(id) ON DELETE RESTRICT,
+                    tieu_de TEXT NOT NULL CHECK(length(tieu_de) <= 200),
+                    noi_dung TEXT,
+                    ngay_dang TEXT,
+                    ngay_het_han TEXT,
+                    trang_thai TEXT NOT NULL DEFAULT 'NHAP' CHECK(length(trang_thai) <= 25),
+                    ngay_tao TEXT NOT NULL
+                );
+                CREATE INDEX ix_tin_dang_phong_id_trang_thai ON tin_dang(phong_id, trang_thai);
+                CREATE INDEX ix_tin_dang_trang_thai_ngay_het_han ON tin_dang(trang_thai, ngay_het_han);
+                CREATE UNIQUE INDEX ux_tin_dang_phong_dang_hien_thi ON tin_dang(phong_id) WHERE trang_thai = 'DANG_HIEN_THI';
+                CREATE TABLE IF NOT EXISTS anh_phong (
+                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    phong_id INTEGER NOT NULL REFERENCES phong_tro(id) ON DELETE RESTRICT,
+                    duong_dan TEXT NOT NULL CHECK(length(duong_dan) <= 500),
+                    duong_dan_anh_nho TEXT CHECK(duong_dan_anh_nho IS NULL OR length(duong_dan_anh_nho) <= 500),
+                    thu_tu INTEGER NOT NULL CHECK(thu_tu BETWEEN 1 AND 8),
+                    mo_ta TEXT CHECK(mo_ta IS NULL OR length(mo_ta) <= 255),
+                    ngay_tao TEXT NOT NULL,
+                    UNIQUE(phong_id, thu_tu)
+                );
+                INSERT INTO app_schema_version(version,applied_at) VALUES(9,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                """;
+            command.ExecuteNonQuery();
+            tx.Commit();
+        }
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }

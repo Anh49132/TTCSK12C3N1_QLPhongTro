@@ -1,0 +1,458 @@
+.public-site {
+    min-height: 100vh;
+    margin: 0;
+    background: #f8f7f1;
+    color: #292f2b;
+    font-family: var(--font-sans);
+}
+
+.public-header {
+    min-height: 68px;
+    padding: 12px max(24px, calc((100vw - 1160px) / 2));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    background: #fff;
+    border-bottom: 1px solid #e7e5dc;
+}
+
+.public-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: #303b35;
+    font-size: 19px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.public-brand span {
+    display: grid;
+    width: 34px;
+    aspect-ratio: 1;
+    place-items: center;
+    border-radius: 50%;
+    background: #e8f0df;
+    color: #426a45;
+    font-size: 21px;
+}
+
+.public-header nav {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+}
+
+.public-header nav a {
+    color: #4c554f;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.public-header nav .public-register {
+    padding: 9px 14px;
+    border: 1px solid #bd4934;
+    border-radius: 5px;
+    color: #a43928;
+}
+
+.public-main {
+    width: min(100% - 48px, 1120px);
+    min-height: calc(100vh - 130px);
+    margin: 0 auto;
+    padding: 25px 0 48px;
+}
+
+.listing-breadcrumb {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    color: #70766f;
+    font-size: 13px;
+}
+
+.listing-breadcrumb a {
+    color: #426a45;
+    text-decoration: none;
+}
+
+.listing-heading {
+    margin-bottom: 20px;
+}
+
+.listing-eyebrow {
+    margin: 0 0 8px;
+    color: #8b563e;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.listing-heading h1 {
+    max-width: 800px;
+    margin: 0 0 8px;
+    font-size: 30px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.listing-address {
+    margin: 0;
+    color: #686f68;
+}
+
+.listing-gallery {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: clamp(130px, 21vw, 220px);
+    gap: 8px;
+    overflow: hidden;
+    border-radius: 6px;
+}
+
+.listing-gallery img {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    object-fit: cover;
+    background: #e8e9df;
+}
+
+.listing-gallery img:first-child {
+    grid-row: span 2;
+}
+
+.listing-gallery-empty {
+    min-height: 230px;
+    grid-auto-rows: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    background: #e9eee5;
+    color: #5e6d5f;
+}
+
+.listing-gallery-empty span {
+    font-size: 42px;
+    line-height: 1;
+}
+
+.listing-gallery-empty p {
+    margin: 0;
+}
+
+.listing-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, .85fr);
+    gap: 48px;
+    padding-top: 30px;
+}
+
+.listing-description h2 {
+    margin: 0 0 12px;
+    font-size: 21px;
+}
+
+.listing-description-text {
+    margin: 0;
+    color: #505850;
+    line-height: 1.75;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.listing-muted {
+    color: #777e76;
+}
+
+.listing-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin: 24px 0 0;
+}
+
+.listing-facts div {
+    padding: 14px;
+    border-left: 3px solid #76916a;
+    background: #fff;
+}
+
+.listing-facts dt {
+    color: #70766f;
+    font-size: 12px;
+}
+
+.listing-facts dd {
+    margin: 5px 0 0;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.listing-price {
+    align-self: start;
+    padding: 20px;
+    border: 1px solid #e4e2d8;
+    border-top: 3px solid #bd4934;
+    border-radius: 5px;
+    background: #fff;
+}
+
+.listing-rent {
+    margin: 0 0 18px;
+    color: #a43928;
+    font-size: 27px;
+    font-weight: 750;
+    overflow-wrap: anywhere;
+}
+
+.listing-rent span {
+    display: block;
+    margin-top: 2px;
+    color: #70766f;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.listing-deposit {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 14px;
+    border-top: 1px solid #e7e5dc;
+    font-size: 13px;
+}
+
+.listing-deposit strong {
+    text-align: right;
+}
+
+.listing-services {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #e4e2d8;
+}
+
+.listing-services > h2 {
+    margin: 0 0 22px;
+    font-size: 21px;
+}
+
+.service-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px;
+}
+
+.service-group h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+}
+
+.service-list {
+    border-top: 1px solid #e4e2d8;
+}
+
+.service-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 0;
+    border-bottom: 1px solid #e4e2d8;
+}
+
+.service-description h4,
+.service-description p,
+.service-price {
+    margin: 0;
+}
+
+.service-description h4 {
+    font-size: 14px;
+    font-weight: 650;
+}
+
+.service-description p,
+.service-price span {
+    display: block;
+    margin-top: 4px;
+    color: #70766f;
+    font-size: 12px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.service-price {
+    text-align: right;
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.listing-empty {
+    margin: 0;
+    padding: 14px;
+    background: #fff;
+    color: #70766f;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.first-month-estimate {
+    margin-top: 24px;
+    padding: 18px 20px;
+    border-left: 4px solid #426a45;
+    background: #edf2e9;
+}
+
+.estimate-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.estimate-heading h3,
+.estimate-heading strong,
+.first-month-estimate > p {
+    margin: 0;
+}
+
+.estimate-heading h3 {
+    font-size: 16px;
+    font-weight: 650;
+}
+
+.estimate-heading strong {
+    color: #355d39;
+    font-size: 22px;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.first-month-estimate > p {
+    margin-top: 7px;
+    color: #596458;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.public-footer {
+    padding: 18px 24px;
+    border-top: 1px solid #e7e5dc;
+    background: #fff;
+    color: #70766f;
+    text-align: center;
+    font-size: 12px;
+}
+
+@media (max-width: 600px) {
+    .public-header {
+        min-height: 60px;
+        padding: 10px 16px;
+    }
+
+    .public-brand {
+        font-size: 17px;
+    }
+
+    .public-header nav {
+        gap: 12px;
+        font-size: 12px;
+    }
+
+    .public-header nav a:first-child {
+        display: none;
+    }
+
+    .public-header nav .public-register {
+        padding: 8px 9px;
+    }
+
+    .public-main {
+        width: calc(100% - 32px);
+        padding-top: 18px;
+    }
+
+    .listing-breadcrumb {
+        margin-bottom: 16px;
+    }
+
+    .listing-heading h1 {
+        font-size: 24px;
+    }
+
+    .listing-address {
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .listing-gallery {
+        grid-auto-rows: 132px;
+        gap: 5px;
+    }
+
+    .listing-gallery-empty {
+        min-height: 190px;
+    }
+
+    .listing-content {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 22px;
+        padding-top: 24px;
+    }
+
+    .listing-facts {
+        gap: 8px;
+    }
+
+    .listing-facts div {
+        padding: 11px;
+    }
+
+    .listing-price {
+        padding: 16px;
+    }
+
+    .listing-rent {
+        font-size: 25px;
+    }
+
+    .listing-services {
+        margin-top: 24px;
+        padding-top: 20px;
+    }
+
+    .service-columns {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 22px;
+    }
+
+    .service-row {
+        gap: 8px;
+    }
+
+    .service-price {
+        max-width: 135px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .first-month-estimate {
+        padding: 15px;
+    }
+
+    .estimate-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 7px;
+    }
+
+    .estimate-heading strong {
+        font-size: 21px;
+        text-align: left;
+    }
+}

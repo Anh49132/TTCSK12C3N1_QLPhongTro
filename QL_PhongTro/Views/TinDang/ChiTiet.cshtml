@@ -1,12 +1,127 @@
 @model QL_PhongTro.ViewModels.ChiTietTinDangViewModel
-@{ ViewData["Title"] = Model.Tin.TieuDe; }
-<article class="card p-4 mb-4">
-    <h1>@Model.Tin.TieuDe</h1>
-    <p>Phòng @Model.Phong.MaPhong · @Model.Phong.DienTich m² · @Model.Phong.GiaThue.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN")) đ/tháng</p>
-    <p style="white-space: pre-wrap">@Model.Tin.NoiDung</p>
-    <a asp-action="Index">Quay lại tin đăng</a>
+@using System.Globalization
+@{
+    ViewData["Title"] = Model.PublicDetail.TieuDe;
+    Layout = User.Identity?.IsAuthenticated == true ? "~/Views/Shared/_Layout.cshtml" : "~/Views/Shared/_PublicLayout.cshtml";
+    var culture = CultureInfo.GetCultureInfo("vi-VN");
+    var location = string.Join(", ", new[] { Model.PublicDetail.PhuongXa, Model.PublicDetail.QuanHuyen, Model.PublicDetail.TinhThanh }.Where(part => !string.IsNullOrWhiteSpace(part)));
+}
+
+<nav class="listing-breadcrumb" aria-label="Đường dẫn">
+    <a href="/">Trang chủ</a><span aria-hidden="true">/</span><span>Chi tiết tin thuê</span>
+</nav>
+<article class="listing-page" data-listing-id="@Model.PublicDetail.Id">
+    <header class="listing-heading">
+        <p class="listing-eyebrow">PHÒNG ĐANG CHO THUÊ</p>
+        <h1>@Model.PublicDetail.TieuDe</h1>
+        <p class="listing-address">@Model.PublicDetail.DiaChi@if (!string.IsNullOrEmpty(location)) { <span>, @location</span> }</p>
+    </header>
+
+    @if (Model.PublicDetail.Anh.Count > 0)
+    {
+        <section class="listing-gallery" aria-label="Bộ ảnh phòng">
+            @foreach (var image in Model.PublicDetail.Anh)
+            {
+                <img src="@(image.DuongDanAnhNho ?? image.DuongDan)" alt="@(image.MoTa ?? Model.PublicDetail.TieuDe)" loading="lazy" />
+            }
+        </section>
+    }
+    else
+    {
+        <section class="listing-gallery listing-gallery-empty" aria-label="Bộ ảnh phòng">
+            <span aria-hidden="true">⌂</span>
+            <p>Tin này chưa có hình ảnh.</p>
+        </section>
+    }
+
+    <div class="listing-content">
+        <section class="listing-description" aria-labelledby="description-title">
+            <p class="listing-eyebrow">THÔNG TIN PHÒNG</p>
+            <h2 id="description-title">Mô tả</h2>
+            @if (string.IsNullOrWhiteSpace(Model.PublicDetail.MoTa))
+            {
+                <p class="listing-muted">Chưa có mô tả cho tin này.</p>
+            }
+            else
+            {
+                <p class="listing-description-text">@Model.PublicDetail.MoTa</p>
+            }
+            <dl class="listing-facts">
+                <div><dt>Diện tích</dt><dd data-testid="listing-area">@Model.PublicDetail.DienTich.ToString("0.##", culture) m²</dd></div>
+                <div><dt>Số người tối đa</dt><dd data-testid="listing-occupancy">@Model.PublicDetail.SoNguoiToiDa người</dd></div>
+            </dl>
+        </section>
+
+        <aside class="listing-price" aria-label="Chi phí thuê">
+            <p class="listing-eyebrow">GIÁ THUÊ MỖI THÁNG</p>
+            <p class="listing-rent" data-testid="listing-rent">@Model.PublicDetail.GiaThue.ToString("N0", culture)<span>đ / tháng</span></p>
+            <div class="listing-deposit">
+                <span>Tiền cọc dự kiến</span>
+                <strong data-testid="listing-deposit">@Model.PublicDetail.TienCocDuKien.ToString("N0", culture) đ</strong>
+            </div>
+        </aside>
+    </div>
+
+    <section class="listing-services" aria-labelledby="services-title">
+        <p class="listing-eyebrow">DỊCH VỤ VÀ CÁCH TÍNH</p>
+        <h2 id="services-title">Chi phí dịch vụ</h2>
+        <div class="service-columns">
+            <section class="service-group" aria-labelledby="usage-services-title">
+                <h3 id="usage-services-title">Theo mức sử dụng</h3>
+                @if (Model.PublicDetail.DichVuTheoSuDung.Count == 0)
+                {
+                    <p class="listing-empty" data-testid="no-usage-services">Chưa có đơn giá dịch vụ theo mức sử dụng.</p>
+                }
+                else
+                {
+                    <div class="service-list">
+                        @foreach (var service in Model.PublicDetail.DichVuTheoSuDung)
+                        {
+                            <article class="service-row" data-testid="usage-service">
+                                <div class="service-description">
+                                    <h4>@service.TenDichVu</h4>
+                                    <p>@QL_PhongTro.Models.CachTinhDichVu.Ten(service.CachTinh) <span>· @service.DonViTinh</span></p>
+                                </div>
+                                <p class="service-price">@service.DonGia.ToString("N0", culture)<span>đ / @service.DonViTinh</span></p>
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="service-group" aria-labelledby="fixed-services-title">
+                <h3 id="fixed-services-title">Khoản cố định hàng tháng</h3>
+                @if (Model.PublicDetail.KhoanCoDinh.Count == 0)
+                {
+                    <p class="listing-empty" data-testid="no-fixed-services">Tin này chưa có khoản phí cố định hàng tháng.</p>
+                }
+                else
+                {
+                    <div class="service-list">
+                        @foreach (var service in Model.PublicDetail.KhoanCoDinh)
+                        {
+                            <article class="service-row" data-testid="fixed-service">
+                                <div class="service-description">
+                                    <h4>@service.TenDichVu</h4>
+                                    <p>@service.DonViTinh</p>
+                                </div>
+                                <p class="service-price">@service.DonGia.ToString("N0", culture)<span>đ / tháng</span></p>
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+        <aside class="first-month-estimate" aria-label="Ước tính chi phí tháng đầu" data-testid="first-month-estimate">
+            <div class="estimate-heading">
+                <h3>Ước tính tổng chi phí tháng đầu</h3>
+                <strong data-testid="first-month-total">@Model.PublicDetail.TongChiPhiThangDau.ToString("N0", culture) đ</strong>
+            </div>
+            <p>Chưa bao gồm tiền điện và nước theo mức sử dụng thực tế.</p>
+        </aside>
+    </section>
 </article>
-@if (User.IsInRole("KHACH_THUE"))
+@if (Model.RequestModuleInstalled && User.IsInRole("KHACH_THUE"))
 {
     @if (Model.OpenRequestId is { } existingId)
     {
@@ -43,11 +158,11 @@
         </form>
     </section>
 }
-else if (User.Identity?.IsAuthenticated != true)
+else if (Model.RequestModuleInstalled && User.Identity?.IsAuthenticated != true)
 {
     <a class="btn btn-primary" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Url.Action("ChiTiet", new { id = Model.Tin.Id })">Đăng nhập để gửi yêu cầu</a>
 }
-else { <p>Chức năng gửi yêu cầu dành cho tài khoản Khách thuê.</p> }
+else if (Model.RequestModuleInstalled) { <p>Chức năng gửi yêu cầu dành cho tài khoản Khách thuê.</p> }
 
 @section Scripts {
     <script>

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Authorization;
 using QL_PhongTro.Data;
+using QL_PhongTro.Models;
 using QL_PhongTro.Services;
 using QL_PhongTro.ViewModels;
 
@@ -16,6 +18,73 @@ namespace QL_PhongTro.Controllers;
 public class DichVuController(AppDbContext db, DichVuService services, DichVuPhongService roomServices) : Controller
 {
     private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
+
+    [HttpGet, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> DienNuoc(int toaNhaId)
+    {
+        if (!await services.SoHuuToaNhaAsync(AccountId, toaNhaId)) return Forbid();
+        if (!await services.SanSangAsync()) return RedirectToAction(nameof(Index), new { toaNhaId });
+        return View(await services.LayCauHinhDienNuocAsync(AccountId, toaNhaId));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> DienNuoc(CauHinhDienNuocViewModel model)
+    {
+        if (!await services.SoHuuToaNhaAsync(AccountId, model.ToaNhaId)) return Forbid();
+        if (!await services.SanSangAsync()) return RedirectToAction(nameof(Index), new { toaNhaId = model.ToaNhaId });
+        var saved = await services.LayCauHinhDienNuocAsync(AccountId, model.ToaNhaId);
+        model.TenToaNha = saved.TenToaNha;
+        model.DienDaLuu = saved.DienDaLuu;
+        model.NuocDaLuu = saved.NuocDaLuu;
+        model.DienHienTai = saved.DienHienTai;
+        model.NuocHienTai = saved.NuocHienTai;
+        model.DienCho = saved.DienCho;
+        model.NuocCho = saved.NuocCho;
+        model.KyHienTai = saved.KyHienTai;
+        model.KyKeTiep = saved.KyKeTiep;
+        if (model.KyDaXem != saved.KyKeTiep || model.TrangThaiDaXem != saved.TrangThaiDaXem)
+        {
+            ModelState.AddModelError("", "Kỳ áp dụng hoặc cấu hình đã thay đổi. Hãy kiểm tra lại trước khi lưu.");
+            model.KyDaXem = saved.KyKeTiep;
+            model.TrangThaiDaXem = saved.TrangThaiDaXem;
+            ModelState.Remove(nameof(model.KyDaXem));
+            ModelState.Remove(nameof(model.TrangThaiDaXem));
+        }
+        ValidateUtility(nameof(model.Dien), model.Dien);
+        ValidateUtility(nameof(model.Nuoc), model.Nuoc);
+        if (!ModelState.IsValid) return View(model);
+        try
+        {
+            await services.LuuCauHinhDienNuocAsync(AccountId, model);
+            TempData["Success"] = "Đã lưu cấu hình điện nước cho kỳ kế tiếp.";
+            return RedirectToAction(nameof(DienNuoc), new { toaNhaId = model.ToaNhaId });
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { ModelState.AddModelError("", ex.Message); }
+        catch (DbUpdateException) { ModelState.AddModelError("", "Không lưu được cấu hình. Hãy tải lại trang và thử lại."); }
+        return View(model);
+    }
+
+    private void ValidateUtility(string prefix, CauHinhTienDichVuViewModel input)
+    {
+        if (input.CachTinh is CachTinhDichVu.TheoChiSo or CachTinhDichVu.TheoNguoi)
+        {
+            var unused = input.CachTinh == CachTinhDichVu.TheoChiSo
+                ? nameof(input.TienMotNguoi) : nameof(input.DonGiaChiSo);
+            ModelState.Remove($"{prefix}.{unused}");
+        }
+        // MVC may skip IValidatableObject when an unused numeric field fails binding.
+        // Recheck the selected field without clearing its binding errors or attempted value.
+        foreach (var error in input.Validate(new ValidationContext(input)))
+        {
+            foreach (var member in error.MemberNames)
+            {
+                var key = $"{prefix}.{member}";
+                if (!ModelState.TryGetValue(key, out var state) || state.Errors.Count == 0)
+                    ModelState.AddModelError(key, error.ErrorMessage!);
+            }
+        }
+    }
     private Task<List<SelectListItem>> ToaNhasAsync() => db.ToaNhas.AsNoTracking()
         .Where(x => x.ChuNhaId == AccountId && x.DangHoatDong).OrderBy(x => x.TenToaNha)
         .Select(x => new SelectListItem(x.TenToaNha, x.Id.ToString())).ToListAsync();

@@ -1,0 +1,67 @@
+@model QL_PhongTro.ViewModels.CauHinhDienNuocViewModel
+@using QL_PhongTro.Models
+@using System.Globalization
+@{
+    ViewData["Title"] = "Cấu hình điện nước";
+}
+<h1 class="h2">Cấu hình điện nước</h1>
+<p class="lead">Tòa nhà: <strong>@Model.TenToaNha</strong></p>
+<p class="text-secondary">Kỳ hiện tại: @Model.KyHienTai.ToString("MM/yyyy") · Kỳ kế tiếp: @Model.KyKeTiep.ToString("MM/yyyy")</p>
+<form asp-action="DienNuoc" method="post">
+    <input asp-for="ToaNhaId" type="hidden" />
+    <input asp-for="KyDaXem" type="hidden" />
+    <input asp-for="TrangThaiDaXem" type="hidden" />
+    <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+    <div class="row g-4 mb-4">
+        @foreach (var item in new[] { (Prefix: "Dien", Name: "điện", Unit: "kWh", Value: Model.Dien), (Prefix: "Nuoc", Name: "nước", Unit: "m³", Value: Model.Nuoc) })
+        {
+            var current = item.Prefix == "Dien" ? Model.DienHienTai : Model.NuocHienTai;
+            var pending = item.Prefix == "Dien" ? Model.DienCho : Model.NuocCho;
+            string Describe(QL_PhongTro.ViewModels.CauHinhTienDichVuViewModel value) =>
+                (value.CachTinh == CachTinhDichVu.TheoChiSo ? "Theo chỉ số đồng hồ" : "Khoán theo đầu người") +
+                " · " + (value.GiaApDung?.ToString("N0") ?? "Chưa chốt giá") + " " +
+                (value.CachTinh == CachTinhDichVu.TheoChiSo ? "VND/" + item.Unit : "VND/người/tháng");
+            var saved = item.Prefix == "Dien" ? Model.DienDaLuu : Model.NuocDaLuu;
+            <div class="col-12 col-md-6">
+                <fieldset class="border rounded p-3 h-100" data-utility data-saved-method="@saved.CachTinh" data-saved-price="@(saved.GiaApDung?.ToString(CultureInfo.InvariantCulture))">
+                    <legend class="h5 float-none w-auto px-2">Tiền @item.Name</legend>
+                    <div class="mb-3" data-current>
+                        <h2 class="h6">Cấu hình đang áp dụng</h2>
+                        <p>@(current is null ? "Chưa có cấu hình đang áp dụng." : Describe(current))</p>
+                    </div>
+                    @if (pending is not null)
+                    {
+                        <div class="alert alert-info" data-pending>
+                            <h2 class="h6">Cấu hình đang chờ áp dụng</h2>
+                            <p class="mb-1">@Describe(pending)</p>
+                            <p class="mb-0">Áp dụng từ kỳ @Model.KyKeTiep.ToString("MM/yyyy")</p>
+                        </div>
+                    }
+                    <p class="text-secondary">@(pending is null ? "Thiết lập cấu hình cho kỳ kế tiếp" : "Sửa cấu hình đang chờ")</p>
+                    <label class="form-label" for="@(item.Prefix)_CachTinh">Cách tính tiền @item.Name</label>
+                    <select class="form-select mb-3" id="@(item.Prefix)_CachTinh" name="@(item.Prefix).CachTinh" data-method>
+                        <option value="THEO_CHI_SO" selected="@(item.Value.CachTinh == CachTinhDichVu.TheoChiSo)">Theo chỉ số đồng hồ</option>
+                        <option value="THEO_NGUOI" selected="@(item.Value.CachTinh == CachTinhDichVu.TheoNguoi)">Khoán theo đầu người</option>
+                    </select>
+                    <div data-price="THEO_CHI_SO" hidden="@(item.Value.CachTinh != CachTinhDichVu.TheoChiSo)">
+                        <label class="form-label" for="@(item.Prefix)_DonGiaChiSo">Đơn giá (VND/@item.Unit)</label>
+                        @Html.TextBox(item.Prefix + ".DonGiaChiSo", item.Value.DonGiaChiSo, new { @class = "form-control", type = "number", min = "1", step = "1", id = item.Prefix + "_DonGiaChiSo", data_val = "true", data_val_required = "Hãy nhập mức giá cho cách tính đã chọn.", data_val_range = "Mức giá phải là số nguyên đồng lớn hơn 0.", data_val_range_min = "1", data_val_range_max = "9223372036854775807", data_val_number = "Mức giá phải là số nguyên đồng lớn hơn 0." })
+                        @Html.ValidationMessage(item.Prefix + ".DonGiaChiSo", null, new { @class = "text-danger" })
+                    </div>
+                    <div data-price="THEO_NGUOI" hidden="@(item.Value.CachTinh != CachTinhDichVu.TheoNguoi)">
+                        <label class="form-label" for="@(item.Prefix)_TienMotNguoi">Tiền một người một tháng (VND/người/tháng)</label>
+                        @Html.TextBox(item.Prefix + ".TienMotNguoi", item.Value.TienMotNguoi, new { @class = "form-control", type = "number", min = "1", step = "1", id = item.Prefix + "_TienMotNguoi", data_val = "true", data_val_required = "Hãy nhập mức giá cho cách tính đã chọn.", data_val_range = "Mức giá phải là số nguyên đồng lớn hơn 0.", data_val_range_min = "1", data_val_range_max = "9223372036854775807", data_val_number = "Mức giá phải là số nguyên đồng lớn hơn 0." })
+                        @Html.ValidationMessage(item.Prefix + ".TienMotNguoi", null, new { @class = "text-danger" })
+                    </div>
+                </fieldset>
+            </div>
+        }
+    </div>
+    <p id="utility-effective-period" class="alert alert-info" role="status" aria-live="polite" hidden="@(!Model.CoThayDoi)">Áp dụng từ kỳ @Model.KyKeTiep.ToString("MM/yyyy")</p>
+    <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
+    <a asp-controller="PhongTro" asp-action="ToaNha" class="btn btn-outline-secondary">Về danh sách tòa nhà</a>
+</form>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/electric-water-config.js" asp-append-version="true"></script>
+}

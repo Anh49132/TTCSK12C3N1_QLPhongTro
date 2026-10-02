@@ -45,7 +45,7 @@ dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --create-local-admin
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
 ```
 
-Updater kiểm tra schema, sao lưu và nâng lên v8; không tạo lại database. Web không tự nâng schema v7 lên v8. Sau khi cập nhật, có thể kiểm tra chỉ đọc bằng `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database`.
+Updater kiểm tra schema, sao lưu và nâng lên v9; không tạo lại database. Web không tự nâng schema lên v9. Sau khi cập nhật, có thể kiểm tra chỉ đọc bằng `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database`.
 Truy cập http://localhost:5247. Giữ terminal đang hiện `Now listening on: http://localhost:5247` mở trong lúc sử dụng. Muốn dừng server, bấm vào đúng terminal đó, nhấn Ctrl+C và chờ dấu nhắc `PS C:\...>` xuất hiện lại rồi mới build hoặc chạy lần nữa.
 
 Không cần cập nhật database hoặc tạo ADMIN mỗi lần chạy. Sau khi pull thay đổi schema, chạy updater một lần. Tài khoản mới đang chờ xác nhận thì tiếp tục nhập/gửi lại mã, không cần xóa rồi đăng ký lại.
@@ -101,6 +101,41 @@ Chủ nhà mở `/DichVu`, khai báo tên/đơn giá và bật “Áp dụng m�
 
 Tổng không gồm tiền thuê, phí theo chỉ số/theo người hoặc dịch vụ chưa có giá đang áp dụng. PO đã chốt: bỏ dịch vụ giữa tháng vẫn tính hết tháng đó và ngừng từ ngày đầu tháng sau. Hóa đơn đã phát hành hiển thị snapshot tên, đơn giá và thành tiền đã lưu; không đọc lại trạng thái dịch vụ phòng hiện tại. Khi phát hành hóa đơn, chọn hợp đồng/phòng và kỳ để danh sách dịch vụ được lọc theo đúng phòng và tháng.
 
+### Demo cấu hình điện nước theo tòa (S2-10)
+
+Fixture này tạo database hoàn toàn mới trong `data/s210-demo/`, không đọc hoặc ghi `QL_PhongTro/Data/local-dev.sqlite`. Cổng demo là `5251`; hãy dừng phiên demo cũ trên đúng cổng trước khi tạo bản mới.
+
+```powershell
+dotnet build .\QL_PhongTro\QL_PhongTro.csproj -c Debug -o .\data\s210-demo\runtime --no-restore
+python .\verification\prepare_s210_demo.py
+```
+
+Script tạo bốn tài khoản giả dùng chung một mật khẩu ngẫu nhiên, một tòa và hai phiên bản cấu hình cho mỗi dịch vụ; sau đó kiểm tra đăng nhập, lưu kỳ sau, từ chối giá 0, integrity/FK và giữ server chạy tại `http://localhost:5251`. Đọc thông tin bản mới nhất:
+
+```powershell
+$demoFolder = (Get-Content .\data\s210-demo\latest.txt -Raw).Trim()
+$demo = Get-Content (Join-Path $demoFolder 'access.json') -Raw | ConvertFrom-Json
+$demo.url
+$demo.accounts.CHU_NHA.email
+$demo.password
+$demo.current
+$demo.pending
+```
+
+Đăng nhập bằng tài khoản `CHU_NHA`, mở **Quản lý tòa nhà → Cấu hình điện nước**. Màn hình mẫu cho thấy kỳ hiện tại có điện theo chỉ số và nước theo đầu người; kỳ kế tiếp đảo lại hai cách tính và ghi rõ tháng bắt đầu áp dụng. Đổi lựa chọn hoặc giá hợp lệ để thấy thông báo kỳ trước nút lưu. Xóa giá hoặc nhập `0`, bấm lưu để thấy lỗi và dữ liệu không đổi.
+
+Muốn chạy lại đúng database demo sau khi server đã dừng:
+
+```powershell
+$env:DatabasePath = $demo.database
+$env:DataProtectionKeysPath = Join-Path $demoFolder 'keys'
+$env:ASPNETCORE_ENVIRONMENT = 'Development'
+$env:ASPNETCORE_URLS = $demo.url
+dotnet .\data\s210-demo\runtime\QL_PhongTro.dll
+```
+
+`DataProtectionKeysPath` chỉ định thư mục khóa cookie riêng cho phiên demo, tránh dùng chung kho khóa của database khác. Database, khóa, mật khẩu, log và HTML kiểm tra đều nằm trong `data/` đã được Git ignore; không commit hoặc chia sẻ chúng.
+
 ### Demo bỏ dịch vụ khỏi phòng
 
 Tạo fixture hoàn toàn giả trên database mới, không ghi database local:
@@ -121,9 +156,9 @@ Kiểm thử không cần database cá nhân: `dotnet test Tests/QL_PhongTro.Tes
 
 **Trước lần pull nhận thay đổi bỏ theo dõi `QL_PhongTro/Data/local-dev.sqlite`, mỗi thành viên phải dừng app và sao lưu database local ra ngoài repository. Git có thể xóa file đang được theo dõi khi pull.** File trên máy thực hiện task vẫn được giữ nguyên bởi `git rm --cached`. Không chép DB của thành viên khác vào repo; DB, WAL/SHM/journal, backup và credential demo đều bị ignore.
 
-- Máy mới chưa có DB: đặt `DatabasePath` tới file riêng chưa tồn tại, chạy `--initialize-database`, rồi `--check-database`. Khởi tạo schema hiện hành v8 và quyền module; không tạo tài khoản, dữ liệu cá nhân hoặc demo. Lệnh từ chối file đã tồn tại; web không tự tạo database. ADMIN dùng cấu hình riêng như trên.
+- Máy mới chưa có DB: đặt `DatabasePath` tới file riêng chưa tồn tại, chạy `--initialize-database`, rồi `--check-database`. Khởi tạo schema hiện hành v9 và quyền module; không tạo tài khoản, dữ liệu cá nhân hoặc demo. Lệnh từ chối file đã tồn tại; web không tự tạo database. ADMIN dùng cấu hình riêng như trên.
 - Máy đã có DB: kiểm tra đúng `DatabasePath`, dừng app, sao lưu ngoài repository và chạy `--check-database` trước. Khi schema nền cần nâng cấp, dùng `--update-database` có backup, không chạy khởi tạo hoặc chép đè. Nếu lỗi schema lạ, dừng để rà soát.
-- Để sử dụng S2-06 trên DB đã kiểm tra: chạy `--initialize-rental-requests` một lần trên đúng `DatabasePath`, rồi `--check-database`. Module có phiên bản riêng `rental_request_schema=1`, không thay đổi phiên bản nền. Cài mới tạo backup `*.before-rental-<id>.bak`, transaction và bảng tin/yêu cầu/bộ đếm; chạy lại không ghi dữ liệu. Schema module chưa có phiên bản hoặc không đầy đủ bị từ chối. Web không tự cài module.
+- Để sử dụng S2-06 trên DB đã kiểm tra: chạy `--initialize-rental-requests` một lần trên đúng `DatabasePath`, rồi `--check-database`. Module có phiên bản riêng `rental_request_schema=1`, không thay đổi phiên bản nền; sử dụng bảng tin đăng đã có ở v9, chỉ bổ sung yêu cầu và bộ đếm. Cài mới tạo backup `*.before-rental-<id>.bak`, transaction và bảng tin/yêu cầu/bộ đếm; chạy lại không ghi dữ liệu. Schema module chưa có phiên bản hoặc không đầy đủ bị từ chối. Web không tự cài module.
 
 Ví dụ sau khi đã chọn và kiểm tra DB phù hợp:
 
@@ -135,7 +170,7 @@ dotnet run --project QL_PhongTro --launch-profile http
 
 Khách thuê vào **Tin đăng cho thuê** → chi tiết tin → **Gửi yêu cầu**, chọn Xem phòng/Thuê ngay, ngày mong muốn, số người và lời nhắn tùy chọn. Gửi thành công chuyển ngay đến trang có mã `YC-yyyyMM-xxxx` (tháng Việt Nam). Profile tối thiểu được tạo từ tài khoản nếu chưa có; không yêu cầu nhập căn cước để gửi yêu cầu. Yêu cầu liên kết profile/tài khoản và tin từ URL, không nhận ID khách từ form. Mã tăng từ 0001 theo từng tháng, tối đa 9999 mã/tháng; hết mã báo lỗi và không lưu yêu cầu.
 
-Task chỉ có trang xem danh sách/chi tiết tối thiểu; chưa có chức năng chủ nhà tạo/duyệt tin. Tin public phải đang hiển thị, còn hạn và phòng trống. Ngày mong muốn chỉ được từ hôm nay đến 60 ngày sau, gồm cả hai đầu, theo múi giờ Việt Nam. Biểu mẫu giới hạn ngày chọn và báo lỗi tại trường ngày; server cũng từ chối ngày ngoài khoảng khi gửi POST trực tiếp. Số người phải là số nguyên dương và không vượt sức chứa hiện tại của phòng gắn với tin đăng. Vượt giới hạn báo “Phòng chỉ cho phép tối đa N người.” tại ô số người, không lưu yêu cầu. Giới hạn ngày/số người và kiểm soát gửi trùng không cần cập nhật schema database. Chưa triển khai duyệt, giữ chỗ, hủy hoặc hợp đồng.
+Task chỉ có trang xem danh sách/chi tiết tối thiểu; chưa có chức năng chủ nhà tạo/duyệt tin. Tin public phải đang hiển thị, còn hạn (hoặc không đặt hạn), phòng trống và tòa đang hoạt động. Ngày mong muốn chỉ được từ hôm nay đến 60 ngày sau, gồm cả hai đầu, theo múi giờ Việt Nam. Biểu mẫu giới hạn ngày chọn và báo lỗi tại trường ngày; server cũng từ chối ngày ngoài khoảng khi gửi POST trực tiếp. Số người phải là số nguyên dương và không vượt sức chứa hiện tại của phòng gắn với tin đăng. Vượt giới hạn báo “Phòng chỉ cho phép tối đa N người.” tại ô số người, không lưu yêu cầu. Giới hạn ngày/số người và kiểm soát gửi trùng không cần cập nhật schema database. Chưa triển khai duyệt, giữ chỗ, hủy hoặc hợp đồng.
 
 PO chốt ngày 02/10/2026: `MOI`, `DA_HEN_LICH`, `DA_DUYET` là yêu cầu đang mở. Mỗi tài khoản chỉ gửi một yêu cầu đang mở cho cùng tin, tính chung cả Xem phòng và Thuê ngay. Gửi trùng báo “Bạn đã có yêu cầu đang mở cho tin đăng này. Không tạo thêm yêu cầu mới.” và có liên kết **Mở lại yêu cầu đang tồn tại**. Trang `/TinDang/YeuCau/{id}` hiển thị mã, trạng thái, loại, ngày mong muốn, số người, lời nhắn, thời điểm gửi và lịch hẹn/lý do từ chối nếu có; chỉ chính khách gửi được xem, kể cả khi tin đã hết hạn. `TU_CHOI` hoặc `DA_HUY` cho phép gửi lại khi tin vẫn public; tin khác hoặc tài khoản khác không bị chặn. Kiểm tra trong transaction SQLite khóa ghi trước khi cấp mã, tạo yêu cầu và audit nên gửi đồng thời cũng chỉ tạo một yêu cầu. Dữ liệu trùng từ trước được giữ nguyên; nếu có, liên kết trỏ yêu cầu mở có ID nhỏ nhất, không tự đóng/xóa dữ liệu cũ.
 

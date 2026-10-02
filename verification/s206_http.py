@@ -89,13 +89,16 @@ def verify():
         with sqlite3.connect(copy) as c:
             tables = [r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name<>'sqlite_sequence'")]
             before = {t: c.execute('SELECT * FROM "'+t+'"').fetchall() for t in tables}
+        cli('--update-database', copy)
         cli('--initialize-rental-requests', copy)
         with sqlite3.connect(copy) as c:
             for t, rows in before.items():
-                assert c.execute('SELECT * FROM "'+t+'"').fetchall() == rows, t
+                actual = c.execute('SELECT * FROM "'+t+'"').fetchall()
+                assert (all(row in actual for row in rows) if t == 'app_schema_version' else actual == rows), t
             assert c.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
             assert not c.execute('PRAGMA foreign_key_check').fetchall()
-        assert list(FOLDER.glob('upgrade-copy.sqlite.before-rental-*.bak'))
+        if 'rental_request_schema' not in tables:
+            assert list(FOLDER.glob('upgrade-copy.sqlite.before-rental-*.bak'))
 
     with (FOLDER / 'server.log').open('w', encoding='utf-8') as log:
         p = subprocess.Popen(['dotnet', str(DLL)], cwd=APP, env=env, stdout=log, stderr=log)
@@ -112,7 +115,7 @@ def verify():
         path = f'/TinDang/ChiTiet/{listing}'
         post = f'/TinDang/GuiYeuCau/{listing}'
         def check_listing_menu(browser):
-            code, body, _ = browser.request(path)
+            code, body, _ = browser.request('/TinDang')
             assert code == 200
             links = [a for a in re.findall(r'<a\b[^>]*>.*?</a>', body, re.S)
                      if unescape(re.sub('<[^>]+>', '', a)).strip().endswith('Tin đăng cho thuê')]

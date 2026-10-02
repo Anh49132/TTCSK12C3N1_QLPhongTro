@@ -21,6 +21,10 @@ else if (Model.ToaNhas.Count == 0)
 }
 else
 {
+    @if (write && Model.ToaNhaId.HasValue)
+    {
+        <p><a asp-action="DienNuoc" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-primary">Cấu hình điện nước</a></p>
+    }
     @if (await Permissions.AllowsAsync("TAI_CHINH")) { <p><a class="btn btn-outline-primary" asp-controller="HoaDonDichVu" asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId">Lập và xem hóa đơn</a></p> }
     @if (Model.CanKhoiTao && await Permissions.AllowsAsync("PHONG_TRO", true))
     {

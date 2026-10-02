@@ -19,5 +19,7 @@ public class GuiYeuCauViewModel
 
 public record ChiTietTinDangViewModel(TinDang Tin, PhongTro Phong, GuiYeuCauViewModel Form, DateOnly Today)
 {
+    public TinDangChiTietViewModel PublicDetail { get; init; } = null!;
+    public bool RequestModuleInstalled { get; init; }
     public int? OpenRequestId { get; init; }
 }
