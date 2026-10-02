@@ -42,12 +42,13 @@ public class LichHenController(LichHenService service) : Controller
         return View(view);
     }
 
+    /// <summary>Parameter names match the input on the detail form so model binding works.</summary>
     [HttpPost("/LichHen/XacNhanLich"), ValidateAntiForgeryToken, ModuleAccess("YEU_CAU_THUE", write: true)]
-    public async Task<IActionResult> XacNhanLich(int id, DateTime? lichHen, CancellationToken ct)
+    public async Task<IActionResult> XacNhanLich(int id, DateTime? LichHenNhap, CancellationToken ct)
     {
         try
         {
-            if (lichHen is not { } nhap) throw new InvalidOperationException("Hãy chọn ngày giờ hẹn.");
+            if (LichHenNhap is not { } nhap) throw new InvalidOperationException("Hãy chọn ngày giờ hẹn.");
             await service.XacNhanLichAsync(id, AccountId, ChuyenNhapSangUtc(nhap)!.Value, ct);
             TempData["LichHenOk"] = "Đã xác nhận lịch hẹn.";
         }
