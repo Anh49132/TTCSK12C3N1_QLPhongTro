@@ -32,6 +32,7 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddSingleton<QL_PhongTro.Services.GiayToImageStore>();
 builder.Services.AddScoped<QL_PhongTro.Services.HoSoAccess>();
+builder.Services.AddScoped<QL_PhongTro.Services.LichHenService>();
 builder.Services.AddScoped<QL_PhongTro.Services.ICredentialValidationService, QL_PhongTro.Services.CredentialValidationService>();
 
 var dataDir = Path.Combine(builder.Environment.ContentRootPath, "Data");
@@ -157,7 +158,6 @@ builder.Services.AddScoped<DichVuService>();
 builder.Services.AddScoped<YeuCauThueService>();
 builder.Services.AddScoped<DichVuPhongService>();
 builder.Services.AddScoped<HoaDonDichVuService>();
-builder.Services.AddScoped<YeuCauThueService>();
 builder.Services.Configure<DichVuMacDinhOptions>(builder.Configuration.GetSection("DichVuMacDinh"));
 
 builder.Services.AddAuthentication()
