@@ -48,7 +48,12 @@ if (args.Contains("--initialize-database"))
     return;
 }
 if (!File.Exists(databasePath))
-    throw new FileNotFoundException("Local SQLite database not found. Run --initialize-database explicitly on a new path.", databasePath);
+    throw new FileNotFoundException("Local SQLite database missing. Run --initialize-database explicitly with the same DatabasePath.", databasePath);
+if (args.Contains("--initialize-rental-requests"))
+{
+    RentalRequestSchema.Initialize(databasePath);
+    return;
+}
 
 if (args.Contains("--update-database"))
 {
@@ -149,6 +154,7 @@ builder.Services.AddScoped<IRegistrationEmailSender, PasswordEmailSender>();
 builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddScoped<SessionVersionStore>();
 builder.Services.AddScoped<DichVuService>();
+builder.Services.AddScoped<YeuCauThueService>();
 builder.Services.AddScoped<DichVuPhongService>();
 builder.Services.AddScoped<HoaDonDichVuService>();
 builder.Services.Configure<DichVuMacDinhOptions>(builder.Configuration.GetSection("DichVuMacDinh"));

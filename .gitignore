@@ -1,4 +1,13 @@
 # Ignore local dev SQLite database
+*.sqlite
+*.sqlite-journal
+*.db-wal
+*.db-shm
+*.db-journal
+*.bak
+*.bak-*
+__pycache__/
+/data/S2-06/
 **/Data/local-dev.sqlite
 **/Data/*.sqlite
 **/*.sqlite-shm
@@ -30,6 +39,7 @@ obj/
 
 # Tests output
 **/TestResults/
+/data/test-results/
 
 
 # Password reset schema backups

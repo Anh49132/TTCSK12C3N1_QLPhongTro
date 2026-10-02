@@ -2,6 +2,9 @@
 
 Mỗi người giữ dữ liệu SQLite riêng. Pull mã nguồn không cập nhật file SQLite của máy khác. Không chép đè CSDL của đồng đội và không dùng EnsureDeleted/EnsureCreated để nâng cấp dữ liệu cũ.
 
+Trước lần pull bỏ theo dõi `QL_PhongTro/Data/local-dev.sqlite`, dừng app và sao lưu DB ra ngoài repository vì Git có thể xóa file trước đây được theo dõi. Máy mới chưa có DB dùng `--initialize-database` (từ chối ghi đè), cấu hình ADMIN riêng; xem README.
+
+Module S2-06 được cài riêng bằng `--initialize-rental-requests` sau kiểm tra schema nền v5. Phiên bản module là `rental_request_schema=1`, không đổi phiên bản nền. Cài mới có backup `*.before-rental-<id>.bak`, transaction; không thay dữ liệu cũ, không seed tin hoặc yêu cầu. Web không tự cài module. Quy trình demo/kiểm thử trên DB mới và bản sao được ghi tại README; không chạy initializer trên DB thật khi chưa được yêu cầu.
 **S2-01 bỏ database khỏi Git:** trước lần pull nhận thay đổi này, dừng app và sao lưu database local ra ngoài repository, vì Git có thể xóa file trước đây được theo dõi. Khôi phục bản của chính mình nếu cần, không ghi đè file đang tồn tại. Máy mới dùng `--initialize-database` (từ chối file đã tồn tại), rồi tạo ADMIN qua cấu hình riêng; xem [README](../README.md).
 
 ## Sau khi pull

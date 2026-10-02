@@ -20,5 +20,6 @@
         @RenderBody()
     </main>
     <footer class="public-footer">Nhà Trọ <span aria-hidden="true">·</span> Không gian sống phù hợp với bạn</footer>
+    @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

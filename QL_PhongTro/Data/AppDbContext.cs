@@ -5,6 +5,7 @@ namespace QL_PhongTro.Data;
 
 public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpContextAccessor? httpContext = null) : DbContext(options)
 {
+    public DbSet<YeuCauThue> YeuCauThues => Set<YeuCauThue>();
     public DbSet<NhatKyHoatDong> NhatKyHoatDongs => Set<NhatKyHoatDong>();
     public DbSet<DichVuToaNha> DichVuToaNhas => Set<DichVuToaNha>();
     public DbSet<NgungDichVuPhong> NgungDichVuPhongs => Set<NgungDichVuPhong>();
@@ -30,6 +31,13 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<TinDang>().HasOne<PhongTro>().WithMany().HasForeignKey(x => x.PhongId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<TinDang>().HasOne<TaiKhoan>().WithMany().HasForeignKey(x => x.NguoiDangId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<TinDang>().HasOne<TinDang>().WithMany().HasForeignKey(x => x.TinGocId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<YeuCauThue>().HasIndex(x => x.MaYeuCau).IsUnique();
+        modelBuilder.Entity<YeuCauThue>().HasOne<TinDang>().WithMany().HasForeignKey(x => x.TinDangId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<YeuCauThue>().HasOne<KhachThue>().WithMany().HasForeignKey(x => x.KhachThueId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<YeuCauThue>().HasOne<TaiKhoan>().WithMany().HasForeignKey(x => x.NguoiXuLyId).OnDelete(DeleteBehavior.Restrict);
         var removal = modelBuilder.Entity<NgungDichVuPhong>();
         removal.HasOne(x => x.DichVuPhong).WithMany().HasForeignKey(x => x.DichVuPhongId).OnDelete(DeleteBehavior.Restrict);
         removal.HasIndex(x => x.DichVuPhongId).IsUnique().HasFilter("ap_dung_lai_tu_ky IS NULL");
