@@ -1,0 +1,32 @@
+@model QL_PhongTro.Models.YeuCauThue
+@{
+    ViewData["Title"] = "Thông tin yêu cầu";
+    var status = Model.TrangThai switch
+    {
+        "MOI" => "Mới",
+        "DA_HEN_LICH" => "Đã hẹn lịch",
+        "DA_DUYET" => "Đã duyệt",
+        "TU_CHOI" => "Từ chối",
+        "DA_HUY" => "Đã hủy",
+        _ => Model.TrangThai
+    };
+    var vietnam = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+}
+<section class="card p-4">
+    <h1 class="h4">Thông tin yêu cầu</h1>
+    <p>Mã yêu cầu: <strong id="ma-yeu-cau">@Model.MaYeuCau</strong></p>
+    <p>Trạng thái: @status</p>
+    <p>Loại yêu cầu: @(Model.LoaiYeuCau == "XEM_PHONG" ? "Xem phòng" : "Thuê ngay")</p>
+    <p>Ngày mong muốn: @Model.NgayMongMuon.ToString("dd/MM/yyyy") · Số người dự kiến: @Model.SoNguoiDuKien</p>
+    <p>Ngày gửi: @TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(Model.NgayTao, DateTimeKind.Utc), vietnam).ToString("dd/MM/yyyy HH:mm")</p>
+    <p style="white-space: pre-wrap">@Model.LoiNhan</p>
+    @if (Model.LichHen is { } appointment)
+    {
+        <p>Lịch hẹn: @TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(appointment, DateTimeKind.Utc), vietnam).ToString("dd/MM/yyyy HH:mm")</p>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.LyDoTuChoi))
+    {
+        <p style="white-space: pre-wrap">Lý do từ chối: @Model.LyDoTuChoi</p>
+    }
+    <a asp-action="ChiTiet" asp-route-id="@Model.TinDangId">Quay lại tin đăng</a>
+</section>

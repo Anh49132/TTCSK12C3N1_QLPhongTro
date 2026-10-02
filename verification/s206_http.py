@@ -175,6 +175,8 @@ def verify():
         month = datetime.now(timezone(timedelta(hours=7))).strftime('%Y%m')
         locations = []
         for kind, date in [('XEM_PHONG',today),('THUE_NGAY',last_day)]:
+            # Closing a fixture request simulates PO's allowed resend rule; no production endpoint is added.
+            query("UPDATE yeu_cau_thue SET trang_thai='TU_CHOI'")
             code, _, headers = tenant.post(post, dict(valid, **{'Form.LoaiYeuCau':kind,
                                              'Form.NgayMongMuon':date.isoformat()}), path)
             assert code == 302
@@ -183,6 +185,24 @@ def verify():
             assert code == 200 and 'Gửi yêu cầu thành công' in body
             assert re.search(r'YC-'+month+r'-\d{4}', body)
             assert '<script>alert(1)</script>' not in body and '&lt;script&gt;' in body
+            request_id = int(headers['Location'].split('/')[-1])
+            for state in ['MOI', 'DA_HEN_LICH', 'DA_DUYET']:
+                query('UPDATE yeu_cau_thue SET trang_thai=? WHERE id=?', (state, request_id))
+                before_duplicate = {table: query(f'SELECT * FROM {table}') for table in
+                                    ['yeu_cau_thue','khach_thue','rental_request_counter','nhat_ky_hoat_dong']}
+                for retry_kind in ['XEM_PHONG', 'THUE_NGAY']:
+                    code, duplicate, _ = tenant.post(post, dict(valid, **{'Form.LoaiYeuCau':retry_kind}), path)
+                    duplicate = unescape(duplicate)
+                    assert code == 200 and 'Bạn đã có yêu cầu đang mở' in duplicate
+                    old_link = re.search(r'<a[^>]*id="open-existing-request"[^>]*href="([^"]+)"', duplicate).group(1)
+                    assert old_link == f'/TinDang/YeuCau/{request_id}'
+                    code, old_body, _ = tenant.request(old_link)
+                    assert '<script>alert(1)</script>' not in old_body
+                    old_body = unescape(old_body)
+                    assert code == 200 and 'Thông tin yêu cầu' in old_body
+                    assert query('SELECT ma_yeu_cau FROM yeu_cau_thue WHERE id=?', (request_id,))[0][0] in old_body
+                    assert date.strftime('%d/%m/%Y') in old_body and 'Số người dự kiến: 2' in old_body
+                assert all(query(f'SELECT * FROM {table}') == rows for table, rows in before_duplicate.items()), 'Duplicate changed data'
         rows = query('''SELECT r.loai_yeu_cau,r.tin_dang_id,k.tai_khoan_id,r.ma_yeu_cau,r.ngay_mong_muon,r.so_nguoi_du_kien,r.loi_nhan
                       FROM yeu_cau_thue r JOIN khach_thue k ON k.id=r.khach_thue_id ORDER BY r.id''')
         account = query("SELECT id FROM tai_khoan WHERE email='s206-tenant1@example.test'")[0][0]
@@ -192,8 +212,24 @@ def verify():
         assert len({r[3] for r in rows}) == 2
         other = Browser(); assert other.login('s206-tenant2@example.test', password)[0] == 302
         assert other.request(locations[0])[0] == 404
-        # All 1..4 are allowed. Duplicate-open checks remain outside this task.
+        old_request = int(locations[-1].split('/')[-1])
+        old_path = f'/TinDang/YeuCau/{old_request}'
+        assert other.request(old_path)[0] == 404
+        assert Browser().request(old_path)[0] == 302
+        assert staff.request(old_path)[0] == 403
+        assert other.request('/TinDang/YeuCau/999999')[0] == 404
+        # Another account can send to A; the first account can send to a different listing B.
+        assert other.post(post, valid, path)[0] == 302
+        query("""INSERT INTO phong_tro(toa_nha_id,ma_phong,tang,dien_tich,gia_thue,tien_coc_du_kien,so_nguoi_toi_da,trang_thai,ngay_tao)
+                 VALUES (?,'S206-102',1,25,2000000,1000000,4,'TRONG',?)""", (building, str(now)))
+        room_b = query('SELECT max(id) FROM phong_tro')[0][0]
+        query("INSERT INTO tin_dang(phong_id,nguoi_dang_id,tieu_de,ngay_dang,ngay_het_han,trang_thai,ngay_tao) VALUES (?,?,?,?,?,'DANG_HIEN_THI',?)",
+              (room_b, admin, 'Tin B S2-06', str(now), str(now+timedelta(days=30)), str(now)))
+        listing_b = query('SELECT max(id) FROM tin_dang')[0][0]
+        assert tenant.post(f'/TinDang/GuiYeuCau/{listing_b}', valid, f'/TinDang/ChiTiet/{listing_b}')[0] == 302
+        # All 1..4 are allowed after closing the prior request with DA_HUY.
         for people in [1, 3, 4]:
+            query("UPDATE yeu_cau_thue SET trang_thai='DA_HUY'")
             code, _, headers = tenant.post(post, dict(valid, **{'Form.SoNguoiDuKien':people}), path)
             assert code == 302
             request_id = int(headers['Location'].split('/')[-1])
@@ -203,11 +239,16 @@ def verify():
             assert b.login('s206-tenant1@example.test', password)[0] == 302
         def simultaneous(b):
             return b.post(post, valid, path)[0]
+        query("UPDATE yeu_cau_thue SET trang_thai='DA_HUY'")
+        count_before_concurrent = query('SELECT COUNT(*) FROM yeu_cau_thue')[0][0]
+        counter_before_concurrent = query('SELECT so_cuoi FROM rental_request_counter WHERE thang=?', (month,))[0][0]
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-            assert list(pool.map(simultaneous, browsers)) == [302]*4
-        assert query('SELECT COUNT(*),COUNT(DISTINCT ma_yeu_cau) FROM yeu_cau_thue')[0] == (9,9)
+            assert sorted(pool.map(simultaneous, browsers)) == [200,200,200,302]
+        assert query('SELECT COUNT(*),COUNT(DISTINCT ma_yeu_cau) FROM yeu_cau_thue')[0] == (count_before_concurrent+1,)*2
+        assert query('SELECT so_cuoi FROM rental_request_counter WHERE thang=?', (month,))[0][0] == counter_before_concurrent+1
         audit = query("SELECT du_lieu_sau FROM nhat_ky_hoat_dong WHERE loai_doi_tuong='yeu_cau_thue'")
-        assert len(audit) == 9 and all('loi_nhan' not in r[0] for r in audit)
+        assert len(audit) == count_before_concurrent+1 and all('loi_nhan' not in r[0] for r in audit)
+        query("UPDATE yeu_cau_thue SET trang_thai='DA_HUY'")
         # Force audited save failure; both request and allocated counter must roll back.
         count_before = query('SELECT COUNT(*) FROM yeu_cau_thue')[0][0]
         counter_before = query('SELECT so_cuoi FROM rental_request_counter WHERE thang=?', (month,))[0][0]
@@ -223,17 +264,19 @@ def verify():
         query('UPDATE rental_request_counter SET so_cuoi=? WHERE thang=?', (counter_before,month))
         query("UPDATE tin_dang SET ngay_het_han=? WHERE id=?", (str(now-timedelta(days=1)),listing))
         assert tenant.request(path)[0] == 404
+        assert tenant.request(old_path)[0] == 200, 'Old request must remain readable after listing expires'
         query('UPDATE tin_dang SET ngay_het_han=? WHERE id=?', (str(now+timedelta(days=30)),listing))
         query("UPDATE phong_tro SET trang_thai='DANG_THUE' WHERE id=?", (room,))
         assert tenant.request(path)[0] == 404
         query("UPDATE phong_tro SET trang_thai='TRONG' WHERE id=?", (room,))
         assert query('PRAGMA integrity_check')[0][0] == 'ok'
         assert not query('PRAGMA foreign_key_check')
-        (FOLDER / 'access.json').write_text(json.dumps({'database':str(DB),'url':BASE,'listing':listing,
+        # Leave one open request for the duplicate demo, with available monthly codes.
+        assert tenant.post(post, valid, path)[0] == 302
+        (FOLDER / 'access.json').write_text(json.dumps({'database':str(DB),'runtime':str(DLL.resolve()),'url':BASE,'listing':listing, 'listing_b':listing_b,
             'email':'s206-tenant1@example.test','password':password}, ensure_ascii=False, indent=2), encoding='utf-8')
-        if BASE == 'http://localhost:5266':
-            (ROOT / 'data/S2-06/latest.txt').write_text(str(FOLDER), encoding='utf-8')
-        print('PASS: capacity 1..4 accepted, 5 rejected for both types without request/profile/counter/audit writes, current room limit 2 reflected in field error; new DB/refuse overwrite, optional upgrade copy, date boundaries, form min/max, required/invalid fields, CSRF/roles/ownership, code/concurrency, public listings, audit/rollback/counter exhaustion, integrity/FK', flush=True)
+        (ROOT / 'data/S2-06/latest.txt').write_text(str(FOLDER), encoding='utf-8')
+        print('PASS: duplicates rejected for MOI/DA_HEN_LICH/DA_DUYET and both types without writes; reopen owned request, reject other accounts, expired listing still readable; different listing/account accepted, TU_CHOI/DA_HUY allow resend, four concurrent sends create one request/code/audit; capacity/date/validation/CSRF/roles, initialization/refuse overwrite, audit rollback/exhaustion, integrity/FK', flush=True)
     finally:
         p.terminate(); p.wait(timeout=15)
 

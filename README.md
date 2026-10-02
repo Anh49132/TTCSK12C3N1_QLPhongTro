@@ -121,9 +121,9 @@ Kiểm thử không cần database cá nhân: `dotnet test Tests/QL_PhongTro.Tes
 
 **Trước lần pull nhận thay đổi bỏ theo dõi `QL_PhongTro/Data/local-dev.sqlite`, mỗi thành viên phải dừng app và sao lưu database local ra ngoài repository. Git có thể xóa file đang được theo dõi khi pull.** File trên máy thực hiện task vẫn được giữ nguyên bởi `git rm --cached`. Không chép DB của thành viên khác vào repo; DB, WAL/SHM/journal, backup và credential demo đều bị ignore.
 
-- Máy mới chưa có DB: đặt `DatabasePath` tới file riêng chưa tồn tại, chạy `--initialize-database`, rồi `--check-database`. Khởi tạo schema nền v5 và quyền module; không tạo tài khoản, dữ liệu cá nhân hoặc demo. Lệnh từ chối file đã tồn tại; web không tự tạo database. ADMIN dùng cấu hình riêng như trên.
+- Máy mới chưa có DB: đặt `DatabasePath` tới file riêng chưa tồn tại, chạy `--initialize-database`, rồi `--check-database`. Khởi tạo schema hiện hành v8 và quyền module; không tạo tài khoản, dữ liệu cá nhân hoặc demo. Lệnh từ chối file đã tồn tại; web không tự tạo database. ADMIN dùng cấu hình riêng như trên.
 - Máy đã có DB: kiểm tra đúng `DatabasePath`, dừng app, sao lưu ngoài repository và chạy `--check-database` trước. Khi schema nền cần nâng cấp, dùng `--update-database` có backup, không chạy khởi tạo hoặc chép đè. Nếu lỗi schema lạ, dừng để rà soát.
-- Để sử dụng S2-06 trên DB đã kiểm tra: chạy `--initialize-rental-requests` một lần trên đúng `DatabasePath`, rồi `--check-database`. Module có phiên bản riêng `rental_request_schema=1`, giữ schema nền v5. Cài mới tạo backup `*.before-rental-<id>.bak`, transaction và bảng tin/yêu cầu/bộ đếm; chạy lại không ghi dữ liệu. Schema module chưa có phiên bản hoặc không đầy đủ bị từ chối. Web không tự cài module.
+- Để sử dụng S2-06 trên DB đã kiểm tra: chạy `--initialize-rental-requests` một lần trên đúng `DatabasePath`, rồi `--check-database`. Module có phiên bản riêng `rental_request_schema=1`, không thay đổi phiên bản nền. Cài mới tạo backup `*.before-rental-<id>.bak`, transaction và bảng tin/yêu cầu/bộ đếm; chạy lại không ghi dữ liệu. Schema module chưa có phiên bản hoặc không đầy đủ bị từ chối. Web không tự cài module.
 
 Ví dụ sau khi đã chọn và kiểm tra DB phù hợp:
 
@@ -135,7 +135,9 @@ dotnet run --project QL_PhongTro --launch-profile http
 
 Khách thuê vào **Tin đăng cho thuê** → chi tiết tin → **Gửi yêu cầu**, chọn Xem phòng/Thuê ngay, ngày mong muốn, số người và lời nhắn tùy chọn. Gửi thành công chuyển ngay đến trang có mã `YC-yyyyMM-xxxx` (tháng Việt Nam). Profile tối thiểu được tạo từ tài khoản nếu chưa có; không yêu cầu nhập căn cước để gửi yêu cầu. Yêu cầu liên kết profile/tài khoản và tin từ URL, không nhận ID khách từ form. Mã tăng từ 0001 theo từng tháng, tối đa 9999 mã/tháng; hết mã báo lỗi và không lưu yêu cầu.
 
-Task chỉ có trang xem danh sách/chi tiết tối thiểu; chưa có chức năng chủ nhà tạo/duyệt tin. Tin public phải đang hiển thị, còn hạn và phòng trống. Ngày mong muốn chỉ được từ hôm nay đến 60 ngày sau, gồm cả hai đầu, theo múi giờ Việt Nam. Biểu mẫu giới hạn ngày chọn và báo lỗi tại trường ngày; server cũng từ chối ngày ngoài khoảng khi gửi POST trực tiếp. Số người phải là số nguyên dương và không vượt sức chứa hiện tại của phòng gắn với tin đăng. Vượt giới hạn báo “Phòng chỉ cho phép tối đa N người.” tại ô số người, không lưu yêu cầu. Chưa kiểm soát yêu cầu đang mở trùng. Giới hạn ngày/số người không cần cập nhật schema database. Chưa triển khai duyệt, giữ chỗ, hủy hoặc hợp đồng.
+Task chỉ có trang xem danh sách/chi tiết tối thiểu; chưa có chức năng chủ nhà tạo/duyệt tin. Tin public phải đang hiển thị, còn hạn và phòng trống. Ngày mong muốn chỉ được từ hôm nay đến 60 ngày sau, gồm cả hai đầu, theo múi giờ Việt Nam. Biểu mẫu giới hạn ngày chọn và báo lỗi tại trường ngày; server cũng từ chối ngày ngoài khoảng khi gửi POST trực tiếp. Số người phải là số nguyên dương và không vượt sức chứa hiện tại của phòng gắn với tin đăng. Vượt giới hạn báo “Phòng chỉ cho phép tối đa N người.” tại ô số người, không lưu yêu cầu. Giới hạn ngày/số người và kiểm soát gửi trùng không cần cập nhật schema database. Chưa triển khai duyệt, giữ chỗ, hủy hoặc hợp đồng.
+
+PO chốt ngày 02/10/2026: `MOI`, `DA_HEN_LICH`, `DA_DUYET` là yêu cầu đang mở. Mỗi tài khoản chỉ gửi một yêu cầu đang mở cho cùng tin, tính chung cả Xem phòng và Thuê ngay. Gửi trùng báo “Bạn đã có yêu cầu đang mở cho tin đăng này. Không tạo thêm yêu cầu mới.” và có liên kết **Mở lại yêu cầu đang tồn tại**. Trang `/TinDang/YeuCau/{id}` hiển thị mã, trạng thái, loại, ngày mong muốn, số người, lời nhắn, thời điểm gửi và lịch hẹn/lý do từ chối nếu có; chỉ chính khách gửi được xem, kể cả khi tin đã hết hạn. `TU_CHOI` hoặc `DA_HUY` cho phép gửi lại khi tin vẫn public; tin khác hoặc tài khoản khác không bị chặn. Kiểm tra trong transaction SQLite khóa ghi trước khi cấp mã, tạo yêu cầu và audit nên gửi đồng thời cũng chỉ tạo một yêu cầu. Dữ liệu trùng từ trước được giữ nguyên; nếu có, liên kết trỏ yêu cầu mở có ID nhỏ nhất, không tự đóng/xóa dữ liệu cũ.
 
 ### Kiểm thử và demo bằng dữ liệu giả riêng
 
@@ -146,6 +148,17 @@ python verification/s206_http.py
 
 Script tạo DB mới chỉ có dữ liệu giả, tài khoản với mật khẩu ngẫu nhiên và một tin public; kiểm thử HTTP tại cổng 5266 rồi dừng server. Khi nguồn local tồn tại, chỉ đọc schema/sao lưu SQLite nhất quán và thử nâng cấp trên bản sao; đối chiếu dữ liệu cũ, SHA-256 nguồn. Không dùng DB đang sử dụng làm fixture. Nếu sandbox chặn Windows Event Log/Data Protection, chạy script trong terminal Windows bình thường.
 
+Nếu đầu ra `runtime` hoặc cổng 5266 đang được sử dụng, build và chạy bộ kiểm thử gửi trùng riêng:
+
+```powershell
+dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore -c Debug -o data/S2-06/duplicate-runtime
+$env:QL_TEST_DLL = Join-Path $PWD 'data/S2-06/duplicate-runtime/QL_PhongTro.dll'
+$env:QL_TEST_BASE = 'http://localhost:5269'
+python verification/s206_http.py
+```
+
+Fixture mới có tin A/B; `latest.txt` trỏ lượt PASS mới nhất, `access.json` ghi đúng database/runtime/URL của lượt đó. Bộ HTTP kiểm tra trạng thái mở/đóng, hai loại yêu cầu, quyền xem yêu cầu cũ, tin khác/tài khoản khác và bốn lần gửi đồng thời. Sau kiểm thử, tin A có một yêu cầu mở để demo từ chối và mở lại; tin B cho khách gửi lần đầu. Các thay đổi trạng thái trong kiểm thử chỉ thực hiện trên fixture giả.
+
 Sau khi script PASS, chạy demo đã có (cổng 5266 phải trống):
 
 ```powershell
@@ -154,10 +167,10 @@ $s206Access = Get-Content (Join-Path $s206Folder 'access.json') -Raw | ConvertFr
 $s206Access | Select-Object email,password,listing
 $env:DatabasePath = $s206Access.database
 $env:ASPNETCORE_ENVIRONMENT = 'Development'
-dotnet data/S2-06/runtime/QL_PhongTro.dll --contentRoot "$PWD/QL_PhongTro" --urls http://localhost:5266
+dotnet $s206Access.runtime --contentRoot "$PWD/QL_PhongTro" --urls $s206Access.url
 ```
 
-Đăng nhập bằng thông tin local vừa đọc; mở `http://localhost:5266/TinDang`, gửi yêu cầu và xem mã. Credential chỉ lưu tại `data/S2-06/.../access.json` đã ignore, không chia sẻ file này. Dừng bằng Ctrl+C. Muốn quay về DB mặc định, xóa biến `DatabasePath` khỏi terminal. Demo không chứa dữ liệu cá nhân từ DB nguồn.
+Đăng nhập bằng thông tin local vừa đọc; mở URL trong `$s206Access.url` rồi vào `/TinDang`. Tin A (`listing`) đã có yêu cầu mở: gửi lại form hợp lệ sẽ bị từ chối, bấm **Mở lại yêu cầu đang tồn tại** để xem yêu cầu cũ. Tin B (`listing_b`) cho gửi thành công, lần gửi thứ hai bị từ chối. Credential chỉ lưu tại `data/S2-06/.../access.json` đã ignore, không chia sẻ file này. Dừng bằng Ctrl+C. Muốn quay về DB mặc định, xóa biến `DatabasePath` khỏi terminal. Demo không chứa dữ liệu cá nhân từ DB nguồn. Với fixture cũ chưa có trường `runtime`, chạy lại script bằng mã mới trước khi demo.
 
 Demo giới hạn số người: phòng S206-101 của fixture mới cho phép tối đa 4 người. Nhập 5 sẽ thấy “Phòng chỉ cho phép tối đa 4 người.” và bị chặn; nhập từ 1 đến 4 với ngày hợp lệ gửi được. Bộ HTTP kiểm tra cả POST trực tiếp vượt giới hạn, thông báo đúng sức chứa thay đổi và không ghi dữ liệu khi từ chối.
 

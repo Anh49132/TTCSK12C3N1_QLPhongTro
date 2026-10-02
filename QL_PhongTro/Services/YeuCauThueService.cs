@@ -9,6 +9,10 @@ namespace QL_PhongTro.Services;
 
 public sealed class RequestCodeExhaustedException() : Exception("Đã hết mã yêu cầu trong tháng. Vui lòng liên hệ quản lý.");
 public sealed class DesiredDateException(string message) : Exception(message);
+public sealed class OpenRequestExistsException(int requestId) : Exception("Bạn đã có yêu cầu đang mở cho tin đăng này. Không tạo thêm yêu cầu mới.")
+{
+    public int RequestId { get; } = requestId;
+}
 public sealed class RoomCapacityException(int maximum) : Exception($"Phòng chỉ cho phép tối đa {maximum} người.")
 {
     public int Maximum { get; } = maximum;
@@ -16,6 +20,13 @@ public sealed class RoomCapacityException(int maximum) : Exception($"Phòng ch�
 
 public class YeuCauThueService(AppDbContext db, ITimeProvider clock)
 {
+    // PO: MOI, DA_HEN_LICH and DA_DUYET remain open; TU_CHOI/DA_HUY allow resending.
+    public Task<YeuCauThue?> FindOpenRequest(int listingId, int accountId) =>
+        db.YeuCauThues.AsNoTracking().Where(r => r.TinDangId == listingId
+            && (r.TrangThai == "MOI" || r.TrangThai == "DA_HEN_LICH" || r.TrangThai == "DA_DUYET")
+            && db.KhachThues.Any(k => k.Id == r.KhachThueId && k.TaiKhoanId == accountId))
+            .OrderBy(r => r.Id).FirstOrDefaultAsync();
+
     public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
         DateTime.SpecifyKind(clock.UtcNow, DateTimeKind.Utc),
         TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh")));
@@ -61,6 +72,10 @@ public class YeuCauThueService(AppDbContext db, ITimeProvider clock)
                               where listing.Id == listingId
                               select (int?)room.SoNguoiToiDa).SingleOrDefaultAsync();
         if (capacity is null) return null;
+        // The immediate transaction serializes this check with every Send, including other processes.
+        // Reject before creating a profile, allocating a code or writing an audit entry.
+        if (await FindOpenRequest(listingId, accountId) is { } existing)
+            throw new OpenRequestExistsException(existing.Id);
         if (form.SoNguoiDuKien > capacity.Value) throw new RoomCapacityException(capacity.Value);
         var profile = await db.KhachThues.SingleOrDefaultAsync(k => k.TaiKhoanId == accountId);
         if (profile is null)

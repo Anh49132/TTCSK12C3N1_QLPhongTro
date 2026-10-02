@@ -6,5 +6,6 @@
     <p>Loại yêu cầu: @(Model.LoaiYeuCau == "XEM_PHONG" ? "Xem phòng" : "Thuê ngay")</p>
     <p>Ngày mong muốn: @Model.NgayMongMuon.ToString("dd/MM/yyyy") · Số người dự kiến: @Model.SoNguoiDuKien</p>
     <p style="white-space: pre-wrap">@Model.LoiNhan</p>
+    <a asp-action="YeuCau" asp-route-id="@Model.Id">Xem thông tin yêu cầu</a>
     <a asp-action="ChiTiet" asp-route-id="@Model.TinDangId">Quay lại tin đăng</a>
 </section>

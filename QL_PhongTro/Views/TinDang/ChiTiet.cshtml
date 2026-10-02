@@ -8,6 +8,13 @@
 </article>
 @if (User.IsInRole("KHACH_THUE"))
 {
+    @if (Model.OpenRequestId is { } existingId)
+    {
+        <div class="alert alert-info" role="status">
+            <p>Bạn đã có yêu cầu đang mở cho tin đăng này. Không tạo thêm yêu cầu mới.</p>
+            <a id="open-existing-request" asp-action="YeuCau" asp-route-id="@existingId">Mở lại yêu cầu đang tồn tại</a>
+        </div>
+    }
     <a class="btn btn-primary mb-3" href="#gui-yeu-cau">Gửi yêu cầu</a>
     <section id="gui-yeu-cau" class="card p-4" aria-labelledby="request-heading">
         <h2 id="request-heading">Gửi yêu cầu xem phòng hoặc thuê ngay</h2>

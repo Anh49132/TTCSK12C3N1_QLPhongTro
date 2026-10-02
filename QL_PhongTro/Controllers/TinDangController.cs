@@ -18,6 +18,7 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests) : Co
     }
 
     [HttpGet]
+    [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
     public async Task<IActionResult> ChiTiet(int id)
     {
         if (!await requests.IsInstalled()) return View("ChuaCaiDat");
@@ -41,6 +42,11 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests) : Co
             return request is null ? NotFound() : RedirectToAction(nameof(ThanhCong), new { id = request.Id });
         }
         catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (OpenRequestExistsException error)
+        {
+            ModelState.AddModelError("", error.Message);
+            return View("ChiTiet", model with { OpenRequestId = error.RequestId });
+        }
         catch (RoomCapacityException error)
         {
             ModelState.AddModelError("Form.SoNguoiDuKien", error.Message);
@@ -76,6 +82,20 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests) : Co
         var tin = await requests.PublicListings().SingleOrDefaultAsync(t => t.Id == id);
         if (tin is null) return null;
         var room = await db.PhongTros.AsNoTracking().SingleAsync(p => p.Id == tin.PhongId);
-        return new(tin, room, form, requests.Today);
+        var existing = User.IsInRole("KHACH_THUE")
+            && int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId)
+            ? await requests.FindOpenRequest(id, accountId) : null;
+        return new(tin, room, form, requests.Today) { OpenRequestId = existing?.Id };
+    }
+
+    [Authorize(Roles = "KHACH_THUE"), HttpGet]
+    [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+    public async Task<IActionResult> YeuCau(int id)
+    {
+        if (!await requests.IsInstalled()) return NotFound();
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId)) return Forbid();
+        var request = await db.YeuCauThues.AsNoTracking().SingleOrDefaultAsync(r => r.Id == id
+            && db.KhachThues.Any(k => k.Id == r.KhachThueId && k.TaiKhoanId == accountId));
+        return request is null ? NotFound() : View(request);
     }
 }

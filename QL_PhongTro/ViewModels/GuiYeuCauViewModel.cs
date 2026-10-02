@@ -17,4 +17,7 @@ public class GuiYeuCauViewModel
     public string? LoiNhan { get; set; }
 }
 
-public record ChiTietTinDangViewModel(TinDang Tin, PhongTro Phong, GuiYeuCauViewModel Form, DateOnly Today);
+public record ChiTietTinDangViewModel(TinDang Tin, PhongTro Phong, GuiYeuCauViewModel Form, DateOnly Today)
+{
+    public int? OpenRequestId { get; init; }
+}
