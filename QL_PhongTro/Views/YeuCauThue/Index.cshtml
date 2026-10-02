@@ -21,6 +21,7 @@
                         <th scope="col">Ngày gửi</th>
                         <th scope="col">Trạng thái</th>
                         <th scope="col">Lịch hẹn</th>
+                        <th scope="col">Lý do từ chối</th>
                         <th scope="col">Thao tác</th>
                     </tr>
                 </thead>
@@ -37,6 +38,19 @@
                                 {
                                     <span class="d-block">Ngày: @lichHen.AddHours(7).ToString("dd/MM/yyyy")</span>
                                     <span class="d-block">Giờ: @lichHen.AddHours(7).ToString("HH:mm")</span>
+                                }
+                            </td>
+                            <td>
+                                @if (request.TrangThai == QL_PhongTro.Models.TrangThaiYeuCauThue.TuChoi)
+                                {
+                                    if (string.IsNullOrWhiteSpace(request.LyDoTuChoi))
+                                    {
+                                        <span>Chủ nhà chưa cung cấp lý do từ chối.</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@request.LyDoTuChoi</span>
+                                    }
                                 }
                             </td>
                             <td>

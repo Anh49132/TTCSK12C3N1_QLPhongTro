@@ -1,5 +1,12 @@
 # Tiến độ và bàn giao dự án
 
+## S2-10.3 — hiển thị lý do từ chối trên yêu cầu thuê (02/10/2026)
+
+- Danh sách chỉ đưa `LyDoTuChoi` vào dữ liệu hiển thị khi trạng thái là `TU_CHOI`; trên dòng bị từ chối hiển thị lý do đã lưu, hoặc thông báo “Chủ nhà chưa cung cấp lý do từ chối.” nếu giá trị trống. Yêu cầu ở trạng thái khác không hiện lý do.
+- File thay đổi: `QL_PhongTro/Services/YeuCauThueService.cs`, `QL_PhongTro/ViewModels/YeuCauThueViewModel.cs`, `QL_PhongTro/Views/YeuCauThue/Index.cshtml`, `Tests/QL_PhongTro.Tests/TenantRequestCancellationTests.cs`.
+- Không thay đổi schema, không chạy migration và không truy cập/ghi database local.
+- Xác minh: test HTTP mục tiêu `HttpCancellationUpdatesListAndRemovesCancelAction` PASS 1/1; toàn bộ `dotnet test .\Tests\QL_PhongTro.Tests\QL_PhongTro.Tests.csproj --no-restore --nologo` PASS 55/55. Test bao gồm trạng thái Từ chối có lý do, Từ chối không có lý do, Mới/Đã hẹn lịch không hiện lý do; các dòng giữ đúng mã yêu cầu và lịch hẹn. Không kiểm tra trực quan bằng browser.
+
 ## S2-10.2 — hiển thị lịch hẹn trên danh sách của khách thuê (02/10/2026)
 
 - Danh sách lấy `LichHen` nullable từ `yeu_cau_thue` qua service/ViewModel; dòng có lịch hiển thị ngày và giờ theo UTC+7, dòng chưa có lịch để trống phần lịch hẹn. Giữ nguyên mã yêu cầu, thông tin phòng, ngày gửi, trạng thái và thao tác hiện có.

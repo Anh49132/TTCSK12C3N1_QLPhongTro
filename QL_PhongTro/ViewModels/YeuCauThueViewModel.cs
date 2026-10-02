@@ -8,4 +8,5 @@ public sealed record YeuCauThueItemViewModel(
     DateTime? LichHen,
     string TrangThai,
     string TrangThaiHienThi,
+    string? LyDoTuChoi,
     bool CoTheHuy);
