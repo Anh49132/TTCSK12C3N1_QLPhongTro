@@ -82,6 +82,17 @@ public class TimTinController(AppDbContext db) : Controller
         if (model.SoNguoiToiDa.HasValue)
             query = query.Where(t => t.SoNguoiToiDa == model.SoNguoiToiDa.Value);
         model.TongKetQua = await query.CountAsync(cancellationToken);
+        if (model.TongKetQua == 0)
+        {
+            // Widen each supplied boundary by 500,000 VND; keep open boundaries open.
+            const long step = 500_000;
+            model.GiaGoiYToiThieu = model.GiaToiThieu.HasValue
+                ? Math.Max(0, model.GiaToiThieu.Value - step) : null;
+            model.GiaGoiYToiDa = model.GiaToiDa.HasValue
+                ? Math.Min(long.MaxValue - step, model.GiaToiDa.Value) + step : null;
+            model.CoGoiYGia = model.GiaGoiYToiThieu != model.GiaToiThieu
+                || model.GiaGoiYToiDa != model.GiaToiDa;
+        }
         model.Trang = Math.Clamp(model.Trang, 1, Math.Max(1, model.TongTrang));
         var ordered = model.SapXep switch
         {

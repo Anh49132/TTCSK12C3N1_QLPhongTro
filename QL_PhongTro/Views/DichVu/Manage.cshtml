@@ -16,6 +16,10 @@
 <p class="text-secondary">@CachTinhDichVu.Ten(latest.CachTinh) · @latest.DonViTinh</p>
 @if (write)
 {
+    @if (latest.DichVu.MaDichVu is "DIEN" or "NUOC")
+    {
+        <p><a class="btn btn-primary" asp-action="DienNuoc" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-maDichVu="@latest.DichVu.MaDichVu">Đổi cách tính điện/nước từ kỳ kế tiếp</a></p>
+    }
     <form asp-action="SavePrice" method="post" class="row g-3 mb-4" style="max-width:800px">
         <div asp-validation-summary="All" class="text-danger" role="alert"></div>
         <input asp-for="ToaNhaId" type="hidden" /><input asp-for="DichVuId" type="hidden" />

@@ -21,7 +21,7 @@ else
         </div>
         <div class="col-12">
             <label asp-for="TenDichVu" class="form-label"></label>
-            <input asp-for="TenDichVu" class="form-control" maxlength="100" placeholder="Ví dụ: Điện sinh hoạt" />
+            <input asp-for="TenDichVu" class="form-control" maxlength="100" placeholder="Ví dụ: Vệ sinh hành lang" />
             <span asp-validation-for="TenDichVu" class="text-danger"></span>
         </div>
         <div class="col-md-6">
@@ -42,8 +42,8 @@ else
         <p id="cach-tinh-help" class="text-secondary small mb-0">Theo chỉ số: kWh, m³…; theo đầu người: người/tháng; cố định: phòng/tháng.</p>
         <div class="col-md-6">
             <label asp-for="DonGia" class="form-label"></label>
-            <input asp-for="DonGia" class="form-control" type="number" min="0" step="1" inputmode="numeric" aria-describedby="gia-help" />
-            <div id="gia-help" class="form-text">Nhập số nguyên đồng không âm, không dùng dấu phân cách. Ví dụ: 3500.</div>
+            <input asp-for="DonGia" class="form-control" type="number" min="1" step="1" inputmode="numeric" aria-describedby="gia-help" />
+            <div id="gia-help" class="form-text">Nhập số nguyên đồng lớn hơn 0, không dùng dấu phân cách. Ví dụ: 3500.</div>
             <span asp-validation-for="DonGia" class="text-danger"></span>
         </div>
         <p class="text-secondary small mb-0">Dịch vụ mới ở trạng thái đang áp dụng, sử dụng từ ngày khai báo.</p>

@@ -8,6 +8,9 @@ public class TimTinViewModel
     public string SapXep { get; set; } = "moi-nhat";
     public int Trang { get; set; } = 1;
     public int TongKetQua { get; set; }
+    public bool CoGoiYGia { get; set; }
+    public long? GiaGoiYToiThieu { get; set; }
+    public long? GiaGoiYToiDa { get; set; }
     public int TongTrang => (int)Math.Ceiling(TongKetQua / (double)KichThuocTrang);
     public string? QuanHuyen { get; set; }
     [Range(0, long.MaxValue, ErrorMessage = "Giá thuê phải là số không âm.")]

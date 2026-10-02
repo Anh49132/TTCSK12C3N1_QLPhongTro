@@ -64,15 +64,35 @@
 {
     <p role="status">Chức năng tìm tin chưa sẵn sàng trên cơ sở dữ liệu hiện tại.</p>
 }
-@section Scripts {
-    <script src="~/js/tim-tin.js" asp-append-version="true"></script>
-}
 else if (ViewData.ModelState.IsValid)
 {
     <p role="status">@Model.TongKetQua tin phù hợp · @Model.TongTrang trang</p>
     @if (Model.TongKetQua == 0)
     {
         <p role="status">Không có tin phù hợp. Bạn hãy nới rộng khoảng giá thuê bằng cách giảm giá tối thiểu hoặc tăng giá tối đa rồi tìm lại.</p>
+        @if (Model.CoGoiYGia)
+        {
+            var suggestedRoutes = new Dictionary<string, string>
+            {
+                ["QuanHuyen"] = Model.QuanHuyen ?? "",
+                ["GiaToiThieu"] = Model.GiaGoiYToiThieu?.ToString(CultureInfo.InvariantCulture) ?? "",
+                ["GiaToiDa"] = Model.GiaGoiYToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",
+                ["DienTichToiThieu"] = Model.DienTichToiThieu?.ToString(CultureInfo.InvariantCulture) ?? "",
+                ["DienTichToiDa"] = Model.DienTichToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",
+                ["SoNguoiToiDa"] = Model.SoNguoiToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",
+                ["SapXep"] = Model.SapXep,
+                ["Trang"] = "1"
+            };
+            var minimum = Model.GiaGoiYToiThieu?.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) ?? "0";
+            var maximum = Model.GiaGoiYToiDa?.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) ?? "không giới hạn";
+            <p id="tim-tin-suggested-range">Khoảng giá đề xuất: @minimum – @maximum đ/tháng.</p>
+            <a id="tim-tin-price-suggestion" class="btn btn-outline-primary mb-3"
+               asp-controller="TimTin" asp-action="Index" asp-all-route-data="suggestedRoutes">Áp dụng khoảng giá gợi ý</a>
+        }
+        else
+        {
+            <p>Giá thuê đã không còn giới hạn để nới thêm. Bạn có thể điều chỉnh khu vực, diện tích hoặc số người ở.</p>
+        }
     }
     @if (Model.TongTrang > 0)
     {
@@ -127,4 +147,7 @@ else if (ViewData.ModelState.IsValid)
             </ul>
         </nav>
     }
+}
+@section Scripts {
+    <script src="~/js/tim-tin.js" asp-append-version="true"></script>
 }

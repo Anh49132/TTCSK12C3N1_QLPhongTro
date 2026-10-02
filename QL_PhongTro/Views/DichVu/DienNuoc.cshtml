@@ -1,0 +1,45 @@
+@model QL_PhongTro.ViewModels.DienNuocViewModel
+@using QL_PhongTro.Models
+@using QL_PhongTro.Services
+@{
+    ViewData["Title"] = "Cấu hình điện/nước";
+    var period = Model.LichSu.Count == 0 ? DichVuService.HomNay() : DichVuService.KySau();
+    var scheduled = Model.LichSu.Any(x => x.TuNgay >= period);
+    var name = Model.MaDichVu == "DIEN" ? "Điện" : "Nước";
+}
+<a asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId">← Danh sách dịch vụ</a>
+<h1 class="h2 mt-3">Cấu hình @name</h1>
+<p>Mỗi tòa nhà chọn cách tính riêng. Đơn giá phải lớn hơn 0.</p>
+<div class="alert alert-info">Bắt đầu áp dụng từ <strong>@period.ToString("dd/MM/yyyy")</strong> (kỳ @period.ToString("MM/yyyy")). Thay đổi cấu hình đã có chỉ áp dụng từ kỳ hóa đơn kế tiếp; hóa đơn cũ giữ nguyên.</div>
+@if (scheduled) { <div class="alert alert-warning">Đã có cấu hình cho kỳ kế tiếp. Không thể ghi đè phiên bản đã lên lịch.</div> }
+<form asp-action="DienNuoc" method="post" class="row g-3" style="max-width:700px">
+    <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+    <input asp-for="ToaNhaId" type="hidden" /><input asp-for="MaDichVu" type="hidden" /><input asp-for="PhienBan" type="hidden" />
+    <input asp-for="KyApDung" type="hidden" asp-format="{0:yyyy-MM-dd}" />
+    <div class="col-12"><label asp-for="CachTinh" class="form-label">Cách tính</label>
+        <select asp-for="CachTinh" class="form-select" id="utility-method">
+            <option value="THEO_CHI_SO">Theo chỉ số đồng hồ</option><option value="THEO_NGUOI">Khoán theo đầu người</option>
+        </select>
+    </div>
+    <div class="col-12"><label asp-for="DonGia" class="form-label" id="utility-price-label">Đơn giá</label>
+        <input asp-for="DonGia" type="number" min="1" step="1" required class="form-control" />
+        <p class="small text-secondary mt-2">Theo chỉ số: tiền trên một @(Model.MaDichVu == "DIEN" ? "kWh" : "m³"). Theo đầu người: tiền một người mỗi tháng.</p>
+    </div>
+    <div class="col-12"><button class="btn btn-primary" disabled="@scheduled">Lưu cấu hình</button></div>
+</form>
+<h2 class="h4 mt-4">Lịch sử cấu hình</h2>
+<table class="table"><thead><tr><th>Từ ngày</th><th>Đến ngày</th><th>Cách tính</th><th>Đơn giá</th></tr></thead><tbody>
+@foreach (var row in Model.LichSu) {
+    <tr><td>@row.TuNgay.ToString("dd/MM/yyyy")</td><td>@row.DenNgay?.ToString("dd/MM/yyyy")</td><td>@CachTinhDichVu.Ten(row.CachTinh)</td><td>@row.DonGia.ToString("N0") VND/@row.DonViTinh</td></tr>
+}
+</tbody></table>
+<script>
+(() => {
+    const method = document.getElementById('utility-method');
+    const label = document.getElementById('utility-price-label');
+    const unit = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MaDichVu == "DIEN" ? "kWh" : "m³"));
+    const update = () => label.textContent = method.value === 'THEO_NGUOI'
+        ? 'Số tiền một người mỗi tháng (VND)' : 'Đơn giá một ' + unit + ' (VND)';
+    method.addEventListener('change', update); update();
+})();
+</script>

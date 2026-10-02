@@ -45,6 +45,36 @@ public class DichVuController(AppDbContext db, DichVuService services) : Control
     }
 
     [HttpGet]
+    public async Task<IActionResult> DienNuoc(int toaNhaId, string maDichVu = "DIEN")
+    {
+        if (!await services.SanSangAsync()) return RedirectToAction(nameof(Index));
+        try { return View(await services.DienNuocAsync(AccountId, toaNhaId, maDichVu)); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException) { return BadRequest(); }
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> DienNuoc(DienNuocViewModel model)
+    {
+        if (model.MaDichVu is not ("DIEN" or "NUOC")) return BadRequest();
+        if (!await services.SanSangAsync()) return RedirectToAction(nameof(Index));
+        try
+        {
+            var current = await services.DienNuocAsync(AccountId, model.ToaNhaId, model.MaDichVu);
+            model.LichSu = current.LichSu;
+            if (model.CachTinh is not ("THEO_CHI_SO" or "THEO_NGUOI"))
+                ModelState.AddModelError(nameof(model.CachTinh), "Chỉ chọn theo chỉ số hoặc đầu người.");
+            if (!ModelState.IsValid) return View(model);
+            await services.LuuDienNuocAsync(AccountId, model);
+            TempData["Success"] = "Đã lưu cấu hình điện/nước và kỳ áp dụng.";
+            return RedirectToAction(nameof(DienNuoc), new { model.ToaNhaId, model.MaDichVu });
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { ModelState.AddModelError("", ex.Message); return View(model); }
+        catch (DbUpdateException) { ModelState.AddModelError("", "Cấu hình vừa thay đổi hoặc ngày hiệu lực bị trùng. Hãy tải lại trang."); return View(model); }
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Manage(int toaNhaId, int dichVuId)
     {
         try

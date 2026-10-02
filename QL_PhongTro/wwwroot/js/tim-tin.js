@@ -10,7 +10,7 @@
     form.addEventListener('submit', event => {
         if (!event.defaultPrevented && form.checkValidity()) showLoading();
     });
-    document.querySelectorAll('nav[aria-label="Chuyển trang kết quả"] a').forEach(link => {
+    document.querySelectorAll('nav[aria-label="Chuyển trang kết quả"] a, #tim-tin-price-suggestion').forEach(link => {
         link.addEventListener('click', event => {
             if (!event.defaultPrevented && event.button === 0 &&
                 !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) showLoading();

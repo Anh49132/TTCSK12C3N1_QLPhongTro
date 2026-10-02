@@ -26,7 +26,7 @@ else
     {
         <form id="initialize-services" asp-action="Initialize" method="post" class="mb-3">
             <input name="toaNhaId" value="@Model.ToaNhaId" type="hidden" />
-            <p>Chuẩn bị điện, nước, rác, gửi xe và internet cho tòa nhà.</p><button class="btn btn-primary">Khởi tạo năm dịch vụ</button>
+            <p>Chuẩn bị các dịch vụ mặc định. Điện/nước cần khai báo cách tính và đơn giá riêng.</p><button class="btn btn-primary">Khởi tạo dịch vụ</button>
         </form>
         @if (error is null) { <script>document.getElementById('initialize-services').requestSubmit();</script> }
     }
@@ -34,6 +34,10 @@ else
         <div><label for="toaNhaId" class="form-label">Tòa nhà</label><select id="toaNhaId" name="toaNhaId" asp-for="ToaNhaId" asp-items="Model.ToaNhas" class="form-select"></select></div>
         <button class="btn btn-outline-primary" type="submit">Xem dịch vụ</button>
     </form>
+    @if (write && Model.ToaNhaId.HasValue)
+    {
+        <p class="d-flex gap-2"><a class="btn btn-outline-primary" asp-action="DienNuoc" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-maDichVu="DIEN">Cấu hình điện</a><a class="btn btn-outline-primary" asp-action="DienNuoc" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-maDichVu="NUOC">Cấu hình nước</a></p>
+    }
     @if (Model.DichVus.Count == 0)
     { <p class="text-secondary">Chưa có dịch vụ. Chọn “Thêm dịch vụ” để khai báo đơn giá đầu tiên.</p> }
     else

@@ -34,6 +34,7 @@ def main():
     global DLL
     parser = argparse.ArgumentParser()
     parser.add_argument('--runtime', type=Path, default=DLL, help='Path to the built QL_PhongTro.dll')
+    parser.add_argument('--task5', action='store_true', help='Verify widened price suggestions and applying them')
     parser.add_argument('--task3', action='store_true', help='Also verify sorting and pagination with 25 synthetic listings')
     parser.add_argument('--serve', action='store_true', help='Keep the tested synthetic demo running')
     args = parser.parse_args()
@@ -268,6 +269,48 @@ def main():
             assert 'Cách sắp xếp không hợp lệ.' in page and not titles(page)
             tested += 1
             checks.append(f'Task 3: {tested} sorting/pagination/count/link/reset/tie/invalid-mode checks PASS; each page <=12 listings')
+        if args.task5:
+            tested = 0
+            fixed = {'QuanHuyen': 'Quận 1', 'DienTichToiThieu': '10', 'DienTichToiDa': '25', 'SoNguoiToiDa': '2', 'SapXep': 'gia-tang'}
+            suggestion_cases = [
+                (dict(fixed, GiaToiThieu='1400000', GiaToiDa='1500000'), '900000', '2000000', {'A'}),
+                (dict(fixed, GiaToiDa='500001'), '', '1000001', {'A'}),
+                (dict(fixed, SoNguoiToiDa='3', GiaToiThieu='2200000'), '1700000', '', {'B'}),
+                (dict(fixed, GiaToiThieu='9223372036854775807', GiaToiDa='9223372036854775807'), '9223372036854275807', '9223372036854775807', set()),
+                (dict(fixed, GiaToiDa='0'), '', '500000', set()),
+            ]
+            for filters, minimum, maximum, expected in suggestion_cases:
+                page = request(filters)
+                assert not re.findall(r'<h2[^>]*>TIN-', page)
+                assert 'Không có tin phù hợp.' in page and 'Khoảng giá đề xuất:' in page
+                match = re.search(r'<a(?=[^>]*id="tim-tin-price-suggestion")(?=[^>]*href="([^"]+)")[^>]*>', page)
+                assert match, 'Missing apply link'
+                target = match.group(1)
+                query = parse_qs(urlsplit(target).query, keep_blank_values=True)
+                assert query.get('GiaToiThieu', [''])[0] == minimum
+                assert query.get('GiaToiDa', [''])[0] == maximum
+                for key in ('QuanHuyen', 'DienTichToiThieu', 'DienTichToiDa', 'SoNguoiToiDa', 'SapXep'):
+                    assert query[key] == [filters[key]], (key, query)
+                assert query['Trang'] == ['1']
+                with urlopen(urljoin(base, target), timeout=15) as response:
+                    applied = html.unescape(response.read().decode())
+                assert set(re.findall(r'<h2[^>]*>TIN-([^<]+)</h2>', applied)) == expected
+                if expected:
+                    assert 'tim-tin-price-suggestion' not in applied and 'Khoảng giá đề xuất:' not in applied
+                tested += 1
+            for filters in (dict(fixed, DienTichToiThieu='50', DienTichToiDa='100'),
+                            dict(fixed, GiaToiThieu='0', GiaToiDa='9223372036854775807', DienTichToiThieu='50', DienTichToiDa='100')):
+                page = request(filters)
+                assert 'Không có tin phù hợp.' in page and 'không còn giới hạn để nới thêm' in page
+                assert 'tim-tin-price-suggestion' not in page
+                tested += 1
+            page = request(dict(fixed, GiaToiThieu='3000000', GiaToiDa='1000000'))
+            assert 'Giá thuê tối thiểu không được lớn hơn' in page and 'tim-tin-price-suggestion' not in page
+            tested += 1
+            page = request(fixed)
+            assert 'TIN-A' in page and 'tim-tin-price-suggestion' not in page
+            tested += 1
+            checks.append(f'Task 5: {tested} suggestion/apply/preserve/no-results/open-boundary/overflow/invalid cases PASS')
         result = {'url': base + '/TimTin', 'database': str(database), 'pid': server.pid, 'checks': checks}
         (folder / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
         (folder.parent / 'latest.txt').write_text(str(folder), encoding='utf-8')

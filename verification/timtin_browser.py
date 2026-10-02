@@ -93,6 +93,25 @@ async def main():
         assert await page.get_by_text('Không có tin phù hợp.', exact=False).is_visible()
         assert await page.get_by_text('Bạn hãy nới rộng khoảng giá thuê', exact=False).is_visible()
         checks.append('Zero results render visible suggestion to widen price range')
+        await page.locator('#GiaToiThieu').fill('2100000')
+        await page.locator('#GiaToiDa').fill('2200000')
+        await page.locator('#DienTichToiThieu').fill('15')
+        await page.locator('#DienTichToiDa').fill('25')
+        await page.locator('#SoNguoiToiDa').select_option('3')
+        await navigate_and_check(lambda: page.get_by_role('button', name='Tìm kiếm').click())
+        assert await page.locator('article').count() == 0
+        assert await page.locator('#tim-tin-suggested-range').is_visible()
+        await navigate_and_check(lambda: page.get_by_role('link', name='Áp dụng khoảng giá gợi ý').click())
+        assert await page.locator('#GiaToiThieu').input_value() == '1600000'
+        assert await page.locator('#GiaToiDa').input_value() == '2700000'
+        assert await page.locator('#QuanHuyen').input_value() == 'Quận 1'
+        assert await page.locator('#DienTichToiThieu').input_value() == '15'
+        assert await page.locator('#DienTichToiDa').input_value() == '25'
+        assert await page.locator('#SoNguoiToiDa').input_value() == '3'
+        assert await page.locator('#SapXep').input_value() == 'gia-tang'
+        assert await page.locator('article').count() > 0
+        assert await page.locator('#tim-tin-price-suggestion').count() == 0
+        checks.append('Task 5: apply wider price range searches again, preserves area/size/capacity/sort, yields listings, hides suggestion')
         assert not errors, errors
         await page.screenshot(path=str(folder / 'browser-result.png'))
         await browser.close()

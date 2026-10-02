@@ -38,6 +38,8 @@ obj/
 
 # Tests output
 **/TestResults/
+__pycache__/
+*.pyc
 
 
 # Password reset schema backups

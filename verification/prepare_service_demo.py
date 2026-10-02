@@ -57,7 +57,7 @@ class Browser:
 def main():
     assert DLL.exists(), 'Build demo runtime first'
     with socket.socket() as probe:
-        probe.bind(('127.0.0.1', 5250))
+        probe.bind(('127.0.0.1', urllib.parse.urlparse(BASE).port))
     source_hash = hashlib.sha256(SOURCE.read_bytes()).hexdigest()
     with sqlite3.connect(SOURCE.as_uri() + '?mode=ro', uri=True) as original:
         tables = {r[0] for r in original.execute("SELECT name FROM sqlite_master WHERE type='table'")}
@@ -94,6 +94,9 @@ def main():
         accounts[role] = (account_id, email)
     env['DatabasePath'] = str(database)
     command('--update-database')
+    # Only the four newly generated fake accounts; current schema requires email confirmation.
+    for account_id, _ in accounts.values():
+        query('UPDATE tai_khoan SET email_confirmed=1 WHERE id=?', (account_id,))
     command('--initialize-services')
     # Rental CRUD does not yet exist; install its reference fixture only on the new copy.
     rentals = (ROOT / 'docs/sql/S1-06-quan-he-thue.sql').read_text(encoding='utf-8')
@@ -120,7 +123,7 @@ def main():
             raise RuntimeError('Demo startup timed out')
         for role, (_, email) in accounts.items():
             browser = owner if role == 'CHU_NHA' else Browser()
-            assert browser.post('/Account/Login', {'Identifier': email, 'Password': password})[0] == 302, role
+            assert browser.post('/Account/Login', {'TaiKhoanDangNhap': email, 'MatKhau': password})[0] == 302, role
             if role == 'ADMIN':
                 assert browser.request('/NhatKy')[0] == 200
             elif role == 'QUAN_LY':
@@ -149,6 +152,12 @@ def main():
         assert owner.post('/DichVu/Initialize', {'toaNhaId':building}, f'/DichVu?toaNhaId={building}')[0] == 302
         prices = {'DIEN':3000,'NUOC':15000,'RAC':20000,'GUI_XE':50000,'INTERNET':100000}
         for code, price in prices.items():
+            if code in {'DIEN', 'NUOC'}:
+                route = f'/DichVu/DienNuoc?toaNhaId={building}&maDichVu={code}'
+                response = owner.post('/DichVu/DienNuoc', {'ToaNhaId':building, 'MaDichVu':code,
+                    'PhienBan':0, 'CachTinh':'THEO_CHI_SO', 'DonGia':price, 'KyApDung':today.isoformat()}, route)
+                assert response[0] == 302, response[:2]
+                continue
             service_id = query('SELECT id FROM dich_vu WHERE ma_dich_vu=?',(code,))[0][0]
             config, old_price = query('SELECT id,don_gia FROM cau_hinh_dich_vu WHERE toa_nha_id=? AND dich_vu_id=?',(building,service_id))[0]
             response = owner.post('/DichVu/SavePrice', {'ToaNhaId':building,'DichVuId':service_id,'DonGia':price,

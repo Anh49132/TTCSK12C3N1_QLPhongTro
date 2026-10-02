@@ -15,7 +15,7 @@ public class TaoDichVuViewModel : IValidatableObject
     public string? CachTinh { get; set; }
     [Required(ErrorMessage = "Hãy nhập đơn vị tính."), StringLength(30, ErrorMessage = "Đơn vị tính tối đa 30 ký tự."), Display(Name = "Đơn vị tính")]
     public string? DonViTinh { get; set; }
-    [Required(ErrorMessage = "Hãy nhập đơn giá."), Range(typeof(long), "0", "9223372036854775807", ErrorMessage = "Đơn giá phải là số nguyên đồng, không âm."), Display(Name = "Đơn giá (VND)")]
+    [Required(ErrorMessage = "Hãy nhập đơn giá."), Range(typeof(long), "1", "9223372036854775807", ErrorMessage = "Đơn giá phải là số nguyên đồng lớn hơn 0."), Display(Name = "Đơn giá (VND)")]
     public long? DonGia { get; set; }
     [ValidateNever] public List<SelectListItem> ToaNhas { get; set; } = [];
     public IEnumerable<ValidationResult> Validate(ValidationContext context)

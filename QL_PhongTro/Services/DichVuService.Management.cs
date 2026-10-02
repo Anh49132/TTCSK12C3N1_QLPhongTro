@@ -22,10 +22,13 @@ public sealed partial class DichVuService
         var definitions = configured is { Count: > 0 } ? configured : DichVuMacDinhOptions.DeXuat();
         if (definitions.Count != 5 || !definitions.Select(x => x.Ma).Order().SequenceEqual(DichVuMacDinhOptions.Codes.Order()) ||
             definitions.Any(x => string.IsNullOrWhiteSpace(x.Ten) || x.Ten.Length > 100 || string.IsNullOrWhiteSpace(x.DonVi) || x.DonVi.Length > 30 ||
-                !CachTinhDichVu.HopLe(x.CachTinh) || x.DonGia < 0 || (x.Ma is "DIEN" or "NUOC" && x.DonGia == 0)))
+                !CachTinhDichVu.HopLe(x.CachTinh) || x.DonGia < 0 || (x.Ma is "DIEN" or "NUOC" &&
+                    (x.DonGia == 0 || x.CachTinh is not (CachTinhDichVu.TheoChiSo or CachTinhDichVu.TheoNguoi)))))
             throw new InvalidOperationException("Cấu hình năm dịch vụ mặc định chưa hợp lệ. Vui lòng liên hệ người quản trị.");
         foreach (var definition in definitions)
         {
+            // Electricity/water are configured explicitly with a positive price by the owner.
+            if (definition.Ma is "DIEN" or "NUOC" && !definition.DonGia.HasValue) continue;
             var catalog = await db.DichVus.SingleOrDefaultAsync(x => x.MaDichVu == definition.Ma);
             if (catalog is null)
             {
@@ -35,7 +38,8 @@ public sealed partial class DichVuService
             if (catalog.Id != 0 && await db.CauHinhDichVus.AnyAsync(x => x.ToaNhaId == buildingId && x.DichVuId == catalog.Id && x.PhongId == null)) continue;
             db.CauHinhDichVus.Add(new CauHinhDichVu
             {
-                ToaNhaId = buildingId, DichVu = catalog, CachTinh = definition.CachTinh, DonViTinh = definition.DonVi,
+                ToaNhaId = buildingId, DichVu = catalog, CachTinh = definition.CachTinh,
+                DonViTinh = definition.Ma is "DIEN" or "NUOC" ? DonViDienNuoc(definition.Ma, definition.CachTinh) : definition.DonVi,
                 DonGia = definition.DonGia ?? 0, DaChotGia = definition.DonGia.HasValue,
                 TuNgay = HomNay(), NguoiTaoId = accountId, NgayTao = DateTime.UtcNow
             });

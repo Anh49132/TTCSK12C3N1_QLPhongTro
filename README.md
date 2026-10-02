@@ -299,3 +299,43 @@ python verification/timtin_browser.py
 ```
 
 Browser script dùng Chrome có sẵn, demo --serve từ latest-performance.txt và package Playwright trong thư mục đã ignore; không cần tải browser riêng. Chrome đã xác minh spinner/gợi ý/form sai/Back. HTTP regression 50 ca PASS, kiểm tra cả nguồn DB chỉ đọc/nâng cấp trên bản sao và bảo toàn dữ liệu. Windows sandbox có thể chặn Event Log/Data Protection, khi đó chạy terminal Windows bình thường.
+
+### Task 5 — khoảng giá đề xuất và tìm lại
+
+Khi không có kết quả, khoảng giá đề xuất nới mỗi đầu đã nhập 500.000đ (min không âm, max không tràn); đầu trống tiếp tục không giới hạn. Bấm **Áp dụng khoảng giá gợi ý** để tìm lại ở trang 1, giữ khu vực/diện tích/sức chứa/sắp xếp. Có kết quả thì gợi ý ẩn. Nếu giá đã không giới hạn hoặc không thể nới thêm, hiển thị giải thích và đề nghị chỉnh bộ lọc khác; không giả lập khoảng rộng hơn. Nới giá không bảo đảm có tin nếu các điều kiện khác vẫn loại hết.
+
+Demo mới/data giả riêng:
+
+```powershell
+dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore -o data/task1-build/task5-runtime
+python verification/timtin_performance.py --runtime data/task1-build/task5-runtime/QL_PhongTro.dll --serve
+```
+
+Mở URL in ra; Quận 1, giá 2100000..2200000, diện tích15..25, sức chứa3 → 0 tin và đề xuất1600000..2700000; bấm áp dụng để tìm thấy tin. Không cần đăng nhập. DB thật không được ghi; task không đổi schema/quy trình khởi tạo/nâng cấp cho máy mới/máy cũ.
+
+Kiểm thử:
+
+```powershell
+python verification/timtin_http.py --runtime data/task1-build/task5-runtime/QL_PhongTro.dll --task3 --task5
+python verification/timtin_browser.py
+```
+
+Browser cần Chrome và package Playwright theo hướng dẫn trên; dùng URL của demo --serve mới nhất. HTTP 9 ca Task 5/50 ca Task 1–3 và thao tác áp dụng trên Chrome đã PASS; báo cáo/ảnh trong thư mục demo đã ignore. Chỉ dừng đúng PID được in sau khi thử xong.
+
+### Cấu hình điện/nước theo tòa nhà
+
+Chủ nhà vào **Dịch vụ**, chọn tòa nhà rồi **Cấu hình điện** hoặc **Cấu hình nước**. Chọn theo chỉ số (VND/kWh hoặc VND/m³) hay khoán theo đầu người (VND/người/tháng); nhập đơn giá nguyên đồng lớn hơn 0. Giao diện hiển thị kỳ bắt đầu trước khi lưu. Cấu hình đầu tiên áp dụng từ ngày khai báo; thay đổi cấu hình đã có áp dụng ngày đầu tháng kế tiếp, giữ lịch sử và hóa đơn cũ. Kỳ đã lên lịch không được ghi đè. Giả định kỳ hóa đơn là tháng dương lịch, theo luồng hóa đơn hiện có.
+
+Không đổi schema/quy trình database trong lần này. Máy mới dùng quy trình khởi tạo đã hướng dẫn ở trên; máy có database giữ file và dữ liệu cũ. Nếu chưa có schema dịch vụ, màn hình báo chưa sẵn sàng; dùng quy trình thiết lập dịch vụ có backup hiện có, không xóa/tạo lại database. Database local hiện tại chưa có bảng dịch vụ và được giữ nguyên.
+
+Demo/kiểm thử độc lập từ thư mục gốc:
+
+```powershell
+dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore -o data/service-demo/utilities-runtime
+python verification/utilities_http.py --serve
+python verification/utilities_browser.py
+```
+
+HTTP script tạo database nền trống mới, sao chép file trống đó thành database thử và tạo tài khoản/dữ liệu giả; không sao chép dữ liệu cá nhân. Mở URL được in, lấy tài khoản CHU_NHA và mật khẩu ngẫu nhiên từ access.json tại đường dẫn được in (file đã ignore). Chọn tòa nhà đầu tiên: điện đã lên lịch đổi sang đầu người, nước còn có thể đổi cách tính để demo. Thử giá trống/0 rồi giá dương, kiểm tra kỳ áp dụng và lịch sử. Browser script dùng Chrome/Playwright theo hướng dẫn phía trên. Báo cáo/ảnh và thông tin đăng nhập chỉ nằm trong data/service-demo đã ignore. Bỏ --serve để tự dừng sau kiểm thử; trước khi build lại, dừng đúng PID demo từ access.json để tránh khóa DLL.
+
+Để thử thủ công từng tiêu chí từ cấu hình chưa lên lịch, chạy `python verification/prepare_utilities_walkthrough.py` sau khi đã build utilities-runtime. Script tạo demo mới, chạy 29 kiểm tra HTTP rồi thêm tòa nhà “Demo thử từng tiêu chí điện nước” với điện 3.500đ/kWh và nước 25.000đ/người/tháng. File `HUONG-DAN-TEST.md` trong thư mục demo được in ra chứa URL, tài khoản/mật khẩu ngẫu nhiên, dữ liệu ban đầu và từng bước thử bốn tiêu chí. Thử giá trống/0 trước khi lưu thay đổi hợp lệ. Muốn thử lại từ đầu, chạy script lần nữa; mỗi lần tạo file mới, không ghi đè dữ liệu cũ. Không đưa file hướng dẫn chứa mật khẩu lên Git.
