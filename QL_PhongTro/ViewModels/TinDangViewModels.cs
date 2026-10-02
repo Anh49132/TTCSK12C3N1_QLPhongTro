@@ -42,3 +42,24 @@ public sealed class DichVuTinChiTietViewModel
     public string DonViTinh { get; init; } = string.Empty;
     public long DonGia { get; init; }
 }
+
+public sealed class TaoTinDangViewModel
+{
+    public int PhongId { get; init; }
+    public int ToaNhaId { get; init; }
+    public string MaPhong { get; init; } = string.Empty;
+    public string TrangThaiPhong { get; init; } = string.Empty;
+    public decimal DienTich { get; init; }
+    public long GiaThue { get; init; }
+
+    [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Vui lòng nhập tiêu đề.")]
+    [System.ComponentModel.DataAnnotations.StringLength(200, ErrorMessage = "Tiêu đề không vượt quá 200 ký tự.")]
+    public string TieuDe { get; set; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.StringLength(4000, ErrorMessage = "Mô tả không vượt quá 4.000 ký tự.")]
+    public string? MoTaThem { get; set; }
+
+    public DateTime NgayHetHan { get; init; }
+    public IReadOnlyList<AnhPhongChiTietViewModel> Anh { get; init; } = [];
+    public IReadOnlyList<DichVuTinChiTietViewModel> DichVu { get; init; } = [];
+}

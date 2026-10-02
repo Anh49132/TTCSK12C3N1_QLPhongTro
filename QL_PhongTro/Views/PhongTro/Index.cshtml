@@ -7,6 +7,11 @@
     var canWrite = await Permissions.AllowsAsync("PHONG_TRO", write: true);
 }
 
+@if (TempData["RoomWarning"] is string warning)
+{
+    <div class="alert alert-warning" role="status">@warning</div>
+}
+
 <section class="mb-4">
     <p class="text-uppercase text-secondary small fw-semibold mb-2">Vận hành nhà cho thuê</p>
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
@@ -123,6 +128,20 @@ else
                                 <td>
                                     <div class="d-flex flex-wrap gap-2">
                                         <a asp-action="Edit" asp-route-id="@room.Id" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                                        @if (User.IsInRole("CHU_NHA"))
+                                        {
+                                            @if (room.TrangThai == "TRONG")
+                                            {
+                                                <a asp-controller="TinDang" asp-action="Tao" asp-route-phongId="@room.Id" class="btn btn-sm btn-outline-primary">Đăng tin</a>
+                                            }
+                                            else
+                                            {
+                                                <span class="d-inline-flex flex-column align-items-start">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" disabled aria-describedby="listing-disabled-@room.Id">Đăng tin</button>
+                                                    <small id="listing-disabled-@room.Id" class="text-secondary">Phòng đang được thuê</small>
+                                                </span>
+                                            }
+                                        }
                                         <form asp-action="Delete" asp-route-id="@room.Id" method="post"
                                               data-confirm="Bạn có chắc muốn xóa phòng @room.MaPhong? Thao tác này không thể hoàn tác. Phòng có dữ liệu liên quan sẽ không được xóa.">
                                             <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>

@@ -1,0 +1,98 @@
+@model QL_PhongTro.ViewModels.TaoTinDangViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Tạo tin đăng nháp";
+    var culture = CultureInfo.GetCultureInfo("vi-VN");
+}
+
+<section class="mb-4">
+    <p class="text-uppercase text-secondary small fw-semibold mb-2">Tin đăng</p>
+    <h1 class="h2 mb-1">Tạo tin đăng nháp</h1>
+    <p class="text-secondary mb-0">Phòng @Model.MaPhong · thông tin phòng được lấy trực tiếp từ hồ sơ phòng.</p>
+</section>
+
+<form asp-action="Tao" method="post">
+    <input asp-for="PhongId" type="hidden" />
+    <div asp-validation-summary="All" class="text-danger mb-3" role="alert"></div>
+
+    <section class="border-top py-3" aria-labelledby="listing-editable-title">
+        <h2 id="listing-editable-title" class="h5">Nội dung tin</h2>
+        <div class="mb-3">
+            <label asp-for="TieuDe" class="form-label">Tiêu đề</label>
+            <input asp-for="TieuDe" class="form-control" maxlength="200" />
+            <span asp-validation-for="TieuDe" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="MoTaThem" class="form-label">Mô tả thêm</label>
+            <textarea asp-for="MoTaThem" class="form-control" rows="4" maxlength="4000"></textarea>
+            <span asp-validation-for="MoTaThem" class="text-danger"></span>
+        </div>
+    </section>
+
+    <section class="border-top py-3" aria-labelledby="room-facts-title">
+        <h2 id="room-facts-title" class="h5">Thông tin phòng</h2>
+        <div class="row g-3">
+            <div class="col-sm-6">
+                <label for="DienTich" class="form-label">Diện tích</label>
+                <input id="DienTich" class="form-control" value="@Model.DienTich.ToString("0.##", culture) m²" readonly aria-readonly="true" />
+            </div>
+            <div class="col-sm-6">
+                <label for="GiaThue" class="form-label">Giá thuê mỗi tháng</label>
+                <input id="GiaThue" class="form-control" value="@Model.GiaThue.ToString("N0", culture) đ" readonly aria-readonly="true" />
+            </div>
+            <div class="col-sm-6">
+                <label for="NgayHetHan" class="form-label">Ngày hết hạn</label>
+                <input id="NgayHetHan" class="form-control" value="@Model.NgayHetHan.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" readonly aria-readonly="true" />
+                <div class="form-text">Tin nháp hết hạn sau 30 ngày.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="border-top py-3" aria-labelledby="room-images-title">
+        <h2 id="room-images-title" class="h5">Ảnh phòng</h2>
+        @if (Model.Anh.Count == 0)
+        {
+            <p class="text-secondary mb-0">Phòng chưa có ảnh.</p>
+        }
+        else
+        {
+            <div class="d-flex flex-wrap gap-3">
+                @foreach (var image in Model.Anh)
+                {
+                    <img src="@(image.DuongDanAnhNho ?? image.DuongDan)" alt="@(image.MoTa ?? $"Phòng {Model.MaPhong}")" loading="lazy" class="border rounded" style="width: 160px; height: 120px; object-fit: cover;" />
+                }
+            </div>
+        }
+    </section>
+
+    <section class="border-top border-bottom py-3 mb-3" aria-labelledby="room-services-title">
+        <h2 id="room-services-title" class="h5">Dịch vụ</h2>
+        @if (Model.DichVu.Count == 0)
+        {
+            <p class="text-secondary mb-0">Phòng chưa có dịch vụ áp dụng.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th scope="col">Dịch vụ</th><th scope="col">Cách tính</th><th scope="col">Đơn giá</th></tr></thead>
+                    <tbody>
+                    @foreach (var service in Model.DichVu)
+                    {
+                        <tr>
+                            <th scope="row">@service.TenDichVu</th>
+                            <td>@QL_PhongTro.Models.CachTinhDichVu.Ten(service.CachTinh) · @service.DonViTinh</td>
+                            <td>@service.DonGia.ToString("N0", culture) đ</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <div class="d-flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-primary">Lưu bản nháp</button>
+        <a asp-controller="PhongTro" asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-secondary">Quay lại danh sách phòng</a>
+    </div>
+</form>

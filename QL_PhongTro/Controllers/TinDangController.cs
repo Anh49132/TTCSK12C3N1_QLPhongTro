@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using QL_PhongTro.Authorization;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
 using QL_PhongTro.Services;
@@ -12,6 +13,63 @@ namespace QL_PhongTro.Controllers;
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class TinDangController(AppDbContext db, YeuCauThueService requests, DichVuService services, DichVuPhongService roomServices) : Controller
 {
+    [Authorize(Roles = "CHU_NHA"), ModuleAccess("PHONG_TRO", write: true), HttpGet]
+    public async Task<IActionResult> Tao(int phongId)
+    {
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var ownerId))
+            return Forbid();
+
+        var model = await LoadDraftFormAsync(phongId, ownerId);
+        if (model is null)
+            return NotFound();
+        if (model.TrangThaiPhong != "TRONG")
+        {
+            TempData["RoomWarning"] = "Phòng đang được thuê. Chỉ có thể tạo tin từ phòng trống.";
+            return RedirectToAction("Index", "PhongTro", new { toaNhaId = model.ToaNhaId });
+        }
+
+        return View(model);
+    }
+
+    [Authorize(Roles = "CHU_NHA"), ModuleAccess("PHONG_TRO", write: true), HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Tao(TaoTinDangViewModel form)
+    {
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var ownerId))
+            return Forbid();
+
+        var model = await LoadDraftFormAsync(form.PhongId, ownerId);
+        if (model is null)
+            return NotFound();
+        if (model.TrangThaiPhong != "TRONG")
+        {
+            TempData["RoomWarning"] = "Phòng đang được thuê. Chỉ có thể tạo tin từ phòng trống.";
+            return RedirectToAction("Index", "PhongTro", new { toaNhaId = model.ToaNhaId });
+        }
+
+        if (!ModelState.IsValid)
+        {
+            model.TieuDe = form.TieuDe;
+            model.MoTaThem = form.MoTaThem;
+            return View(model);
+        }
+
+        var now = DateTime.UtcNow;
+        db.TinDangs.Add(new TinDang
+        {
+            PhongId = form.PhongId,
+            NguoiDangId = ownerId,
+            TieuDe = form.TieuDe.Trim(),
+            NoiDung = string.IsNullOrWhiteSpace(form.MoTaThem) ? null : form.MoTaThem.Trim(),
+            NgayHetHan = now.AddDays(30),
+            TrangThai = "NHAP",
+            NgayTao = now
+        });
+        await db.SaveChangesAsync();
+
+        TempData["Success"] = "Đã lưu tin đăng ở trạng thái nháp.";
+        return RedirectToAction("Index", "PhongTro", new { toaNhaId = model.ToaNhaId });
+    }
+
     [HttpGet]
     public async Task<IActionResult> Index()
     {
@@ -173,6 +231,43 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
                 .ToListAsync(),
             DichVuTheoSuDung = servicePrices.Where(price => price.CachTinh != CachTinhDichVu.CoDinh).ToList(),
             KhoanCoDinh = servicePrices.Where(price => price.CachTinh == CachTinhDichVu.CoDinh).ToList()
+        };
+    }
+
+    private async Task<TaoTinDangViewModel?> LoadDraftFormAsync(int roomId, int ownerId)
+    {
+        var source = await (
+            from roomEntity in db.PhongTros.AsNoTracking()
+            join building in db.ToaNhas.AsNoTracking() on roomEntity.ToaNhaId equals building.Id
+            where roomEntity.Id == roomId && building.ChuNhaId == ownerId
+            select new { Room = roomEntity, BuildingId = building.Id }
+        ).SingleOrDefaultAsync();
+        if (source is null)
+            return null;
+
+        var room = source.Room;
+        return new TaoTinDangViewModel
+        {
+            PhongId = room.Id,
+            ToaNhaId = source.BuildingId,
+            MaPhong = room.MaPhong,
+            TrangThaiPhong = room.TrangThai,
+            DienTich = room.DienTich,
+            GiaThue = room.GiaThue,
+            TieuDe = $"Cho thuê phòng {room.MaPhong}",
+            MoTaThem = null,
+            NgayHetHan = DateTime.UtcNow.AddDays(30),
+            Anh = await db.AnhPhongs.AsNoTracking()
+                .Where(image => image.PhongId == room.Id)
+                .OrderBy(image => image.ThuTu)
+                .Select(image => new AnhPhongChiTietViewModel
+                {
+                    DuongDan = image.DuongDan,
+                    DuongDanAnhNho = image.DuongDanAnhNho,
+                    MoTa = image.MoTa
+                })
+                .ToListAsync(),
+            DichVu = await GetPublicServicePricesAsync(source.BuildingId, room.Id, ownerId)
         };
     }
 
