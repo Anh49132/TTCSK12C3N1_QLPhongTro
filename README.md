@@ -98,6 +98,41 @@ Chủ nhà mở `/DichVu`, khai báo tên/đơn giá và bật “Áp dụng m�
 
 Tổng không gồm tiền thuê, phí theo chỉ số/theo người hoặc dịch vụ chưa có giá đang áp dụng. PO đã chốt: bỏ dịch vụ giữa tháng vẫn tính hết tháng đó và ngừng từ ngày đầu tháng sau. Hóa đơn đã phát hành hiển thị snapshot tên, đơn giá và thành tiền đã lưu; không đọc lại trạng thái dịch vụ phòng hiện tại. Khi phát hành hóa đơn, chọn hợp đồng/phòng và kỳ để danh sách dịch vụ được lọc theo đúng phòng và tháng.
 
+### Demo cấu hình điện nước theo tòa (S2-10)
+
+Fixture này tạo database hoàn toàn mới trong `data/s210-demo/`, không đọc hoặc ghi `QL_PhongTro/Data/local-dev.sqlite`. Cổng demo là `5251`; hãy dừng phiên demo cũ trên đúng cổng trước khi tạo bản mới.
+
+```powershell
+dotnet build .\QL_PhongTro\QL_PhongTro.csproj -c Debug -o .\data\s210-demo\runtime --no-restore
+python .\verification\prepare_s210_demo.py
+```
+
+Script tạo bốn tài khoản giả dùng chung một mật khẩu ngẫu nhiên, một tòa và hai phiên bản cấu hình cho mỗi dịch vụ; sau đó kiểm tra đăng nhập, lưu kỳ sau, từ chối giá 0, integrity/FK và giữ server chạy tại `http://localhost:5251`. Đọc thông tin bản mới nhất:
+
+```powershell
+$demoFolder = (Get-Content .\data\s210-demo\latest.txt -Raw).Trim()
+$demo = Get-Content (Join-Path $demoFolder 'access.json') -Raw | ConvertFrom-Json
+$demo.url
+$demo.accounts.CHU_NHA.email
+$demo.password
+$demo.current
+$demo.pending
+```
+
+Đăng nhập bằng tài khoản `CHU_NHA`, mở **Quản lý tòa nhà → Cấu hình điện nước**. Màn hình mẫu cho thấy kỳ hiện tại có điện theo chỉ số và nước theo đầu người; kỳ kế tiếp đảo lại hai cách tính và ghi rõ tháng bắt đầu áp dụng. Đổi lựa chọn hoặc giá hợp lệ để thấy thông báo kỳ trước nút lưu. Xóa giá hoặc nhập `0`, bấm lưu để thấy lỗi và dữ liệu không đổi.
+
+Muốn chạy lại đúng database demo sau khi server đã dừng:
+
+```powershell
+$env:DatabasePath = $demo.database
+$env:DataProtectionKeysPath = Join-Path $demoFolder 'keys'
+$env:ASPNETCORE_ENVIRONMENT = 'Development'
+$env:ASPNETCORE_URLS = $demo.url
+dotnet .\data\s210-demo\runtime\QL_PhongTro.dll
+```
+
+`DataProtectionKeysPath` chỉ định thư mục khóa cookie riêng cho phiên demo, tránh dùng chung kho khóa của database khác. Database, khóa, mật khẩu, log và HTML kiểm tra đều nằm trong `data/` đã được Git ignore; không commit hoặc chia sẻ chúng.
+
 ### Demo bỏ dịch vụ khỏi phòng
 
 Tạo fixture hoàn toàn giả trên database mới, không ghi database local:

@@ -1,5 +1,20 @@
 # Tiến độ và bàn giao dự án
 
+## Demo nghiệm thu S2-10 (02/10/2026)
+
+- Thêm `verification/prepare_s210_demo.py` và hướng dẫn README. Script chỉ tạo database mới dưới `data/s210-demo/`, dùng initializer + permission demo của dự án, dữ liệu tòa/cấu hình giả; không đọc/ghi database local. Artifact và credential thuộc `data/` đã ignore. Bản thành công mới nhất chạy ở cổng 5251; `latest.txt` trỏ tới `access.json` chứa URL, PID, database và bốn tài khoản chung mật khẩu ngẫu nhiên.
+- Dữ liệu nghiệm thu 10/2026: điện theo chỉ số 4.000đ/kWh, nước theo người 80.000đ/người/tháng. Cấu hình chờ 11/2026 được lưu qua HTTP thật: điện theo người 95.000đ/người/tháng, nước theo chỉ số 18.000đ/m³. HTTP form có đủ hai lựa chọn và hiển thị kỳ; POST giá điện 0 trả lại form có lỗi, bốn version trong DB không đổi. `--check-database`, integrity và FK PASS.
+- `Program.cs` nhận cấu hình tùy chọn `DataProtectionKeysPath` để demo dùng kho khóa cookie riêng trong workspace. Mặc định không đặt biến này nên cách chạy và kho khóa hiện tại không đổi; không đổi schema/updater. Lần đầu trong sandbox thất bại do kho DPAPI người dùng không ghi được, các server lỗi đã dừng; bản sau dùng kho riêng thành công.
+- Build runtime demo PASS, không lỗi; toàn suite sau thay đổi PASS 46/46 trong 1 phút 15 giây; còn cảnh báo ImageSharp và CS8601 có sẵn. Computer Use không có browser khả dụng nên chưa kiểm tra trực quan; xác minh UI dùng HTML MVC thật qua HTTP. Server demo thành công được giữ chạy để người dùng mở bằng trình duyệt trên máy.
+
+## S2-10 — hoàn thiện cấu hình điện/nước lần đầu (02/10/2026)
+
+- Đã bỏ điểm chặn còn lại của S2-10: chủ nhà có thể cấu hình điện/nước ngay cả khi tòa chưa khởi tạo danh mục gợi ý hoặc các dòng mặc định chưa chốt giá. Cấu hình hợp lệ đầu tiên cũng bắt đầu từ ngày 01 tháng kế tiếp; dòng chưa chốt của kỳ hiện tại, nếu có, chỉ được đóng `den_ngay` và không bị ghi đè. Nếu thiếu danh mục DIEN/NUOC hoặc liên kết tòa, service tạo đúng phần tối thiểu và không tự bật áp dụng mặc định cho phòng.
+- Giữ nguyên giao diện hai lựa chọn độc lập, trường giá theo phương thức, thông báo “Áp dụng từ kỳ MM/yyyy”, validation giá bắt buộc lớn hơn 0, kiểm tra sở hữu/CSRF/stale form và transaction hiện có. Không đổi schema, updater, README hay database local.
+- File thay đổi: `Services/DichVuService.DienNuoc.cs`; thêm `Tests/QL_PhongTro.Tests/RoomServicesTests.ElectricWater.cs`; cập nhật tài liệu này. Giữ nguyên thay đổi có sẵn trong `Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj`.
+- Kiểm thử mới dùng SQLite tạm do fixture tạo: tạo cấu hình trước bước khởi tạo danh mục; chốt giá lần đầu từ dòng chưa có giá; điện theo người/nước theo chỉ số và đúng đơn vị; đổi cách tính giữ nguyên kỳ hiện tại; tra giá trước/sau ranh giới kỳ; từ chối giá trống/0/âm và không ghi dở. Các test mới PASS 6/6; toàn suite PASS 46/46 trong 1 phút 14 giây. Build đi kèm test không có lỗi; còn cảnh báo license ImageSharp có sẵn. Chưa chạy lại kiểm tra trực quan trên trình duyệt trong lần sửa này.
+- Cách dùng không đổi: Chủ nhà mở **Cấu hình điện nước** từ danh sách tòa hoặc trang dịch vụ, chọn cách tính và nhập giá dương. Màn hình hiển thị kỳ áp dụng trước khi lưu; tải lại sẽ thấy cấu hình đang chờ. Không cần cập nhật database cho thay đổi này.
+
 ## S2-10:4 — lưu cấu hình điện/nước cho kỳ kế tiếp (02/10/2026)
 
 - Hoàn thành luồng chính trên branch feature/S2-10/save-next-period-config. Giữ schema/version SQLite hiện có, không migration/bảng mới. Dùng cau_hinh_dich_vu.tu_ngay/den_ngay: cấu hình mới bắt đầu ngày 1 tháng kế tiếp UTC+7, chỉ đóng khoảng cũ, không ghi đè cách tính/giá hiện tại. Thời gian trong từng GET/lần lưu lấy một lần từ ITimeProvider (fallback UTC hệ thống).

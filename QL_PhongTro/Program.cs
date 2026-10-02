@@ -108,7 +108,16 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connect
 
 // Isolate demo/real databases even when both run on localhost with the same key ring.
 var authScope = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(databasePath).ToUpperInvariant())))[..24];
-builder.Services.AddDataProtection().SetApplicationName("QLPhongTro:" + authScope);
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("QLPhongTro:" + authScope);
+var configuredKeyPath = builder.Configuration["DataProtectionKeysPath"];
+if (!string.IsNullOrWhiteSpace(configuredKeyPath))
+{
+    var keyPath = Path.GetFullPath(Path.IsPathRooted(configuredKeyPath)
+        ? configuredKeyPath
+        : Path.Combine(builder.Environment.ContentRootPath, configuredKeyPath));
+    Directory.CreateDirectory(keyPath);
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyPath));
+}
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {

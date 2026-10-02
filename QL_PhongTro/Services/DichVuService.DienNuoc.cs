@@ -73,26 +73,26 @@ public sealed partial class DichVuService
         var rows = await CauHinhDienNuocAsync(input.ToaNhaId);
         if (input.TrangThaiDaXem != TrangThai(rows))
             throw new InvalidOperationException("Cấu hình vừa thay đổi. Hãy tải lại trang trước khi lưu.");
-        await Save("DIEN", "kWh", input.Dien);
-        await Save("NUOC", "m³", input.Nuoc);
+        await Save("DIEN", "Điện", "kWh", input.Dien);
+        await Save("NUOC", "Nước", "m³", input.Nuoc);
         await db.SaveChangesAsync();
         await tx.CommitAsync();
 
-        async Task Save(string code, string unit, CauHinhTienDichVuViewModel value)
+        async Task Save(string code, string name, string unit, CauHinhTienDichVuViewModel value)
         {
             var current = HienTai(rows, code, today);
             var pending = rows.SingleOrDefault(x => x.DichVu.MaDichVu == code && x.TuNgay == next);
             if (!value.ThayDoiSoVoi(Input(pending ?? current))) return;
-            if (current is null || !current.DaChotGia)
-                throw new InvalidOperationException("Chưa chốt nghiệp vụ thiết lập giá lần đầu cho " + code + ". Chưa lưu thay đổi.");
             if (rows.Any(x => x.DichVu.MaDichVu == code && x.TuNgay > next))
                 throw new InvalidOperationException("Có phiên bản tương lai sau kỳ kế tiếp của " + code + ". Cần chốt cách xử lý trước khi lưu.");
-            if (pending is not null && !value.ThayDoiSoVoi(Input(current)))
+            if (pending is not null && current is { DaChotGia: true } && !value.ThayDoiSoVoi(Input(current)))
                 throw new InvalidOperationException("Chưa chốt nghiệp vụ đổi cấu hình chờ về cấu hình hiện tại. Chưa lưu thay đổi.");
-            if (!current.DangApDung || !current.DichVu.DangHoatDong || pending is { DangApDung: false })
+            if (current is { DangApDung: false } || (current is not null && !current.DichVu.DangHoatDong) ||
+                pending is { DangApDung: false } || (pending is not null && !pending.DichVu.DangHoatDong))
                 throw new InvalidOperationException("Dịch vụ đang ngừng áp dụng. Cần kiểm tra lịch dịch vụ trước khi lưu.");
-            if (value.CachTinh != current.CachTinh && await db.DichVuPhongs.AnyAsync(x =>
-                x.DichVuToaNha.ToaNhaId == input.ToaNhaId && x.DichVuToaNha.DichVuId == current.DichVuId && x.DonGiaRieng != null))
+            var existing = pending ?? current;
+            if (existing is not null && value.CachTinh != existing.CachTinh && await db.DichVuPhongs.AnyAsync(x =>
+                x.DichVuToaNha.ToaNhaId == input.ToaNhaId && x.DichVuToaNha.DichVuId == existing.DichVuId && x.DonGiaRieng != null))
                 throw new InvalidOperationException("Có giá riêng cấp phòng. Chưa chốt cách xử lý khi đổi cách tính cấp tòa.");
             if (pending is not null && await DaThamChieuAsync(pending.Id))
                 throw new InvalidOperationException("Cấu hình chờ đã được chứng từ hoặc hợp đồng tham chiếu. Chưa chốt nghiệp vụ sửa cấu hình này.");
@@ -100,12 +100,27 @@ public sealed partial class DichVuService
             if (row is null)
             {
                 // Both saves stay in this transaction; failure restores the old interval.
-                if (current.DenNgay == null || current.DenNgay >= next) current.DenNgay = next.AddDays(-1);
-                await db.SaveChangesAsync();
+                if (current is not null)
+                {
+                    if (current.DenNgay == null || current.DenNgay >= next) current.DenNgay = next.AddDays(-1);
+                    await db.SaveChangesAsync();
+                }
+                var catalog = current?.DichVu ?? await db.DichVus.SingleOrDefaultAsync(x => x.MaDichVu == code);
+                if (catalog is null)
+                {
+                    catalog = new DichVu { MaDichVu = code, TenDichVu = name };
+                    db.DichVus.Add(catalog);
+                }
+                if (catalog.Id == 0 || !await db.DichVuToaNhas.AnyAsync(x =>
+                    x.ToaNhaId == input.ToaNhaId && x.DichVuId == catalog.Id))
+                    db.DichVuToaNhas.Add(new DichVuToaNha
+                    {
+                        ToaNhaId = input.ToaNhaId, DichVu = catalog, ApDungMacDinh = false
+                    });
                 row = new CauHinhDichVu
                 {
-                    ToaNhaId = input.ToaNhaId, DichVuId = current.DichVuId, TuNgay = next,
-                    DangApDung = current.DangApDung, NguoiTaoId = accountId, NgayTao = utcNow
+                    ToaNhaId = input.ToaNhaId, DichVu = catalog, TuNgay = next,
+                    DangApDung = current?.DangApDung ?? true, NguoiTaoId = accountId, NgayTao = utcNow
                 };
                 db.CauHinhDichVus.Add(row);
             }
