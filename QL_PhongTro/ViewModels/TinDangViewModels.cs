@@ -16,6 +16,16 @@ public sealed class TinDangChiTietViewModel
     public IReadOnlyList<AnhPhongChiTietViewModel> Anh { get; init; } = [];
     public IReadOnlyList<DichVuTinChiTietViewModel> DichVuTheoSuDung { get; init; } = [];
     public IReadOnlyList<DichVuTinChiTietViewModel> KhoanCoDinh { get; init; } = [];
+    public decimal TongChiPhiThangDau
+    {
+        get
+        {
+            var total = (decimal)GiaThue;
+            foreach (var fee in KhoanCoDinh)
+                total += fee.DonGia;
+            return total;
+        }
+    }
 }
 
 public sealed class AnhPhongChiTietViewModel
