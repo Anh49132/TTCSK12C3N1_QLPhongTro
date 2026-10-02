@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Nhà Trọ</title>
+    <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/public-listing.css" asp-append-version="true" />
+</head>
+<body class="public-site">
+    <header class="public-header">
+        <a class="public-brand" href="/" aria-label="Nhà Trọ, về trang chủ"><span aria-hidden="true">⌂</span>Nhà Trọ</a>
+        <nav aria-label="Điều hướng chính">
+            <a href="/">Trang chủ</a>
+            <a href="/Account/Login">Đăng nhập</a>
+            <a class="public-register" href="/Account/Register">Tạo tài khoản</a>
+        </nav>
+    </header>
+    <main class="public-main">
+        @RenderBody()
+    </main>
+    <footer class="public-footer">Nhà Trọ <span aria-hidden="true">·</span> Không gian sống phù hợp với bạn</footer>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

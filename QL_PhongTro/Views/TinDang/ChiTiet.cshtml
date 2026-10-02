@@ -1,0 +1,212 @@
+@model QL_PhongTro.ViewModels.ChiTietTinDangViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = Model.PublicDetail.TieuDe;
+    Layout = User.Identity?.IsAuthenticated == true ? "~/Views/Shared/_Layout.cshtml" : "~/Views/Shared/_PublicLayout.cshtml";
+    var culture = CultureInfo.GetCultureInfo("vi-VN");
+    var location = string.Join(", ", new[] { Model.PublicDetail.PhuongXa, Model.PublicDetail.QuanHuyen, Model.PublicDetail.TinhThanh }.Where(part => !string.IsNullOrWhiteSpace(part)));
+}
+
+<nav class="listing-breadcrumb" aria-label="Đường dẫn">
+    <a href="/">Trang chủ</a><span aria-hidden="true">/</span><span>Chi tiết tin thuê</span>
+</nav>
+<article class="listing-page" data-listing-id="@Model.PublicDetail.Id">
+    <header class="listing-heading">
+        <p class="listing-eyebrow">PHÒNG ĐANG CHO THUÊ</p>
+        <h1>@Model.PublicDetail.TieuDe</h1>
+        <p class="listing-address">@Model.PublicDetail.DiaChi@if (!string.IsNullOrEmpty(location)) { <span>, @location</span> }</p>
+    </header>
+
+    @if (Model.PublicDetail.Anh.Count > 0)
+    {
+        <section class="listing-gallery" aria-label="Bộ ảnh phòng">
+            @foreach (var image in Model.PublicDetail.Anh)
+            {
+                <img src="@(image.DuongDanAnhNho ?? image.DuongDan)" alt="@(image.MoTa ?? Model.PublicDetail.TieuDe)" loading="lazy" />
+            }
+        </section>
+    }
+    else
+    {
+        <section class="listing-gallery listing-gallery-empty" aria-label="Bộ ảnh phòng">
+            <span aria-hidden="true">⌂</span>
+            <p>Tin này chưa có hình ảnh.</p>
+        </section>
+    }
+
+    <div class="listing-content">
+        <section class="listing-description" aria-labelledby="description-title">
+            <p class="listing-eyebrow">THÔNG TIN PHÒNG</p>
+            <h2 id="description-title">Mô tả</h2>
+            @if (string.IsNullOrWhiteSpace(Model.PublicDetail.MoTa))
+            {
+                <p class="listing-muted">Chưa có mô tả cho tin này.</p>
+            }
+            else
+            {
+                <p class="listing-description-text">@Model.PublicDetail.MoTa</p>
+            }
+            <dl class="listing-facts">
+                <div><dt>Diện tích</dt><dd data-testid="listing-area">@Model.PublicDetail.DienTich.ToString("0.##", culture) m²</dd></div>
+                <div><dt>Số người tối đa</dt><dd data-testid="listing-occupancy">@Model.PublicDetail.SoNguoiToiDa người</dd></div>
+            </dl>
+        </section>
+
+        <aside class="listing-price" aria-label="Chi phí thuê">
+            <p class="listing-eyebrow">GIÁ THUÊ MỖI THÁNG</p>
+            <p class="listing-rent" data-testid="listing-rent">@Model.PublicDetail.GiaThue.ToString("N0", culture)<span>đ / tháng</span></p>
+            <div class="listing-deposit">
+                <span>Tiền cọc dự kiến</span>
+                <strong data-testid="listing-deposit">@Model.PublicDetail.TienCocDuKien.ToString("N0", culture) đ</strong>
+            </div>
+        </aside>
+    </div>
+
+    <section class="listing-services" aria-labelledby="services-title">
+        <p class="listing-eyebrow">DỊCH VỤ VÀ CÁCH TÍNH</p>
+        <h2 id="services-title">Chi phí dịch vụ</h2>
+        <div class="service-columns">
+            <section class="service-group" aria-labelledby="usage-services-title">
+                <h3 id="usage-services-title">Theo mức sử dụng</h3>
+                @if (Model.PublicDetail.DichVuTheoSuDung.Count == 0)
+                {
+                    <p class="listing-empty" data-testid="no-usage-services">Chưa có đơn giá dịch vụ theo mức sử dụng.</p>
+                }
+                else
+                {
+                    <div class="service-list">
+                        @foreach (var service in Model.PublicDetail.DichVuTheoSuDung)
+                        {
+                            <article class="service-row" data-testid="usage-service">
+                                <div class="service-description">
+                                    <h4>@service.TenDichVu</h4>
+                                    <p>@QL_PhongTro.Models.CachTinhDichVu.Ten(service.CachTinh) <span>· @service.DonViTinh</span></p>
+                                </div>
+                                <p class="service-price">@service.DonGia.ToString("N0", culture)<span>đ / @service.DonViTinh</span></p>
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="service-group" aria-labelledby="fixed-services-title">
+                <h3 id="fixed-services-title">Khoản cố định hàng tháng</h3>
+                @if (Model.PublicDetail.KhoanCoDinh.Count == 0)
+                {
+                    <p class="listing-empty" data-testid="no-fixed-services">Tin này chưa có khoản phí cố định hàng tháng.</p>
+                }
+                else
+                {
+                    <div class="service-list">
+                        @foreach (var service in Model.PublicDetail.KhoanCoDinh)
+                        {
+                            <article class="service-row" data-testid="fixed-service">
+                                <div class="service-description">
+                                    <h4>@service.TenDichVu</h4>
+                                    <p>@service.DonViTinh</p>
+                                </div>
+                                <p class="service-price">@service.DonGia.ToString("N0", culture)<span>đ / tháng</span></p>
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+        <aside class="first-month-estimate" aria-label="Ước tính chi phí tháng đầu" data-testid="first-month-estimate">
+            <div class="estimate-heading">
+                <h3>Ước tính tổng chi phí tháng đầu</h3>
+                <strong data-testid="first-month-total">@Model.PublicDetail.TongChiPhiThangDau.ToString("N0", culture) đ</strong>
+            </div>
+            <p>Chưa bao gồm tiền điện và nước theo mức sử dụng thực tế.</p>
+        </aside>
+    </section>
+</article>
+@if (Model.RequestModuleInstalled && User.IsInRole("KHACH_THUE"))
+{
+    @if (Model.OpenRequestId is { } existingId)
+    {
+        <div class="alert alert-info" role="status">
+            <p>Bạn đã có yêu cầu đang mở cho tin đăng này. Không tạo thêm yêu cầu mới.</p>
+            <a id="open-existing-request" asp-action="YeuCau" asp-route-id="@existingId">Mở lại yêu cầu đang tồn tại</a>
+        </div>
+    }
+    <a class="btn btn-primary mb-3" href="#gui-yeu-cau">Gửi yêu cầu</a>
+    <section id="gui-yeu-cau" class="card p-4" aria-labelledby="request-heading">
+        <h2 id="request-heading">Gửi yêu cầu xem phòng hoặc thuê ngay</h2>
+        <p>Các trường có dấu * là bắt buộc.</p>
+        <form asp-action="GuiYeuCau" asp-route-id="@Model.Tin.Id" method="post">
+            <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+            <div class="mb-3"><label asp-for="Form.LoaiYeuCau" class="form-label">Loại yêu cầu *</label>
+                <select asp-for="Form.LoaiYeuCau" class="form-select" required>
+                    <option value="">Chọn loại yêu cầu</option><option value="XEM_PHONG">Xem phòng</option><option value="THUE_NGAY">Thuê ngay</option>
+                </select><span asp-validation-for="Form.LoaiYeuCau" class="text-danger"></span></div>
+            <div class="mb-3"><label asp-for="Form.NgayMongMuon" class="form-label">Ngày mong muốn *</label>
+                <input asp-for="Form.NgayMongMuon" type="date" class="form-control" required
+                       min="@Model.Today.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)"
+                       max="@Model.Today.AddDays(60).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)"
+                       aria-describedby="desired-date-help" />
+                <div id="desired-date-help" class="form-text">Chọn ngày từ @Model.Today.ToString("dd/MM/yyyy") đến @Model.Today.AddDays(60).ToString("dd/MM/yyyy") (tối đa 60 ngày kể từ hôm nay).</div>
+                <span asp-validation-for="Form.NgayMongMuon" class="text-danger"></span></div>
+            <div class="mb-3"><label asp-for="Form.SoNguoiDuKien" class="form-label">Số người dự kiến ở *</label>
+                <input asp-for="Form.SoNguoiDuKien" type="number" min="1" max="@Model.Phong.SoNguoiToiDa" step="1" class="form-control" required aria-describedby="capacity-help" />
+                <div id="capacity-help" class="form-text">Phòng chỉ cho phép tối đa @Model.Phong.SoNguoiToiDa người.</div>
+                <span asp-validation-for="Form.SoNguoiDuKien" class="text-danger"></span></div>
+            <div class="mb-3"><label asp-for="Form.LoiNhan" class="form-label">Lời nhắn</label>
+                <textarea asp-for="Form.LoiNhan" class="form-control" rows="4" maxlength="2000"></textarea>
+                <span asp-validation-for="Form.LoiNhan" class="text-danger"></span></div>
+            <button class="btn btn-primary" type="submit">Gửi yêu cầu</button>
+        </form>
+    </section>
+}
+else if (Model.RequestModuleInstalled && User.Identity?.IsAuthenticated != true)
+{
+    <a class="btn btn-primary" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Url.Action("ChiTiet", new { id = Model.Tin.Id })">Đăng nhập để gửi yêu cầu</a>
+}
+else if (Model.RequestModuleInstalled) { <p>Chức năng gửi yêu cầu dành cho tài khoản Khách thuê.</p> }
+
+@section Scripts {
+    <script>
+        const people = document.getElementById('Form_SoNguoiDuKien');
+        if (people) {
+            const capacityError = document.querySelector('[data-valmsg-for="Form.SoNguoiDuKien"]');
+            function validateCapacity() {
+                people.setCustomValidity('');
+                let message = '';
+                if (people.validity.rangeOverflow)
+                    message = `Phòng chỉ cho phép tối đa ${people.max} người.`;
+                else if (people.validity.rangeUnderflow || people.validity.stepMismatch)
+                    message = 'Số người dự kiến ở phải là số nguyên dương.';
+                else if (people.validity.valueMissing || people.validity.badInput)
+                    message = 'Vui lòng nhập số người dự kiến ở hợp lệ.';
+                people.setCustomValidity(message);
+                people.setAttribute('aria-invalid', message ? 'true' : 'false');
+                capacityError.textContent = message;
+                capacityError.classList.toggle('field-validation-error', !!message);
+                capacityError.classList.toggle('field-validation-valid', !message);
+            }
+            people.addEventListener('input', validateCapacity);
+            people.addEventListener('invalid', validateCapacity);
+        }
+        const desiredDate = document.getElementById('Form_NgayMongMuon');
+        if (desiredDate) {
+            const dateError = document.querySelector('[data-valmsg-for="Form.NgayMongMuon"]');
+            function validateDesiredDate() {
+                desiredDate.setCustomValidity('');
+                let message = '';
+                if (desiredDate.validity.rangeUnderflow)
+                    message = 'Ngày mong muốn không được là ngày trong quá khứ.';
+                else if (desiredDate.validity.rangeOverflow)
+                    message = 'Ngày mong muốn không được quá 60 ngày kể từ hôm nay.';
+                else if (desiredDate.validity.valueMissing || desiredDate.validity.badInput)
+                    message = 'Vui lòng nhập ngày mong muốn hợp lệ.';
+                desiredDate.setCustomValidity(message);
+                desiredDate.setAttribute('aria-invalid', message ? 'true' : 'false');
+                dateError.textContent = message;
+                dateError.classList.toggle('field-validation-error', !!message);
+                dateError.classList.toggle('field-validation-valid', !message);
+            }
+            desiredDate.addEventListener('input', validateDesiredDate);
+            desiredDate.addEventListener('invalid', validateDesiredDate);
+        }
+    </script>
+}

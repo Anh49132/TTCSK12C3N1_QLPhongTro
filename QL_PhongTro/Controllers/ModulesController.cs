@@ -15,7 +15,7 @@ public class ModulesController(AppDbContext db) : Controller
     {
         var module = await db.AppModules.AsNoTracking().SingleOrDefaultAsync(m => m.Code == code);
         if (module is null) return NotFound();
-        if (code is "PHONG_TRO" or "TAI_KHOAN") return Redirect(PermissionService.Url(code));
+        if (code is "PHONG_TRO" or "TAI_KHOAN" or "TIN_DANG") return Redirect(PermissionService.Url(code));
         return View(module);
     }
 

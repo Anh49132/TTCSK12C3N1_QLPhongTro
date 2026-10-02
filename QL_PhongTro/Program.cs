@@ -48,7 +48,12 @@ if (args.Contains("--initialize-database"))
     return;
 }
 if (!File.Exists(databasePath))
-    throw new FileNotFoundException("Local SQLite database not found. Run --initialize-database explicitly on a new path.", databasePath);
+    throw new FileNotFoundException("Local SQLite database missing. Run --initialize-database explicitly with the same DatabasePath.", databasePath);
+if (args.Contains("--initialize-rental-requests"))
+{
+    RentalRequestSchema.Initialize(databasePath);
+    return;
+}
 
 if (args.Contains("--update-database"))
 {
@@ -108,7 +113,16 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connect
 
 // Isolate demo/real databases even when both run on localhost with the same key ring.
 var authScope = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(databasePath).ToUpperInvariant())))[..24];
-builder.Services.AddDataProtection().SetApplicationName("QLPhongTro:" + authScope);
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("QLPhongTro:" + authScope);
+var configuredKeyPath = builder.Configuration["DataProtectionKeysPath"];
+if (!string.IsNullOrWhiteSpace(configuredKeyPath))
+{
+    var keyPath = Path.GetFullPath(Path.IsPathRooted(configuredKeyPath)
+        ? configuredKeyPath
+        : Path.Combine(builder.Environment.ContentRootPath, configuredKeyPath));
+    Directory.CreateDirectory(keyPath);
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyPath));
+}
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -140,6 +154,7 @@ builder.Services.AddScoped<IRegistrationEmailSender, PasswordEmailSender>();
 builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddScoped<SessionVersionStore>();
 builder.Services.AddScoped<DichVuService>();
+builder.Services.AddScoped<YeuCauThueService>();
 builder.Services.AddScoped<DichVuPhongService>();
 builder.Services.AddScoped<HoaDonDichVuService>();
 builder.Services.AddScoped<YeuCauThueService>();
@@ -201,6 +216,7 @@ DatabaseUpdates.Check(databasePath);
 AccountReuseSchema.Ensure(databasePath);
 
 app.MapRazorPages();
+await TimTinWarmup.RunAsync(app.Services);
 app.Run();
 
 public partial class Program { }

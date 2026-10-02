@@ -1,3 +1,5 @@
+using System.Globalization;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
@@ -5,132 +7,106 @@ using QL_PhongTro.ViewModels;
 
 namespace QL_PhongTro.Services;
 
-// The only place allowed to move a request between states. Every method opens its own
-// transaction, checks ownership before writing, and leaves the request, its history row,
-// the in-app notification and the admin activity log inside one atomic change.
-public sealed class YeuCauThueService(AppDbContext db, ITimeProvider clock)
+public sealed class RequestCodeExhaustedException() : Exception("Đã hết mã yêu cầu trong tháng. Vui lòng liên hệ quản lý.");
+public sealed class DesiredDateException(string message) : Exception(message);
+public sealed class OpenRequestExistsException(int requestId) : Exception("Bạn đã có yêu cầu đang mở cho tin đăng này. Không tạo thêm yêu cầu mới.")
 {
-    private static readonly string[] LyDoTuChoi =
-    [
-        "DA_CO_KHACH_THUE", "KHONG_PHU_HOP_SO_NGUOI", "KHACH_KHONG_LIEN_LAC_DUOC", "LY_DO_KHAC"
-    ];
+    public int RequestId { get; } = requestId;
+}
+public sealed class RoomCapacityException(int maximum) : Exception($"Phòng chỉ cho phép tối đa {maximum} người.")
+{
+    public int Maximum { get; } = maximum;
+}
 
-    public static IReadOnlyList<string> DanhSachLyDoTuChoi() => LyDoTuChoi;
+public class YeuCauThueService(AppDbContext db, ITimeProvider clock)
+{
+    // PO: MOI, DA_HEN_LICH and DA_DUYET remain open; TU_CHOI/DA_HUY allow resending.
+    public Task<YeuCauThue?> FindOpenRequest(int listingId, int accountId) =>
+        db.YeuCauThues.AsNoTracking().Where(r => r.TinDangId == listingId
+            && (r.TrangThai == "MOI" || r.TrangThai == "DA_HEN_LICH" || r.TrangThai == "DA_DUYET")
+            && db.KhachThues.Any(k => k.Id == r.KhachThueId && k.TaiKhoanId == accountId))
+            .OrderBy(r => r.Id).FirstOrDefaultAsync();
 
-    public static string LyDoLabel(string lyDo) => lyDo switch
+    public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(
+        DateTime.SpecifyKind(clock.UtcNow, DateTimeKind.Utc),
+        TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh")));
+
+    public string? ValidateDesiredDate(DateOnly? date)
     {
-        "DA_CO_KHACH_THUE" => "Đã có khách thuê",
-        "KHONG_PHU_HOP_SO_NGUOI" => "Không phù hợp số người",
-        "KHACH_KHONG_LIEN_LAC_DUOC" => "Khách không liên lạc được",
-        "LY_DO_KHAC" => "Lý do khác",
-        _ => lyDo
-    };
-
-    public DateTime UtcHienTai() => clock.UtcNow;
-
-    public static string HienThoiGio(DateTime utc) =>
-        utc.AddHours(7).ToString("dd/MM/yyyy HH:mm");
-
-    private async Task<YeuCauThue?> LoadAsync(int id, CancellationToken ct) =>
-        await db.YeuCauThues.FirstOrDefaultAsync(x => x.Id == id, ct);
-
-    // The landlord of the room the request is about. Mirrors DichVuService.SoHuuToaNhaAsync
-    // so a request can never be handled by a landlord who does not own the room.
-    private async Task<bool> ChuNhaCuaPhongAsync(int accountId, int phongId, CancellationToken ct) =>
-        await (from room in db.PhongTros
-               join building in db.ToaNhas on room.ToaNhaId equals building.Id
-               join account in db.TaiKhoans on building.ChuNhaId equals account.Id
-               where room.Id == phongId && building.ChuNhaId == accountId && building.DangHoatDong
-                     && account.DangHoatDong && account.VaiTro == "CHU_NHA" && !account.IsDeleted
-               select room.Id).AnyAsync(ct);
-
-    public async Task<bool> ChuNhaCuaYeuCauAsync(int accountId, int yeuCauId, CancellationToken ct) =>
-        await db.YeuCauThues.AsNoTracking()
-            .Where(x => x.Id == yeuCauId)
-            .SelectMany(x => db.PhongTros.Where(p => p.Id == x.PhongId)
-                .Where(p => db.ToaNhas.Any(b => b.Id == p.ToaNhaId && b.ChuNhaId == accountId && b.DangHoatDong)))
-            .AnyAsync(ct);
-
-    // KHACH_THUE has WRITE on the YEU_CAU_THUE module, so ownership must be re-checked here
-    // instead of trusting the controller attribute.
-    public async Task<bool> KhachChuYeuCauAsync(int accountId, int yeuCauId, CancellationToken ct) =>
-        await (from request in db.YeuCauThues
-               join profile in db.KhachThues on request.KhachThueId equals profile.Id
-               join account in db.TaiKhoans on profile.TaiKhoanId equals account.Id
-               where request.Id == yeuCauId && account.Id == accountId && account.DangHoatDong
-                     && !account.IsDeleted && account.VaiTro == "KHACH_THUE"
-               select request.Id).AnyAsync(ct);
-
-    public async Task<bool> QuyenXemAsync(int accountId, int yeuCauId, CancellationToken ct) =>
-        await ChuNhaCuaYeuCauAsync(accountId, yeuCauId, ct) || await KhachChuYeuCauAsync(accountId, yeuCauId, ct);
-
-    private async Task<TaiKhoan> ActorAsync(int accountId, CancellationToken ct) =>
-        await db.TaiKhoans.AsNoTracking().SingleOrDefaultAsync(a => a.Id == accountId, ct)
-        ?? throw new UnauthorizedAccessException("Không xác minh được tài khoản thực hiện.");
-
-    // History + notification are written in the same transaction as the status change, so a
-    // rejected operation can never leave a half-written record behind.
-    protected void GhiLichSu(YeuCauThue yeuCau, TaiKhoan actor, string hanhDong, string? trangThaiCu,
-        DateTime? lichHenCu, DateTime? lichHenMoi, DateTime now)
-    {
-        db.YeuCauThueLichSus.Add(new YeuCauThueLichSu
-        {
-            YeuCauThueId = yeuCau.Id,
-            TrangThaiCu = trangThaiCu,
-            TrangThaiMoi = yeuCau.TrangThai,
-            HanhDong = hanhDong,
-            NguoiThucHienId = actor.Id,
-            TenNguoiThucHien = actor.HoTen,
-            VaiTroLucThucHien = actor.VaiTro,
-            LichHenCu = lichHenCu,
-            LichHenMoi = lichHenMoi,
-            LyDoTuChoi = yeuCau.LyDoTuChoi,
-            GhiChuTuChoi = yeuCau.GhiChuTuChoi,
-            ThoiDiem = now
-        });
+        var today = Today;
+        if (date is null) return "Vui lòng nhập ngày mong muốn hợp lệ.";
+        if (date < today) return "Ngày mong muốn không được là ngày trong quá khứ.";
+        if (date > today.AddDays(60)) return "Ngày mong muốn không được quá 60 ngày kể từ hôm nay.";
+        return null;
     }
 
-    // Never notify the account that just performed the action: they already know.
-    protected void ThongBao(int? nguoiNhanId, int actorId, string loai, string tieuDe, string noiDung, int yeuCauId)
+    public IQueryable<TinDang> PublicListings()
     {
-        // A tenant profile with no linked account cannot receive in-app mail; skip instead of failing.
-        if (nguoiNhanId is not int nhan || nhan == actorId) return;
-        db.ThongBaos.Add(new ThongBao
-        {
-            NguoiNhanId = nhan,
-            Loai = loai,
-            TieuDe = tieuDe,
-            NoiDung = noiDung,
-            DuongDan = $"/YeuCauThue/Detail/{yeuCauId}",
-            NgayTao = UtcHienTai()
-        });
+        var now = clock.UtcNow;
+        return db.TinDangs.AsNoTracking().Where(t => t.TrangThai == "DANG_HIEN_THI"
+            && (t.NgayHetHan == null || t.NgayHetHan > now)
+            && db.PhongTros.Any(p => p.Id == t.PhongId && p.TrangThai == "TRONG"
+                && db.ToaNhas.Any(b => b.Id == p.ToaNhaId && b.DangHoatDong)));
     }
 
-    protected int? TaiKhoanCuaKhach(YeuCauThue yeuCau) =>
-        db.KhachThues.AsNoTracking().Where(x => x.Id == yeuCau.KhachThueId).Select(x => x.TaiKhoanId).Single();
-
-    public async Task XacNhanLichAsync(int yeuCauId, int accountId, DateTime lichHen, CancellationToken ct)
+    public async Task<bool> IsInstalled()
     {
-        if (lichHen <= UtcHienTai()) throw new InvalidOperationException("Ngày giờ hẹn phải sau thời điểm hiện tại.");
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var actor = await ActorAsync(accountId, ct);
-        var yeuCau = await LoadAsync(yeuCauId, ct) ?? throw new KeyNotFoundException("Yêu cầu không tồn tại.");
-        if (!await ChuNhaCuaPhongAsync(accountId, yeuCau.PhongId, ct))
-            throw new UnauthorizedAccessException("Chỉ chủ nhà của phòng này mới xác nhận được lịch hẹn.");
-        if (yeuCau.TrangThai != YeuCauThueTrangThai.Moi)
-            throw new InvalidOperationException("Chỉ yêu cầu đang chờ xác nhận mới xác nhận lịch được.");
+        await db.Database.OpenConnectionAsync();
+        using var cmd = db.Database.GetDbConnection().CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('tin_dang','yeu_cau_thue','rental_request_counter','rental_request_schema')";
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync()) == 4;
+    }
 
-        var now = UtcHienTai();
-        yeuCau.LichHen = lichHen;
-        yeuCau.TrangThai = YeuCauThueTrangThai.DaHenLich;
-        yeuCau.NguoiXuLyId = accountId;
-        yeuCau.NgayXuLy = now;
-        yeuCau.PhienBan++;
-        GhiLichSu(yeuCau, actor, HanhDongYeuCau.XacNhan, YeuCauThueTrangThai.Moi, null, lichHen, now);
-        ThongBao(TaiKhoanCuaKhach(yeuCau), accountId, LoaiThongBao.YeuCauXacNhan,
-            "Lịch hẹn đã được xác nhận",
-            $"Chủ nhà đã xác nhận lịch hẹn {HienThoiGio(lichHen)} cho yêu cầu {yeuCau.MaYeuCau}.", yeuCau.Id);
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+    public async Task<YeuCauThue?> Send(int listingId, int accountId, GuiYeuCauViewModel form)
+    {
+        if (ValidateDesiredDate(form.NgayMongMuon) is { } dateError)
+            throw new DesiredDateException(dateError);
+        // Serialize counter allocation and profile creation across all web processes.
+        await db.Database.OpenConnectionAsync();
+        using var tx = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+        await using var efTransaction = await db.Database.UseTransactionAsync(tx);
+        var account = await db.TaiKhoans.AsNoTracking().SingleOrDefaultAsync(a => a.Id == accountId
+            && a.VaiTro == "KHACH_THUE" && a.DangHoatDong && !a.IsDeleted && a.EmailConfirmed && !a.MustChangePassword);
+        if (account is null) throw new UnauthorizedAccessException();
+        var capacity = await (from listing in PublicListings()
+                              join room in db.PhongTros.AsNoTracking() on listing.PhongId equals room.Id
+                              where listing.Id == listingId
+                              select (int?)room.SoNguoiToiDa).SingleOrDefaultAsync();
+        if (capacity is null) return null;
+        // The immediate transaction serializes this check with every Send, including other processes.
+        // Reject before creating a profile, allocating a code or writing an audit entry.
+        if (await FindOpenRequest(listingId, accountId) is { } existing)
+            throw new OpenRequestExistsException(existing.Id);
+        if (form.SoNguoiDuKien > capacity.Value) throw new RoomCapacityException(capacity.Value);
+        var profile = await db.KhachThues.SingleOrDefaultAsync(k => k.TaiKhoanId == accountId);
+        if (profile is null)
+        {
+            profile = new KhachThue { TaiKhoanId = accountId, HoTen = account.HoTen, NgayTao = clock.UtcNow };
+            db.KhachThues.Add(profile);
+            await db.SaveChangesAsync();
+        }
+        var vietnam = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+        var month = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(clock.UtcNow, DateTimeKind.Utc), vietnam)
+            .ToString("yyyyMM", CultureInfo.InvariantCulture);
+        using var cmd = tx.Connection!.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = """
+            INSERT INTO rental_request_counter(thang,so_cuoi) VALUES($month,1)
+            ON CONFLICT(thang) DO UPDATE SET so_cuoi=so_cuoi+1 WHERE so_cuoi<9999
+            RETURNING so_cuoi;
+            """;
+        cmd.Parameters.AddWithValue("$month", month);
+        var number = await cmd.ExecuteScalarAsync();
+        if (number is null) throw new RequestCodeExhaustedException();
+        var request = new YeuCauThue
+        {
+            MaYeuCau = $"YC-{month}-{Convert.ToInt32(number):D4}", TinDangId = listingId,
+            KhachThueId = profile.Id, LoaiYeuCau = form.LoaiYeuCau!, NgayMongMuon = form.NgayMongMuon!.Value,
+            SoNguoiDuKien = form.SoNguoiDuKien!.Value, LoiNhan = form.LoiNhan?.Trim(), NgayTao = clock.UtcNow
+        };
+        db.YeuCauThues.Add(request);
+        await db.SaveChangesAsync();
+        tx.Commit();
+        return request;
     }
 }

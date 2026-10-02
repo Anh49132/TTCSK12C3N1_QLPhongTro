@@ -1,0 +1,153 @@
+@model QL_PhongTro.ViewModels.TimTinViewModel
+@using System.Globalization
+@{ ViewData["Title"] = "Tìm phòng trọ"; }
+<h1>Tìm phòng trọ</h1>
+<form asp-controller="TimTin" asp-action="Index" method="get" class="mb-4" id="tim-tin-form">
+    <label asp-for="QuanHuyen" class="form-label">Quận/huyện</label>
+    <select asp-for="QuanHuyen" class="form-select mb-2">
+        <option value="">Tất cả quận/huyện</option>
+        @foreach (var district in Model.QuanHuyens)
+        {
+            <option value="@district">@district</option>
+        }
+    </select>
+    <span asp-validation-for="QuanHuyen" class="text-danger"></span>
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-md-6">
+            <label asp-for="SapXep" class="form-label">Sắp xếp</label>
+            <select asp-for="SapXep" class="form-select">
+                <option value="moi-nhat">Mới đăng nhất</option>
+                <option value="gia-tang">Giá tăng dần</option>
+                <option value="gia-giam">Giá giảm dần</option>
+            </select>
+            <span asp-validation-for="SapXep" class="text-danger"></span>
+        </div>
+        <div class="col-12 col-md-6">
+            <label asp-for="GiaToiThieu" class="form-label">Giá thuê tối thiểu (đ/tháng)</label>
+            <input asp-for="GiaToiThieu" type="number" min="0" step="1" class="form-control" />
+            <span asp-validation-for="GiaToiThieu" class="text-danger"></span>
+        </div>
+        <div class="col-12 col-md-6">
+            <label asp-for="GiaToiDa" class="form-label">Giá thuê tối đa (đ/tháng)</label>
+            <input asp-for="GiaToiDa" type="number" min="0" step="1" class="form-control" />
+            <span asp-validation-for="GiaToiDa" class="text-danger"></span>
+        </div>
+        <div class="col-12 col-md-6">
+            <label asp-for="DienTichToiThieu" class="form-label">Diện tích tối thiểu (m²)</label>
+            <input asp-for="DienTichToiThieu" type="number" min="0" step="0.01" class="form-control" />
+            <span asp-validation-for="DienTichToiThieu" class="text-danger"></span>
+        </div>
+        <div class="col-12 col-md-6">
+            <label asp-for="DienTichToiDa" class="form-label">Diện tích tối đa (m²)</label>
+            <input asp-for="DienTichToiDa" type="number" min="0" step="0.01" class="form-control" />
+            <span asp-validation-for="DienTichToiDa" class="text-danger"></span>
+        </div>
+        <div class="col-12 col-md-6">
+            <label asp-for="SoNguoiToiDa" class="form-label">Số người ở tối đa</label>
+            <select asp-for="SoNguoiToiDa" class="form-select">
+                <option value="">Tất cả sức chứa</option>
+                @foreach (var capacity in Model.SoNguoiOptions)
+                {
+                    <option value="@capacity">@capacity người</option>
+                }
+            </select>
+            <span asp-validation-for="SoNguoiToiDa" class="text-danger"></span>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Tìm kiếm</button>
+</form>
+<p id="tim-tin-loading" role="status" aria-live="polite" hidden>
+    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+    Đang tải kết quả…
+</p>
+@if (!Model.SchemaReady)
+{
+    <p role="status">Chức năng tìm tin chưa sẵn sàng trên cơ sở dữ liệu hiện tại.</p>
+}
+else if (ViewData.ModelState.IsValid)
+{
+    <p role="status">@Model.TongKetQua tin phù hợp · @Model.TongTrang trang</p>
+    @if (Model.TongKetQua == 0)
+    {
+        <p role="status">Không có tin phù hợp. Bạn hãy nới rộng khoảng giá thuê bằng cách giảm giá tối thiểu hoặc tăng giá tối đa rồi tìm lại.</p>
+        @if (Model.CoGoiYGia)
+        {
+            var suggestedRoutes = new Dictionary<string, string>
+            {
+                ["QuanHuyen"] = Model.QuanHuyen ?? "",
+                ["GiaToiThieu"] = Model.GiaGoiYToiThieu?.ToString(CultureInfo.InvariantCulture) ?? "",
+                ["GiaToiDa"] = Model.GiaGoiYToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",
+                ["DienTichToiThieu"] = Model.DienTichToiThieu?.ToString(CultureInfo.InvariantCulture) ?? "",
+                ["DienTichToiDa"] = Model.DienTichToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",
+                ["SoNguoiToiDa"] = Model.SoNguoiToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",
+                ["SapXep"] = Model.SapXep,
+                ["Trang"] = "1"
+            };
+            var minimum = Model.GiaGoiYToiThieu?.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) ?? "0";
+            var maximum = Model.GiaGoiYToiDa?.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) ?? "không giới hạn";
+            <p id="tim-tin-suggested-range">Khoảng giá đề xuất: @minimum – @maximum đ/tháng.</p>
+            <a id="tim-tin-price-suggestion" class="btn btn-outline-primary mb-3"
+               asp-controller="TimTin" asp-action="Index" asp-all-route-data="suggestedRoutes">Áp dụng khoảng giá gợi ý</a>
+        }
+        else
+        {
+            <p>Giá thuê đã không còn giới hạn để nới thêm. Bạn có thể điều chỉnh khu vực, diện tích hoặc số người ở.</p>
+        }
+    }
+    @if (Model.TongTrang > 0)
+    {
+        <p>Trang @Model.Trang / @Model.TongTrang</p>
+    }
+    <div class="row g-3">
+        @foreach (var tin in Model.TinDangs)
+        {
+            <div class="col-12 col-md-6 col-xl-4">
+                <article class="card h-100"><div class="card-body">
+                    <h2 class="h5">@tin.TieuDe</h2>
+                    <p>@tin.DiaChi · @tin.QuanHuyen</p>
+                    <p>@tin.GiaThue.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) đ/tháng · @tin.DienTich m²</p>
+                    <p>Tối đa @tin.SoNguoiToiDa người</p>
+                </div></article>
+            </div>
+        }
+    </div>
+    @if (Model.TongTrang > 1)
+    {
+        var routes = new Dictionary<string, string>
+        {
+            ["QuanHuyen"] = Model.QuanHuyen ?? "",
+            ["GiaToiThieu"] = Model.GiaToiThieu?.ToString(CultureInfo.InvariantCulture) ?? "",
+            ["GiaToiDa"] = Model.GiaToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",
+            ["DienTichToiThieu"] = Model.DienTichToiThieu?.ToString(CultureInfo.InvariantCulture) ?? "",
+            ["DienTichToiDa"] = Model.DienTichToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",
+            ["SoNguoiToiDa"] = Model.SoNguoiToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",
+            ["SapXep"] = Model.SapXep
+        };
+        <nav aria-label="Chuyển trang kết quả" class="mt-4">
+            <ul class="pagination flex-wrap">
+                @if (Model.Trang > 1)
+                {
+                    <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="routes" asp-route-Trang="@(Model.Trang - 1)">Trang trước</a></li>
+                }
+                @for (var pageNumber = Math.Max(1, Model.Trang - 2); pageNumber <= Math.Min(Model.TongTrang, Model.Trang + 2); pageNumber++)
+                {
+                    if (pageNumber == Model.Trang)
+                    {
+                        <li class="page-item active"><span class="page-link" aria-current="page">@pageNumber</span></li>
+                    }
+                    else
+                    {
+                        <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="routes" asp-route-Trang="@pageNumber">@pageNumber</a></li>
+                    }
+                }
+                @if (Model.Trang < Model.TongTrang)
+                {
+                    <li class="page-item"><a class="page-link" asp-action="Index" asp-all-route-data="routes" asp-route-Trang="@(Model.Trang + 1)">Trang sau</a></li>
+                }
+            </ul>
+        </nav>
+    }
+}
+@section Scripts {
+    <script src="~/js/tim-tin.js" asp-append-version="true"></script>
+}
