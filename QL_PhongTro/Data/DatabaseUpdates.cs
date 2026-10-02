@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 9;
+    private const int CurrentVersion = 10;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -61,6 +61,8 @@ public static class DatabaseUpdates
             if (!requireRoomServices && table is "dich_vu_toa_nha" or "dich_vu_phong" or "ngung_dich_vu_phong") continue;
             if (table == "nhat_ky_hoat_dong" && !requireAudit) continue;
             if (!requirePublicListings && (table is "tin_dang" or "anh_phong") && !HasTable(c, table)) continue;
+            // S2-08 tables are produced by migration v10, so they are not required until it has run.
+            if (table is "yeu_cau_thue_lich_su" or "yeu_cau_thue_thong_bao" && !HasTable(c, table)) continue;
             var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table) || table == "yeu_cau_thue";
             if (isOptional && !requiredOptional.Contains(table)) continue;
             var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
@@ -247,6 +249,49 @@ public static class DatabaseUpdates
                     UNIQUE(phong_id, thu_tu)
                 );
                 INSERT INTO app_schema_version(version,applied_at) VALUES(9,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                """;
+            command.ExecuteNonQuery();
+            tx.Commit();
+        }
+        if (version < 10)
+        {
+            Check(path);
+            using var tx = c.BeginTransaction();
+            using var command = c.CreateCommand();
+            command.Transaction = tx;
+            // S2-08 only adds its own two tables. yeu_cau_thue belongs to S2-06 and is
+            // installed separately by RentalRequestSchema, so nothing here touches it and
+            // neither table declares a foreign key into it.
+            command.CommandText = """
+                CREATE TABLE IF NOT EXISTS yeu_cau_thue_lich_su (
+                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    yeu_cau_thue_id INTEGER NULL,
+                    trang_thai_cu TEXT CHECK(length(trang_thai_cu) <= 25),
+                    trang_thai_moi TEXT NOT NULL CHECK(length(trang_thai_moi) <= 25),
+                    hanh_dong TEXT NOT NULL CHECK(length(hanh_dong) <= 40),
+                    nguoi_thuc_hien_id INTEGER NULL,
+                    ten_nguoi_thuc_hien TEXT CHECK(length(ten_nguoi_thuc_hien) <= 100),
+                    vai_tro_luc_thuc_hien TEXT CHECK(length(vai_tro_luc_thuc_hien) <= 20),
+                    lich_hen_cu TEXT NULL,
+                    lich_hen_moi TEXT NULL,
+                    ly_do_tu_choi TEXT CHECK(length(ly_do_tu_choi) <= 30),
+                    ghi_chu_tu_choi TEXT CHECK(length(ghi_chu_tu_choi) <= 500),
+                    thoi_diem TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ix_yeu_cau_thue_lich_su ON yeu_cau_thue_lich_su(yeu_cau_thue_id, thoi_diem);
+                CREATE TABLE IF NOT EXISTS yeu_cau_thue_thong_bao (
+                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    yeu_cau_thue_id INTEGER NULL,
+                    nguoi_nhan_id INTEGER NOT NULL,
+                    loai TEXT NOT NULL CHECK(length(loai) <= 40),
+                    tieu_de TEXT NOT NULL CHECK(length(tieu_de) <= 200),
+                    noi_dung TEXT NOT NULL CHECK(length(noi_dung) <= 500),
+                    duong_dan TEXT CHECK(length(duong_dan) <= 200),
+                    da_doc INTEGER NOT NULL DEFAULT 0 CHECK(da_doc IN (0,1)),
+                    ngay_tao TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ix_yeu_cau_thue_thong_bao_nguoi ON yeu_cau_thue_thong_bao(nguoi_nhan_id, da_doc, ngay_tao);
+                INSERT INTO app_schema_version(version,applied_at) VALUES(10,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
                 """;
             command.ExecuteNonQuery();
             tx.Commit();

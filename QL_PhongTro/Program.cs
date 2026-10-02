@@ -32,6 +32,7 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddSingleton<QL_PhongTro.Services.GiayToImageStore>();
 builder.Services.AddScoped<QL_PhongTro.Services.HoSoAccess>();
+builder.Services.AddScoped<QL_PhongTro.Services.LichHenService>();
 builder.Services.AddScoped<QL_PhongTro.Services.ICredentialValidationService, QL_PhongTro.Services.CredentialValidationService>();
 
 var dataDir = Path.Combine(builder.Environment.ContentRootPath, "Data");

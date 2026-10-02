@@ -1,0 +1,52 @@
+@model QL_PhongTro.ViewModels.LichHenChiTietViewModel
+@using QL_PhongTro.Models
+@using QL_PhongTro.Services
+@{
+    ViewData["Title"] = "Chi tiết yêu cầu " + Model.YeuCau.MaYeuCau;
+    var ok = TempData["LichHenOk"] as string;
+    var err = TempData["LichHenError"] as string;
+    var yeuCau = Model.YeuCau;
+}
+<p class="eyebrow">LỊCH HẸN XEM PHÒNG</p>
+<h1>@yeuCau.MaYeuCau</h1>
+<p>
+    Phòng <strong>@yeuCau.MaPhong</strong> · @yeuCau.TenToaNha
+    @if (!string.IsNullOrWhiteSpace(yeuCau.DiaChiToaNha)) { <text>· @yeuCau.DiaChiToaNha</text> }
+</p>
+
+@if (ok is not null) { <p class="text-success">@ok</p> }
+@if (err is not null) { <p class="text-danger">@err</p> }
+
+<div class="table-responsive mb-4">
+<table class="table align-top">
+    <tbody>
+    <tr><th>Loại yêu cầu</th><td>@LichHenTrangThai.LoaiLabel(yeuCau.LoaiYeuCau)</td></tr>
+    <tr><th>Trạng thái</th><td>@LichHenTrangThai.Label(yeuCau.TrangThai)</td></tr>
+    <tr><th>Khách</th><td>@yeuCau.TenKhach @if (!string.IsNullOrWhiteSpace(yeuCau.SoDienThoaiKhach)) { <text>· @yeuCau.SoDienThoaiKhach</text> }</td></tr>
+    @if (!Model.LaChuNha) { <tr><th>Chủ nhà</th><td>@yeuCau.TenChuNha</td></tr> }
+    <tr><th>Ngày mong muốn</th><td>@yeuCau.NgayMongMuon</td></tr>
+    <tr><th>Số người dự kiến</th><td>@yeuCau.SoNguoiDuKien</td></tr>
+    @if (!string.IsNullOrWhiteSpace(yeuCau.LoiNhan)) { <tr><th>Lý do</th><td>@yeuCau.LoiNhan</td></tr> }
+    <tr>
+        <th>Lịch hẹn</th>
+        <td>
+            @if (yeuCau.LichHen is { } lichHen) { <text>@LichHenService.HienThoiGio(lichHen)</text> }
+            else { <text>Chưa có lịch hẹn</text> }
+        </td>
+    </tr>
+    </tbody>
+</table>
+</div>
+
+@if (Model.HienThiFormXacNhan) {
+<h2>Xác nhận lịch hẹn</h2>
+<form method="post" class="row g-3 mb-4" asp-action="XacNhanLich" asp-route-id="@yeuCau.Id">
+    <div class="col-md-4">
+        <label asp-for="LichHenNhap" class="form-label">Ngày giờ hẹn (giờ Việt Nam)</label>
+        <input asp-for="LichHenNhap" type="datetime-local" class="form-control" />
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <button class="btn btn-primary" type="submit">Xác nhận lịch</button>
+    </div>
+</form>
+}
