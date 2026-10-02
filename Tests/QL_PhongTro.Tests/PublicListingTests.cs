@@ -157,6 +157,52 @@ public sealed partial class PermissionTests
     }
 
     [Fact]
+    public async Task MissingDescriptionsShowFallbackAndKeepEstimatedTotal()
+    {
+        var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+        var (roomId, _) = GetListingRoomAndBuilding(listingId);
+        Execute("UPDATE tin_dang SET noi_dung=NULL WHERE id=$id; UPDATE phong_tro SET mo_ta=NULL WHERE id=$room",
+            ("$id", listingId), ("$room", roomId));
+        using var guest = Client();
+
+        var page = await guest.GetAsync($"/TinDang/ChiTiet/{listingId}");
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        var html = WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
+        Assert.Contains("Chưa có mô tả cho tin này.", html);
+        Assert.Contains("data-testid=\"first-month-total\">2.500.000 đ", html);
+
+        using var response = await guest.GetAsync($"/api/tin-dang/{listingId}");
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("moTa").ValueKind);
+        Assert.Equal(2500000m, json.RootElement.GetProperty("tongChiPhiThangDau").GetDecimal());
+    }
+
+    [Fact]
+    public async Task PublicListingStillRendersIfOwnerAccountIsDisabled()
+    {
+        var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+        var (_, buildingId) = GetListingRoomAndBuilding(listingId);
+        var ownerId = accounts["CHU_NHA"];
+        var fixedService = CreateService(buildingId, "GUI_XE", "Gửi xe");
+        AddServicePrice(buildingId, fixedService, ownerId, CachTinhDichVu.CoDinh, "phòng/tháng", 100000);
+        Execute("UPDATE tai_khoan SET dang_hoat_dong=0 WHERE id=$id", ("$id", ownerId));
+        using var guest = Client();
+
+        var page = await guest.GetAsync($"/TinDang/ChiTiet/{listingId}");
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        var html = WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
+        Assert.Contains("Phòng gần trung tâm, có cửa sổ", html);
+        Assert.Contains("Ước tính tổng chi phí tháng đầu", html);
+        Assert.Contains("Tin này chưa có khoản phí cố định hàng tháng.", html);
+
+        using var response = await guest.GetAsync($"/api/tin-dang/{listingId}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Empty(json.RootElement.GetProperty("khoanCoDinh").EnumerateArray());
+        Assert.Equal(2500000m, json.RootElement.GetProperty("tongChiPhiThangDau").GetDecimal());
+    }
+
+    [Fact]
     public async Task MissingOrUnavailableListingReturnsNotFoundAndNoPhotoHasAnEmptyState()
     {
         var noPhotoId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
