@@ -15,6 +15,12 @@ public class CauHinhDienNuocViewModel
     [BindNever, ValidateNever] public CauHinhTienDichVuViewModel NuocDaLuu { get; set; } = new();
     [BindNever, ValidateNever] public DateOnly KyHienTai { get; set; }
     [BindNever, ValidateNever] public DateOnly KyKeTiep { get; set; }
+    public DateOnly KyDaXem { get; set; }
+    public string TrangThaiDaXem { get; set; } = "";
+    [BindNever, ValidateNever] public CauHinhTienDichVuViewModel? DienHienTai { get; set; }
+    [BindNever, ValidateNever] public CauHinhTienDichVuViewModel? NuocHienTai { get; set; }
+    [BindNever, ValidateNever] public CauHinhTienDichVuViewModel? DienCho { get; set; }
+    [BindNever, ValidateNever] public CauHinhTienDichVuViewModel? NuocCho { get; set; }
     public bool CoThayDoi => Dien.ThayDoiSoVoi(DienDaLuu) || Nuoc.ThayDoiSoVoi(NuocDaLuu);
 }
 

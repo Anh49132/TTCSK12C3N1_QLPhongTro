@@ -74,6 +74,8 @@ public sealed partial class DichVuService
         await using var tx = await db.Database.BeginTransactionAsync();
         var versions = await EditableAsync(accountId, buildingId, serviceId);
         var initial = versions[0];
+        if (initial.DichVu.MaDichVu is "DIEN" or "NUOC")
+            throw new InvalidOperationException("Hãy dùng màn hình Cấu hình điện nước để lưu cho kỳ kế tiếp. Thiết lập giá lần đầu cần chốt nghiệp vụ riêng.");
         if (!DichVuMacDinhOptions.LaMacDinh(initial.DichVu.MaDichVu) || versions.Count != 1)
             throw new InvalidOperationException("Chỉ sửa trực tiếp giá ban đầu của dịch vụ mặc định chưa có lịch sử. Hãy tạo phiên bản giá mới.");
         if (initial.DonGia != expectedPrice) throw new InvalidOperationException("Đơn giá vừa thay đổi. Hãy tải lại trang trước khi lưu.");
@@ -88,6 +90,8 @@ public sealed partial class DichVuService
     {
         await using var tx = await db.Database.BeginTransactionAsync();
         var versions = await EditableAsync(accountId, buildingId, serviceId);
+        if (versions[0].DichVu.MaDichVu is "DIEN" or "NUOC")
+            throw new InvalidOperationException("Hãy dùng màn hình Cấu hình điện nước để tạo hoặc sửa cấu hình cho kỳ kế tiếp.");
         if (versions.Any(x => x.TuNgay == effectiveDate)) throw new InvalidOperationException("Ngày hiệu lực đã tồn tại. Hãy chọn ngày khác.");
         var previous = versions.Last();
         if (previous.Id != expectedVersion) throw new InvalidOperationException("Dịch vụ vừa thay đổi. Hãy tải lại trang.");

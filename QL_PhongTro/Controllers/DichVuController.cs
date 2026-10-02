@@ -34,20 +34,33 @@ public class DichVuController(AppDbContext db, DichVuService services, DichVuPho
         if (!await services.SanSangAsync()) return RedirectToAction(nameof(Index), new { toaNhaId = model.ToaNhaId });
         var saved = await services.LayCauHinhDienNuocAsync(AccountId, model.ToaNhaId);
         model.TenToaNha = saved.TenToaNha;
-        model.DienDaLuu = saved.Dien;
-        model.NuocDaLuu = saved.Nuoc;
+        model.DienDaLuu = saved.DienDaLuu;
+        model.NuocDaLuu = saved.NuocDaLuu;
+        model.DienHienTai = saved.DienHienTai;
+        model.NuocHienTai = saved.NuocHienTai;
+        model.DienCho = saved.DienCho;
+        model.NuocCho = saved.NuocCho;
         model.KyHienTai = saved.KyHienTai;
         model.KyKeTiep = saved.KyKeTiep;
+        if (model.KyDaXem != saved.KyKeTiep || model.TrangThaiDaXem != saved.TrangThaiDaXem)
+        {
+            ModelState.AddModelError("", "Kỳ áp dụng hoặc cấu hình đã thay đổi. Hãy kiểm tra lại trước khi lưu.");
+            model.KyDaXem = saved.KyKeTiep;
+            model.TrangThaiDaXem = saved.TrangThaiDaXem;
+            ModelState.Remove(nameof(model.KyDaXem));
+            ModelState.Remove(nameof(model.TrangThaiDaXem));
+        }
         ValidateUtility(nameof(model.Dien), model.Dien);
         ValidateUtility(nameof(model.Nuoc), model.Nuoc);
         if (!ModelState.IsValid) return View(model);
         try
         {
             await services.LuuCauHinhDienNuocAsync(AccountId, model);
-            TempData["Success"] = "Đã lưu cấu hình điện nước thành công.";
+            TempData["Success"] = "Đã lưu cấu hình điện nước cho kỳ kế tiếp.";
             return RedirectToAction(nameof(DienNuoc), new { toaNhaId = model.ToaNhaId });
         }
         catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { ModelState.AddModelError("", ex.Message); }
         catch (DbUpdateException) { ModelState.AddModelError("", "Không lưu được cấu hình. Hãy tải lại trang và thử lại."); }
         return View(model);
     }
