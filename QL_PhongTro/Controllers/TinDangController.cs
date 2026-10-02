@@ -94,7 +94,7 @@ public class TinDangController(AppDbContext db, DichVuService services, DichVuPh
 
     private async Task<List<DichVuTinChiTietViewModel>> GetPublicServicePricesAsync(int buildingId, int roomId, int ownerId)
     {
-        if (!await services.SanSangAsync())
+        if (!await services.SanSangAsync() || !await services.SoHuuToaNhaAsync(ownerId, buildingId))
             return [];
 
         var today = DichVuService.HomNay();
