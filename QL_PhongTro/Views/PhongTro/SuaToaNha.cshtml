@@ -9,27 +9,9 @@
     <h1 class="h2 mt-2">Sửa tòa nhà</h1>
 </div>
 
-<form asp-action="SuaToaNha" method="post" class="row g-3" novalidate>
+<form asp-action="SuaToaNha" asp-route-id="@Context.Request.RouteValues["id"]" method="post" class="row g-3 property-form" novalidate>
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <div class="col-12 col-md-7">
-        <label asp-for="TenToaNha" class="form-label"></label>
-        <input asp-for="TenToaNha" class="form-control" />
-        <span asp-validation-for="TenToaNha" class="text-danger"></span>
-    </div>
-    <div class="col-12 col-md-7">
-        <label asp-for="DiaChi" class="form-label"></label>
-        <input asp-for="DiaChi" class="form-control" />
-        <span asp-validation-for="DiaChi" class="text-danger"></span>
-    </div>
-    <div class="col-12 col-md-4"><label asp-for="PhuongXa" class="form-label"></label><input asp-for="PhuongXa" class="form-control" /></div>
-    <div class="col-12 col-md-4"><label asp-for="QuanHuyen" class="form-label"></label><input asp-for="QuanHuyen" class="form-control" /></div>
-    <div class="col-12 col-md-4"><label asp-for="TinhThanh" class="form-label"></label><input asp-for="TinhThanh" class="form-control" /></div>
-    <div class="col-12 col-md-4"><label asp-for="SoTang" class="form-label"></label><input asp-for="SoTang" class="form-control" type="number" min="1" max="99" /></div>
-    <div class="col-12 col-md-5">
-        <label asp-for="QuanLyId" class="form-label"></label>
-        <select asp-for="QuanLyId" asp-items="Model.QuanLyOptions" class="form-select"><option value="">Chưa phân công</option></select>
-    </div>
-    <div class="col-12 col-md-7"><label asp-for="GhiChu" class="form-label"></label><textarea asp-for="GhiChu" class="form-control" rows="3"></textarea></div>
+    <partial name="_BuildingFields" model="Model" />
     <div class="col-12 d-flex gap-2 pt-2">
         <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
         <a asp-action="ToaNha" class="btn btn-outline-secondary">Hủy</a>

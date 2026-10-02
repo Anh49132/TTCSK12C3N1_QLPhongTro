@@ -10,29 +10,44 @@
 
 ## Chạy dự án
 
-### Chạy hằng ngày
+Mở Terminal tại thư mục chứa README này. Dừng đúng phiên app bằng Ctrl+C trước khi cập nhật database.
 
-Mở terminal tại thư mục chứa README (`D:\DEV\TTCS_T926_K12C3_N1` trên máy hiện tại). Nếu app đang chạy, dừng bằng Ctrl+C trong terminal của app trước khi chạy lại. Nếu cần nhận email thật, thực hiện mục **Nhận mã xác nhận qua Gmail** trước.
+**Trước lần pull nhận thay đổi S2-01 bỏ theo dõi database:** sao lưu database local và các file phụ SQLite ra ngoài repository (dừng app trước). Git có thể xóa bản database trước đây được theo dõi khi pull. Sau pull, khôi phục bản của chính bạn nếu file bị mất; không ghi đè file đang tồn tại.
 
-```powershell
-dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
-```
+Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt `$env:DatabasePath` là đường dẫn tuyệt đối riêng trong cùng terminal.
 
-Truy cập http://localhost:5247. Giữ terminal đang hiện `Now listening on: http://localhost:5247` mở trong lúc sử dụng. Muốn dừng server, bấm vào đúng terminal đó, nhấn Ctrl+C và chờ dấu nhắc `PS C:\...>` xuất hiện lại rồi mới build hoặc chạy lần nữa.
-
-Không cần cập nhật database hoặc tạo ADMIN mỗi lần chạy. Web tự nâng schema v4 lên v5 có backup để hỗ trợ xóa/tái sử dụng email và SĐT; tài khoản đã xóa không còn trong danh sách. Tài khoản mới đang chờ xác nhận thì tiếp tục nhập/gửi lại mã, không cần xóa rồi đăng ký lại.
-
-### Chuẩn bị lần đầu hoặc nâng schema cũ
-
-Giữ file SQLite hiện có và dừng app trước khi chạy. Với schema cũ hơn v4 hoặc khi nhận thay đổi CSDL yêu cầu cập nhật, làm theo [hướng dẫn cập nhật SQLite](docs/cap-nhat-csdl.md):
+Máy mới **chưa có database**:
 
 ```powershell
 dotnet restore .\QL_PhongTro\QL_PhongTro.csproj
-dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http -- --update-database
-dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http -- --check-database
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --initialize-database
 ```
 
-Chỉ tạo ADMIN nếu chưa có tài khoản quản trị; xem mục **Tài khoản quản trị local**. Nếu có lỗi, dừng và xử lý lỗi trước khi chạy bước tiếp theo.
+Lệnh tạo file mới từ schema nền và các bước cập nhật đã phiên bản hóa, chỉ nạp vai trò/quyền, không tạo tài khoản hoặc dữ liệu demo. Lệnh từ chối file đã tồn tại; nếu khởi tạo thất bại, giữ file để kiểm tra và chọn đường dẫn mới khi thử lại.
+
+Khối lệnh chạy nhanh cố định cho máy **đã có database cần giữ dữ liệu**, hoặc vừa khởi tạo/khôi phục bản sao của chính mình:
+
+Quy ước cập nhật README: luôn giữ khối lệnh dưới đây và nguyên các giá trị ADMIN local `admin-local@example.test`, `ThayBangMatKhauManh123!`, `0900000000`; chỉ thay đổi khi người dùng yêu cầu trực tiếp. Đây là cấu hình mẫu cho máy local. Nếu ADMIN đã tồn tại, bỏ qua lệnh `--create-local-admin` và đăng nhập bằng mật khẩu hiện có; lệnh này không đổi mật khẩu tài khoản cũ.
+
+```powershell
+# Dừng phiên QL_PhongTro cũ nếu terminal trước đã đóng hoặc không còn thấy dòng "Now listening"
+Get-Process QL_PhongTro -ErrorAction SilentlyContinue | Stop-Process -Force
+
+dotnet restore .\QL_PhongTro\QL_PhongTro.csproj
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --update-database
+$env:LocalAdmin__Email = 'admin-local@example.test'
+$env:LocalAdmin__Password = 'ThayBangMatKhauManh123!'
+$env:LocalAdmin__Phone = '0900000000'
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --create-local-admin
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
+```
+
+Updater kiểm tra schema, sao lưu và nâng lên v8; không tạo lại database. Web không tự nâng schema v7 lên v8. Sau khi cập nhật, có thể kiểm tra chỉ đọc bằng `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database`.
+Truy cập http://localhost:5247. Giữ terminal đang hiện `Now listening on: http://localhost:5247` mở trong lúc sử dụng. Muốn dừng server, bấm vào đúng terminal đó, nhấn Ctrl+C và chờ dấu nhắc `PS C:\...>` xuất hiện lại rồi mới build hoặc chạy lần nữa.
+
+Không cần cập nhật database hoặc tạo ADMIN mỗi lần chạy. Sau khi pull thay đổi schema, chạy updater một lần. Tài khoản mới đang chờ xác nhận thì tiếp tục nhập/gửi lại mã, không cần xóa rồi đăng ký lại.
+
+Lệnh tạo ADMIN không ghi đè tài khoản đã có. Nếu có lỗi, dừng và xử lý lỗi trước khi chạy bước tiếp theo. Xem thêm [hướng dẫn cập nhật SQLite](docs/cap-nhat-csdl.md).
 
 ### Nhận mã xác nhận qua Gmail
 
@@ -57,20 +72,15 @@ $smtpSecret = Read-Host 'Mat khau ung dung Google' -AsSecureString
 $env:PasswordReset__Password = [System.Net.NetworkCredential]::new('', $smtpSecret).Password
 $env:PasswordReset__PublicBaseUrl = 'http://localhost:5247'
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http -- --check-email-config
-dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
 ```
 
-Sau đó chọn **Gửi lại mã**. Trang sẽ báo riêng chế độ thử nghiệm, lỗi gửi, hoặc SMTP đã nhận thư. SMTP nhận thư chưa chứng minh thư đã tới inbox; kiểm tra cả Spam. Xem [hướng dẫn mật khẩu ứng dụng Google](https://support.google.com/mail/answer/185833?hl=vi).
+Chạy lệnh khởi động cuối cùng trong mục **Chạy dự án** ở cùng terminal, sau đó chọn **Gửi lại mã**. Trang sẽ báo riêng chế độ thử nghiệm, lỗi gửi, hoặc SMTP đã nhận thư. SMTP nhận thư chưa chứng minh thư đã tới inbox; kiểm tra cả Spam. Xem [hướng dẫn mật khẩu ứng dụng Google](https://support.google.com/mail/answer/185833?hl=vi).
 
 Kết quả `--check-email-config`: `PICKUP` nghĩa là chỉ lưu file; `SMTP` nghĩa là dùng máy chủ gửi thư. Với Gmail, host phải là `smtp.gmail.com`, port `587`, TLS `True` và username/password/sender đều `configured: True`. Lệnh này chỉ kiểm tra cấu hình, chưa thử kết nối hoặc xác thực Gmail.
 
 ### Xử lý lỗi khởi động
 
-Nếu terminal đã hiện dấu nhắc `PS C:\...>` nhưng website vẫn truy cập được, server đang chạy ở terminal hoặc tiến trình khác. Dừng tiến trình cũ bằng:
-
-```powershell
-Get-Process QL_PhongTro -ErrorAction SilentlyContinue | Stop-Process -Force
-```
+Nếu terminal đã hiện dấu nhắc `PS C:\...>` nhưng website vẫn truy cập được, server đang chạy ở terminal hoặc tiến trình khác. Xác định đúng phiên đang dùng và dừng bằng Ctrl+C.
 
 Lỗi `MSB3021` hoặc `MSB3027` kèm thông báo `QL_PhongTro.exe ... being used by another process` có nghĩa là server cũ đang khóa file build. Chạy lệnh dừng ở trên, đợi vài giây rồi chạy lại lệnh `dotnet run`. Lỗi SQLite như `no such table` có nguyên nhân khác; làm theo quy trình `--update-database` và tài liệu `docs/cap-nhat-csdl.md`.
 
@@ -80,23 +90,33 @@ Trên máy đã kiểm tra, nhật ký `Microsoft-Windows-CodeIntegrity/Operatio
 
 Lệnh `--update-database` sao lưu rồi cập nhật schema còn thiếu; nên dừng ứng dụng trước khi chạy. Ứng dụng yêu cầu file SQLite đã tồn tại và không tự tạo lại CSDL nền. Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt biến môi trường `DatabasePath` để dùng file riêng.
 
-Schema dịch vụ/hóa đơn S1-09 là module tùy chọn và không được tự ghi vào CSDL local. Khi chưa cài module này, ứng dụng tài khoản/phân quyền/phòng vẫn khởi động; các trang dịch vụ và hóa đơn chưa dùng được. Xem mục **Dịch vụ và hóa đơn tối thiểu (S1-09)** trong [bàn giao dự án](docs/tien-do.md) để chuẩn bị fixture riêng.
+Schema v6 bổ sung dịch vụ S1-09 nếu chưa có và hai bảng `dich_vu_toa_nha`, `dich_vu_phong`. Schema v7 thêm cột giá riêng nullable theo từng cặp phòng/dịch vụ; giá riêng thắng giá chung và không thay đổi snapshot hóa đơn. Schema v8 bổ sung lịch sử ngừng dịch vụ phòng. Hợp đồng/hóa đơn vẫn là module tùy chọn, không được tự triển khai bởi S2-01.
+
+### Dịch vụ tòa nhà và phòng (S2-01)
+
+Chủ nhà mở `/DichVu`, khai báo tên/đơn giá và bật “Áp dụng mặc định”. Từ danh sách phòng chọn **Dịch vụ** để thêm/bỏ và xem tổng dịch vụ cố định dự kiến/tháng. Khi gán dịch vụ có thể nhập đơn giá riêng; bảng hiển thị giá chung, giá áp dụng, đánh dấu giá riêng khác giá chung và cho sửa hoặc quay lại giá chung. Giá riêng chỉ áp dụng cho phòng đó. Phòng mới (đơn hoặc hàng loạt) nhận lựa chọn mặc định tại lúc tạo; thay đổi mặc định không cập nhật các phòng cũ. Phòng có trước migration giữ nguyên dữ liệu và bắt đầu với danh sách lựa chọn mới rỗng; chủ nhà chọn dịch vụ cần dùng.
+
+Tổng không gồm tiền thuê, phí theo chỉ số/theo người hoặc dịch vụ chưa có giá đang áp dụng. PO đã chốt: bỏ dịch vụ giữa tháng vẫn tính hết tháng đó và ngừng từ ngày đầu tháng sau. Hóa đơn đã phát hành hiển thị snapshot tên, đơn giá và thành tiền đã lưu; không đọc lại trạng thái dịch vụ phòng hiện tại. Khi phát hành hóa đơn, chọn hợp đồng/phòng và kỳ để danh sách dịch vụ được lọc theo đúng phòng và tháng.
+
+### Demo bỏ dịch vụ khỏi phòng
+
+Tạo fixture hoàn toàn giả trên database mới, không ghi database local:
+
+```powershell
+dotnet run --project .\verification\ServiceRemovalDemo\ServiceRemovalDemo.csproj -- .
+$demoAccessPath = (Get-Content -Raw data\service-removal-demo\latest.txt).Trim()
+$demo = Get-Content -Raw $demoAccessPath | ConvertFrom-Json
+$env:DatabasePath = $demo.database
+dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
+```
+
+Mở file `access.json` tại đường dẫn trong `latest.txt` để lấy email/mật khẩu fixture. Đăng nhập Chủ nhà, vào **Phòng → Dịch vụ** của `DEMO-A`, bấm **Ngừng từ kỳ sau** tại Gửi xe. Mở lại hóa đơn kỳ trước để thấy Gửi xe vẫn là 100.000đ. Vào **Lập hóa đơn**, chọn `HD-DEMO-A` và kỳ sau ngày ngừng: danh sách không còn Gửi xe; phát hành sẽ chỉ còn tiền phòng. Chọn `HD-DEMO-B` cùng kỳ vẫn thấy Gửi xe. Database, credential và backup demo nằm trong `data/` đã được Git ignore.
+
+Kiểm thử không cần database cá nhân: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj`. Kiểm tra nâng cấp trên bản sao database local: build trước rồi chạy `python verification/s201_database.py`. Không commit database, backup, file phụ SQLite hoặc cấu hình bí mật.
 
 ## Tài khoản quản trị local
 
-Đặt `LocalAdmin__Email`, `LocalAdmin__Password`, `LocalAdmin__Phone` trong terminal local, sau đó chạy `--create-local-admin` sau `--update-database`. Không ghi thông tin thật vào README, `appsettings*.json`, commit hoặc log. Lệnh chỉ chạy trong Development, không ghi đè tài khoản đã có và sao lưu trước khi tạo. Mật khẩu trong SQLite được lưu dưới dạng băm BCrypt. Xoá các biến môi trường khỏi terminal sau khi dùng nếu máy được chia sẻ.
-
-Chỉ chạy khi cần tạo ADMIN lần đầu trên DB đã sẵn sàng:
-
-```powershell
-$env:LocalAdmin__Email = Read-Host 'Email ADMIN'
-$env:LocalAdmin__Phone = Read-Host 'So dien thoai ADMIN (10 chu so, bat dau bang 0)'
-$adminSecret = Read-Host 'Mat khau ADMIN (it nhat 8 ky tu, co chu va so)' -AsSecureString
-$env:LocalAdmin__Password = [System.Net.NetworkCredential]::new('', $adminSecret).Password
-dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http -- --create-local-admin
-Remove-Item Env:\LocalAdmin__Password
-Remove-Variable adminSecret
-```
+Các lệnh tạo ADMIN từ cấu hình riêng đã có trong mục **Chạy dự án**. Lệnh chỉ chạy trong Development, không ghi đè tài khoản đã có và sao lưu trước khi tạo. Mật khẩu trong SQLite được lưu dưới dạng băm BCrypt.
 
 Các biến `LocalAdmin__...` chỉ phục vụ tạo tài khoản, không cấu hình Gmail. Nếu ADMIN đã tồn tại, dùng tài khoản đó để đăng nhập.
 
@@ -114,6 +134,8 @@ Quy trình đồng bộ schema và hướng dẫn kiểm thử S1-03 nằm tại
 - [Tiến độ, chức năng và kiểm thử](docs/tien-do.md)
 
 ## Demo dịch vụ và hóa đơn trên bản sao
+
+Các lệnh trong mục này là hướng dẫn demo lịch sử S1-09, **chưa được cập nhật/nghiệm thu cho v6**; không dùng để xác minh S2-01. Dùng bộ xUnit và `verification/s201_database.py` ở trên cho nhánh này.
 
 Demo riêng dùng **http://localhost:5250**, không phải cổng 5247 của DB mặc định. Tạo mới từ gốc repo khi cổng 5250 đang trống:
 
@@ -216,14 +238,10 @@ Các view `.cshtml` được biên dịch cùng dự án C#. Dùng `dotnet watch
 ```
 
 ### Test nhanh
+Khởi động server theo mục **Chạy dự án**, rồi mở terminal khác để thử đăng nhập:
+
 ```powershell
-# 1. Build
-dotnet build .\QL_PhongTro\QL_PhongTro.csproj
-
-# 2. Chạy server
-dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
-
-# 3. Đăng nhập (PowerShell)
+# Đăng nhập (PowerShell)
 $body = @{ TaiKhoanDangNhap = '0912345678'; MatKhau = 'Passw0rd' } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri 'http://localhost:5247/api/auth/login' -Body $body -ContentType 'application/json'
 ```

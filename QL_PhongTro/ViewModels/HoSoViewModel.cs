@@ -2,8 +2,17 @@ using System.ComponentModel.DataAnnotations;
 
 namespace QL_PhongTro.ViewModels;
 
-public class HoSoViewModel
+public class HoSoViewModel : IValidatableObject
 {
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public bool CoHoSo { get; set; }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (NgaySinh > DateOnly.FromDateTime(DateTime.Today))
+            yield return new ValidationResult("Ngày sinh không được sau ngày hiện tại.", [nameof(NgaySinh)]);
+    }
+
     [Display(Name = "Ảnh mặt trước")]
     public IFormFile? AnhMatTruoc { get; set; }
     [Display(Name = "Ảnh mặt sau")]

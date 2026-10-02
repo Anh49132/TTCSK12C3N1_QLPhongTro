@@ -17,6 +17,7 @@ public class TaoDichVuViewModel : IValidatableObject
     public string? DonViTinh { get; set; }
     [Required(ErrorMessage = "Hãy nhập đơn giá."), Range(typeof(long), "0", "9223372036854775807", ErrorMessage = "Đơn giá phải là số nguyên đồng, không âm."), Display(Name = "Đơn giá (VND)")]
     public long? DonGia { get; set; }
+    [Display(Name = "Áp dụng mặc định cho phòng mới")] public bool ApDungMacDinh { get; set; }
     [ValidateNever] public List<SelectListItem> ToaNhas { get; set; } = [];
     public IEnumerable<ValidationResult> Validate(ValidationContext context)
     {
@@ -30,6 +31,7 @@ public class DanhSachDichVuViewModel
     public int? ToaNhaId { get; set; }
     public List<SelectListItem> ToaNhas { get; set; } = [];
     public List<CauHinhDichVu> DichVus { get; set; } = [];
+    public HashSet<int> MacDinhIds { get; set; } = [];
     public bool SanSang { get; set; }
     public bool CanKhoiTao { get; set; }
 }

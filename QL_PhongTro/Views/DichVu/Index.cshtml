@@ -1,7 +1,8 @@
-@model QL_PhongTro.ViewModels.DanhSachDichVuViewModel
+﻿@model QL_PhongTro.ViewModels.DanhSachDichVuViewModel
 @using QL_PhongTro.Models
 @using System.Globalization
 @using QL_PhongTro.Services
+@{ var error = TempData.Peek("Error") as string; }
 @inject QL_PhongTro.Authorization.PermissionService Permissions
 @{ ViewData["Title"] = "Dịch vụ và đơn giá"; var write = await Permissions.AllowsAsync("PHONG_TRO", true); }
 <section class="mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
@@ -9,9 +10,6 @@
     @if (Model.SanSang && Model.ToaNhaId.HasValue && await Permissions.AllowsAsync("PHONG_TRO", true))
     { <a asp-action="Create" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-primary">Thêm dịch vụ</a> }
 </section>
-@if (TempData["DichVuMessage"] is string message) { <div class="alert alert-success" role="status">@message</div> }
-@{ var error = TempData["DichVuError"] as string; }
-@if (error is not null) { <div class="alert alert-danger" role="alert">@error</div> }
 @if (!Model.SanSang)
 {
     <div class="alert alert-info" role="status">Chức năng dịch vụ chưa sẵn sàng. Vui lòng liên hệ người quản trị để hoàn tất thiết lập.</div>
@@ -23,6 +21,10 @@ else if (Model.ToaNhas.Count == 0)
 }
 else
 {
+    @if (write && Model.ToaNhaId.HasValue)
+    {
+        <p><a asp-action="DienNuoc" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-primary">Cấu hình điện nước</a></p>
+    }
     @if (await Permissions.AllowsAsync("TAI_CHINH")) { <p><a class="btn btn-outline-primary" asp-controller="HoaDonDichVu" asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId">Lập và xem hóa đơn</a></p> }
     @if (Model.CanKhoiTao && await Permissions.AllowsAsync("PHONG_TRO", true))
     {
@@ -40,14 +42,27 @@ else
     { <p class="text-secondary">Chưa có dịch vụ. Chọn “Thêm dịch vụ” để khai báo đơn giá đầu tiên.</p> }
     else
     {
+        <p class="text-secondary">Mặc định chỉ áp dụng khi tạo phòng mới. Các phòng đã tồn tại giữ nguyên lựa chọn.</p>
         <div class="table-responsive">
         <table class="table align-middle">
             <caption>@Model.DichVus.Select(x => x.DichVuId).Distinct().Count() dịch vụ đã khai báo</caption>
-            <thead><tr><th scope="col">Tên dịch vụ</th><th scope="col">Cách tính tiền</th><th scope="col">Đơn vị tính</th><th scope="col" class="text-end">Đơn giá (VND)</th><th scope="col">Trạng thái</th>@if (write) { <th scope="col">Thao tác</th> }</tr></thead>
+            <thead><tr><th scope="col">Tên dịch vụ</th><th scope="col">Cách tính tiền</th><th scope="col">Đơn vị tính</th><th scope="col" class="text-end">Đơn giá (VND)</th><th scope="col">Trạng thái</th><th scope="col">Áp dụng mặc định</th>@if (write) { <th scope="col">Thao tác</th> }</tr></thead>
             <tbody>@foreach (var versions in Model.DichVus.GroupBy(x => x.DichVuId))
             {
                 var item = versions.Where(x => x.TuNgay <= DichVuService.HomNay()).OrderBy(x => x.TuNgay).LastOrDefault() ?? versions.OrderBy(x => x.TuNgay).First();
-                <tr><td><a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@item.DichVuId">@item.DichVu.TenDichVu</a>@if (DichVuMacDinhOptions.LaMacDinh(item.DichVu.MaDichVu)) { <span class="badge text-bg-light ms-1">Mặc định</span> }@if (versions.Any(x => x.TuNgay > DichVuService.HomNay())) { <small class="d-block text-secondary">Có thay đổi đã lên lịch</small> }</td><td>@CachTinhDichVu.Ten(item.CachTinh)</td><td>@item.DonViTinh</td><td class="text-end text-nowrap">@(item.DaChotGia ? item.DonGia.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) : "Chưa thiết lập")</td><td>@(!item.DaChotGia ? "Chờ đơn giá" : item.DangApDung && item.DichVu.DangHoatDong ? "Đang áp dụng" : "Ngừng áp dụng")</td>
+                <tr><td><a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@item.DichVuId">@item.DichVu.TenDichVu</a>@if (DichVuMacDinhOptions.LaMacDinh(item.DichVu.MaDichVu)) { <span class="badge text-bg-light ms-1">Danh mục gợi ý</span> }@if (versions.Any(x => x.TuNgay > DichVuService.HomNay())) { <small class="d-block text-secondary">Có thay đổi đã lên lịch</small> }</td><td>@CachTinhDichVu.Ten(item.CachTinh)</td><td>@item.DonViTinh</td><td class="text-end text-nowrap">@(item.DaChotGia ? item.DonGia.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) : "Chưa thiết lập")</td><td>@(!item.DaChotGia ? "Chờ đơn giá" : item.DangApDung && item.DichVu.DangHoatDong ? "Đang áp dụng" : "Ngừng áp dụng")</td>
+                <td>
+                    @if (write)
+                    {
+                        <form asp-action="SetDefault" method="post">
+                            <input type="hidden" name="toaNhaId" value="@Model.ToaNhaId" />
+                            <input type="hidden" name="dichVuId" value="@item.DichVuId" />
+                            <input type="hidden" name="enabled" value="@((!Model.MacDinhIds.Contains(item.DichVuId)).ToString().ToLowerInvariant())" />
+                            <button class="btn btn-sm btn-outline-secondary" aria-label="Đổi mặc định @item.DichVu.TenDichVu">@(Model.MacDinhIds.Contains(item.DichVuId) ? "Có — bỏ mặc định" : "Không — đặt mặc định")</button>
+                        </form>
+                    }
+                    else { @(Model.MacDinhIds.Contains(item.DichVuId) ? "Có" : "Không") }
+                </td>
                 @if (write)
                 {
                     <td><div class="d-flex flex-wrap gap-2">

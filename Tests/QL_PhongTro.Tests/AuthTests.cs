@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -41,29 +43,19 @@ public class AuthTests : IDisposable
         
         _testDatabasePath = Path.Combine(Path.GetTempPath(), $"test_db_{Guid.NewGuid():N}.sqlite");
 
-        // Prepare the disposable copy exactly like a deployment: start from the repository
-        // database and run the published migrations. EnsureCreated already contains the newest
-        // columns, which then collides with the migration that adds them.
-        using (var original = new SqliteConnection("Data Source=" + Path.Combine(_appPath, "Data", "local-dev.sqlite") + ";Mode=ReadOnly"))
-        using (var copy = new SqliteConnection("Data Source=" + _testDatabasePath))
-        {
-            original.Open();
-            copy.Open();
-            original.BackupDatabase(copy);
-        }
-        // The app refuses to start on a database below the current schema version, so the
-        // disposable copy must reach the same version a deployed database has.
-        DatabaseUpdates.Update(_testDatabasePath, Path.Combine(_appPath, "Data", "permissions.seed.json"));
+        LocalDatabaseInitializer.Create(_testDatabasePath, Path.Combine(_appPath, "Data", "permissions.seed.json"));
         
         // Now create the factory with the same database path
-        Environment.SetEnvironmentVariable("DatabasePath", _testDatabasePath);
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseContentRoot(_appPath);
+                builder.UseSetting("DatabasePath", _testDatabasePath);
+                builder.ConfigureLogging(logging => logging.ClearProviders());
                 builder.UseEnvironment("Development");
                 builder.ConfigureServices(services =>
                 {
+                    services.AddDataProtection().UseEphemeralDataProtectionProvider();
                     var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(ITimeProvider));
                     if (descriptor != null)
                     {

@@ -10,7 +10,7 @@ namespace QL_PhongTro.Services;
 // Immutable result: invoice code must persist this snapshot, not query a live price when displaying an issued invoice.
 public sealed record DonGiaDichVu(int CauHinhId, int DichVuId, string TenDichVu, string CachTinh, string DonViTinh, long DonGia);
 
-public sealed partial class DichVuService(AppDbContext db, IOptions<DichVuMacDinhOptions>? defaults = null)
+public sealed partial class DichVuService(AppDbContext db, IOptions<DichVuMacDinhOptions>? defaults = null, ITimeProvider? time = null)
 {
     public static DateOnly HomNay() => DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7));
 
@@ -55,6 +55,7 @@ public sealed partial class DichVuService(AppDbContext db, IOptions<DichVuMacDin
             TuNgay = HomNay(), NguoiTaoId = accountId, NgayTao = DateTime.UtcNow
         };
         db.CauHinhDichVus.Add(price);
+        db.DichVuToaNhas.Add(new DichVuToaNha { ToaNhaId = price.ToaNhaId, DichVu = price.DichVu, ApDungMacDinh = input.ApDungMacDinh });
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         return price.Id;

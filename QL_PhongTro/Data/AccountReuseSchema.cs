@@ -21,7 +21,7 @@ public static class AccountReuseSchema
         cmd.Transaction = tx;
         cmd.CommandText = "SELECT MAX(version) FROM app_schema_version";
         var version = Convert.ToInt32(cmd.ExecuteScalar());
-        if (version is not (4 or 5 or 6)) throw new InvalidOperationException("Account reuse requires schema v4, v5 or v6; no changes made.");
+if (version < 4 || version > 9) throw new InvalidOperationException("Account reuse requires schema v4-v9; no changes made.");
         // Refuse unknown UNIQUE constraints (including SQLite autoindexes) rather than
         // rebuild a referenced table or silently leave a constraint blocking reuse.
         cmd.CommandText = "PRAGMA index_list(tai_khoan)";
@@ -38,7 +38,7 @@ public static class AccountReuseSchema
                 throw new InvalidOperationException("Unexpected account index definition: " + name);
         }
         cmd.Parameters.Clear();
-        // Validation above must still run for later versions, but the v5 work is already recorded.
+// Validation above must still run for later versions, but the v5 work is already recorded.
         if (version >= 5) { tx.Commit(); return; }
         cmd.CommandText = "PRAGMA foreign_key_check";
         using (var reader = cmd.ExecuteReader())

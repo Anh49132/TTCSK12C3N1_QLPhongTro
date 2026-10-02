@@ -1,7 +1,9 @@
 @model QL_PhongTro.ViewModels.DanhSachToaNhaViewModel
+@inject QL_PhongTro.Authorization.PermissionService Permissions
 
 @{
     ViewData["Title"] = "Quản lý tòa nhà";
+    var canWrite = await Permissions.AllowsAsync("PHONG_TRO", write: true);
 }
 
 <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
@@ -10,13 +12,8 @@
         <h1 class="h2 mb-1">Quản lý tòa nhà</h1>
         <p class="text-secondary mb-0">Xem nhanh số phòng và số phòng đang trống của từng tòa.</p>
     </div>
-    <a asp-action="TaoToaNha" class="btn btn-primary">Khai báo tòa nhà</a>
+    @if (canWrite) { <a asp-action="TaoToaNha" class="btn btn-primary">Khai báo tòa nhà</a> }
 </div>
-
-@if (TempData["RoomMessage"] is string message)
-{
-    <div class="alert alert-info" role="status">@message</div>
-}
 
 <form method="get" asp-action="ToaNha" class="row g-2 align-items-end mb-4">
     <div class="col-12 col-md-7">
@@ -45,14 +42,20 @@ else
                     <td><strong class="@(building.SoPhongTrong > 0 ? "text-success" : "text-secondary")">@building.SoPhongTrong</strong></td>
                     <td><span class="badge @(building.DangHoatDong ? "text-bg-success" : "text-bg-secondary")">@(building.DangHoatDong ? "Đang hoạt động" : "Ngừng hoạt động")</span></td>
                     <td>
+                        @if (canWrite) {
                         <div class="d-flex flex-wrap gap-2">
                             <a asp-action="SuaToaNha" asp-route-id="@building.Id" class="btn btn-sm btn-outline-secondary">Sửa</a>
                             @if (building.DangHoatDong)
                             {
-                                <form asp-action="NgungHoatDong" method="post"><input type="hidden" name="id" value="@building.Id" /><button class="btn btn-sm btn-outline-warning" type="submit">Ngừng hoạt động</button></form>
+                                @if (User.IsInRole("CHU_NHA"))
+                                {
+                                    <a asp-controller="DichVu" asp-action="DienNuoc" asp-route-toaNhaId="@building.Id" class="btn btn-sm btn-outline-primary">Cấu hình điện nước</a>
+                                }
+                                <form asp-action="NgungHoatDong" method="post" data-confirm="Ngừng hoạt động tòa nhà @building.TenToaNha? Tòa nhà sẽ không còn xuất hiện trong danh sách chọn khi quản lý phòng."><input type="hidden" name="id" value="@building.Id" /><button class="btn btn-sm btn-outline-warning" type="submit">Ngừng hoạt động</button></form>
                             }
-                            <form asp-action="XoaToaNha" method="post" onsubmit="return confirm('Bạn có chắc muốn xóa tòa nhà này không? Dữ liệu tòa nhà không có phòng sẽ bị xóa.');"><input type="hidden" name="id" value="@building.Id" /><button class="btn btn-sm btn-outline-danger" type="submit">Xóa</button></form>
+                            <form asp-action="XoaToaNha" method="post" data-confirm="Bạn có chắc muốn xóa tòa nhà @building.TenToaNha? Thao tác này không thể hoàn tác. Tòa nhà có phòng hoặc dữ liệu liên quan sẽ không được xóa."><input type="hidden" name="id" value="@building.Id" /><button class="btn btn-sm btn-outline-danger" type="submit">Xóa</button></form>
                         </div>
+                        }
                     </td>
                 </tr>
             }

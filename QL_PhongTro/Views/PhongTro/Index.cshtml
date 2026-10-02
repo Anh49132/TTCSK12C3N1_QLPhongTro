@@ -24,11 +24,6 @@
     </div>
 </section>
 
-@if (TempData["RoomMessage"] is string message)
-{
-    <div class="alert alert-success" role="status">@message</div>
-}
-
 @if (Model.ToaNhaOptions.Count == 0)
 {
     <div class="border-top border-bottom py-4">
@@ -45,7 +40,9 @@ else
     <form method="get" asp-action="Index" class="row g-2 align-items-end mb-3">
         <div class="col-sm-6 col-md-4">
             <label for="toaNhaId" class="form-label">Tòa nhà</label>
-            <select id="toaNhaId" name="toaNhaId" asp-items="Model.ToaNhaOptions" class="form-select"></select>
+            <select asp-for="ToaNhaId" id="toaNhaId" asp-items="Model.ToaNhaOptions" class="form-select">
+                <option value="">Chọn tòa nhà</option>
+            </select>
         </div>
         <div class="col-sm-6 col-md-4">
             <label asp-for="TrangThaiFilter" class="form-label">Trạng thái</label>
@@ -65,7 +62,14 @@ else
         }
     </div>
 
-    @if (Model.PhongTros.Count == 0)
+    @if (Model.ToaNhaId is null)
+    {
+        <div class="border-top border-bottom py-4">
+            <h2 class="h5">Chọn tòa nhà</h2>
+            <p class="text-secondary">Vui lòng chọn tòa nhà và bấm Lọc danh sách để xem phòng.</p>
+        </div>
+    }
+    else if (Model.PhongTros.Count == 0)
     {
         <div class="border-top border-bottom py-4">
             <h2 class="h5">Tòa nhà chưa có phòng</h2>
@@ -84,6 +88,7 @@ else
                         <th scope="col">Giá thuê / tháng</th>
                         <th scope="col">Số người tối đa</th>
                         <th scope="col">Trạng thái</th>
+                        @if (canWrite) { <th scope="col">Thao tác</th> }
                     </tr>
                 </thead>
                 <tbody>
@@ -105,12 +110,26 @@ else
                             _ => "text-bg-secondary"
                         };
                         <tr>
-                            <th scope="row">@room.MaPhong</th>
+                            <th scope="row">@room.MaPhong
+                                @if (User.IsInRole("CHU_NHA")) { <a class="d-block small" asp-controller="DichVuPhong" asp-action="Index" asp-route-phongId="@room.Id">Dịch vụ</a> }
+                            </th>
                             <td>@room.Tang</td>
                             <td>@room.DienTich.ToString("N2", CultureInfo.GetCultureInfo("vi-VN")) m²</td>
                             <td>@room.GiaThue.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) đ</td>
                             <td>@room.SoNguoiToiDa</td>
                             <td><span class="badge @statusClass">@statusLabel</span></td>
+                            @if (canWrite)
+                            {
+                                <td>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <a asp-action="Edit" asp-route-id="@room.Id" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                                        <form asp-action="Delete" asp-route-id="@room.Id" method="post"
+                                              data-confirm="Bạn có chắc muốn xóa phòng @room.MaPhong? Thao tác này không thể hoàn tác. Phòng có dữ liệu liên quan sẽ không được xóa.">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            }
                         </tr>
                     }
                 </tbody>

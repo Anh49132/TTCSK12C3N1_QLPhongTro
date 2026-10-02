@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 6;
+private const int CurrentVersion = 9;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -34,9 +34,10 @@ public static class DatabaseUpdates
         return Convert.ToInt64(cmd.ExecuteScalar()) != 0;
     }
 
-    public static void Check(string path) => Check(path, true);
+    public static void Check(string path) =>
+        Check(path, requireAudit: true, requireAccountSecurity: true, requireRoomServices: true, requireRentalRequests: true);
 
-    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true, bool requireRentalRequests = true)
+    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true, bool requireRoomServices = false, bool requireRentalRequests = false)
     {
         using var c = Open(path, true);
         var problems = new List<string>();
@@ -57,10 +58,11 @@ public static class DatabaseUpdates
         foreach (var entity in db.Model.GetEntityTypes())
         {
             var table = entity.GetTableName()!;
+            if (!requireRoomServices && table is "dich_vu_toa_nha" or "dich_vu_phong" or "ngung_dich_vu_phong") continue;
             if (table == "nhat_ky_hoat_dong" && !requireAudit) continue;
             var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table);
             if (isOptional && !requiredOptional.Contains(table)) continue;
-            // Version 6 tables are still being created while this step runs, so the updater
+            // Version 9 tables are still being created while this step runs, so the updater
             // itself must not demand them yet.
             if (!requireRentalRequests && rentalRequests.Contains(table)) continue;
             var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
@@ -103,6 +105,15 @@ public static class DatabaseUpdates
     {
         // Prevent two updater processes from interleaving. Stop web instances before updating.
         using var updateLock = new FileStream(path + ".update.lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        using (var readOnly = Open(path, true))
+        {
+            using var probe = readOnly.CreateCommand();
+            probe.CommandText = "PRAGMA integrity_check";
+            if (probe.ExecuteScalar()?.ToString() != "ok") throw new InvalidOperationException("Integrity check failed.");
+            probe.CommandText = "PRAGMA foreign_key_check";
+            using var reader = probe.ExecuteReader();
+            if (reader.Read()) throw new InvalidOperationException("Foreign key check failed.");
+        }
         using var c = Open(path, false);
         if (!HasTable(c, "tai_khoan")) throw new InvalidOperationException("Missing existing tai_khoan table; refusing to create a replacement database.");
         var version = 0;
@@ -115,11 +126,14 @@ public static class DatabaseUpdates
         if (version > CurrentVersion) throw new InvalidOperationException("Database is newer than this code. Pull the matching branch before updating.");
         if (version == CurrentVersion)
         {
-            Check(path);
+            // Database already matches CurrentVersion, so every table group must be present.
+            Check(path, requireAudit: true, requireAccountSecurity: true, requireRoomServices: true, requireRentalRequests: true);
             AccountReuseSchema.Ensure(path);
             Console.WriteLine($"Database already up to date (version {CurrentVersion}). No changes.");
             return;
         }
+        if (version >= 5)
+            Check(path, requireAudit: true, requireAccountSecurity: true, requireRoomServices: false, requireRentalRequests: false);
         var backupPath = path + ".before-update-" + Guid.NewGuid().ToString("N") + ".bak";
         using (var backup = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = backupPath }.ToString()))
         {
@@ -178,12 +192,14 @@ public static class DatabaseUpdates
         }
         if (version < 3)
         {
-            Check(path, false, false, false);
+            // Runs inside the version < 3 block: the audit tables do not exist yet.
+            Check(path, requireAudit: false, requireAccountSecurity: false, requireRoomServices: false, requireRentalRequests: false);
             AuditSchema.Upgrade(c);
         }
         if (version < 4)
         {
-            Check(path, true, false, false);
+            // Runs inside the version < 4 block: email_confirmed and is_deleted are added by this block.
+            Check(path, requireAudit: true, requireAccountSecurity: false, requireRoomServices: false, requireRentalRequests: false);
             using var tx = c.BeginTransaction();
             using var command = c.CreateCommand();
             command.Transaction = tx;
@@ -202,14 +218,18 @@ public static class DatabaseUpdates
             tx.Commit();
         }
         AccountReuseSchema.Ensure(path);
-        if (version < 6)
+        if (version < 6) RoomServicesSchema.Upgrade(c);
+        if (version < 7) RoomServicePriceSchema.Upgrade(c);
+        if (version < 8) RoomServiceRemovalSchema.Upgrade(c);
+        if (version < 9)
         {
-            Check(path, true, true, false);
+            // Rental request tables do not exist yet, so they must be excluded here.
+            Check(path, requireAudit: true, requireAccountSecurity: true, requireRoomServices: true, requireRentalRequests: false);
             using var tx = c.BeginTransaction();
             using var command = c.CreateCommand();
             command.Transaction = tx;
             command.CommandText = """
-                CREATE TABLE yeu_cau_thue (
+                CREATE TABLE IF NOT EXISTS yeu_cau_thue (
                     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                     ma_yeu_cau TEXT NOT NULL UNIQUE,
                     phong_id INTEGER NOT NULL REFERENCES phong_tro(id) ON DELETE RESTRICT,
@@ -230,9 +250,9 @@ public static class DatabaseUpdates
                     ngay_tao TEXT NOT NULL,
                     phien_ban INTEGER NOT NULL DEFAULT 0
                 );
-                CREATE INDEX ix_yeu_cau_thue_khach ON yeu_cau_thue(khach_thue_id, ngay_tao);
-                CREATE INDEX ix_yeu_cau_thue_phong_trang_thai ON yeu_cau_thue(phong_id, trang_thai);
-                CREATE TABLE yeu_cau_thue_lich_su (
+                CREATE INDEX IF NOT EXISTS ix_yeu_cau_thue_khach ON yeu_cau_thue(khach_thue_id, ngay_tao);
+                CREATE INDEX IF NOT EXISTS ix_yeu_cau_thue_phong_trang_thai ON yeu_cau_thue(phong_id, trang_thai);
+                CREATE TABLE IF NOT EXISTS yeu_cau_thue_lich_su (
                     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                     yeu_cau_thue_id INTEGER NOT NULL REFERENCES yeu_cau_thue(id) ON DELETE RESTRICT,
                     trang_thai_cu TEXT NULL,
@@ -247,8 +267,8 @@ public static class DatabaseUpdates
                     ghi_chu_tu_choi TEXT NULL,
                     thoi_diem TEXT NOT NULL
                 );
-                CREATE INDEX ix_yeu_cau_thue_lich_su ON yeu_cau_thue_lich_su(yeu_cau_thue_id, thoi_diem);
-                CREATE TABLE thong_bao (
+                CREATE INDEX IF NOT EXISTS ix_yeu_cau_thue_lich_su ON yeu_cau_thue_lich_su(yeu_cau_thue_id, thoi_diem);
+                CREATE TABLE IF NOT EXISTS thong_bao (
                     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                     nguoi_nhan_id INTEGER NOT NULL REFERENCES tai_khoan(id) ON DELETE RESTRICT,
                     loai TEXT NOT NULL,
@@ -258,13 +278,13 @@ public static class DatabaseUpdates
                     da_doc INTEGER NOT NULL DEFAULT 0 CHECK (da_doc IN (0,1)),
                     ngay_tao TEXT NOT NULL
                 );
-                CREATE INDEX ix_thong_bao_nguoi ON thong_bao(nguoi_nhan_id, da_doc, ngay_tao);
-                INSERT INTO app_schema_version(version,applied_at) VALUES(6,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                CREATE INDEX IF NOT EXISTS ix_thong_bao_nguoi ON thong_bao(nguoi_nhan_id, da_doc, ngay_tao);
+                INSERT INTO app_schema_version(version,applied_at) VALUES(9,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
                 """;
             command.ExecuteNonQuery();
             tx.Commit();
         }
-        Check(path);
+        Check(path, requireAudit: true, requireAccountSecurity: true, requireRoomServices: true, requireRentalRequests: true);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }
 }
