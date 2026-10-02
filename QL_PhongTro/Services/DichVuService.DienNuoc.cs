@@ -21,11 +21,16 @@ public sealed partial class DichVuService
     {
         if (!await SoHuuToaNhaAsync(accountId, buildingId)) throw new UnauthorizedAccessException();
         var rows = await CauHinhDienNuocAsync(buildingId);
+        var nextPeriod = DichVuPhongService.KyNgung(time?.UtcNow ?? DateTime.UtcNow);
+        var electricity = HienTai(rows, "DIEN");
+        var water = HienTai(rows, "NUOC");
         return new CauHinhDienNuocViewModel
         {
             ToaNhaId = buildingId,
             TenToaNha = await db.ToaNhas.Where(x => x.Id == buildingId).Select(x => x.TenToaNha).SingleAsync(),
-            Dien = Input(HienTai(rows, "DIEN")), Nuoc = Input(HienTai(rows, "NUOC"))
+            Dien = Input(electricity), Nuoc = Input(water),
+            DienDaLuu = Input(electricity), NuocDaLuu = Input(water),
+            KyHienTai = nextPeriod.AddMonths(-1), KyKeTiep = nextPeriod
         };
 
         static CauHinhTienDichVuViewModel Input(CauHinhDichVu? row) => new()

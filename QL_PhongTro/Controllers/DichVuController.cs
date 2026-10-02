@@ -32,7 +32,12 @@ public class DichVuController(AppDbContext db, DichVuService services, DichVuPho
     {
         if (!await services.SoHuuToaNhaAsync(AccountId, model.ToaNhaId)) return Forbid();
         if (!await services.SanSangAsync()) return RedirectToAction(nameof(Index), new { toaNhaId = model.ToaNhaId });
-        model.TenToaNha = await db.ToaNhas.Where(x => x.Id == model.ToaNhaId).Select(x => x.TenToaNha).SingleAsync();
+        var saved = await services.LayCauHinhDienNuocAsync(AccountId, model.ToaNhaId);
+        model.TenToaNha = saved.TenToaNha;
+        model.DienDaLuu = saved.Dien;
+        model.NuocDaLuu = saved.Nuoc;
+        model.KyHienTai = saved.KyHienTai;
+        model.KyKeTiep = saved.KyKeTiep;
         ValidateUtility(nameof(model.Dien), model.Dien);
         ValidateUtility(nameof(model.Nuoc), model.Nuoc);
         if (!ModelState.IsValid) return View(model);

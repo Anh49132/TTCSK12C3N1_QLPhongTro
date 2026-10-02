@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using QL_PhongTro.Models;
 
 namespace QL_PhongTro.ViewModels;
@@ -10,6 +11,11 @@ public class CauHinhDienNuocViewModel
     [ValidateNever] public string TenToaNha { get; set; } = "";
     public CauHinhTienDichVuViewModel Dien { get; set; } = new();
     public CauHinhTienDichVuViewModel Nuoc { get; set; } = new();
+    [BindNever, ValidateNever] public CauHinhTienDichVuViewModel DienDaLuu { get; set; } = new();
+    [BindNever, ValidateNever] public CauHinhTienDichVuViewModel NuocDaLuu { get; set; } = new();
+    [BindNever, ValidateNever] public DateOnly KyHienTai { get; set; }
+    [BindNever, ValidateNever] public DateOnly KyKeTiep { get; set; }
+    public bool CoThayDoi => Dien.ThayDoiSoVoi(DienDaLuu) || Nuoc.ThayDoiSoVoi(NuocDaLuu);
 }
 
 public class CauHinhTienDichVuViewModel : IValidatableObject
@@ -19,6 +25,10 @@ public class CauHinhTienDichVuViewModel : IValidatableObject
     public long? TienMotNguoi { get; set; }
     public string TruongGiaApDung => CachTinh == CachTinhDichVu.TheoChiSo ? nameof(DonGiaChiSo) : nameof(TienMotNguoi);
     public long? GiaApDung => CachTinh == CachTinhDichVu.TheoChiSo ? DonGiaChiSo : TienMotNguoi;
+
+    public bool ThayDoiSoVoi(CauHinhTienDichVuViewModel saved) =>
+        CachTinh is CachTinhDichVu.TheoChiSo or CachTinhDichVu.TheoNguoi && GiaApDung > 0 &&
+        (CachTinh != saved.CachTinh || GiaApDung != saved.GiaApDung);
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {

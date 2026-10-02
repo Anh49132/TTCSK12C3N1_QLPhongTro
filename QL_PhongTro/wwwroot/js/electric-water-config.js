@@ -1,6 +1,21 @@
 // Let the existing MVC unobtrusive validator show errors beside each price field.
 // Disabled fields are excluded by both jQuery validation and form submission.
 $(function () {
+    const sections = [...document.querySelectorAll('[data-utility]')];
+    const notice = document.getElementById('utility-effective-period');
+    const refreshPeriod = () => {
+        if (!notice) return;
+        notice.hidden = !sections.some(section => {
+            const method = section.querySelector('[data-method]').value;
+            const input = section.querySelector('[data-price="' + method + '"] input');
+            if (!input || !/^\+?\d+$/.test(input.value.trim())) return false;
+            // Compare integer VND exactly, including values beyond JavaScript's safe integer range.
+            const price = BigInt(input.value.trim());
+            if (price <= 0n || price > 9223372036854775807n) return false;
+            const saved = section.dataset.savedPrice;
+            return method !== section.dataset.savedMethod || !saved || price !== BigInt(saved);
+        });
+    };
     document.querySelectorAll('[data-utility]').forEach(section => {
         const method = section.querySelector('[data-method]');
         section.querySelectorAll('[data-price] input').forEach(input => {
@@ -24,6 +39,12 @@ $(function () {
             });
         });
         method.addEventListener('change', refresh);
+        method.addEventListener('change', refreshPeriod);
+        section.querySelectorAll('[data-price] input').forEach(input => {
+            input.addEventListener('input', refreshPeriod);
+            input.addEventListener('change', refreshPeriod);
+        });
         refresh();
     });
+    refreshPeriod();
 });

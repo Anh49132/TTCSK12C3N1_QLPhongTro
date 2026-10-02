@@ -1,18 +1,21 @@
 @model QL_PhongTro.ViewModels.CauHinhDienNuocViewModel
 @using QL_PhongTro.Models
+@using System.Globalization
 @{
     ViewData["Title"] = "Cấu hình điện nước";
 }
 <h1 class="h2">Cấu hình điện nước</h1>
 <p class="lead">Tòa nhà: <strong>@Model.TenToaNha</strong></p>
+<p class="text-secondary">Kỳ hiện tại: @Model.KyHienTai.ToString("MM/yyyy") · Kỳ kế tiếp: @Model.KyKeTiep.ToString("MM/yyyy")</p>
 <form asp-action="DienNuoc" method="post">
     <input asp-for="ToaNhaId" type="hidden" />
     <div asp-validation-summary="All" class="text-danger" role="alert"></div>
     <div class="row g-4 mb-4">
         @foreach (var item in new[] { (Prefix: "Dien", Name: "điện", Unit: "kWh", Value: Model.Dien), (Prefix: "Nuoc", Name: "nước", Unit: "m³", Value: Model.Nuoc) })
         {
+            var saved = item.Prefix == "Dien" ? Model.DienDaLuu : Model.NuocDaLuu;
             <div class="col-12 col-md-6">
-                <fieldset class="border rounded p-3 h-100" data-utility>
+                <fieldset class="border rounded p-3 h-100" data-utility data-saved-method="@saved.CachTinh" data-saved-price="@(saved.GiaApDung?.ToString(CultureInfo.InvariantCulture))">
                     <legend class="h5 float-none w-auto px-2">Tiền @item.Name</legend>
                     <label class="form-label" for="@(item.Prefix)_CachTinh">Cách tính tiền @item.Name</label>
                     <select class="form-select mb-3" id="@(item.Prefix)_CachTinh" name="@(item.Prefix).CachTinh" data-method>
@@ -33,6 +36,7 @@
             </div>
         }
     </div>
+    <p id="utility-effective-period" class="alert alert-info" role="status" aria-live="polite" hidden="@(!Model.CoThayDoi)">Áp dụng từ kỳ @Model.KyKeTiep.ToString("MM/yyyy")</p>
     <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
     <a asp-controller="PhongTro" asp-action="ToaNha" class="btn btn-outline-secondary">Về danh sách tòa nhà</a>
 </form>
