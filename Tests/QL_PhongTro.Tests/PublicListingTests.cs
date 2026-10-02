@@ -24,6 +24,8 @@ public sealed partial class PermissionTests
         Assert.Contains("25,5 m²", html);
         Assert.Contains("2 người", html);
         Assert.Contains("1.000.000 đ", html);
+        Assert.Contains("data-testid=\"first-month-total\">2.500.000 đ", html);
+        Assert.Contains("Chưa bao gồm tiền điện và nước theo mức sử dụng thực tế.", html);
         Assert.Contains("Phòng sáng, thoáng và có chỗ để xe.", html);
         Assert.Contains("/images/room-a-small.jpg", html);
         Assert.Contains("Chưa có đơn giá dịch vụ theo mức sử dụng.", html);
@@ -43,6 +45,7 @@ public sealed partial class PermissionTests
         Assert.Single(data.GetProperty("anh").EnumerateArray());
         Assert.Empty(data.GetProperty("dichVuTheoSuDung").EnumerateArray());
         Assert.Empty(data.GetProperty("khoanCoDinh").EnumerateArray());
+        Assert.Equal(2500000m, data.GetProperty("tongChiPhiThangDau").GetDecimal());
     }
 
     [Fact]
@@ -77,6 +80,8 @@ public sealed partial class PermissionTests
         Assert.Contains("100.000", html);
         Assert.Contains("Internet", html);
         Assert.Contains("150.000", html);
+        Assert.Contains("data-testid=\"first-month-total\">2.750.000 đ", html);
+        Assert.Contains("Chưa bao gồm tiền điện và nước theo mức sử dụng thực tế.", html);
 
         using var response = await guest.GetAsync($"/api/tin-dang/{listingId}");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -91,6 +96,14 @@ public sealed partial class PermissionTests
             && item.GetProperty("donGia").GetInt64() == 3500);
         Assert.Contains(fixedFees, item => item.GetProperty("tenDichVu").GetString() == "Gửi xe"
             && item.GetProperty("donGia").GetInt64() == 100000);
+        Assert.Equal(2750000m, data.GetProperty("tongChiPhiThangDau").GetDecimal());
+
+        Execute("UPDATE phong_tro SET gia_thue=2600000 WHERE id=$room", ("$room", roomId));
+        Execute("UPDATE cau_hinh_dich_vu SET don_gia=200000 WHERE toa_nha_id=$building AND dich_vu_id=$service",
+            ("$building", buildingId), ("$service", parking));
+        using var updatedResponse = await guest.GetAsync($"/api/tin-dang/{listingId}");
+        using var updatedJson = JsonDocument.Parse(await updatedResponse.Content.ReadAsStringAsync());
+        Assert.Equal(2950000m, updatedJson.RootElement.GetProperty("tongChiPhiThangDau").GetDecimal());
     }
 
     [Fact]
@@ -124,6 +137,23 @@ public sealed partial class PermissionTests
         Assert.Single(usage);
         Assert.Equal(4200, usage[0].GetProperty("donGia").GetInt64());
         Assert.Empty(json.RootElement.GetProperty("khoanCoDinh").EnumerateArray());
+        Assert.Equal(2500000m, json.RootElement.GetProperty("tongChiPhiThangDau").GetDecimal());
+    }
+
+    [Fact]
+    public async Task FirstMonthEstimateDoesNotOverflowForLargeFixedFee()
+    {
+        var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+        var (roomId, buildingId) = GetListingRoomAndBuilding(listingId);
+        var largeFee = CreateService(buildingId, "LARGE", "Phí lớn");
+        AddServicePrice(buildingId, largeFee, accounts["CHU_NHA"], CachTinhDichVu.CoDinh, "phòng/tháng", long.MaxValue);
+        using var guest = Client();
+
+        using var response = await guest.GetAsync($"/api/tin-dang/{listingId}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var expected = (decimal)2500000 + long.MaxValue;
+        Assert.Equal(expected, json.RootElement.GetProperty("tongChiPhiThangDau").GetDecimal());
     }
 
     [Fact]
