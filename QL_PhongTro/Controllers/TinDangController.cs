@@ -9,7 +9,7 @@ namespace QL_PhongTro.Controllers;
 
 [Route("TinDang")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class TinDangController(AppDbContext db, DichVuService services) : Controller
+public class TinDangController(AppDbContext db, DichVuService services, DichVuPhongService roomServices) : Controller
 {
     [HttpGet("ChiTiet/{id:int}")]
     public async Task<IActionResult> ChiTiet(int id)
@@ -42,6 +42,7 @@ public class TinDangController(AppDbContext db, DichVuService services) : Contro
             {
                 RoomId = room.Id,
                 BuildingId = building.Id,
+                OwnerId = building.ChuNhaId,
                 Listing = new TinDangChiTietViewModel
                 {
                     Id = post.Id,
@@ -62,7 +63,7 @@ public class TinDangController(AppDbContext db, DichVuService services) : Contro
             return null;
 
         var listing = result.Listing;
-        var servicePrices = await GetPublicServicePricesAsync(result.BuildingId, result.RoomId);
+        var servicePrices = await GetPublicServicePricesAsync(result.BuildingId, result.RoomId, result.OwnerId);
         return new TinDangChiTietViewModel
         {
             Id = listing.Id,
@@ -91,47 +92,36 @@ public class TinDangController(AppDbContext db, DichVuService services) : Contro
         };
     }
 
-    private async Task<List<DichVuTinChiTietViewModel>> GetPublicServicePricesAsync(int buildingId, int roomId)
+    private async Task<List<DichVuTinChiTietViewModel>> GetPublicServicePricesAsync(int buildingId, int roomId, int ownerId)
     {
         if (!await services.SanSangAsync())
             return [];
 
         var today = DichVuService.HomNay();
-        var candidates = await db.CauHinhDichVus.AsNoTracking()
-            .Include(price => price.DichVu)
-            .Where(price => price.ToaNhaId == buildingId
-                && (price.PhongId == null || price.PhongId == roomId)
-                && price.TuNgay <= today
-                && (price.DenNgay == null || price.DenNgay >= today))
-            .OrderBy(price => price.DichVu.TenDichVu)
+        var servicesForBuilding = await db.DichVuToaNhas.AsNoTracking()
+            .Include(item => item.DichVu)
+            .Where(item => item.ToaNhaId == buildingId)
+            .OrderBy(item => item.DichVu.TenDichVu)
             .ToListAsync();
 
         var result = new List<DichVuTinChiTietViewModel>();
-        foreach (var group in candidates.GroupBy(price => price.DichVuId))
+        foreach (var service in servicesForBuilding)
         {
-            var roomPrices = group.Where(price => price.PhongId == roomId).ToList();
-            var selectedScope = roomPrices.Count > 0
-                ? roomPrices
-                : group.Where(price => price.PhongId is null).ToList();
-            if (selectedScope.Count != 1)
-                continue;
-
-            var price = selectedScope[0];
-            if (!price.DangApDung || !price.DaChotGia || !price.DichVu.DangHoatDong
-                || string.IsNullOrWhiteSpace(price.DichVu.TenDichVu)
+            var price = await roomServices.LayGiaHoaDonAsync(ownerId, roomId, service.DichVuId, today);
+            if (price is null || string.IsNullOrWhiteSpace(price.TenDichVu)
                 || string.IsNullOrWhiteSpace(price.DonViTinh)
                 || !CachTinhDichVu.HopLe(price.CachTinh)
                 || price.DonGia < 0)
                 continue;
 
-            var isUtility = price.DichVu.MaDichVu.Equals("DIEN", StringComparison.OrdinalIgnoreCase)
-                || price.DichVu.MaDichVu.Equals("NUOC", StringComparison.OrdinalIgnoreCase);
+            var isUtility = service.DichVu.MaDichVu.Equals("DIEN", StringComparison.OrdinalIgnoreCase)
+                || service.DichVu.MaDichVu.Equals("NUOC", StringComparison.OrdinalIgnoreCase);
             if (isUtility && price.DonGia == 0)
                 continue;
 
             result.Add(new DichVuTinChiTietViewModel
             {
-                TenDichVu = price.DichVu.TenDichVu.Trim(),
+                TenDichVu = price.TenDichVu.Trim(),
                 CachTinh = price.CachTinh,
                 DonViTinh = price.DonViTinh.Trim(),
                 DonGia = price.DonGia

@@ -1,7 +1,6 @@
 using System.Net;
 using System.Globalization;
 using System.Text.Json;
-using QL_PhongTro.Data;
 using QL_PhongTro.Models;
 using QL_PhongTro.Services;
 using Xunit;
@@ -50,15 +49,14 @@ public sealed partial class PermissionTests
     public async Task AnonymousGuestCanSeeUtilityRatesAndMultipleMonthlyFixedFees()
     {
         var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
-        DichVuSchemaInitializer.Initialize(database);
         var (roomId, buildingId) = GetListingRoomAndBuilding(listingId);
         var ownerId = accounts["CHU_NHA"];
 
-        var electricity = CreateService("DIEN", "Điện");
-        var water = CreateService("NUOC", "Nước");
-        var garbage = CreateService("RAC", "Rác");
-        var parking = CreateService("GUI_XE", "Gửi xe");
-        var internet = CreateService("INTERNET", "Internet");
+        var electricity = CreateService(buildingId, "DIEN", "Điện");
+        var water = CreateService(buildingId, "NUOC", "Nước");
+        var garbage = CreateService(buildingId, "RAC", "Rác");
+        var parking = CreateService(buildingId, "GUI_XE", "Gửi xe");
+        var internet = CreateService(buildingId, "INTERNET", "Internet");
         AddServicePrice(buildingId, electricity, ownerId, CachTinhDichVu.TheoChiSo, "kWh", 3500);
         AddServicePrice(buildingId, water, ownerId, CachTinhDichVu.TheoChiSo, "m³", 25000);
         AddServicePrice(buildingId, garbage, ownerId, CachTinhDichVu.TheoNguoi, "người/tháng", 20000);
@@ -99,31 +97,32 @@ public sealed partial class PermissionTests
     public async Task GuestPricingUsesRoomOverrideAndOmitsInvalidOrInactivePrices()
     {
         var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
-        DichVuSchemaInitializer.Initialize(database);
         var (roomId, buildingId) = GetListingRoomAndBuilding(listingId);
         var ownerId = accounts["CHU_NHA"];
 
-        var electricity = CreateService("DIEN", "Điện");
+        var electricity = CreateService(buildingId, "DIEN", "Điện");
         AddServicePrice(buildingId, electricity, ownerId, CachTinhDichVu.TheoChiSo, "kWh", 3500);
-        AddServicePrice(buildingId, electricity, ownerId, CachTinhDichVu.TheoChiSo, "kWh", 4200, roomId, active: false);
+        AddRoomSelection(buildingId, roomId, electricity, 4200);
 
-        var water = CreateService("NUOC", "Nước");
+        var water = CreateService(buildingId, "NUOC", "Nước");
         AddServicePrice(buildingId, water, ownerId, CachTinhDichVu.TheoChiSo, "m³", 0);
 
-        var malformed = CreateService("KHAC", "Phí lỗi");
+        var malformed = CreateService(buildingId, "KHAC", "Phí lỗi");
         AddServicePrice(buildingId, malformed, ownerId, CachTinhDichVu.TheoChiSo, "", 3000, ignoreChecks: true);
 
         using var guest = Client();
         var html = WebUtility.HtmlDecode(await guest.GetStringAsync($"/TinDang/ChiTiet/{listingId}"));
-        Assert.Contains("Chưa có đơn giá dịch vụ theo mức sử dụng.", html);
+        Assert.Contains("Điện", html);
+        Assert.Contains("4.200", html);
         Assert.Contains("Tin này chưa có khoản phí cố định hàng tháng.", html);
         Assert.DoesNotContain("3.500", html);
-        Assert.DoesNotContain("4.200", html);
         Assert.DoesNotContain("Phí lỗi", html);
 
         using var response = await guest.GetAsync($"/api/tin-dang/{listingId}");
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Empty(json.RootElement.GetProperty("dichVuTheoSuDung").EnumerateArray());
+        var usage = json.RootElement.GetProperty("dichVuTheoSuDung").EnumerateArray().ToArray();
+        Assert.Single(usage);
+        Assert.Equal(4200, usage[0].GetProperty("donGia").GetInt64());
         Assert.Empty(json.RootElement.GetProperty("khoanCoDinh").EnumerateArray());
     }
 
@@ -182,26 +181,36 @@ public sealed partial class PermissionTests
         return (roomId, buildingId);
     }
 
-    private int CreateService(string code, string name, bool active = true)
+    private int CreateService(int buildingId, string code, string name, bool active = true)
     {
         Execute("INSERT INTO dich_vu(ma_dich_vu,ten_dich_vu,dang_hoat_dong) VALUES($code,$name,$active)",
             ("$code", code), ("$name", name), ("$active", active));
-        return Convert.ToInt32(Scalar("SELECT id FROM dich_vu WHERE ma_dich_vu=$code", ("$code", code)));
+        var serviceId = Convert.ToInt32(Scalar("SELECT id FROM dich_vu WHERE ma_dich_vu=$code", ("$code", code)));
+        Execute("INSERT INTO dich_vu_toa_nha(toa_nha_id,dich_vu_id,ap_dung_mac_dinh) VALUES($building,$service,1)",
+            ("$building", buildingId), ("$service", serviceId));
+        return serviceId;
     }
 
     private void AddServicePrice(int buildingId, int serviceId, int ownerId, string method, string unit,
-        long price, int? roomId = null, bool active = true, bool ignoreChecks = false)
+        long price, bool ignoreChecks = false)
     {
-        var roomValue = roomId.HasValue ? (object)roomId.Value : DBNull.Value;
         var startDate = DichVuService.HomNay().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var sql = """
             INSERT INTO cau_hinh_dich_vu(toa_nha_id,phong_id,dich_vu_id,cach_tinh,don_vi_tinh,don_gia,tu_ngay,dang_ap_dung,da_chot_gia,nguoi_tao_id,ngay_tao)
-            VALUES($building,$room,$service,$method,$unit,$price,$start,$active,1,$owner,$created)
+            VALUES($building,NULL,$service,$method,$unit,$price,$start,1,1,$owner,$created)
             """;
         if (ignoreChecks)
             sql = "PRAGMA ignore_check_constraints=ON; " + sql;
-        Execute(sql, ("$building", buildingId), ("$room", roomValue), ("$service", serviceId),
+        Execute(sql, ("$building", buildingId), ("$service", serviceId),
             ("$method", method), ("$unit", unit), ("$price", price), ("$start", startDate),
-            ("$active", active), ("$owner", ownerId), ("$created", DateTime.UtcNow.ToString("O")));
+            ("$owner", ownerId), ("$created", DateTime.UtcNow.ToString("O")));
+    }
+
+    private void AddRoomSelection(int buildingId, int roomId, int serviceId, long roomPrice)
+    {
+        var catalogId = Convert.ToInt32(Scalar("SELECT id FROM dich_vu_toa_nha WHERE toa_nha_id=$building AND dich_vu_id=$service",
+            ("$building", buildingId), ("$service", serviceId)));
+        Execute("INSERT INTO dich_vu_phong(phong_id,dich_vu_toa_nha_id,don_gia_rieng) VALUES($room,$catalog,$price)",
+            ("$room", roomId), ("$catalog", catalogId), ("$price", roomPrice));
     }
 }

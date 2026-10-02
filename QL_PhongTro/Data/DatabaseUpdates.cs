@@ -127,7 +127,7 @@ public static class DatabaseUpdates
             Console.WriteLine($"Database already up to date (version {CurrentVersion}). No changes.");
             return;
         }
-        if (version >= 5) Check(path, true, true, version >= 6, false);
+        if (version >= 5) Check(path, true, true, version >= 8, false);
         var backupPath = path + ".before-update-" + Guid.NewGuid().ToString("N") + ".bak";
         using (var backup = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = backupPath }.ToString()))
         {
