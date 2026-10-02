@@ -44,6 +44,9 @@ public sealed record LichHenYeuCau
 
 public class LichHenService(AppDbContext db, ITimeProvider clock)
 {
+    /// <summary>Two appointments of the same room closer than this are reported as a clash.</summary>
+    public static readonly TimeSpan KhoangTrungLich = TimeSpan.FromMinutes(30);
+
     private const string DocSql = """
         SELECT r.id, r.ma_yeu_cau, r.loai_yeu_cau, r.trang_thai, r.ngay_tao, r.lich_hen,
                r.ly_do_tu_choi, r.nguoi_xu_ly_id, r.ngay_xu_ly, r.phien_ban,
@@ -118,6 +121,62 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
         await LoadAsync(yeuCauId, ct) is { } row && row.TaiKhoanKhachId == accountId;
 
     public Task<LichHenYeuCau?> DocAsync(int yeuCauId, CancellationToken ct) => LoadAsync(yeuCauId, ct);
+
+    /// <summary>One other confirmed appointment of the same room that clashes with the picked slot.</summary>
+    public sealed record LichTrung
+    {
+        public int YeuCauId { get; init; }
+        public string MaYeuCau { get; init; } = string.Empty;
+        public string TenKhach { get; init; } = string.Empty;
+        public DateTime LichHen { get; init; }
+        public string TenPhong { get; init; } = string.Empty;
+    }
+
+    private const string LichTrungSql = """
+        SELECT r.id, r.ma_yeu_cau, r.lich_hen, p.ma_phong, k.ho_ten
+        FROM yeu_cau_thue r
+        JOIN tin_dang d ON d.id = r.tin_dang_id
+        JOIN phong_tro p ON p.id = d.phong_id
+        JOIN khach_thue k ON k.id = r.khach_thue_id
+        WHERE d.phong_id = $phongId AND r.id <> $yeuCauId
+              AND r.lich_hen IS NOT NULL
+              AND r.lich_hen >= $batDau AND r.lich_hen <= $ketThuc
+              AND r.trang_thai IN ($daHenLich, $daDuyet)
+        ORDER BY r.lich_hen;
+        """;
+
+    /// <summary>
+    /// Advisory lookup for the clash warning. It reads yeu_cau_thue the same way the rest of
+    /// S2-08 does, through tin_dang to reach the room, and stays in raw SQL so nothing here
+    /// depends on the S2-06 entity. Only DA_HEN_LICH and DA_DUYET hold a slot, and the request
+    /// under review is excluded so it never warns about itself. The window is symmetric and
+    /// inclusive, so a booking exactly 30 minutes away is still a clash worth showing.
+    /// </summary>
+    public async Task<List<LichTrung>> TimLichTrungAsync(int phongId, DateTime lichHenUtc, int yeuCauIdHienTai, CancellationToken ct)
+    {
+        await db.Database.OpenConnectionAsync();
+        using var cmd = ((SqliteConnection)db.Database.GetDbConnection()).CreateCommand();
+        cmd.CommandText = LichTrungSql;
+        cmd.Parameters.AddWithValue("$phongId", phongId);
+        cmd.Parameters.AddWithValue("$yeuCauId", yeuCauIdHienTai);
+        cmd.Parameters.AddWithValue("$batDau", SqlUtc(lichHenUtc - KhoangTrungLich));
+        cmd.Parameters.AddWithValue("$ketThuc", SqlUtc(lichHenUtc + KhoangTrungLich));
+        cmd.Parameters.AddWithValue("$daHenLich", LichHenTrangThai.DaHenLich);
+        cmd.Parameters.AddWithValue("$daDuyet", LichHenTrangThai.DaDuyet);
+
+        var ketQua = new List<LichTrung>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            ketQua.Add(new LichTrung
+            {
+                YeuCauId = reader.GetInt32(0),
+                MaYeuCau = reader.GetString(1),
+                LichHen = DocUtc(reader.IsDBNull(2) ? null : reader.GetString(2)) ?? default,
+                TenPhong = reader.GetString(3),
+                TenKhach = reader.IsDBNull(4) ? string.Empty : reader.GetString(4)
+            });
+        return ketQua;
+    }
 
     /// <summary>
     /// Confirms a viewing slot. Only the six columns S2-06 already provides are written;
