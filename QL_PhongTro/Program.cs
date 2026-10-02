@@ -215,6 +215,7 @@ DatabaseUpdates.Check(databasePath);
 AccountReuseSchema.Ensure(databasePath);
 
 app.MapRazorPages();
+await TimTinWarmup.RunAsync(app.Services);
 app.Run();
 
 public partial class Program { }

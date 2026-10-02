@@ -14,6 +14,7 @@
 @if (!menu.Any(m => m.Code == "TIN_DANG")) {
 <a class="sidebar-link @Active(controller == "TinDang")" asp-controller="TinDang" asp-action="Index" aria-current="@(controller == "TinDang" ? "page" : null)"><span class="menu-icon" aria-hidden="true">⌕</span>Tin đăng cho thuê</a>
 }
+<a class="sidebar-link @Active(controller == "TimTin")" asp-controller="TimTin" asp-action="Index"><span class="menu-icon" aria-hidden="true">⌕</span>Tìm phòng trọ</a>
 <a class="sidebar-link @Active(controller == "Home" && action == "Index")" asp-controller="Home" asp-action="Index" aria-current="@(controller == "Home" && action == "Index" ? "page" : null)"><span class="menu-icon" aria-hidden="true">⌂</span>Trang chủ</a>
 @foreach (var group in menu.GroupBy(m => m.GroupName).OrderBy(g => g.Key == "Hệ thống" ? 1 : 0)) {
 <section data-menu-group="@group.Key"><h2>@group.Key</h2>
