@@ -42,6 +42,25 @@ public class LichHenController(LichHenService service) : Controller
         return View(view);
     }
 
+    /// <summary>
+    /// Advisory clash lookup behind the warning on the confirm form. It is deliberately a
+    /// separate route rather than a filter on ChiTiet: the warning has to be re-checked every
+    /// time the landlord moves the picker, and a failing lookup must never block confirming.
+    /// </summary>
+    [HttpGet("/LichHen/LichTrung")]
+    public async Task<IActionResult> LichTrung(int id, DateTime? lichHen, CancellationToken ct)
+    {
+        if (await service.DocAsync(id, ct) is not { } yeuCau) return NotFound();
+        if (!await service.ChuNhaCuaYeuCauAsync(AccountId, id, ct)) return Forbid();
+        if (lichHen is not { } nhap) return Json(Array.Empty<LichHenService.LichTrung>());
+        var list = await service.TimLichTrungAsync(yeuCau.PhongId, ChuyenNhapSangUtc(nhap)!.Value, id, ct);
+        return Json(list.Select(x => new
+        {
+            x.YeuCauId, x.MaYeuCau, x.TenKhach, x.TenPhong,
+            LichHenHienThoi = LichHenService.HienThoiGio(x.LichHen)
+        }));
+    }
+
     /// <summary>Parameter names match the input on the detail form so model binding works.</summary>
     [HttpPost("/LichHen/XacNhanLich"), ValidateAntiForgeryToken, ModuleAccess("YEU_CAU_THUE", write: true)]
     public async Task<IActionResult> XacNhanLich(int id, DateTime? LichHenNhap, CancellationToken ct)
