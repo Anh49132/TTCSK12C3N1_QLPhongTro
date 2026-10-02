@@ -33,6 +33,7 @@ public sealed class YeuCauThueService(AppDbContext db, ITimeProvider timeProvide
             x.MaYeuCau,
             ThongTinPhong(x),
             x.NgayTao,
+            x.LichHen,
             x.TrangThai,
             TenTrangThai(x.TrangThai),
             TrangThaiYeuCauThue.CoTheHuy(x.TrangThai))).ToArray();

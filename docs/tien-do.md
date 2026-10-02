@@ -1,5 +1,13 @@
 # Tiến độ và bàn giao dự án
 
+## S2-10.2 — hiển thị lịch hẹn trên danh sách của khách thuê (02/10/2026)
+
+- Danh sách lấy `LichHen` nullable từ `yeu_cau_thue` qua service/ViewModel; dòng có lịch hiển thị ngày và giờ theo UTC+7, dòng chưa có lịch để trống phần lịch hẹn. Giữ nguyên mã yêu cầu, thông tin phòng, ngày gửi, trạng thái và thao tác hiện có.
+- File thay đổi: `QL_PhongTro/Services/YeuCauThueService.cs`, `QL_PhongTro/ViewModels/YeuCauThueViewModel.cs`, `QL_PhongTro/Views/YeuCauThue/Index.cshtml`, `Tests/QL_PhongTro.Tests/TenantRequestCancellationTests.cs`.
+- Không thay đổi schema, không chạy migration và không truy cập/ghi database local.
+- Xác minh: test mục tiêu `HttpCancellationUpdatesListAndRemovesCancelAction` PASS 1/1; toàn bộ `dotnet test .\Tests\QL_PhongTro.Tests\QL_PhongTro.Tests.csproj --no-restore --nologo` PASS 55/55. Test HTTP kiểm tra hai lịch khác nhau ánh xạ đúng dòng, ngày/giờ UTC+7, yêu cầu không lịch để trống, đồng thời xác nhận mã và trạng thái hiện có vẫn hiển thị. Không kiểm tra trực quan bằng browser.
+- Giả định: `lich_hen` được lưu theo UTC như các timestamp đang hiển thị ở UTC+7 trong giao diện.
+
 ## S2-10.1 — danh sách yêu cầu thuê của khách (02/10/2026)
 
 - Hoàn tất phần danh sách “Yêu cầu thuê của tôi” theo AC mới nhất: lấy yêu cầu theo khách đăng nhập, loại bỏ dữ liệu khách khác, sắp xếp theo `NgayTao` giảm dần, hiển thị `MaYeuCau`, `ThongTinPhong`, `NgayTao`, `TrangThai` và giữ `Huỷ` chỉ ở dòng có trạng thái cho phép hủy.

@@ -42,11 +42,11 @@ public sealed class TenantRequestCancellationTests : IDisposable
                    (2,'Tenant Two','tenant2@example.test','0900000002',$hash,'KHACH_THUE',1,1,'2026-01-01','2026-01-01');
             INSERT INTO khach_thue(id,tai_khoan_id,ho_ten,ngay_tao)
             VALUES (1,1,'Tenant One','2026-01-01'), (2,2,'Tenant Two','2026-01-01');
-            INSERT INTO yeu_cau_thue(id,ma_yeu_cau,khach_thue_id,loai_yeu_cau,ngay_mong_muon,so_nguoi_du_kien,trang_thai,ngay_tao)
-            VALUES (1,'YC-001',1,'XEM_PHONG','2026-10-05',1,'MOI','2026-10-01T08:00:00Z'),
-                   (2,'YC-002',1,'XEM_PHONG','2026-10-06',1,'DA_HEN_LICH','2026-10-01T09:00:00Z'),
-                   (3,'YC-003',1,'XEM_PHONG','2026-10-07',1,'TU_CHOI','2026-10-01T10:00:00Z'),
-                   (4,'YC-004',2,'XEM_PHONG','2026-10-08',1,'MOI','2026-10-01T11:00:00Z');
+            INSERT INTO yeu_cau_thue(id,ma_yeu_cau,khach_thue_id,loai_yeu_cau,ngay_mong_muon,so_nguoi_du_kien,lich_hen,trang_thai,ngay_tao)
+            VALUES (1,'YC-001',1,'XEM_PHONG','2026-10-05',1,NULL,'MOI','2026-10-01T08:00:00Z'),
+                   (2,'YC-002',1,'XEM_PHONG','2026-10-06',1,'2026-10-04T03:45:00Z','DA_HEN_LICH','2026-10-01T09:00:00Z'),
+                   (3,'YC-003',1,'XEM_PHONG','2026-10-07',1,'2026-10-08T13:15:00Z','TU_CHOI','2026-10-01T10:00:00Z'),
+                   (4,'YC-004',2,'XEM_PHONG','2026-10-08',1,NULL,'MOI','2026-10-01T11:00:00Z');
             """;
         command.Parameters.AddWithValue("$hash", BCrypt.Net.BCrypt.HashPassword(Password, 4));
         command.ExecuteNonQuery();
@@ -179,6 +179,23 @@ public sealed class TenantRequestCancellationTests : IDisposable
         var listBefore = WebUtility.HtmlDecode(await client.GetStringAsync("/YeuCauThue"));
         Assert.Contains("data-cancel-form", listBefore);
         Assert.True(listBefore.Contains("Mới", StringComparison.Ordinal), listBefore);
+        var requestWithoutAppointment = Regex.Match(listBefore,
+            "<tr data-request-id=\"1\">(?<row>.*?)</tr>", RegexOptions.Singleline);
+        Assert.True(requestWithoutAppointment.Success);
+        Assert.DoesNotContain("Ngày:", requestWithoutAppointment.Groups["row"].Value);
+        var firstAppointment = Regex.Match(listBefore,
+            "<tr data-request-id=\"2\">(?<row>.*?)</tr>", RegexOptions.Singleline);
+        Assert.True(firstAppointment.Success);
+        Assert.Contains("YC-002", firstAppointment.Groups["row"].Value);
+        Assert.Contains("Đã hẹn lịch", firstAppointment.Groups["row"].Value);
+        Assert.Contains("04/10/2026", firstAppointment.Groups["row"].Value);
+        Assert.Contains("10:45", firstAppointment.Groups["row"].Value);
+        var secondAppointment = Regex.Match(listBefore,
+            "<tr data-request-id=\"3\">(?<row>.*?)</tr>", RegexOptions.Singleline);
+        Assert.True(secondAppointment.Success);
+        Assert.Contains("YC-003", secondAppointment.Groups["row"].Value);
+        Assert.Contains("08/10/2026", secondAppointment.Groups["row"].Value);
+        Assert.Contains("20:15", secondAppointment.Groups["row"].Value);
         var cancelToken = WebUtility.HtmlDecode(Regex.Match(listBefore,
             "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
         var response = await client.PostAsync("/YeuCauThue/Cancel", new FormUrlEncodedContent(new Dictionary<string, string>

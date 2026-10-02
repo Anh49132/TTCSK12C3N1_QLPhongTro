@@ -20,6 +20,7 @@
                         <th scope="col">Phòng</th>
                         <th scope="col">Ngày gửi</th>
                         <th scope="col">Trạng thái</th>
+                        <th scope="col">Lịch hẹn</th>
                         <th scope="col">Thao tác</th>
                     </tr>
                 </thead>
@@ -31,6 +32,13 @@
                             <td>@request.ThongTinPhong</td>
                             <td>@request.NgayTao.AddHours(7).ToString("dd/MM/yyyy HH:mm")</td>
                             <td>@request.TrangThaiHienThi</td>
+                            <td>
+                                @if (request.LichHen is DateTime lichHen)
+                                {
+                                    <span class="d-block">Ngày: @lichHen.AddHours(7).ToString("dd/MM/yyyy")</span>
+                                    <span class="d-block">Giờ: @lichHen.AddHours(7).ToString("HH:mm")</span>
+                                }
+                            </td>
                             <td>
                                 @if (request.CoTheHuy)
                                 {
