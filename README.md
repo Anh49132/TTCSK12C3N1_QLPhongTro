@@ -267,3 +267,35 @@ python verification/timtin_http.py --runtime data/task1-build/task3-runtime/QL_P
 ```
 
 Script cũng chạy lại 25 ca Task 1/2; chỉ dùng DB mới/bản sao, không ghi database nguồn. URL và PID in sau khi PASS; bỏ --serve để tự dừng server sau kiểm thử. Chưa xác nhận hiệu năng dưới 2 giây hoặc UI bằng trình duyệt đồ họa.
+
+### Chạy thử tìm tin — đầy đủ 5 tiêu chí
+
+Từ gốc repository, tạo demo mới 500 tin giả bằng các lệnh:
+
+```powershell
+dotnet restore QL_PhongTro/QL_PhongTro.csproj --source https://api.nuget.org/v3/index.json
+dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore -o data/task1-build/final-search-runtime
+python verification/timtin_performance.py --runtime data/task1-build/final-search-runtime/QL_PhongTro.dll --serve
+```
+
+Python 3 không cần package ngoài cho HTTP/performance. Script in URL/PID sau PASS, giữ server nền ẩn trên Windows; mở URL in ra, không cần đăng nhập. Không dùng database thật: mỗi lần tạo thư mục UUID/file mới, schema v6 qua initializer, 500 tin giả ở 5 quận (300 đang hiển thị còn hạn, còn lại ẩn/nháp/đã thuê/hết hạn). Không có mật khẩu cố định/dữ liệu cá nhân. Artifact và backup trong data/timtin-demo đã ignore.
+
+1. Không lọc: 300 kết quả hợp lệ, 25 trang ×12 tin.
+2. Chọn Quận 1, giá 1500000..3000000, diện tích 15..25, sức chứa 3: 6 tin khớp tất cả điều kiện.
+3. Xóa bớt điều kiện để có >12 tin, thử ba sắp xếp và Trang sau/Trang trước; giữ lọc/sắp xếp. Bấm Tìm kiếm sau đổi điều kiện về trang đầu.
+4. Xóa giá tối thiểu, nhập giá tối đa 1: 0 tin và gợi ý nới rộng khoảng giá. Khoảng min > max vẫn báo lỗi riêng.
+5. DevTools Network throttling để quan sát Đang tải kết quả khi tìm/chuyển trang; trở lại trang không mắc spinner.
+
+Bản sửa chuẩn bị truy vấn/Razor lúc startup trước khi nhận request (startup khoảng 3.19s, không phải thời gian tìm kiếm). Không cache dữ liệu kết quả. Đo hai lần khởi động 02/10/2026: request đầu 1.014s/0.223s, 260 lượt sau tối đa 0.241s, đạt <2s trên HTTP localhost tuần tự/500 tin. Report ghi riêng startup và đầy đủ samples/median/p95/max; không gồm browser render/static assets, không phải cam kết nhiều người dùng. Các lần FAIL của mã cũ được giữ trong artifact.
+
+`--repeats` đổi số lượt mỗi kịch bản (mặc định 10); bỏ --serve sẽ tự dừng server sau đo. latest-performance.txt trỏ demo PASS có --serve; latest-performance-test.txt trỏ lần test tự dừng. performance.json ghi số liệu; browser.json/ảnh ghi xác minh Chrome. Chỉ dừng đúng PID đã in bằng Stop-Process, không dừng server khác. DB thật vẫn dùng quy trình máy mới/máy có DB phía trên; lần sửa này không đổi schema.
+
+Kiểm thử chức năng/Chrome (chạy sau khi đo performance xong):
+
+```powershell
+python verification/timtin_http.py --runtime data/task1-build/final-search-runtime/QL_PhongTro.dll --task3
+python -m pip install --target data/task1-build/browser-packages playwright
+python verification/timtin_browser.py
+```
+
+Browser script dùng Chrome có sẵn, demo --serve từ latest-performance.txt và package Playwright trong thư mục đã ignore; không cần tải browser riêng. Chrome đã xác minh spinner/gợi ý/form sai/Back. HTTP regression 50 ca PASS, kiểm tra cả nguồn DB chỉ đọc/nâng cấp trên bản sao và bảo toàn dữ liệu. Windows sandbox có thể chặn Event Log/Data Protection, khi đó chạy terminal Windows bình thường.

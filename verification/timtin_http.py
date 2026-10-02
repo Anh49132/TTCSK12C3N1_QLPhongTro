@@ -161,6 +161,7 @@ def main():
             page = request(filters)
             actual = set(re.findall(r'<h2[^>]*>TIN-([^<]+)</h2>', page))
             assert actual == expected, (filters, actual, expected)
+            assert ('Bạn hãy nới rộng khoảng giá thuê' in page) == (not expected)
             for field, value in filters.items():
                 if str(value) == '':
                     continue

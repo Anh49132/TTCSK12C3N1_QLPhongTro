@@ -2,7 +2,7 @@
 @using System.Globalization
 @{ ViewData["Title"] = "Tìm phòng trọ"; }
 <h1>Tìm phòng trọ</h1>
-<form asp-controller="TimTin" asp-action="Index" method="get" class="mb-4">
+<form asp-controller="TimTin" asp-action="Index" method="get" class="mb-4" id="tim-tin-form">
     <label asp-for="QuanHuyen" class="form-label">Quận/huyện</label>
     <select asp-for="QuanHuyen" class="form-select mb-2">
         <option value="">Tất cả quận/huyện</option>
@@ -56,13 +56,24 @@
     </div>
     <button type="submit" class="btn btn-primary">Tìm kiếm</button>
 </form>
+<p id="tim-tin-loading" role="status" aria-live="polite" hidden>
+    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+    Đang tải kết quả…
+</p>
 @if (!Model.SchemaReady)
 {
     <p role="status">Chức năng tìm tin chưa sẵn sàng trên cơ sở dữ liệu hiện tại.</p>
 }
+@section Scripts {
+    <script src="~/js/tim-tin.js" asp-append-version="true"></script>
+}
 else if (ViewData.ModelState.IsValid)
 {
     <p role="status">@Model.TongKetQua tin phù hợp · @Model.TongTrang trang</p>
+    @if (Model.TongKetQua == 0)
+    {
+        <p role="status">Không có tin phù hợp. Bạn hãy nới rộng khoảng giá thuê bằng cách giảm giá tối thiểu hoặc tăng giá tối đa rồi tìm lại.</p>
+    }
     @if (Model.TongTrang > 0)
     {
         <p>Trang @Model.Trang / @Model.TongTrang</p>
