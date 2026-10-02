@@ -1,0 +1,116 @@
+@model QL_PhongTro.ViewModels.TinDangChiTietViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = Model.TieuDe;
+    Layout = "~/Views/Shared/_PublicLayout.cshtml";
+    var culture = CultureInfo.GetCultureInfo("vi-VN");
+    var location = string.Join(", ", new[] { Model.PhuongXa, Model.QuanHuyen, Model.TinhThanh }.Where(part => !string.IsNullOrWhiteSpace(part)));
+}
+
+<nav class="listing-breadcrumb" aria-label="Đường dẫn">
+    <a href="/">Trang chủ</a><span aria-hidden="true">/</span><span>Chi tiết tin thuê</span>
+</nav>
+<article class="listing-page" data-listing-id="@Model.Id">
+    <header class="listing-heading">
+        <p class="listing-eyebrow">PHÒNG ĐANG CHO THUÊ</p>
+        <h1>@Model.TieuDe</h1>
+        <p class="listing-address">@Model.DiaChi@if (!string.IsNullOrEmpty(location)) { <span>, @location</span> }</p>
+    </header>
+
+    @if (Model.Anh.Count > 0)
+    {
+        <section class="listing-gallery" aria-label="Bộ ảnh phòng">
+            @foreach (var image in Model.Anh)
+            {
+                <img src="@(image.DuongDanAnhNho ?? image.DuongDan)" alt="@(image.MoTa ?? Model.TieuDe)" loading="lazy" />
+            }
+        </section>
+    }
+    else
+    {
+        <section class="listing-gallery listing-gallery-empty" aria-label="Bộ ảnh phòng">
+            <span aria-hidden="true">⌂</span>
+            <p>Tin này chưa có hình ảnh.</p>
+        </section>
+    }
+
+    <div class="listing-content">
+        <section class="listing-description" aria-labelledby="description-title">
+            <p class="listing-eyebrow">THÔNG TIN PHÒNG</p>
+            <h2 id="description-title">Mô tả</h2>
+            @if (string.IsNullOrWhiteSpace(Model.MoTa))
+            {
+                <p class="listing-muted">Chưa có mô tả cho tin này.</p>
+            }
+            else
+            {
+                <p class="listing-description-text">@Model.MoTa</p>
+            }
+            <dl class="listing-facts">
+                <div><dt>Diện tích</dt><dd data-testid="listing-area">@Model.DienTich.ToString("0.##", culture) m²</dd></div>
+                <div><dt>Số người tối đa</dt><dd data-testid="listing-occupancy">@Model.SoNguoiToiDa người</dd></div>
+            </dl>
+        </section>
+
+        <aside class="listing-price" aria-label="Chi phí thuê">
+            <p class="listing-eyebrow">GIÁ THUÊ MỖI THÁNG</p>
+            <p class="listing-rent" data-testid="listing-rent">@Model.GiaThue.ToString("N0", culture)<span>đ / tháng</span></p>
+            <div class="listing-deposit">
+                <span>Tiền cọc dự kiến</span>
+                <strong data-testid="listing-deposit">@Model.TienCocDuKien.ToString("N0", culture) đ</strong>
+            </div>
+        </aside>
+    </div>
+
+    <section class="listing-services" aria-labelledby="services-title">
+        <p class="listing-eyebrow">DỊCH VỤ VÀ CÁCH TÍNH</p>
+        <h2 id="services-title">Chi phí dịch vụ</h2>
+        <div class="service-columns">
+            <section class="service-group" aria-labelledby="usage-services-title">
+                <h3 id="usage-services-title">Theo mức sử dụng</h3>
+                @if (Model.DichVuTheoSuDung.Count == 0)
+                {
+                    <p class="listing-empty" data-testid="no-usage-services">Chưa có đơn giá dịch vụ theo mức sử dụng.</p>
+                }
+                else
+                {
+                    <div class="service-list">
+                        @foreach (var service in Model.DichVuTheoSuDung)
+                        {
+                            <article class="service-row" data-testid="usage-service">
+                                <div class="service-description">
+                                    <h4>@service.TenDichVu</h4>
+                                    <p>@QL_PhongTro.Models.CachTinhDichVu.Ten(service.CachTinh) <span>· @service.DonViTinh</span></p>
+                                </div>
+                                <p class="service-price">@service.DonGia.ToString("N0", culture)<span>đ / @service.DonViTinh</span></p>
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="service-group" aria-labelledby="fixed-services-title">
+                <h3 id="fixed-services-title">Khoản cố định hàng tháng</h3>
+                @if (Model.KhoanCoDinh.Count == 0)
+                {
+                    <p class="listing-empty" data-testid="no-fixed-services">Tin này chưa có khoản phí cố định hàng tháng.</p>
+                }
+                else
+                {
+                    <div class="service-list">
+                        @foreach (var service in Model.KhoanCoDinh)
+                        {
+                            <article class="service-row" data-testid="fixed-service">
+                                <div class="service-description">
+                                    <h4>@service.TenDichVu</h4>
+                                    <p>@service.DonViTinh</p>
+                                </div>
+                                <p class="service-price">@service.DonGia.ToString("N0", culture)<span>đ / tháng</span></p>
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+    </section>
+</article>

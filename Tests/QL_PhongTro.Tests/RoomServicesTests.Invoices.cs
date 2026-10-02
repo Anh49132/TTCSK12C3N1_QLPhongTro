@@ -145,7 +145,7 @@ public sealed partial class RoomServicesTests
         {
             source.Open(); copy.Open(); source.BackupDatabase(copy);
             using var command = copy.CreateCommand();
-            command.CommandText = "DROP TABLE ngung_dich_vu_phong; DELETE FROM app_schema_version WHERE version=8";
+            command.CommandText = "DROP TABLE anh_phong; DROP TABLE tin_dang; DROP TABLE ngung_dich_vu_phong; DELETE FROM app_schema_version WHERE version IN (8,9)";
             command.ExecuteNonQuery();
         }
         var before = Snapshot(copyPath);
