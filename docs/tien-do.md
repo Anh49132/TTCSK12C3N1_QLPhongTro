@@ -1,5 +1,12 @@
 # Tiến độ và bàn giao dự án
 
+## S2-07 AC4 — số lượng yêu cầu chưa xử lý trên menu (03/10/2026)
+
+- PO chốt trạng thái chưa xử lý là `MOI` (Mới) và `DA_HEN_LICH` (Đã hẹn lịch); các trạng thái còn lại đã xử lý. Số 0 được ẩn trên menu.
+- Thêm `PermissionService.UnprocessedRequestCountAsync`: đếm độc lập với bộ lọc `/YeuCau`, chỉ lấy yêu cầu thuộc các tòa đang hoạt động do chủ nhà hiện tại quản lý. Menu yêu cầu trỏ trực tiếp `/YeuCau` và hiển thị badge khi số lượng lớn hơn 0; mỗi lần render menu đọc dữ liệu hiện tại nên phản ánh yêu cầu mới hoặc thay đổi trạng thái sau khi tải lại/chuyển trang.
+- Không thay đổi schema, database local hoặc quy trình khởi tạo/nâng cấp. File thay đổi: `Authorization/PermissionService.cs`, `Views/Shared/_Sidebar.cshtml`.
+- Xác minh: build project chính với output riêng `obj/S207AC4Check`/`bin/S207AC4Check` PASS, 0 lỗi; có cảnh báo license ImageSharp và CS8601 đã tồn tại. Chưa chạy test HTTP/browser hoặc ghi database local.
+
 ## Demo nghiệm thu S2-10 (02/10/2026)
 
 - Thêm `verification/prepare_s210_demo.py` và hướng dẫn README. Script chỉ tạo database mới dưới `data/s210-demo/`, dùng initializer + permission demo của dự án, dữ liệu tòa/cấu hình giả; không đọc/ghi database local. Artifact và credential thuộc `data/` đã ignore. Bản thành công mới nhất chạy ở cổng 5251; `latest.txt` trỏ tới `access.json` chứa URL, PID, database và bốn tài khoản chung mật khẩu ngẫu nhiên.

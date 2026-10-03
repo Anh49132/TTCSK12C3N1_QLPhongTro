@@ -3,6 +3,7 @@
     var menu = await Permissions.MenuAsync();
     var controller = ViewContext.RouteData.Values["controller"]?.ToString();
     var action = ViewContext.RouteData.Values["action"]?.ToString();
+    var unprocessedRequestCount = await Permissions.UnprocessedRequestCountAsync();
     var buildingPage = controller == "PhongTro" && action is "ToaNha" or "TaoToaNha" or "SuaToaNha";
     string Active(bool selected) => selected ? "is-active" : "";
 }
@@ -18,10 +19,11 @@
 var selected = module.Code switch {
     "PHONG_TRO" => controller == "PhongTro" && !buildingPage,
     "TAI_KHOAN" => controller == "Permissions",
+    "YEU_CAU_THUE" => controller == "YeuCau",
     _ => controller == "Modules" && ViewContext.RouteData.Values["code"]?.ToString() == module.Code
 };
 var icon = module.Code switch { "PHONG_TRO" => "▦", "TAI_KHOAN" => "⚙", "TAI_CHINH" => "◇", "HOP_DONG" => "▤", "DIEN_NUOC" => "◉", "BAO_CAO" => "▥", _ => "▣" };
-<a class="sidebar-link @Active(selected)" data-menu-module="@module.Code" href="@QL_PhongTro.Authorization.PermissionService.Url(module.Code)" aria-current="@(selected ? "page" : null)"><span class="menu-icon" aria-hidden="true">@icon</span>@module.Name</a>
+<a class="sidebar-link @Active(selected)" data-menu-module="@module.Code" href="@(module.Code == "YEU_CAU_THUE" ? Url.Action("Index", "YeuCau") : QL_PhongTro.Authorization.PermissionService.Url(module.Code))" aria-current="@(selected ? "page" : null)"><span class="menu-icon" aria-hidden="true">@icon</span>@module.Name@if (module.Code == "YEU_CAU_THUE" && unprocessedRequestCount > 0) { <span class="badge rounded-pill text-bg-primary ms-auto" aria-label="@unprocessedRequestCount yêu cầu chưa xử lý">@unprocessedRequestCount</span> }</a>
 @if (module.Code == "PHONG_TRO" && (User.IsInRole("CHU_NHA") || User.IsInRole("QUAN_LY") || User.IsInRole("ADMIN"))) {
 <a class="sidebar-link @Active(buildingPage)" asp-controller="PhongTro" asp-action="ToaNha" aria-current="@(buildingPage ? "page" : null)"><span class="menu-icon" aria-hidden="true">▥</span>Quản lý tòa nhà</a>
 @if (User.IsInRole("CHU_NHA")) {

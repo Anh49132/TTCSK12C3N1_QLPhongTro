@@ -39,5 +39,16 @@ public sealed class PermissionService(AppDbContext db, IHttpContextAccessor acce
         "PHONG_TRO" => "/PhongTro",
         _ => "/Modules/" + Uri.EscapeDataString(code)
     };
+
+    public async Task<int> UnprocessedRequestCountAsync()
+    {
+        if (RoleCode != "CHU_NHA") return 0;
+        if (!int.TryParse(accessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId)) return 0;
+        return await db.YeuCaus.AsNoTracking()
+            .Where(x => TrangThaiYeuCau.ChuaXuLy(x.TrangThai))
+            .Join(db.ToaNhas.AsNoTracking().Where(x => x.ChuNhaId == accountId && x.DangHoatDong),
+                request => request.ToaNhaId, building => building.Id, (_, _) => 1)
+            .CountAsync();
+    }
 }
 
