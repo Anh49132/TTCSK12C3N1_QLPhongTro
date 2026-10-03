@@ -109,6 +109,20 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
 
     private static DateTime? DocUtc(string? raw) => string.IsNullOrWhiteSpace(raw) ? null : DateTime.Parse(raw, CultureInfo.InvariantCulture);
 
+    /// <summary>
+    /// yeu_cau_thue thuộc S2-06 và chỉ được tạo bởi RentalRequestSchema, tức là khi chạy lệnh
+    /// --initialize-rental-requests. Một CSDL mới hoặc CSDL của máy khác có thể chưa có bảng này,
+    /// nên S2-08 phải hỏi trước thay vì để truy vấn ném lỗi. Đây là nơi duy nhất S2-08 biết tới
+    /// bảng đó; các truy vấn khác đều đi qua LoadAsync nên không cần kiểm tra lại.
+    /// </summary>
+    public async Task<bool> CoBangYeuCauAsync(CancellationToken ct)
+    {
+        await db.Database.OpenConnectionAsync();
+        using var cmd = ((SqliteConnection)db.Database.GetDbConnection()).CreateCommand();
+        cmd.CommandText = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='yeu_cau_thue';";
+        return await cmd.ExecuteScalarAsync(ct) is not null;
+    }
+
     private async Task<LichHenYeuCau?> LoadAsync(int id, CancellationToken ct)
     {
         await db.Database.OpenConnectionAsync();
@@ -116,39 +130,48 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
         cmd.CommandText = DocSql;
         cmd.Parameters.AddWithValue("$id", id);
         cmd.Parameters.AddWithValue("$hanhDongDoiLich", HanhDongYeuCau.DoiLich);
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-        if (!await reader.ReadAsync(ct)) return null;
-        return new LichHenYeuCau
+        try
         {
-            Id = reader.GetInt32(0),
-            MaYeuCau = reader.GetString(1),
-            LoaiYeuCau = reader.GetString(2),
-            TrangThai = reader.GetString(3),
-            NgayTao = DocUtc(reader.GetString(4)) ?? default,
-            LichHen = DocUtc(reader.IsDBNull(5) ? null : reader.GetString(5)),
-            LyDoTuChoi = reader.IsDBNull(6) ? null : reader.GetString(6),
-            NguoiXuLyId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
-            NgayXuLy = DocUtc(reader.IsDBNull(8) ? null : reader.GetString(8)),
-            PhienBan = reader.GetInt32(9),
-            NgayMongMuon = reader.IsDBNull(10) ? string.Empty : reader.GetString(10),
-            SoNguoiDuKien = reader.GetInt32(11),
-            LoiNhan = reader.IsDBNull(12) ? null : reader.GetString(12),
-            PhongId = reader.GetInt32(13),
-            MaPhong = reader.GetString(14),
-            TenToaNha = reader.IsDBNull(15) ? string.Empty : reader.GetString(15),
-            DiaChiToaNha = reader.IsDBNull(16) ? null : reader.GetString(16),
-            ChuNhaId = reader.GetInt32(17),
-            TenChuNha = reader.IsDBNull(18) ? string.Empty : reader.GetString(18),
-            KhachThueId = reader.GetInt32(19),
-            TaiKhoanKhachId = reader.IsDBNull(20) ? null : reader.GetInt32(20),
-            TenKhach = reader.IsDBNull(21) ? string.Empty : reader.GetString(21),
-            SoDienThoaiKhach = reader.IsDBNull(22) ? null : reader.GetString(22),
-            GhiChuTuChoi = reader.IsDBNull(23) ? null : reader.GetString(23),
-            LichHenCu = DocUtc(reader.IsDBNull(24) ? null : reader.GetString(24)),
-            DaDoiLich = !reader.IsDBNull(25) && reader.GetInt64(25) != 0,
-            TrangThaiPhong = reader.GetString(26),
-            PhienBanPhong = reader.GetInt32(27)
-        };
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            if (!await reader.ReadAsync(ct)) return null;
+            return new LichHenYeuCau
+            {
+                Id = reader.GetInt32(0),
+                MaYeuCau = reader.GetString(1),
+                LoaiYeuCau = reader.GetString(2),
+                TrangThai = reader.GetString(3),
+                NgayTao = DocUtc(reader.GetString(4)) ?? default,
+                LichHen = DocUtc(reader.IsDBNull(5) ? null : reader.GetString(5)),
+                LyDoTuChoi = reader.IsDBNull(6) ? null : reader.GetString(6),
+                NguoiXuLyId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+                NgayXuLy = DocUtc(reader.IsDBNull(8) ? null : reader.GetString(8)),
+                PhienBan = reader.GetInt32(9),
+                NgayMongMuon = reader.IsDBNull(10) ? string.Empty : reader.GetString(10),
+                SoNguoiDuKien = reader.GetInt32(11),
+                LoiNhan = reader.IsDBNull(12) ? null : reader.GetString(12),
+                PhongId = reader.GetInt32(13),
+                MaPhong = reader.GetString(14),
+                TenToaNha = reader.IsDBNull(15) ? string.Empty : reader.GetString(15),
+                DiaChiToaNha = reader.IsDBNull(16) ? null : reader.GetString(16),
+                ChuNhaId = reader.GetInt32(17),
+                TenChuNha = reader.IsDBNull(18) ? string.Empty : reader.GetString(18),
+                KhachThueId = reader.GetInt32(19),
+                TaiKhoanKhachId = reader.IsDBNull(20) ? null : reader.GetInt32(20),
+                TenKhach = reader.IsDBNull(21) ? string.Empty : reader.GetString(21),
+                SoDienThoaiKhach = reader.IsDBNull(22) ? null : reader.GetString(22),
+                GhiChuTuChoi = reader.IsDBNull(23) ? null : reader.GetString(23),
+                LichHenCu = DocUtc(reader.IsDBNull(24) ? null : reader.GetString(24)),
+                DaDoiLich = !reader.IsDBNull(25) && reader.GetInt64(25) != 0,
+                TrangThaiPhong = reader.GetString(26),
+                PhienBanPhong = reader.GetInt32(27)
+            };
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 1)
+        {
+            // "no such table": CSDL chưa có yeu_cau_thue. Xem như chưa có yêu cầu nào để mọi
+            // action đã bắt KeyNotFoundException trả về NotFound thay vì lỗi 500.
+            return null;
+        }
     }
 
     /// <summary>Owner check walks request to listing to room to building, never yeu_cau_thue.phong_id.</summary>

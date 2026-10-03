@@ -28,6 +28,11 @@ public class LichHenController(LichHenService service) : Controller
     [HttpGet("/LichHen/ChiTiet/{id:int}")]
     public async Task<IActionResult> ChiTiet(int id, CancellationToken ct)
     {
+        // yeu_cau_thue thuộc S2-06 và có thể chưa tồn tại trên CSDL của máy khác. Khi thiếu bảng
+        // thì báo trạng thái chờ dữ liệu, không ném lỗi. Còn khi bảng có mà không tìm thấy mã
+        // yêu cầu, hoặc người xem không phải chủ nhà/khách của yêu cầu đó, vẫn trả NotFound/Forbid
+        // để không lộ ra yêu cầu nào đang tồn tại.
+        if (!await service.CoBangYeuCauAsync(ct)) return View("ChuaCoDuLieu");
         if (await service.DocAsync(id, ct) is not { } yeuCau) return NotFound();
         var laChuNha = await service.ChuNhaCuaYeuCauAsync(AccountId, id, ct);
         if (!laChuNha && !await service.KhachChuYeuCauAsync(AccountId, id, ct)) return Forbid();
