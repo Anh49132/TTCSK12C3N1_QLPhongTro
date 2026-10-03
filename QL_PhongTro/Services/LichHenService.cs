@@ -26,6 +26,15 @@ public sealed record LichHenYeuCau
     /// <summary>Free text the landlord left when rejecting, read back from the newest history row.</summary>
     public string? GhiChuTuChoi { get; init; }
 
+    /// <summary>
+    /// Slot the request held before the last reschedule. yeu_cau_thue has no such column and
+    /// belongs to S2-06, so the previous slot is read back from yeu_cau_thue_lich_su.
+    /// </summary>
+    public DateTime? LichHenCu { get; init; }
+
+    /// <summary>True once the request has been rescheduled at least once.</summary>
+    public bool DaDoiLich { get; init; }
+
     public int? NguoiXuLyId { get; init; }
     public DateTime? NgayXuLy { get; init; }
     public int PhienBan { get; init; }
@@ -62,7 +71,12 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
                k.id AS khach_thue_id, k.tai_khoan_id, k.ho_ten AS ten_khach, t.so_dien_thoai,
                (SELECT h.ghi_chu_tu_choi FROM yeu_cau_thue_lich_su h
                 WHERE h.yeu_cau_thue_id = r.id AND h.ghi_chu_tu_choi IS NOT NULL
-                ORDER BY h.id DESC LIMIT 1) AS ghi_chu_tu_choi
+                ORDER BY h.id DESC LIMIT 1) AS ghi_chu_tu_choi,
+               (SELECT h.lich_hen_cu FROM yeu_cau_thue_lich_su h
+                WHERE h.yeu_cau_thue_id = r.id AND h.hanh_dong = $hanhDongDoiLich AND h.lich_hen_cu IS NOT NULL
+                ORDER BY h.id DESC LIMIT 1) AS lich_hen_cu,
+               EXISTS (SELECT 1 FROM yeu_cau_thue_lich_su h
+                       WHERE h.yeu_cau_thue_id = r.id AND h.hanh_dong = $hanhDongDoiLich) AS da_doi_lich
         FROM yeu_cau_thue r
         JOIN tin_dang d ON d.id = r.tin_dang_id
         JOIN phong_tro p ON p.id = d.phong_id
@@ -92,6 +106,7 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
         using var cmd = ((SqliteConnection)db.Database.GetDbConnection()).CreateCommand();
         cmd.CommandText = DocSql;
         cmd.Parameters.AddWithValue("$id", id);
+        cmd.Parameters.AddWithValue("$hanhDongDoiLich", HanhDongYeuCau.DoiLich);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct)) return null;
         return new LichHenYeuCau
@@ -119,7 +134,9 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
             TaiKhoanKhachId = reader.IsDBNull(20) ? null : reader.GetInt32(20),
             TenKhach = reader.IsDBNull(21) ? string.Empty : reader.GetString(21),
             SoDienThoaiKhach = reader.IsDBNull(22) ? null : reader.GetString(22),
-            GhiChuTuChoi = reader.IsDBNull(23) ? null : reader.GetString(23)
+            GhiChuTuChoi = reader.IsDBNull(23) ? null : reader.GetString(23),
+            LichHenCu = DocUtc(reader.IsDBNull(24) ? null : reader.GetString(24)),
+            DaDoiLich = !reader.IsDBNull(25) && reader.GetInt64(25) != 0
         };
     }
 
@@ -232,6 +249,57 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
         await GhiThongBaoAsync(tx, yeuCau, LoaiThongBaoYeuCau.XacNhanLich,
             "Lịch hẹn đã được xác nhận",
             $"Chủ nhà đã xác nhận lịch hẹn {HienThoiGio(lichHenUtc)} cho yêu cầu {yeuCau.MaYeuCau}.",
+            now, ct);
+        tx.Commit();
+    }
+
+    /// <summary>
+    /// Moves a booked slot to a new time. yeu_cau_thue has no lich_hen_cu or da_doi_lich
+    /// column and belongs to S2-06, so the previous slot is kept in yeu_cau_thue_lich_su and
+    /// read back from there. Rescheduling is a business no-op: trang_thai stays DA_HEN_LICH,
+    /// because the request still holds a slot, only at another time.
+    /// </summary>
+    public async Task DoiLichAsync(int yeuCauId, int accountId, DateTime lichHenMoiUtc, CancellationToken ct)
+    {
+        var yeuCau = await LoadAsync(yeuCauId, ct) ?? throw new KeyNotFoundException("Yêu cầu không tồn tại.");
+        if (yeuCau.ChuNhaId != accountId)
+            throw new UnauthorizedAccessException("Chỉ chủ nhà của phòng này mới đổi được lịch hẹn.");
+        if (yeuCau.TrangThai != LichHenTrangThai.DaHenLich || yeuCau.LichHen is not { } lichHenCu)
+            throw new InvalidOperationException("Chỉ yêu cầu đã có lịch hẹn mới đổi lịch được.");
+        if (lichHenMoiUtc == lichHenCu)
+            throw new InvalidOperationException("Ngày giờ mới phải khác ngày giờ đã hẹn.");
+        var now = UtcHienTai();
+        if (lichHenMoiUtc <= now) throw new InvalidOperationException("Ngày giờ mới phải sau thời điểm hiện tại.");
+
+        await db.Database.OpenConnectionAsync();
+        using var tx = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+        using (var update = tx.Connection!.CreateCommand())
+        {
+            update.Transaction = tx;
+            update.CommandText = """
+                UPDATE yeu_cau_thue
+                SET lich_hen = $lichHen, nguoi_xu_ly_id = $nguoiXuLy, ngay_xu_ly = $now,
+                    phien_ban = phien_ban + 1
+                WHERE id = $id AND phien_ban = $phienBan AND trang_thai = $trangThai
+                      AND lich_hen = $lichHenCu;
+                """;
+            update.Parameters.AddWithValue("$lichHen", SqlUtc(lichHenMoiUtc));
+            update.Parameters.AddWithValue("$nguoiXuLy", accountId);
+            update.Parameters.AddWithValue("$now", SqlUtc(now));
+            update.Parameters.AddWithValue("$id", yeuCauId);
+            update.Parameters.AddWithValue("$phienBan", yeuCau.PhienBan);
+            update.Parameters.AddWithValue("$trangThai", LichHenTrangThai.DaHenLich);
+            update.Parameters.AddWithValue("$lichHenCu", SqlUtc(lichHenCu));
+            if (await update.ExecuteNonQueryAsync(ct) != 1)
+                throw new LichHenConflictException("Yêu cầu vừa được cập nhật bởi người khác. Vui lòng tải lại trang.");
+        }
+
+        var (ten, vaiTro) = await DocNguoiThucHienAsync(tx, accountId, ct);
+        await GhiLichSuAsync(tx, yeuCauId, LichHenTrangThai.DaHenLich, LichHenTrangThai.DaHenLich,
+            HanhDongYeuCau.DoiLich, accountId, ten, vaiTro, lichHenCu, lichHenMoiUtc, null, null, now, ct);
+        await GhiThongBaoAsync(tx, yeuCau, LoaiThongBaoYeuCau.YeuCauDoiLich,
+            "Lịch hẹn đã được đổi",
+            $"Lịch hẹn cũ {HienThoiGio(lichHenCu)} của yêu cầu {yeuCau.MaYeuCau} đã đổi sang {HienThoiGio(lichHenMoiUtc)}.",
             now, ct);
         tx.Commit();
     }

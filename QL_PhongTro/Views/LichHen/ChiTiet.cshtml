@@ -36,6 +36,9 @@
         <td>
             @if (yeuCau.LichHen is { } lichHen) { <text>@LichHenService.HienThoiGio(lichHen)</text> }
             else { <text>Chưa có lịch hẹn</text> }
+            @if (yeuCau.DaDoiLich && yeuCau.LichHenCu is { } cuNhat) {
+                <br /><span class="text-muted">Lịch trước: @LichHenService.HienThoiGio(cuNhat)</span>
+            }
         </td>
     </tr>
     </tbody>
@@ -55,6 +58,22 @@
 </form>
 <p class="text-muted" data-role="canh-bao-trung" data-yeu-cau-id="@yeuCau.Id">
     Hệ thống cảnh báo nếu phòng đã có lịch hẹn khác trong khoảng ±30 phút. Cảnh báo không chặn xác nhận.
+</p>
+}
+
+@if (Model.HienThiFormDoiLich) {
+<h2>Đổi lịch hẹn</h2>
+<form method="post" class="row g-3 mb-4" asp-action="DoiLich" asp-route-id="@yeuCau.Id">
+    <div class="col-md-4">
+        <label asp-for="LichHenNhap" class="form-label">Ngày giờ hẹn mới (giờ Việt Nam)</label>
+        <input asp-for="LichHenNhap" type="datetime-local" class="form-control" data-role="lich-hen" />
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <button class="btn btn-primary" type="submit">Lưu lịch mới</button>
+    </div>
+</form>
+<p class="text-muted" data-role="canh-bao-trung" data-yeu-cau-id="@yeuCau.Id">
+    Lịch cũ được giữ lại để cả chủ nhà và người thuê đều thấy thay đổi. Cảnh báo trùng lịch không chặn lưu.
 </p>
 }
 
