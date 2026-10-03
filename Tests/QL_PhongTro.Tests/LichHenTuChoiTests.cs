@@ -322,4 +322,63 @@ public class LichHenTuChoiTests : IDisposable
     {
         Assert.Equal(nhan, LichHenService.LyDoLabel(lyDo));
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("    ")]
+    [InlineData("abcd")]
+    public async Task TuChoi_LyDoKhacGhiChuNganHon5KyTu_ThenBiTuChoi(string ghiChu)
+    {
+        // AC2 quy định ghi chú từ 5 đến 500 ký tự. Giao diện cũng chặn nhưng server là nơi quyết định,
+        // nên gửi form bằng tay vẫn không tạo được yêu cầu thiếu ghi chú.
+        var id = TaoYeuCau();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.TuChoiAsync(id, _chuNhaId, LyDoTuChoi.Khac, ghiChu, default));
+
+        Assert.Equal(LichHenTrangThai.Moi, Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", id)));
+        Assert.Equal("0", Scalar("SELECT COUNT(*) FROM yeu_cau_thue_lich_su WHERE yeu_cau_thue_id=$id", ("$id", id)));
+    }
+
+    [Fact]
+    public async Task TuChoi_LyDoKhacGhiChuDung5KyTu_ThenDuoc()
+    {
+        var id = TaoYeuCau();
+
+        await _service.TuChoiAsync(id, _chuNhaId, LyDoTuChoi.Khac, "abcde", default);
+
+        Assert.Equal(LichHenTrangThai.TuChoi, Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", id)));
+    }
+
+    [Fact]
+    public async Task TuChoi_LyDoKhacGhiChuDung500KyTu_ThenDuoc()
+    {
+        var id = TaoYeuCau();
+
+        await _service.TuChoiAsync(id, _chuNhaId, LyDoTuChoi.Khac, new string('a', 500), default);
+
+        Assert.Equal("500", Scalar("SELECT length(ghi_chu_tu_choi) FROM yeu_cau_thue_lich_su WHERE yeu_cau_thue_id=$id", ("$id", id)));
+    }
+
+    [Theory]
+    [InlineData(LyDoTuChoi.DaCoKhachThue)]
+    [InlineData(LyDoTuChoi.KhongPhuHop)]
+    [InlineData(LyDoTuChoi.KhachKhongLienLacDuoc)]
+    public async Task TuChoi_LyDoKhacKhongCanGhiChu(string lyDo)
+    {
+        // Chỉ "Lý do khác" mới bắt ghi chú, các lý do còn lại thì không.
+        var id = TaoYeuCau();
+
+        await _service.TuChoiAsync(id, _chuNhaId, lyDo, null, default);
+
+        Assert.Equal(LichHenTrangThai.TuChoi, Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", id)));
+    }
+
+    [Fact]
+    public void HangNhatGhiChuKhopVoiGiaoDienVaServer()
+    {
+        // Giao diện dùng 5/500 trong lich-hen.js và attribute maxlength, server dùng hai hằng này.
+        Assert.Equal(5, LichHenService.GhiChuToiThieuLyDoKhac);
+        Assert.Equal(500, LichHenService.GhiChuToiDa);
+    }
 }

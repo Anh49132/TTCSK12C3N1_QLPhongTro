@@ -99,13 +99,19 @@
 <form method="post" class="row g-3 mb-4" asp-action="TuChoi" asp-route-id="@yeuCau.Id">
     <div class="col-md-4">
         <label asp-for="LyDoTuChoi" class="form-label">Lý do từ chối</label>
-        <select asp-for="LyDoTuChoi" class="form-select">
+        <select asp-for="LyDoTuChoi" class="form-select" data-role="ly-do-tu-choi">
             @foreach (var lyDo in LyDoTuChoi.All) { <option value="@lyDo">@LichHenService.LyDoLabel(lyDo)</option> }
         </select>
     </div>
     <div class="col-md-5">
-        <label asp-for="GhiChuTuChoi" class="form-label">Ghi chú (bắt buộc nếu chọn "Lý do khác")</label>
-        <input asp-for="GhiChuTuChoi" class="form-control" maxlength="500" />
+        @* Ô ghi chú chỉ hiện khi chọn "Lý do khác". Giao diện chặn trước để khách thấy lỗi ngay,
+           nhưng LichHenService vẫn là nơi quyết định: post thiếu hoặc quá ngắn vẫn bị từ chối. *@
+        <div class="mb-3 @(Model.LyDoTuChoi == LyDoTuChoi.Khac ? "" : "d-none")" data-role="vung-ghi-chu">
+            <label asp-for="GhiChuTuChoi" class="form-label">Ghi chú <span class="text-danger">*</span></label>
+            <input asp-for="GhiChuTuChoi" class="form-control" maxlength="500"
+                   data-role="ghi-chu-tu-choi" data-doi-kiem-tra="1" />
+            <div class="form-text" data-role="loi-ghi-chu"></div>
+        </div>
     </div>
     <div class="col-md-3 d-flex align-items-end">
         <button class="btn btn-outline-danger" type="submit">Từ chối</button>

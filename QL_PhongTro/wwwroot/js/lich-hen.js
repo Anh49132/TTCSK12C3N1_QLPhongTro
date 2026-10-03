@@ -43,3 +43,53 @@
     picker.addEventListener('change', check);
     check();
 })();
+
+// S2-08 lát 3: AC2 yêu cầu "lý do khác" phải kèm ghi chú. Giao diện hiện/ẩn ô ghi chú và bắt
+// nhập 5 đến 500 ký tự để người dùng thấy lỗi ngay. LichHenService vẫn kiểm lại ở server và là
+// nơi quyết định, nên gửi form bằng tay cũng không tạo được yêu cầu thiếu ghi chú.
+(function () {
+    const lyDo = document.querySelector('[data-role="ly-do-tu-choi"]');
+    const vung = document.querySelector('[data-role="vung-ghi-chu"]');
+    const oGhiChu = document.querySelector('[data-role="ghi-chu-tu-choi"]');
+    const loi = document.querySelector('[data-role="loi-ghi-chu"]');
+    if (!lyDo || !vung || !oGhiChu || !loi) return;
+
+    const LY_DO_KHAC = 'LY_DO_KHAC';
+    const TOI_DA = 500;
+    const TOI_THIEU = 5;
+    const form = oGhiChu.closest('form');
+
+    function chuanHoa(value) { return (value || '').trim(); }
+
+    function hienThi() {
+        vung.classList.toggle('d-none', lyDo.value !== LY_DO_KHAC);
+        if (lyDo.value !== LY_DO_KHAC) loi.textContent = '';
+    }
+
+    function kiemTra() {
+        if (lyDo.value !== LY_DO_KHAC) return true;
+        const ghiChu = chuanHoa(oGhiChu.value);
+        loi.classList.remove('text-danger');
+        if (ghiChu.length < TOI_THIEU) {
+            loi.classList.add('text-danger');
+            loi.textContent = 'Vui lòng nhập ghi chú từ 5 đến 500 ký tự.';
+            return false;
+        }
+        loi.textContent = '';
+        return true;
+    }
+
+    lyDo.addEventListener('change', hienThi);
+    oGhiChu.addEventListener('input', () => {
+        if (oGhiChu.dataset.doiKiemTra === '1') kiemTra();
+    });
+    form.addEventListener('submit', (event) => {
+        if (!kiemTra()) {
+            event.preventDefault();
+            vung.classList.remove('d-none');
+            oGhiChu.focus();
+        }
+    });
+
+    hienThi();
+})();
