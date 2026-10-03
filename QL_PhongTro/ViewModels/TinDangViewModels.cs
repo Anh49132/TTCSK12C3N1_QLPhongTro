@@ -1,5 +1,20 @@
 namespace QL_PhongTro.ViewModels;
 
+public sealed class TinDangDanhSachViewModel
+{
+    public int Id { get; init; }
+    public string TieuDe { get; init; } = string.Empty;
+    public string? AnhDaiDien { get; init; }
+}
+
+public sealed class AnhPhongQuanLyViewModel
+{
+    public int Id { get; init; }
+    public string DuongDan { get; init; } = string.Empty;
+    public string? DuongDanAnhNho { get; init; }
+    public int ThuTu { get; init; }
+}
+
 public sealed class TinDangChiTietViewModel
 {
     public int Id { get; init; }
@@ -33,6 +48,7 @@ public sealed class AnhPhongChiTietViewModel
     public string DuongDan { get; init; } = string.Empty;
     public string? DuongDanAnhNho { get; init; }
     public string? MoTa { get; init; }
+    public int ThuTu { get; init; }
 }
 
 public sealed class DichVuTinChiTietViewModel

@@ -45,7 +45,7 @@ dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --create-local-admin
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
 ```
 
-Updater kiểm tra schema, sao lưu và nâng lên v9; không tạo lại database. Web không tự nâng schema cũ lên v9. Sau khi cập nhật, có thể kiểm tra chỉ đọc bằng `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database`.
+Updater kiểm tra schema, sao lưu và nâng lên v12; không tạo lại database. Web không tự nâng schema cũ lên v12. Sau khi cập nhật, có thể kiểm tra chỉ đọc bằng `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database`.
 Truy cập http://localhost:5247. Giữ terminal đang hiện `Now listening on: http://localhost:5247` mở trong lúc sử dụng. Muốn dừng server, bấm vào đúng terminal đó, nhấn Ctrl+C và chờ dấu nhắc `PS C:\...>` xuất hiện lại rồi mới build hoặc chạy lần nữa.
 
 Không cần cập nhật database hoặc tạo ADMIN mỗi lần chạy. Sau khi pull thay đổi schema, chạy updater một lần. Tài khoản mới đang chờ xác nhận thì tiếp tục nhập/gửi lại mã, không cần xóa rồi đăng ký lại.
@@ -93,7 +93,7 @@ Trên máy đã kiểm tra, nhật ký `Microsoft-Windows-CodeIntegrity/Operatio
 
 Lệnh `--update-database` sao lưu rồi cập nhật schema còn thiếu; nên dừng ứng dụng trước khi chạy. Ứng dụng yêu cầu file SQLite đã tồn tại và không tự tạo lại CSDL nền. Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt biến môi trường `DatabasePath` để dùng file riêng.
 
-Schema v6 bổ sung dịch vụ S1-09 nếu chưa có và hai bảng `dich_vu_toa_nha`, `dich_vu_phong`. Schema v7 thêm cột giá riêng nullable theo từng cặp phòng/dịch vụ; giá riêng thắng giá chung và không thay đổi snapshot hóa đơn. Schema v8 bổ sung lịch sử ngừng dịch vụ phòng. Hợp đồng/hóa đơn vẫn là module tùy chọn, không được tự triển khai bởi S2-01.
+Schema v6 bổ sung dịch vụ S1-09 nếu chưa có và hai bảng `dich_vu_toa_nha`, `dich_vu_phong`. Schema v7 thêm cột giá riêng nullable theo từng cặp phòng/dịch vụ; giá riêng thắng giá chung và không thay đổi snapshot hóa đơn. Schema v8 bổ sung lịch sử ngừng dịch vụ phòng. Schema v11 thêm bảng `yeu_cau`; schema v12 thêm trạng thái chờ xoá cho ảnh phòng để retry khi kho lưu trữ lỗi. Hợp đồng/hóa đơn vẫn là module tùy chọn, không được tự triển khai bởi S2-01.
 
 ### Dịch vụ tòa nhà và phòng (S2-01)
 
@@ -156,7 +156,7 @@ Kiểm thử không cần database cá nhân: `dotnet test Tests/QL_PhongTro.Tes
 
 **Trước lần pull nhận thay đổi bỏ theo dõi `QL_PhongTro/Data/local-dev.sqlite`, mỗi thành viên phải dừng app và sao lưu database local ra ngoài repository. Git có thể xóa file đang được theo dõi khi pull.** File trên máy thực hiện task vẫn được giữ nguyên bởi `git rm --cached`. Không chép DB của thành viên khác vào repo; DB, WAL/SHM/journal, backup và credential demo đều bị ignore.
 
-- Máy mới chưa có DB: đặt `DatabasePath` tới file riêng chưa tồn tại, chạy `--initialize-database`, rồi `--check-database`. Khởi tạo schema hiện hành v9 và quyền module; không tạo tài khoản, dữ liệu cá nhân hoặc demo. Lệnh từ chối file đã tồn tại; web không tự tạo database. ADMIN dùng cấu hình riêng như trên.
+- Máy mới chưa có DB: đặt `DatabasePath` tới file riêng chưa tồn tại, chạy `--initialize-database`, rồi `--check-database`. Khởi tạo schema hiện hành v12 và quyền module; không tạo tài khoản, dữ liệu cá nhân hoặc demo. Lệnh từ chối file đã tồn tại; web không tự tạo database. ADMIN dùng cấu hình riêng như trên.
 - Máy đã có DB: kiểm tra đúng `DatabasePath`, dừng app, sao lưu ngoài repository và chạy `--check-database` trước. Khi schema nền cần nâng cấp, dùng `--update-database` có backup, không chạy khởi tạo hoặc chép đè. Nếu lỗi schema lạ, dừng để rà soát.
 - Để sử dụng S2-06 trên DB đã kiểm tra: chạy `--initialize-rental-requests` một lần trên đúng `DatabasePath`, rồi `--check-database`. Module có phiên bản riêng `rental_request_schema=1`, không thay đổi phiên bản nền; sử dụng bảng tin đăng đã có ở v9, chỉ bổ sung yêu cầu và bộ đếm. Cài mới tạo backup `*.before-rental-<id>.bak`, transaction và bảng tin/yêu cầu/bộ đếm; chạy lại không ghi dữ liệu. Schema module chưa có phiên bản hoặc không đầy đủ bị từ chối. Web không tự cài module.
 
@@ -167,6 +167,19 @@ dotnet run --project QL_PhongTro -- --initialize-rental-requests
 dotnet run --project QL_PhongTro -- --check-database
 dotnet run --project QL_PhongTro --launch-profile http
 ```
+
+### Ảnh phòng: xoá, retry và đối chiếu kho
+
+Chủ nhà xoá ảnh trong form sửa phòng bằng nút **Xóa** trên từng ảnh. Hệ thống hỏi xác nhận “Xoá ảnh này? Ảnh sẽ bị xoá vĩnh viễn và không thể khôi phục.”; chọn **Huỷ** không ghi gì, chọn **Xoá** sẽ xoá bản ghi, tệp gốc, thumbnail và đánh lại `thu_tu` liên tục. Nếu ảnh đại diện bị xoá, ảnh kế tiếp tự lên làm đại diện; nếu xoá hết, trang tin dùng `room-placeholder.svg`.
+
+Nếu xoá tệp trên kho lưu trữ lỗi, bản ghi được giữ với `dang_cho_xoa=1`, lỗi gần nhất được lưu để background retry định kỳ. Có thể chạy thủ công:
+
+```powershell
+dotnet run --project QL_PhongTro -- --retry-pending-room-image-deletes
+dotnet run --project QL_PhongTro -- --check-room-image-storage
+```
+
+`--check-room-image-storage` đối chiếu bản ghi `anh_phong` với `RoomImagesPath`/`wwwroot/uploads/rooms`, in `MISSING` và `ORPHAN`; exit code 2 khi còn lệch. Dừng app và dùng đúng `DatabasePath` trước khi chạy trên DB thật.
 
 Khách thuê vào **Tin đăng cho thuê** → chi tiết tin → **Gửi yêu cầu**, chọn Xem phòng/Thuê ngay, ngày mong muốn, số người và lời nhắn tùy chọn. Gửi thành công chuyển ngay đến trang có mã `YC-yyyyMM-xxxx` (tháng Việt Nam). Profile tối thiểu được tạo từ tài khoản nếu chưa có; không yêu cầu nhập căn cước để gửi yêu cầu. Yêu cầu liên kết profile/tài khoản và tin từ URL, không nhận ID khách từ form. Mã tăng từ 0001 theo từng tháng, tối đa 9999 mã/tháng; hết mã báo lỗi và không lưu yêu cầu.
 
@@ -355,6 +368,111 @@ Build Debug ở trên phù hợp để chạy và báo cáo local. Build Release
 ADMIN xem tại `/NhatKy`. Mã hiện tại yêu cầu schema nhật ký v3; kiểm tra schema của đúng database trước khi chạy và chỉ nâng cấp DB đang dùng khi được yêu cầu. Xem mục **Nhật ký hoạt động (S1-10)** trong [bàn giao dự án](docs/tien-do.md).
 ### S2-07 — Danh sách yêu cầu
 
-Schema v9 thêm bảng `yeu_cau`. Với database đã có dữ liệu, dừng web rồi chạy `--update-database` và `--check-database` theo quy trình bên trên; updater sẽ sao lưu trước và giữ nguyên dữ liệu cũ. Database mới được tạo bằng `--initialize-database` sẽ có schema v9 nhưng không tự nạp dữ liệu cá nhân hay dữ liệu demo.
+Schema v11 thêm bảng `yeu_cau`. Với database đã có dữ liệu, dừng web rồi chạy `--update-database` và `--check-database` theo quy trình bên trên; updater sẽ sao lưu trước và giữ nguyên dữ liệu cũ. Database mới được tạo bằng `--initialize-database` sẽ có schema v12 hiện hành nhưng không tự nạp dữ liệu cá nhân hay dữ liệu demo.
 
 Màn hình danh sách của chủ nhà: `/YeuCau`. Dữ liệu mẫu giả để demo nằm tại `docs/sql/S2-07-yeu-cau.sql`; chỉ chạy trên database demo/bản sao đã có tối thiểu ba khách và ba phòng, không chạy trên database local đang sử dụng.
+
+Database local đã bỏ theo dõi Git. **Sao lưu DB riêng ra ngoài repository trước lần pull nhận thay đổi này**, vì Git có thể xóa file từng theo dõi. Không chép đè DB đang sử dụng.
+
+Dùng đúng `DatabasePath` trong cùng terminal; mặc định `QL_PhongTro/Data/local-dev.sqlite`. Web không tự tạo database thiếu, không tự cài bảng tin. Schema v9 chỉ thêm bảng tin/index/FK; không tự tạo tin, tài khoản hoặc mật khẩu.
+
+**Máy mới chưa có database:** chọn đường dẫn mới, rồi khởi tạo (lệnh từ chối file đã tồn tại):
+
+```powershell
+$env:DatabasePath = Join-Path (Get-Location) 'data/my-local.sqlite'
+dotnet run --project QL_PhongTro -- --initialize-database
+dotnet run --project QL_PhongTro -- --check-database
+```
+
+ADMIN dùng cấu hình riêng và `--create-local-admin` theo hướng dẫn phía trên; không đưa credential lên Git.
+
+**Máy đã có database:** dừng app dùng file đó, giữ dữ liệu riêng, chọn đúng DatabasePath rồi chạy:
+
+```powershell
+dotnet run --project QL_PhongTro -- --update-database
+dotnet run --project QL_PhongTro -- --check-database
+dotnet run --project QL_PhongTro --launch-profile http
+```
+
+Updater tạo backup cạnh DB trước ghi, thêm v6 trong transaction và kiểm tra integrity/FK. Nếu đã có bảng `tin_dang` chưa được quản lý phiên bản, updater từ chối để kiểm tra thủ công; không xóa bảng/chạy initializer để thay DB cũ. Giữ backup ngoài Git. Chỉ nâng cấp trên bản sao khi kiểm thử.
+
+Mở `/TimTin`, kết hợp quận/huyện, giá thuê (VND nguyên), diện tích (m², nhập `20.5` cho 20,5 m²) và số người ở tối đa. Khoảng bao gồm cả hai biên; bỏ trống bỏ qua điều kiện. Số người lọc đúng sức chứa đã chọn. Form giữ điều kiện, báo lỗi min > max. Chỉ hiển thị tin DANG_HIEN_THI còn hạn UTC; hạn NULL bị loại. Không chọn quận thì tìm mọi khu vực. Có sắp xếp và phân trang theo Task 3; chưa có gợi ý khi không có kết quả. DB thiếu bảng tin báo chưa sẵn sàng.
+
+**Kiểm thử và demo dữ liệu giả riêng** (Python 3, không cần package Python):
+
+```powershell
+dotnet restore QL_PhongTro/QL_PhongTro.csproj --source https://api.nuget.org/v3/index.json
+dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore -o data/task1-build/runtime
+python verification/timtin_http.py --serve
+```
+
+Script tạo DB mới/schema v12 và tin giả, chạy 25 ca HTTP; nâng cấp chỉ trên bản sao read-only backup của DB nguồn và đối chiếu bảo toàn dữ liệu/hash. Nguồn mặc định là local-dev.sqlite; chọn nguồn khác bằng `TIMTIN_SOURCE_DATABASE` (không đổi DB nguồn). Không đưa dữ liệu nguồn vào demo. Nếu chưa có DB nguồn, dùng DB riêng đã khởi tạo làm nguồn. Script in URL/PID, giữ demo chạy với `--serve`; bỏ cờ này thì dừng sau kiểm thử. Trên Windows server nền chạy ẩn. `data/timtin-demo/latest.txt` trỏ thư mục kết quả có `result.json` và log. Xác nhận PID đúng trước khi `Stop-Process -Id <PID>`; không dừng các server khác. Nếu sandbox chặn Event Log/Data Protection, chạy từ terminal Windows bình thường.
+
+Chọn Quận 2, giá 2000000..2000000, diện tích 20.5..20.5, sức chứa 3 → chỉ TIN-C. Demo public không cần đăng nhập; không có tài khoản dùng được hoặc mật khẩu cố định. Không seed dữ liệu giả vào DB đang sử dụng.
+
+Task 3: chọn Mới đăng nhất (mặc định, ngày đăng NULL xếp cuối), Giá tăng dần hoặc Giá giảm dần rồi bấm Tìm kiếm. Mỗi trang tối đa 12 tin; tổng kết quả/tổng trang hiện phía trên. Link chuyển trang giữ lọc và sắp xếp, tìm lại từ form luôn về trang 1. Trùng ngày/giá dùng ID giảm dần. Không đổi schema/database cho Task 3.
+
+Kiểm thử/demo Task 3 với 25 tin giả Quận 3 (3 trang: 12/12/1):
+
+```powershell
+dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore -o data/task1-build/task3-runtime
+python verification/timtin_http.py --runtime data/task1-build/task3-runtime/QL_PhongTro.dll --task3 --serve
+```
+
+Script cũng chạy lại 25 ca Task 1/2; chỉ dùng DB mới/bản sao, không ghi database nguồn. URL và PID in sau khi PASS; bỏ --serve để tự dừng server sau kiểm thử. Chưa xác nhận hiệu năng dưới 2 giây hoặc UI bằng trình duyệt đồ họa.
+
+### Chạy thử tìm tin — đầy đủ 5 tiêu chí
+
+Từ gốc repository, tạo demo mới 500 tin giả bằng các lệnh:
+
+```powershell
+dotnet restore QL_PhongTro/QL_PhongTro.csproj --source https://api.nuget.org/v3/index.json
+dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore -o data/task1-build/final-search-runtime
+python verification/timtin_performance.py --runtime data/task1-build/final-search-runtime/QL_PhongTro.dll --serve
+```
+
+Python 3 không cần package ngoài cho HTTP/performance. Script in URL/PID sau PASS, giữ server nền ẩn trên Windows; mở URL in ra, không cần đăng nhập. Không dùng database thật: mỗi lần tạo thư mục UUID/file mới, schema v12 qua initializer, 500 tin giả ở 5 quận (300 đang hiển thị còn hạn, còn lại ẩn/nháp/đã thuê/hết hạn). Không có mật khẩu cố định/dữ liệu cá nhân. Artifact và backup trong data/timtin-demo đã ignore.
+
+1. Không lọc: 300 kết quả hợp lệ, 25 trang ×12 tin.
+2. Chọn Quận 1, giá 1500000..3000000, diện tích 15..25, sức chứa 3: 6 tin khớp tất cả điều kiện.
+3. Xóa bớt điều kiện để có >12 tin, thử ba sắp xếp và Trang sau/Trang trước; giữ lọc/sắp xếp. Bấm Tìm kiếm sau đổi điều kiện về trang đầu.
+4. Xóa giá tối thiểu, nhập giá tối đa 1: 0 tin và gợi ý nới rộng khoảng giá. Khoảng min > max vẫn báo lỗi riêng.
+5. DevTools Network throttling để quan sát Đang tải kết quả khi tìm/chuyển trang; trở lại trang không mắc spinner.
+
+Bản sửa chuẩn bị truy vấn/Razor lúc startup trước khi nhận request (startup khoảng 3.19s, không phải thời gian tìm kiếm). Không cache dữ liệu kết quả. Đo hai lần khởi động 02/10/2026: request đầu 1.014s/0.223s, 260 lượt sau tối đa 0.241s, đạt <2s trên HTTP localhost tuần tự/500 tin. Report ghi riêng startup và đầy đủ samples/median/p95/max; không gồm browser render/static assets, không phải cam kết nhiều người dùng. Các lần FAIL của mã cũ được giữ trong artifact.
+
+`--repeats` đổi số lượt mỗi kịch bản (mặc định 10); bỏ --serve sẽ tự dừng server sau đo. latest-performance.txt trỏ demo PASS có --serve; latest-performance-test.txt trỏ lần test tự dừng. performance.json ghi số liệu; browser.json/ảnh ghi xác minh Chrome. Chỉ dừng đúng PID đã in bằng Stop-Process, không dừng server khác. DB thật vẫn dùng quy trình máy mới/máy có DB phía trên; lần sửa này không đổi schema.
+
+Kiểm thử chức năng/Chrome (chạy sau khi đo performance xong):
+
+```powershell
+python verification/timtin_http.py --runtime data/task1-build/final-search-runtime/QL_PhongTro.dll --task3
+python -m pip install --target data/task1-build/browser-packages playwright
+python verification/timtin_browser.py
+```
+
+Browser script dùng Chrome có sẵn, demo --serve từ latest-performance.txt và package Playwright trong thư mục đã ignore; không cần tải browser riêng. Chrome đã xác minh spinner/gợi ý/form sai/Back. HTTP regression 50 ca PASS, kiểm tra cả nguồn DB chỉ đọc/nâng cấp trên bản sao và bảo toàn dữ liệu. Windows sandbox có thể chặn Event Log/Data Protection, khi đó chạy terminal Windows bình thường.
+
+### Task 5 — khoảng giá đề xuất và tìm lại
+
+Khi không có kết quả, khoảng giá đề xuất nới mỗi đầu đã nhập 500.000đ (min không âm, max không tràn); đầu trống tiếp tục không giới hạn. Bấm **Áp dụng khoảng giá gợi ý** để tìm lại ở trang 1, giữ khu vực/diện tích/sức chứa/sắp xếp. Có kết quả thì gợi ý ẩn. Nếu giá đã không giới hạn hoặc không thể nới thêm, hiển thị giải thích và đề nghị chỉnh bộ lọc khác; không giả lập khoảng rộng hơn. Nới giá không bảo đảm có tin nếu các điều kiện khác vẫn loại hết.
+
+Demo mới/data giả riêng:
+
+```powershell
+dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore -o data/task1-build/task5-runtime
+python verification/timtin_performance.py --runtime data/task1-build/task5-runtime/QL_PhongTro.dll --serve
+```
+
+Mở URL in ra; Quận 1, giá 2100000..2200000, diện tích15..25, sức chứa3 → 0 tin và đề xuất1600000..2700000; bấm áp dụng để tìm thấy tin. Không cần đăng nhập. DB thật không được ghi; task không đổi schema/quy trình khởi tạo/nâng cấp cho máy mới/máy cũ.
+
+Kiểm thử:
+
+```powershell
+python verification/timtin_http.py --runtime data/task1-build/task5-runtime/QL_PhongTro.dll --task3 --task5
+python verification/timtin_browser.py
+```
+
+Browser cần Chrome và package Playwright theo hướng dẫn trên; dùng URL của demo --serve mới nhất. HTTP 9 ca Task 5/50 ca Task 1–3 và thao tác áp dụng trên Chrome đã PASS; báo cáo/ảnh trong thư mục demo đã ignore. Chỉ dừng đúng PID được in sau khi thử xong.
+
+Sau merge S2-04 vào dev: dùng schema v9 và màn hình điện/nước S2-10 của dev; không dùng các demo utilities_http/utilities_browser của nhánh tìm kiếm cũ. Những DB v6 tạo từ nhánh tìm kiếm riêng có chuỗi phiên bản khác dev: sao lưu ngoài repository, kiểm tra trên bản sao và rà soát schema trước khi nâng; không sửa app_schema_version để bỏ qua kiểm tra. Lần merge không ghi hoặc nâng database đang sử dụng.

@@ -17,7 +17,7 @@ namespace QL_PhongTro.Controllers;
 [Authorize(Roles = "CHU_NHA,QUAN_LY,ADMIN")]
 [ModuleAccess("PHONG_TRO")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class PhongTroController(AppDbContext db, DichVuPhongService roomServices) : Controller
+public class PhongTroController(AppDbContext db, DichVuPhongService roomServices, RoomImageStore imageStore, RoomImageDeletionService imageDeletion) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> ToaNha(string? tuKhoa)
@@ -447,7 +447,8 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
             DienTich = room.DienTich, GiaThue = room.GiaThue,
             GiaThueDisplay = room.GiaThue.ToString(CultureInfo.InvariantCulture),
             SoNguoiToiDa = room.SoNguoiToiDa, TrangThai = Enum.Parse<TrangThaiPhong>(room.TrangThai),
-            ToaNhaOptions = await GetBuildingOptions(CurrentAccountId()!.Value)
+            ToaNhaOptions = await GetBuildingOptions(CurrentAccountId()!.Value),
+            Anh = await GetRoomImagesAsync(id)
         });
     }
 
@@ -464,7 +465,11 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         var code = model.MaPhong?.Trim() ?? string.Empty;
         if (await db.PhongTros.AnyAsync(x => x.ToaNhaId == room.ToaNhaId && x.MaPhong == code && x.Id != id))
             ModelState.AddModelError(nameof(model.MaPhong), "Mã phòng đã được sử dụng trong tòa nhà này.");
-        if (!ModelState.IsValid) return View("Create", model);
+        if (!ModelState.IsValid)
+        {
+            model.Anh = await GetRoomImagesAsync(id);
+            return View("Create", model);
+        }
         room.MaPhong = code;
         room.Tang = model.Tang!.Value;
         room.DienTich = model.DienTich!.Value;
@@ -477,10 +482,166 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
             ModelState.AddModelError(string.Empty, IsRoomCodeConflict(ex)
                 ? "Mã phòng đã được sử dụng trong tòa nhà này."
                 : "Không thể cập nhật phòng lúc này. Vui lòng thử lại.");
+            model.Anh = await GetRoomImagesAsync(id);
             return View("Create", model);
         }
         TempData["Success"] = "Đã cập nhật phòng thành công.";
         return RedirectToAction(nameof(Index), new { toaNhaId = room.ToaNhaId });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    [RequestSizeLimit(6 * 1024 * 1024), RequestFormLimits(MultipartBodyLengthLimit = 6 * 1024 * 1024)]
+    public async Task<IActionResult> UploadImage(int id, IFormFile? file, CancellationToken cancellationToken)
+    {
+        if (CurrentAccountId() is not { } ownerId)
+            return Forbid();
+        if (await GetOwnedRoom(id) is null)
+            return NotFound();
+
+        PreparedRoomImage prepared;
+        try
+        {
+            prepared = await imageStore.PrepareAsync(file, cancellationToken);
+        }
+        catch (InvalidDataException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+
+        await db.Database.OpenConnectionAsync(cancellationToken);
+        using var sqliteTransaction = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+        await using var transaction = await db.Database.UseTransactionAsync(sqliteTransaction);
+        StoredRoomImage? stored = null;
+        try
+        {
+            var roomIsOwned = await db.PhongTros.AsNoTracking().AnyAsync(room => room.Id == id
+                && db.ToaNhas.Any(building => building.Id == room.ToaNhaId
+                    && building.ChuNhaId == ownerId && building.DangHoatDong), cancellationToken);
+            if (!roomIsOwned)
+                return NotFound();
+
+            var count = await db.AnhPhongs.CountAsync(image => image.PhongId == id, cancellationToken);
+            if (count >= RoomImageStore.MaxImagesPerRoom)
+                return Conflict(new { message = "Phòng đã đủ 8 ảnh. Không thể tải thêm." });
+
+            var nextOrder = (await db.AnhPhongs.Where(image => image.PhongId == id)
+                .Select(image => (int?)image.ThuTu).MaxAsync(cancellationToken) ?? 0) + 1;
+            stored = await imageStore.SaveAsync(id, prepared, cancellationToken);
+            var image = new AnhPhong
+            {
+                PhongId = id,
+                DuongDan = stored.OriginalPath,
+                DuongDanAnhNho = stored.ThumbnailPath,
+                ThuTu = nextOrder,
+                NgayTao = DateTime.UtcNow
+            };
+            db.AnhPhongs.Add(image);
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction!.CommitAsync(cancellationToken);
+            return Ok(new
+            {
+                id = image.Id,
+                order = image.ThuTu,
+                originalPath = image.DuongDan,
+                thumbnailPath = image.DuongDanAnhNho,
+                count = count + 1
+            });
+        }
+        catch (DbUpdateException)
+        {
+            try { await transaction!.RollbackAsync(CancellationToken.None); } catch { }
+            imageStore.Delete(stored);
+            return Conflict(new { message = "Không thể lưu ảnh vào phòng lúc này. Vui lòng thử lại." });
+        }
+        catch
+        {
+            try { await transaction!.RollbackAsync(CancellationToken.None); } catch { }
+            imageStore.Delete(stored);
+            throw;
+        }
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> ReorderImages(int id, [FromBody] List<int>? imageIds, CancellationToken cancellationToken)
+    {
+        if (CurrentAccountId() is not { } ownerId)
+            return Forbid();
+        if (imageIds is null || imageIds.Count > RoomImageStore.MaxImagesPerRoom)
+            return BadRequest(new { message = "Danh sách thứ tự ảnh không hợp lệ. Vui lòng tải lại trang." });
+
+        await db.Database.OpenConnectionAsync(cancellationToken);
+        var connection = (SqliteConnection)db.Database.GetDbConnection();
+        using var sqliteTransaction = connection.BeginTransaction(deferred: false);
+        await using var transaction = await db.Database.UseTransactionAsync(sqliteTransaction);
+
+        var roomIsOwned = await db.PhongTros.AsNoTracking().AnyAsync(room => room.Id == id
+            && db.ToaNhas.Any(building => building.Id == room.ToaNhaId
+                && building.ChuNhaId == ownerId && building.DangHoatDong), cancellationToken);
+        if (!roomIsOwned)
+            return NotFound();
+
+        var currentImages = await db.AnhPhongs.AsNoTracking()
+            .Where(image => image.PhongId == id)
+            .OrderBy(image => image.ThuTu)
+            .ToListAsync(cancellationToken);
+        var submittedIds = imageIds.ToHashSet();
+        if (imageIds.Count != currentImages.Count || submittedIds.Count != imageIds.Count
+            || !submittedIds.SetEquals(currentImages.Select(image => image.Id)))
+            return Conflict(new { message = "Danh sách ảnh đã thay đổi ở một tab khác. Tải lại trang rồi thử lại." });
+
+        await using var command = connection.CreateCommand();
+        command.Transaction = sqliteTransaction;
+        try
+        {
+            command.CommandText = "PRAGMA ignore_check_constraints=ON";
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            command.CommandText = "UPDATE anh_phong SET thu_tu=thu_tu+8 WHERE phong_id=$roomId";
+            command.Parameters.AddWithValue("$roomId", id);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            command.Parameters.Clear();
+            command.CommandText = "UPDATE anh_phong SET thu_tu=$order WHERE id=$imageId AND phong_id=$roomId";
+            for (var index = 0; index < imageIds.Count; index++)
+            {
+                command.Parameters.Clear();
+                command.Parameters.AddWithValue("$order", index + 1);
+                command.Parameters.AddWithValue("$imageId", imageIds[index]);
+                command.Parameters.AddWithValue("$roomId", id);
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+        finally
+        {
+            command.Parameters.Clear();
+            command.CommandText = "PRAGMA ignore_check_constraints=OFF";
+            await command.ExecuteNonQueryAsync(CancellationToken.None);
+        }
+
+        await transaction!.CommitAsync(cancellationToken);
+        return Ok(new { imageIds });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> DeleteImage(int id, int imageId, CancellationToken cancellationToken)
+    {
+        if (CurrentAccountId() is not { } ownerId)
+            return Forbid();
+
+        var result = await imageDeletion.DeleteOwnedImageAsync(id, imageId, ownerId, cancellationToken);
+        return result.Status switch
+        {
+            RoomImageDeleteStatus.NotFound => NotFound(),
+            RoomImageDeleteStatus.StorageFailed => StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                message = result.Message,
+                images = result.Images,
+                count = result.Images.Count
+            }),
+            _ => Ok(new
+            {
+                images = result.Images,
+                count = result.Images.Count
+            })
+        };
     }
 
     [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
@@ -507,6 +668,17 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
     private Task<PhongTro?> GetOwnedRoom(int id) => db.PhongTros.SingleOrDefaultAsync(room =>
         room.Id == id && db.ToaNhas.Any(building => building.Id == room.ToaNhaId &&
             building.ChuNhaId == CurrentAccountId() && building.DangHoatDong));
+
+    private Task<List<AnhPhongQuanLyViewModel>> GetRoomImagesAsync(int roomId) => db.AnhPhongs.AsNoTracking()
+        .Where(image => image.PhongId == roomId)
+        .OrderBy(image => image.ThuTu)
+        .Select(image => new AnhPhongQuanLyViewModel
+        {
+            Id = image.Id,
+            DuongDan = image.DuongDan,
+            DuongDanAnhNho = image.DuongDanAnhNho,
+            ThuTu = image.ThuTu
+        }).ToListAsync();
 
     private IQueryable<PhongTro> GetRoomQuery(int buildingId, TrangThaiPhong? status)
     {

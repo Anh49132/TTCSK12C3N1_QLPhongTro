@@ -16,7 +16,17 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
     public async Task<IActionResult> Index()
     {
         if (!await requests.IsInstalled()) return View("ChuaCaiDat");
-        return View(await requests.PublicListings().OrderByDescending(t => t.NgayDang).Take(100).ToListAsync());
+        var listings = await requests.PublicListings().OrderByDescending(t => t.NgayDang).Take(100)
+            .Select(post => new TinDangDanhSachViewModel
+            {
+                Id = post.Id,
+                TieuDe = post.TieuDe,
+                AnhDaiDien = db.AnhPhongs.Where(image => image.PhongId == post.PhongId)
+                    .OrderBy(image => image.ThuTu)
+                    .Select(image => image.DuongDanAnhNho)
+                    .FirstOrDefault()
+            }).ToListAsync();
+        return View(listings);
     }
 
     [HttpGet]
@@ -168,7 +178,8 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
                 {
                     DuongDan = image.DuongDan,
                     DuongDanAnhNho = image.DuongDanAnhNho,
-                    MoTa = image.MoTa
+                    MoTa = image.MoTa,
+                    ThuTu = image.ThuTu
                 })
                 .ToListAsync(),
             DichVuTheoSuDung = servicePrices.Where(price => price.CachTinh != CachTinhDichVu.CoDinh).ToList(),

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Globalization;
 using System.Text.Json;
+using QL_PhongTro.Data;
 using QL_PhongTro.Models;
 using QL_PhongTro.Services;
 using Xunit;
@@ -27,7 +28,7 @@ public sealed partial class PermissionTests
         Assert.Contains("data-testid=\"first-month-total\">2.500.000 đ", html);
         Assert.Contains("Chưa bao gồm tiền điện và nước theo mức sử dụng thực tế.", html);
         Assert.Contains("Phòng sáng, thoáng và có chỗ để xe.", html);
-        Assert.Contains("/images/room-a-small.jpg", html);
+        Assert.Contains("data-gallery-main src=\"/images/room-a.jpg\"", html);
         Assert.Contains("Chưa có đơn giá dịch vụ theo mức sử dụng.", html);
         Assert.Contains("Tin này chưa có khoản phí cố định hàng tháng.", html);
 
@@ -222,6 +223,29 @@ public sealed partial class PermissionTests
         var response = await guest.GetAsync($"/api/tin-dang/{noPhotoId}");
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Empty(json.RootElement.GetProperty("anh").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task ListingIndexUsesFirstThumbnailAndSharedPlaceholderWhileDetailUsesOriginal()
+    {
+        RentalRequestSchema.Initialize(database);
+        var withPhoto = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: true);
+        var withoutPhoto = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+        using var guest = Client();
+
+        var indexResponse = await guest.GetAsync("/TinDang");
+        Assert.Equal(HttpStatusCode.OK, indexResponse.StatusCode);
+        var index = WebUtility.HtmlDecode(await indexResponse.Content.ReadAsStringAsync());
+        Assert.Contains("src=\"/images/room-a-small.jpg\"", index);
+        Assert.DoesNotContain("src=\"/images/room-a.jpg\"", index);
+        Assert.Contains("room-placeholder.svg", index);
+
+        var detail = WebUtility.HtmlDecode(await guest.GetStringAsync($"/TinDang/ChiTiet/{withPhoto}"));
+        Assert.Contains("data-gallery-main src=\"/images/room-a.jpg\"", detail);
+
+        var emptyDetail = await guest.GetStringAsync($"/TinDang/ChiTiet/{withoutPhoto}");
+        Assert.Contains("room-placeholder.svg", emptyDetail);
+        Assert.Contains("Tin này chưa có hình ảnh.", emptyDetail);
     }
 
     private int CreatePublicListing(string roomStatus, string listingStatus, bool includePhoto, bool expired = false)

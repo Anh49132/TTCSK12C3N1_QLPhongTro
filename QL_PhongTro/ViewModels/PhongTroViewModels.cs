@@ -68,6 +68,7 @@ public class TaoPhongViewModel
     public TrangThaiPhong? TrangThai { get; set; }
 
     public IReadOnlyList<SelectListItem> ToaNhaOptions { get; set; } = [];
+    public IReadOnlyList<AnhPhongQuanLyViewModel> Anh { get; set; } = [];
 }
 
 public class TaoPhongHangLoatViewModel
