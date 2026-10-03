@@ -253,6 +253,27 @@ public class LichHenDuyetThueNgayTests : IDisposable
     }
 
     [Fact]
+    public async Task Duyet_LoiGiuaChung_KhongLamYeuCauVaPhongLechTrangThai()
+    {
+        // Cả hai UPDATE đã chạy thành công khi bản ghi lịch sử hỏng. Nếu không gộp chung
+        // transaction, yêu cầu sẽ thành Đã duyệt và phòng thành Đã đặt cọc dù bản ghi lịch
+        // sử — thứ hai mà người dùng và S2-09 cần — không tồn tại.
+        Insert("""
+            CREATE TRIGGER chan_ban_ghi_lich_su BEFORE INSERT ON yeu_cau_thue_lich_su
+            BEGIN SELECT RAISE(ABORT, 'lich su hong'); END;
+            """);
+        var id = TaoYeuCau();
+
+        await Assert.ThrowsAnyAsync<Exception>(() => _service.DuyetThueNgayAsync(id, _chuNhaId, default));
+
+        Assert.Equal(LichHenTrangThai.Moi, Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", id)));
+        Assert.Equal("0", Scalar("SELECT phien_ban FROM yeu_cau_thue WHERE id=$id", ("$id", id)));
+        Assert.Equal(LichHenTrangThai.PhongTrong, TrangThaiPhong());
+        Assert.Equal("0", Scalar("SELECT phien_ban FROM phong_tro WHERE id=$id", ("$id", _phongId)));
+        Assert.Equal("0", Scalar("SELECT COUNT(*) FROM yeu_cau_thue_lich_su WHERE yeu_cau_thue_id=$id", ("$id", id)));
+    }
+
+    [Fact]
     public async Task Duyet_KhongPhaiChuNhaPhong_ThenTuChoi()
     {
         // KHACH_THUE và cả chủ nhà khác đều phải bị chặn.
