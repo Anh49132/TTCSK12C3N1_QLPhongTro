@@ -35,6 +35,14 @@ public sealed record LichHenYeuCau
     /// <summary>True once the request has been rescheduled at least once.</summary>
     public bool DaDoiLich { get; init; }
 
+    /// <summary>
+    /// Current room status and version, read through tin_dang. Approving an instant-rental
+    /// request moves the room to DA_DAT_COC, so both values are needed to guard the update.
+    /// </summary>
+    public string TrangThaiPhong { get; init; } = string.Empty;
+
+    public int PhienBanPhong { get; init; }
+
     public int? NguoiXuLyId { get; init; }
     public DateTime? NgayXuLy { get; init; }
     public int PhienBan { get; init; }
@@ -76,7 +84,8 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
                 WHERE h.yeu_cau_thue_id = r.id AND h.hanh_dong = $hanhDongDoiLich AND h.lich_hen_cu IS NOT NULL
                 ORDER BY h.id DESC LIMIT 1) AS lich_hen_cu,
                EXISTS (SELECT 1 FROM yeu_cau_thue_lich_su h
-                       WHERE h.yeu_cau_thue_id = r.id AND h.hanh_dong = $hanhDongDoiLich) AS da_doi_lich
+                       WHERE h.yeu_cau_thue_id = r.id AND h.hanh_dong = $hanhDongDoiLich) AS da_doi_lich,
+               p.trang_thai AS trang_thai_phong, p.phien_ban AS phien_ban_phong
         FROM yeu_cau_thue r
         JOIN tin_dang d ON d.id = r.tin_dang_id
         JOIN phong_tro p ON p.id = d.phong_id
@@ -136,7 +145,9 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
             SoDienThoaiKhach = reader.IsDBNull(22) ? null : reader.GetString(22),
             GhiChuTuChoi = reader.IsDBNull(23) ? null : reader.GetString(23),
             LichHenCu = DocUtc(reader.IsDBNull(24) ? null : reader.GetString(24)),
-            DaDoiLich = !reader.IsDBNull(25) && reader.GetInt64(25) != 0
+            DaDoiLich = !reader.IsDBNull(25) && reader.GetInt64(25) != 0,
+            TrangThaiPhong = reader.GetString(26),
+            PhienBanPhong = reader.GetInt32(27)
         };
     }
 
@@ -300,6 +311,63 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
         await GhiThongBaoAsync(tx, yeuCau, LoaiThongBaoYeuCau.YeuCauDoiLich,
             "Lịch hẹn đã được đổi",
             $"Lịch hẹn cũ {HienThoiGio(lichHenCu)} của yêu cầu {yeuCau.MaYeuCau} đã đổi sang {HienThoiGio(lichHenMoiUtc)}.",
+            now, ct);
+        tx.Commit();
+    }
+
+    /// <summary>
+    /// Approves an instant-rental request and moves the room to Đã đặt cọc. Only a THUE_NGAY
+    /// request can be approved this way: a viewing request still needs an appointment or a
+    /// rejection. Request and room move inside one transaction, so a failure between them rolls
+    /// back instead of leaving a request approved for a room that is still free.
+    /// </summary>
+    public async Task DuyetThueNgayAsync(int yeuCauId, int accountId, CancellationToken ct)
+    {
+        var yeuCau = await LoadAsync(yeuCauId, ct) ?? throw new KeyNotFoundException("Yêu cầu không tồn tại.");
+        if (yeuCau.ChuNhaId != accountId)
+            throw new UnauthorizedAccessException("Chỉ chủ nhà của phòng này mới duyệt được yêu cầu.");
+        if (yeuCau.LoaiYeuCau != LichHenTrangThai.LoaiThueNgay)
+            throw new InvalidOperationException("Chỉ yêu cầu loại Thuê ngay mới duyệt theo cách này.");
+        if (yeuCau.TrangThai is not (LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich))
+            throw new InvalidOperationException("Yêu cầu này không còn ở trạng thái cho phép duyệt.");
+        if (yeuCau.TrangThaiPhong != LichHenTrangThai.PhongTrong)
+            throw new InvalidOperationException("Phòng đã không còn trống nên không thể duyệt đặt cọc.");
+        var now = UtcHienTai();
+
+        await db.Database.OpenConnectionAsync();
+        using var tx = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+        using (var update = tx.Connection!.CreateCommand())
+        {
+            update.Transaction = tx;
+            update.CommandText = """
+                UPDATE yeu_cau_thue
+                SET trang_thai = $trangThai, nguoi_xu_ly_id = $nguoiXuLy, ngay_xu_ly = $now,
+                    phien_ban = phien_ban + 1
+                WHERE id = $id AND phien_ban = $phienBan AND trang_thai = $trangThaiCu;
+                UPDATE phong_tro
+                SET trang_thai = $phongTrangThai, phien_ban = phien_ban + 1
+                WHERE id = $phongId AND phien_ban = $phienBanPhong AND trang_thai = $phongTrong;
+                """;
+            update.Parameters.AddWithValue("$trangThai", LichHenTrangThai.DaDuyet);
+            update.Parameters.AddWithValue("$nguoiXuLy", accountId);
+            update.Parameters.AddWithValue("$now", SqlUtc(now));
+            update.Parameters.AddWithValue("$id", yeuCauId);
+            update.Parameters.AddWithValue("$phienBan", yeuCau.PhienBan);
+            update.Parameters.AddWithValue("$trangThaiCu", yeuCau.TrangThai);
+            update.Parameters.AddWithValue("$phongTrangThai", LichHenTrangThai.PhongDaDatCoc);
+            update.Parameters.AddWithValue("$phongId", yeuCau.PhongId);
+            update.Parameters.AddWithValue("$phienBanPhong", yeuCau.PhienBanPhong);
+            update.Parameters.AddWithValue("$phongTrong", LichHenTrangThai.PhongTrong);
+            if (await update.ExecuteNonQueryAsync(ct) != 2)
+                throw new LichHenConflictException("Yêu cầu hoặc phòng vừa được cập nhật bởi người khác. Vui lòng tải lại trang.");
+        }
+
+        var (ten, vaiTro) = await DocNguoiThucHienAsync(tx, accountId, ct);
+        await GhiLichSuAsync(tx, yeuCauId, yeuCau.TrangThai, LichHenTrangThai.DaDuyet,
+            HanhDongYeuCau.DuyetThueNgay, accountId, ten, vaiTro, yeuCau.LichHen, yeuCau.LichHen, null, null, now, ct);
+        await GhiThongBaoAsync(tx, yeuCau, LoaiThongBaoYeuCau.YeuCauDuyet,
+            "Yêu cầu thuê ngay đã được duyệt",
+            $"Yêu cầu {yeuCau.MaYeuCau} đã được duyệt. Phòng {yeuCau.MaPhong} chuyển sang Đã đặt cọc.",
             now, ct);
         tx.Commit();
     }

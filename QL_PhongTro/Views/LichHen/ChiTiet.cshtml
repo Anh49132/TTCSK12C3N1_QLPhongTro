@@ -77,6 +77,15 @@
 </p>
 }
 
+@if (Model.HienThiNutDuyetThueNgay) {
+<form method="post" class="row g-3 mb-4" asp-action="DuyetThueNgay" asp-route-id="@yeuCau.Id">
+    <div class="col-md-4 d-flex align-items-center gap-2">
+        <button class="btn btn-success" type="submit">Duyệt thuê ngay</button>
+        <span class="text-muted">Phòng sẽ chuyển sang trạng thái Đã đặt cọc.</span>
+    </div>
+</form>
+}
+
 @if (Model.HienThiFormTuChoi) {
 <h2>Từ chối yêu cầu</h2>
 <form method="post" class="row g-3 mb-4" asp-action="TuChoi" asp-route-id="@yeuCau.Id">

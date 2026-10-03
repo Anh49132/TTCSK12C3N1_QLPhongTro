@@ -28,6 +28,12 @@ public sealed class LichHenChiTietViewModel
     /// </summary>
     public bool HienThiFormDoiLich { get; init; }
 
+    /// <summary>
+    /// Only an instant-rental request can be approved this way; a viewing request still needs
+    /// an appointment or a rejection. The room moves to Đã đặt cọc on approval.
+    /// </summary>
+    public bool HienThiNutDuyetThueNgay { get; init; }
+
     /// <summary>Wall-clock time the landlord typed, kept in Vietnam time for the input control.</summary>
     [DataType(DataType.DateTime)]
     public DateTime? LichHenNhap { get; set; }
