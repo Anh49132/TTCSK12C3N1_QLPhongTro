@@ -1,3 +1,5 @@
+using QL_PhongTro.Models;
+
 namespace QL_PhongTro.ViewModels;
 
 public sealed record YeuCauThueItemViewModel(
@@ -8,4 +10,7 @@ public sealed record YeuCauThueItemViewModel(
     string TrangThai,
     string TrangThaiHienThi,
     DateTime? LichHen,
-    string? LyDoTuChoi);
+    string? LyDoTuChoi)
+{
+    public bool ChoPhepHuy => TrangThai is LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich;
+}

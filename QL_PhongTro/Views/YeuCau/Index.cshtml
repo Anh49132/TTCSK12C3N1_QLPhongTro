@@ -19,25 +19,49 @@
     else
     {
         <div class="table-responsive"><table class="table table-hover align-middle">
-            <thead class="table-light"><tr><th>Mã yêu cầu</th><th>Phòng</th><th>Ngày gửi</th><th>Trạng thái</th><th>Lịch hẹn</th><th>Lý do từ chối</th></tr></thead>
+            <thead class="table-light"><tr><th>Mã yêu cầu</th><th>Phòng</th><th>Ngày gửi</th><th>Trạng thái</th><th>Lịch hẹn</th><th>Lý do từ chối</th><th>Thao tác</th></tr></thead>
             <tbody>
             @foreach (var item in Model.YeuCausCuaKhach)
             {
-                <tr>
+                <tr data-request-status="@item.TrangThai">
                     <th scope="row">@item.MaYeuCau</th>
                     <td>@item.MaPhong</td>
                     <td>@LichHenService.HienThoiGio(item.NgayTao)</td>
                     <td>@item.TrangThaiHienThi</td>
                     <td>@(item.LichHen is { } appointment ? LichHenService.HienThoiGio(appointment) : "Chưa có lịch hẹn")</td>
                     <td>@(item.LyDoTuChoi ?? "—")</td>
+                    <td>
+                        @if (item.ChoPhepHuy)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-open-cancel-confirmation aria-haspopup="dialog">Huỷ</button>
+                        }
+                        else
+                        {
+                            <span>—</span>
+                        }
+                    </td>
                 </tr>
             }
             </tbody>
         </table></div>
+        <dialog id="tenant-request-cancel-confirmation" aria-labelledby="tenant-request-cancel-title">
+            <form method="dialog">
+                <h2 id="tenant-request-cancel-title" class="h5">Xác nhận huỷ yêu cầu</h2>
+                <p>Bạn có chắc chắn muốn huỷ yêu cầu này không?</p>
+                <div class="d-flex flex-wrap justify-content-end gap-2">
+                    <button value="cancel" class="btn btn-outline-secondary" autofocus>Quay lại</button>
+                    <button value="confirm" class="btn btn-danger">Huỷ yêu cầu</button>
+                </div>
+            </form>
+        </dialog>
     }
 }
 else
 {
     @if (Model.YeuCaus.Count == 0) { <div class="border-top border-bottom py-4"><h2 class="h5">Không có yêu cầu phù hợp</h2><p class="text-secondary mb-0">Thử bỏ một hoặc cả hai bộ lọc.</p></div> }
     else { <div class="table-responsive"><table class="table table-hover align-middle"><thead class="table-light"><tr><th>Mã yêu cầu</th><th>Khách</th><th>Số điện thoại</th><th>Phòng</th><th>Loại yêu cầu</th><th>Ngày mong muốn</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr></thead><tbody>@foreach (var item in Model.YeuCaus) { <tr class="@(item.QuaHanChuaXuLy ? "table-warning" : null)"><th>@item.MaYeuCau</th><td>@item.TenKhach</td><td>@item.SoDienThoai</td><td>@item.MaPhong</td><td>@TrangThaiYeuCau.LoaiLabel(item.LoaiYeuCau)</td><td>@(item.NgayMongMuon?.ToString("dd/MM/yyyy") ?? "—")</td><td>@TrangThaiYeuCau.Labels.GetValueOrDefault(item.TrangThai, item.TrangThai) @if (item.QuaHanChuaXuLy) { <span class="badge text-bg-warning d-block mt-1">Quá 24 giờ, chưa xử lý</span> }</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-controller="LichHen" asp-action="ChiTiet" asp-route-id="@item.Id">Chi tiết</a></td></tr> }</tbody></table></div> }
+}
+
+@section Scripts {
+    <script src="~/js/tenant-request-cancel-confirmation.js" asp-append-version="true"></script>
 }
