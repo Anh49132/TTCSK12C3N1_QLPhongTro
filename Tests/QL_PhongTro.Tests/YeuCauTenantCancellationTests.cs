@@ -33,6 +33,20 @@ public sealed partial class PermissionTests
         Assert.Contains("Đã huỷ", row);
         Assert.DoesNotContain("data-open-cancel-confirmation", row);
         Assert.Contains("Đã huỷ yêu cầu.", updatedList);
+
+        var logout = await tenant.PostAsync("/Account/Logout", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = AntiForgery(updatedList)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, logout.StatusCode);
+        using var reauthenticatedTenant = await Login("KHACH_THUE");
+        var afterLogin = WebUtility.HtmlDecode(await reauthenticatedTenant.GetStringAsync("/YeuCau"));
+        Assert.Equal("DA_HUY", Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", requestId))?.ToString());
+        var rowAfterLogin = Regex.Match(afterLogin, "(?s)<tr data-request-status=\"DA_HUY\">.*?</tr>").Value;
+        Assert.Contains("YC-TENANT-CANCEL", rowAfterLogin);
+        Assert.Contains("Đã huỷ", rowAfterLogin);
+        Assert.DoesNotContain("data-open-cancel-confirmation", rowAfterLogin);
+        Assert.DoesNotContain("Khôi phục", rowAfterLogin);
     }
 
     [Theory]
@@ -68,6 +82,27 @@ public sealed partial class PermissionTests
         Assert.Equal("MOI", Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", requestId))?.ToString());
         Assert.Equal(0L, Scalar("SELECT COUNT(*) FROM yeu_cau_thue_lich_su WHERE yeu_cau_thue_id=$id", ("$id", requestId)));
         Assert.Contains("Không thể huỷ yêu cầu này.", WebUtility.HtmlDecode(await tenant.GetStringAsync("/YeuCau")));
+    }
+
+    [Fact]
+    public async Task TenantCannotRestoreCancelledRequestDirectly_AndListHasNoRestoreAction()
+    {
+        var requestId = CreateTenantCancellationRequest(accounts["KHACH_THUE"], "DA_HUY", "YC-TENANT-NO-RESTORE");
+        using var tenant = await Login("KHACH_THUE");
+        var list = WebUtility.HtmlDecode(await tenant.GetStringAsync("/YeuCau"));
+        var row = Regex.Match(list, "(?s)<tr data-request-status=\"DA_HUY\">.*?</tr>").Value;
+        Assert.Contains("YC-TENANT-NO-RESTORE", row);
+        Assert.Contains("Đã huỷ", row);
+        Assert.DoesNotContain("data-open-cancel-confirmation", row);
+        Assert.DoesNotContain("Khôi phục", row);
+
+        var restoreAttempt = await tenant.PostAsync($"/YeuCau/KhoiPhuc/{requestId}", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = AntiForgery(list)
+        }));
+
+        Assert.Equal(HttpStatusCode.NotFound, restoreAttempt.StatusCode);
+        Assert.Equal("DA_HUY", Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", requestId))?.ToString());
     }
 
     [Fact]
