@@ -136,12 +136,12 @@
             </div>
             <div class="text-muted">
                 @if (!string.IsNullOrWhiteSpace(muc.TenNguoiThucHien)) {
-                    <text>@muc.TenNguoiThucHien</text>
+                    @muc.TenNguoiThucHien
                     @if (muc.VaiTro == LichHenTrangThai.VaiTroChuNha) { <text> (chủ nhà)</text> }
                     else if (muc.VaiTro == LichHenTrangThai.VaiTroKhachThue) { <text> (khách)</text> }
                     <text> · </text>
                 }
-                <text>@LichHenService.HienThoiGio(muc.ThoiDiem)</text>
+                @LichHenService.HienThoiGio(muc.ThoiDiem)
             </div>
             @if (muc.LichHenCu is { } lichCu && muc.LichHenMoi is { } lichMoi && lichCu != lichMoi) {
                 <div class="text-muted">Lịch: @LichHenService.HienThoiGio(lichCu) → @LichHenService.HienThoiGio(lichMoi)</div>
