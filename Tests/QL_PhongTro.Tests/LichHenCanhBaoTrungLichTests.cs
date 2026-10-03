@@ -145,6 +145,36 @@ public class LichHenCanhBaoTrungLichTests : IDisposable
     }
 
     [Fact]
+    public async Task LichTrung_Cach29PhutVanTinhLaTrung()
+    {
+        // Biên trong: 29 phút vẫn nằm trong ±30 nên phải cảnh báo, chỉ 31 phút mới ra ngoài.
+        var goc = _hienTai.AddDays(2);
+        var id = TaoYeuCau(LichHenTrangThai.Moi, goc);
+        var truoc29 = TaoYeuCau(LichHenTrangThai.DaHenLich, goc.AddMinutes(-29));
+        var sau29 = TaoYeuCau(LichHenTrangThai.DaHenLich, goc.AddMinutes(29));
+
+        var ketQua = await _service.TimLichTrungAsync(_phongId, goc, id, default);
+
+        Assert.Equal(2, ketQua.Count);
+        Assert.Contains(ketQua, x => x.YeuCauId == truoc29);
+        Assert.Contains(ketQua, x => x.YeuCauId == sau29);
+    }
+
+    [Fact]
+    public async Task LichTrung_Cach31PhutKhongTinhLaTrung()
+    {
+        // Biên ngoài: 31 phút thì không cảnh báo, đã có test 30 phút ở lát trước.
+        var goc = _hienTai.AddDays(2);
+        var id = TaoYeuCau(LichHenTrangThai.Moi, goc);
+        var truoc31 = TaoYeuCau(LichHenTrangThai.DaHenLich, goc.AddMinutes(-31));
+
+        var ketQua = await _service.TimLichTrungAsync(_phongId, goc, id, default);
+
+        Assert.Empty(ketQua);
+        Assert.DoesNotContain(ketQua, x => x.YeuCauId == truoc31);
+    }
+
+    [Fact]
     public async Task LichTrung_Ngoai30PhutKhongTinh()
     {
         var goc = _hienTai.AddDays(2);
