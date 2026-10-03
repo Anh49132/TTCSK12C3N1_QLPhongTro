@@ -2,14 +2,28 @@
 // Cảnh báo chỉ thông tin; chủ nhà vẫn xác nhận được.
 (function () {
     const picker = document.querySelector('[data-role="lich-hen"]');
+    const datePicker = document.querySelector('[data-role="lich-hen-ngay"]');
+    const timePicker = document.querySelector('[data-role="lich-hen-gio"]');
     const warning = document.querySelector('[data-role="canh-bao-trung"]');
-    if (!picker || !warning) return;
+    if (!picker || !datePicker || !timePicker || !warning) return;
 
     const yeuCauId = warning.dataset.yeuCauId;
     if (!yeuCauId) return;
 
     const defaultText = warning.textContent;
     let lastChecked = null;
+
+    function syncValue() {
+        const match = timePicker.value.trim().match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+        if (!datePicker.value || !match) {
+            picker.value = '';
+            return '';
+        }
+        const time = `${match[1].padStart(2, '0')}:${match[2]}`;
+        timePicker.value = time;
+        picker.value = `${datePicker.value}T${time}`;
+        return picker.value;
+    }
 
     function render(list) {
         warning.classList.remove('text-danger');
@@ -24,7 +38,7 @@
     }
 
     async function check() {
-        const value = picker.value;
+        const value = syncValue();
         if (!value) { render([]); return; }
         if (value === lastChecked) return;
         lastChecked = value;
@@ -40,7 +54,9 @@
         }
     }
 
-    picker.addEventListener('change', check);
+    datePicker.addEventListener('change', check);
+    timePicker.addEventListener('change', check);
+    picker.form.addEventListener('submit', syncValue);
     check();
 })();
 

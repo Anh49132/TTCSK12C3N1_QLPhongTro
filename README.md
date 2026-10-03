@@ -168,6 +168,24 @@ dotnet run --project QL_PhongTro -- --check-database
 dotnet run --project QL_PhongTro --launch-profile http
 ```
 
+### Demo riêng cho xử lý lịch hẹn S2-08
+
+Chỉ tạo demo trên một file mới trong `data/`; không trỏ các lệnh sau vào database đang sử dụng. Mật khẩu được truyền bằng biến môi trường và không lưu trong mã nguồn. Seeder tạo một Chủ nhà, một Khách thuê dùng để nghiệm thu và một Khách thuê giả nội bộ cho ca trùng lịch; không tạo ADMIN.
+
+```powershell
+$env:DatabasePath = Join-Path (Get-Location) 'data/s2-08-demo/demo.sqlite'
+$env:RequestDemo__Password = '<mật-khẩu-demo-cục-bộ>'
+$env:DataProtectionKeysPath = Join-Path (Get-Location) 'data/s2-08-demo/keys'
+dotnet run --project QL_PhongTro -- --initialize-database
+dotnet run --project QL_PhongTro -- --seed-request-demo
+dotnet run --project QL_PhongTro -- --check-database
+dotnet run --project QL_PhongTro -- --urls http://127.0.0.1:5268
+```
+
+`--initialize-database` từ chối ghi đè file đã tồn tại. `--seed-request-demo` kiểm tra schema trước khi ghi, cài module yêu cầu thuê có phiên bản nếu còn thiếu, tạo backup cạnh file demo và từ chối database đã có bất kỳ tài khoản/dữ liệu nghiệp vụ nào; không dùng lệnh này trên database cá nhân. Console in tài khoản demo, đường dẫn từng yêu cầu và giờ Việt Nam của lịch dùng để thử cảnh báo ±30 phút. Nếu máy đã có database cần giữ dữ liệu, tiếp tục dùng quy trình `--check-database`/`--update-database` trên bản sao như mục trên, không chạy seeder demo.
+
+Chủ nhà quản lý đăng/gỡ tin tại `/TinDang/QuanLy`. Khách đã hủy yêu cầu `MOI` hoặc `DA_HEN_LICH` có thể quay lại đúng tin đăng và gửi yêu cầu mới; hệ thống chỉ chặn khi cùng khách vẫn còn yêu cầu `MOI`, `DA_HEN_LICH` hoặc `DA_DUYET` trên tin đó.
+
 ### Ảnh phòng: xoá, retry và đối chiếu kho
 
 Chủ nhà xoá ảnh trong form sửa phòng bằng nút **Xóa** trên từng ảnh. Hệ thống hỏi xác nhận “Xoá ảnh này? Ảnh sẽ bị xoá vĩnh viễn và không thể khôi phục.”; chọn **Huỷ** không ghi gì, chọn **Xoá** sẽ xoá bản ghi, tệp gốc, thumbnail và đánh lại `thu_tu` liên tục. Nếu ảnh đại diện bị xoá, ảnh kế tiếp tự lên làm đại diện; nếu xoá hết, trang tin dùng `room-placeholder.svg`.

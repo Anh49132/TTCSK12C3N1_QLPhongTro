@@ -481,6 +481,56 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
     };
 
     /// <summary>
+    /// Cancels an open request. The request owner and the landlord may both cancel while it is
+    /// new or has a booked appointment. The conditional update and history write share one
+    /// transaction so every visible DA_HUY state has an actor and timestamp.
+    /// </summary>
+    public async Task HuyAsync(int yeuCauId, int accountId, CancellationToken ct)
+    {
+        var yeuCau = await LoadAsync(yeuCauId, ct) ?? throw new KeyNotFoundException("Yêu cầu không tồn tại.");
+        var laChuNha = yeuCau.ChuNhaId == accountId;
+        var laKhach = yeuCau.TaiKhoanKhachId == accountId;
+        if (!laChuNha && !laKhach)
+            throw new UnauthorizedAccessException("Bạn không có quyền hủy yêu cầu này.");
+        if (yeuCau.TrangThai is not (LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich))
+            throw new InvalidOperationException("Chỉ yêu cầu mới hoặc đã hẹn lịch mới được hủy.");
+
+        var now = UtcHienTai();
+        await db.Database.OpenConnectionAsync();
+        using var tx = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+        using (var update = tx.Connection!.CreateCommand())
+        {
+            update.Transaction = tx;
+            update.CommandText = """
+                UPDATE yeu_cau_thue
+                SET trang_thai = $trangThai, nguoi_xu_ly_id = $nguoiXuLy,
+                    ngay_xu_ly = $now, phien_ban = phien_ban + 1
+                WHERE id = $id AND phien_ban = $phienBan AND trang_thai = $trangThaiCu;
+                """;
+            update.Parameters.AddWithValue("$trangThai", LichHenTrangThai.DaHuy);
+            update.Parameters.AddWithValue("$nguoiXuLy", accountId);
+            update.Parameters.AddWithValue("$now", SqlUtc(now));
+            update.Parameters.AddWithValue("$id", yeuCauId);
+            update.Parameters.AddWithValue("$phienBan", yeuCau.PhienBan);
+            update.Parameters.AddWithValue("$trangThaiCu", yeuCau.TrangThai);
+            if (await update.ExecuteNonQueryAsync(ct) != 1)
+                throw new LichHenConflictException("Yêu cầu vừa được cập nhật bởi người khác. Vui lòng tải lại trang.");
+        }
+
+        var (ten, vaiTro) = await DocNguoiThucHienAsync(tx, accountId, ct);
+        await GhiLichSuAsync(tx, yeuCauId, yeuCau.TrangThai, LichHenTrangThai.DaHuy,
+            HanhDongYeuCau.Huy, accountId, ten, vaiTro, yeuCau.LichHen, yeuCau.LichHen,
+            null, null, now, ct);
+
+        var nguoiNhan = laChuNha ? yeuCau.TaiKhoanKhachId : yeuCau.ChuNhaId;
+        var chuThe = laChuNha ? "Chủ nhà" : "Khách thuê";
+        await GhiThongBaoAsync(tx, yeuCau, LoaiThongBaoYeuCau.YeuCauDaHuy,
+            "Yêu cầu đã được hủy", $"{chuThe} đã hủy yêu cầu {yeuCau.MaYeuCau}.",
+            now, ct, nguoiNhan);
+        tx.Commit();
+    }
+
+    /// <summary>
     /// AC3: mỗi lần đổi trạng thái đều ghi lịch sử, và khách xem được lịch sử đó. Chỉ khách của
     /// yêu cầu và chủ nhà của phòng được đọc; người khác bị từ chối để không lộ yêu cầu nào tồn tại.
     /// Đây là lớp duy nhất S2-08 đọc yeu_cau_thue_lich_su.
@@ -590,9 +640,9 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
     // A profile without a linked account means the tenant cannot be reached; the
     // scheduling decision still stands, so the notification is skipped, not fatal.
     private static async Task GhiThongBaoAsync(SqliteTransaction tx, LichHenYeuCau yeuCau, string loai,
-        string tieuDe, string noiDung, DateTime ngayTao, CancellationToken ct)
+        string tieuDe, string noiDung, DateTime ngayTao, CancellationToken ct, int? nguoiNhanId = null)
     {
-        if (yeuCau.TaiKhoanKhachId is not { } nguoiNhan) return;
+        if ((nguoiNhanId ?? yeuCau.TaiKhoanKhachId) is not { } nguoiNhan) return;
         using var cmd = tx.Connection!.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandText = """

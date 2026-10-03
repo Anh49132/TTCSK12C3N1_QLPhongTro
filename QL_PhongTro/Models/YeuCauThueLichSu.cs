@@ -43,6 +43,7 @@ public static class HanhDongYeuCau
     public const string DoiLich = "DOI_LICH";
     public const string DuyetThueNgay = "DUYET_THUE_NGAY";
     public const string TuChoi = "TU_CHOI";
+    public const string Huy = "HUY_YEU_CAU";
 
     /// <summary>
     /// Dòng mở đầu của dấu vết. S2-06 tạo yêu cầu trong YeuCauThueService.Send và file đó không
@@ -58,6 +59,7 @@ public static class HanhDongYeuCau
         DoiLich => "Chủ nhà đổi lịch hẹn",
         DuyetThueNgay => "Chủ nhà duyệt thuê ngay",
         TuChoi => "Chủ nhà từ chối yêu cầu",
+        Huy => "Hủy yêu cầu",
         TaoYeuCau => "Khách gửi yêu cầu",
         _ => hanhDong
     };

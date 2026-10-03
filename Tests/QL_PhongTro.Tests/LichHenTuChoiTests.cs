@@ -205,6 +205,45 @@ public class LichHenTuChoiTests : IDisposable
     }
 
     [Fact]
+    public async Task Huy_KhachHuyYeuCauMoi_GhiLichSuVaThongBaoChuNha()
+    {
+        var id = TaoYeuCau();
+
+        await _service.HuyAsync(id, _khachAccountId, default);
+
+        Assert.Equal(LichHenTrangThai.DaHuy, Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", id)));
+        Assert.Equal(HanhDongYeuCau.Huy, Scalar("SELECT hanh_dong FROM yeu_cau_thue_lich_su WHERE yeu_cau_thue_id=$id", ("$id", id)));
+        Assert.Equal("KHACH_THUE", Scalar("SELECT vai_tro_luc_thuc_hien FROM yeu_cau_thue_lich_su WHERE yeu_cau_thue_id=$id", ("$id", id)));
+        Assert.Equal(_chuNhaId.ToString(), Scalar("SELECT nguoi_nhan_id FROM yeu_cau_thue_thong_bao WHERE yeu_cau_thue_id=$id", ("$id", id)));
+        Assert.Equal(LoaiThongBaoYeuCau.YeuCauDaHuy, Scalar("SELECT loai FROM yeu_cau_thue_thong_bao WHERE yeu_cau_thue_id=$id", ("$id", id)));
+    }
+
+    [Fact]
+    public async Task Huy_ChuNhaHuyYeuCauDaHen_GhiLichSuVaThongBaoKhach()
+    {
+        var id = TaoYeuCau(LichHenTrangThai.DaHenLich, _hienTai.AddDays(1));
+
+        await _service.HuyAsync(id, _chuNhaId, default);
+
+        Assert.Equal(LichHenTrangThai.DaHuy, Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", id)));
+        Assert.Equal("CHU_NHA", Scalar("SELECT vai_tro_luc_thuc_hien FROM yeu_cau_thue_lich_su WHERE yeu_cau_thue_id=$id", ("$id", id)));
+        Assert.Equal(_khachAccountId.ToString(), Scalar("SELECT nguoi_nhan_id FROM yeu_cau_thue_thong_bao WHERE yeu_cau_thue_id=$id", ("$id", id)));
+    }
+
+    [Fact]
+    public async Task Huy_TrangThaiDaDongHoacNguoiKhac_ThenBiTuChoi()
+    {
+        var daDuyet = TaoYeuCau(LichHenTrangThai.DaDuyet);
+        var cuaNguoiKhac = TaoYeuCau();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.HuyAsync(daDuyet, _chuNhaId, default));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _service.HuyAsync(cuaNguoiKhac, _chuNhaKhacId, default));
+
+        Assert.Equal(LichHenTrangThai.DaDuyet, Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", daDuyet)));
+        Assert.Equal(LichHenTrangThai.Moi, Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", cuaNguoiKhac)));
+    }
+
+    [Fact]
     public async Task TuChoi_LyDoKhac_PhaiCoGhiChu()
     {
         var id = TaoYeuCau();

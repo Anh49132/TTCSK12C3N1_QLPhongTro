@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using QL_PhongTro.Authorization;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
 using QL_PhongTro.Services;
@@ -12,6 +13,8 @@ namespace QL_PhongTro.Controllers;
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class TinDangController(AppDbContext db, YeuCauThueService requests, DichVuService services, DichVuPhongService roomServices) : Controller
 {
+    private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
+
     [HttpGet]
     public async Task<IActionResult> Index()
     {
@@ -35,6 +38,116 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
     {
         var model = await Detail(id, new());
         return model is null ? NotFound() : View(model);
+    }
+
+    [Authorize(Roles = "CHU_NHA"), ModuleAccess("TIN_DANG", write: true), HttpGet]
+    public async Task<IActionResult> QuanLy()
+    {
+        if (AccountId == 0) return Forbid();
+        var rooms = await (from room in db.PhongTros.AsNoTracking()
+                           join building in db.ToaNhas.AsNoTracking() on room.ToaNhaId equals building.Id
+                           where building.ChuNhaId == AccountId && building.DangHoatDong
+                           orderby building.TenToaNha, room.MaPhong
+                           select new { Room = room, BuildingName = building.TenToaNha }).ToListAsync();
+        var roomIds = rooms.Select(x => x.Room.Id).ToArray();
+        var latest = await db.TinDangs.AsNoTracking().Where(x => roomIds.Contains(x.PhongId))
+            .GroupBy(x => x.PhongId).Select(g => g.OrderByDescending(x => x.Id).First()).ToListAsync();
+        var listingByRoom = latest.ToDictionary(x => x.PhongId);
+        return View(new TinDangQuanLyViewModel
+        {
+            DanhSach = rooms.Select(x =>
+            {
+                listingByRoom.TryGetValue(x.Room.Id, out var listing);
+                return new TinDangQuanLyItemViewModel
+                {
+                    PhongId = x.Room.Id,
+                    MaPhong = x.Room.MaPhong,
+                    TenToaNha = x.BuildingName,
+                    TrangThaiPhong = x.Room.TrangThai,
+                    TinDangId = listing?.Id,
+                    TieuDe = listing?.TieuDe,
+                    TrangThaiTin = listing?.TrangThai,
+                    NgayHetHan = listing?.NgayHetHan
+                };
+            }).ToList()
+        });
+    }
+
+    [Authorize(Roles = "CHU_NHA"), ModuleAccess("TIN_DANG", write: true), HttpGet]
+    public async Task<IActionResult> Tao(int phongId)
+    {
+        var model = await TaoModelAsync(phongId);
+        return model is null ? NotFound() : View(model);
+    }
+
+    [Authorize(Roles = "CHU_NHA"), ModuleAccess("TIN_DANG", write: true), HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Tao(TaoTinDangViewModel form)
+    {
+        var source = await TaoModelAsync(form.PhongId);
+        if (source is null) return NotFound();
+        if (source.TrangThaiPhong != LichHenTrangThai.PhongTrong)
+            ModelState.AddModelError("", "Chỉ phòng đang trống mới được đăng tin cho thuê.");
+        if (await db.TinDangs.AnyAsync(x => x.PhongId == form.PhongId && x.TrangThai == "DANG_HIEN_THI"))
+            ModelState.AddModelError("", "Phòng này đã có một tin đang hiển thị.");
+        if (!ModelState.IsValid)
+            return View(source with { TieuDe = form.TieuDe, NoiDung = form.NoiDung });
+
+        var now = DateTime.UtcNow;
+        var listing = await db.TinDangs.Where(x => x.PhongId == form.PhongId && x.TrangThai != "DANG_HIEN_THI")
+            .OrderByDescending(x => x.Id).FirstOrDefaultAsync();
+        if (listing is null)
+        {
+            listing = new TinDang { PhongId = form.PhongId, NguoiDangId = AccountId, NgayTao = now };
+            db.TinDangs.Add(listing);
+        }
+        listing.NguoiDangId = AccountId;
+        listing.TieuDe = form.TieuDe.Trim();
+        listing.NoiDung = string.IsNullOrWhiteSpace(form.NoiDung) ? null : form.NoiDung.Trim();
+        listing.NgayDang = now;
+        listing.NgayHetHan = now.AddDays(30);
+        listing.TrangThai = "DANG_HIEN_THI";
+        try { await db.SaveChangesAsync(); }
+        catch (DbUpdateException)
+        {
+            ModelState.AddModelError("", "Không thể đăng tin vì phòng vừa có tin khác được hiển thị.");
+            return View(source with { TieuDe = form.TieuDe, NoiDung = form.NoiDung });
+        }
+        TempData["TinDangOk"] = "Đã đăng tin cho thuê.";
+        return RedirectToAction(nameof(QuanLy));
+    }
+
+    [Authorize(Roles = "CHU_NHA"), ModuleAccess("TIN_DANG", write: true), HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Go(int id)
+    {
+        var listing = await db.TinDangs.SingleOrDefaultAsync(post => post.Id == id
+            && db.PhongTros.Any(room => room.Id == post.PhongId
+                && db.ToaNhas.Any(building => building.Id == room.ToaNhaId && building.ChuNhaId == AccountId)));
+        if (listing is null) return NotFound();
+        if (listing.TrangThai == "DANG_HIEN_THI")
+        {
+            listing.TrangThai = "TAM_AN";
+            await db.SaveChangesAsync();
+            TempData["TinDangOk"] = "Đã gỡ tin khỏi danh sách công khai.";
+        }
+        return RedirectToAction(nameof(QuanLy));
+    }
+
+    private async Task<TaoTinDangViewModel?> TaoModelAsync(int roomId)
+    {
+        return await (from room in db.PhongTros.AsNoTracking()
+                      join building in db.ToaNhas.AsNoTracking() on room.ToaNhaId equals building.Id
+                      where room.Id == roomId && building.ChuNhaId == AccountId && building.DangHoatDong
+                      select new TaoTinDangViewModel
+                      {
+                          PhongId = room.Id,
+                          MaPhong = room.MaPhong,
+                          TenToaNha = building.TenToaNha,
+                          DienTich = room.DienTich,
+                          GiaThue = room.GiaThue,
+                          TieuDe = "Cho thuê phòng " + room.MaPhong,
+                          NoiDung = room.MoTa,
+                          TrangThaiPhong = room.TrangThai
+                      }).SingleOrDefaultAsync();
     }
 
     [Authorize(Roles = "KHACH_THUE"), HttpPost, ValidateAntiForgeryToken]

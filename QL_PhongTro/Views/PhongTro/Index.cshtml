@@ -123,6 +123,10 @@ else
                                 <td>
                                     <div class="d-flex flex-wrap gap-2">
                                         <a asp-action="Edit" asp-route-id="@room.Id" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                                        @if (User.IsInRole("CHU_NHA") && room.TrangThai == "TRONG")
+                                        {
+                                            <a asp-controller="TinDang" asp-action="Tao" asp-route-phongId="@room.Id" class="btn btn-sm btn-outline-primary">Đăng tin</a>
+                                        }
                                         <form asp-action="Delete" asp-route-id="@room.Id" method="post"
                                               data-confirm="Bạn có chắc muốn xóa phòng @room.MaPhong? Thao tác này không thể hoàn tác. Phòng có dữ liệu liên quan sẽ không được xóa.">
                                             <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>

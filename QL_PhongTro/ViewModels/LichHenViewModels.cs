@@ -42,6 +42,9 @@ public sealed class LichHenChiTietViewModel
     /// </summary>
     public bool HienThiNutLapHopDong { get; init; }
 
+    /// <summary>Chủ nhà và đúng khách của yêu cầu được hủy khi yêu cầu còn mở.</summary>
+    public bool HienThiNutHuy { get; init; }
+
     /// <summary>
     /// AC3: khách xem được lịch sử thay đổi của yêu cầu. LichSuService đã chặn sẵn mọi người
     /// không phải chủ nhà phòng hay khách của yêu cầu đó.

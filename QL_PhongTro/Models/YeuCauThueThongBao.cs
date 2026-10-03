@@ -35,4 +35,5 @@ public static class LoaiThongBaoYeuCau
     public const string YeuCauDoiLich = "YEU_CAU_DOI_LICH";
     public const string YeuCauDuyet = "YEU_CAU_DUYET";
     public const string YeuCauTuChoi = "YEU_CAU_TU_CHOI";
+    public const string YeuCauDaHuy = "YEU_CAU_DA_HUY";
 }

@@ -4,13 +4,20 @@ namespace QL_PhongTro.Data;
 
 public static class RequestDemoSeeder
 {
-    public const string AdminEmail = "admin.demo@demo.local";
     public const string OwnerEmail = "owner.demo@demo.local";
     public const string TenantEmail = "tenant.demo@demo.local";
-    public const string Password = "Demo12345";
 
-    public static void Seed(string databasePath)
+    public static void Seed(string databasePath, string? password)
     {
+        if (string.IsNullOrWhiteSpace(password)
+            || password.Length < 8
+            || !password.Any(char.IsLetter)
+            || !password.Any(char.IsDigit))
+        {
+            throw new InvalidOperationException(
+                "Set RequestDemo:Password to at least 8 characters containing a letter and a digit.");
+        }
+
         DatabaseUpdates.Check(databasePath);
         RentalRequestSchema.Initialize(databasePath);
 
@@ -21,6 +28,23 @@ public static class RequestDemoSeeder
             ForeignKeys = true
         }.ToString());
         connection.Open();
+
+        using (var dataCheck = connection.CreateCommand())
+        {
+            dataCheck.CommandText = """
+                SELECT (SELECT COUNT(*) FROM tai_khoan)
+                     + (SELECT COUNT(*) FROM khach_thue)
+                     + (SELECT COUNT(*) FROM toa_nha)
+                     + (SELECT COUNT(*) FROM phong_tro)
+                     + (SELECT COUNT(*) FROM tin_dang)
+                     + (SELECT COUNT(*) FROM yeu_cau_thue);
+                """;
+            if (Convert.ToInt32(dataCheck.ExecuteScalar()) != 0)
+            {
+                throw new InvalidOperationException(
+                    "Request demo seeding requires a newly initialized database with no business data.");
+            }
+        }
 
         var backupPath = databasePath + ".before-request-demo-" + Guid.NewGuid().ToString("N") + ".bak";
         using (var backup = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = backupPath }.ToString()))
@@ -35,34 +59,22 @@ public static class RequestDemoSeeder
         command.CommandText = "PRAGMA foreign_keys=ON";
         command.ExecuteNonQuery();
 
-        Execute(connection, tx, """
-            DELETE FROM yeu_cau_thue
-            WHERE ma_yeu_cau LIKE 'DEMO-YC-%';
-            DELETE FROM tin_dang
-            WHERE tieu_de LIKE 'Demo yêu cầu thuê - %';
-            DELETE FROM phong_tro
-            WHERE ma_phong IN ('A101-DEMO','B202-DEMO');
-            DELETE FROM toa_nha
-            WHERE ten_toa_nha IN ('Demo Tòa Alpha','Demo Tòa Beta');
-            DELETE FROM khach_thue
-            WHERE tai_khoan_id IN (SELECT id FROM tai_khoan WHERE email IN ($adminEmail,$ownerEmail,$tenantEmail));
-            DELETE FROM tai_khoan
-            WHERE email IN ($adminEmail,$ownerEmail,$tenantEmail);
-            """,
-            ("$adminEmail", AdminEmail),
-            ("$ownerEmail", OwnerEmail),
-            ("$tenantEmail", TenantEmail));
-
-        var now = DateTime.UtcNow;
-        var passwordHash = BCrypt.Net.BCrypt.HashPassword(Password);
-        var adminId = InsertAccount(connection, tx, "Admin Demo", AdminEmail, "0900000100", "ADMIN", passwordHash, now);
+        var utcNow = DateTime.UtcNow;
+        var now = new DateTime(utcNow.Year, utcNow.Month, utcNow.Day, utcNow.Hour, utcNow.Minute, 0, DateTimeKind.Utc);
+        var passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
         var ownerId = InsertAccount(connection, tx, "Chủ nhà Demo", OwnerEmail, "0900000101", "CHU_NHA", passwordHash, now);
         var tenantAccountId = InsertAccount(connection, tx, "Khách Demo", TenantEmail, "0900000102", "KHACH_THUE", passwordHash, now);
+        var conflictTenantAccountId = InsertAccount(connection, tx, "Khách Xung đột Demo", "conflict.demo@demo.local", "0900000103", "KHACH_THUE", passwordHash, now);
         var tenantId = Scalar(connection, tx, """
             INSERT INTO khach_thue(tai_khoan_id,ho_ten,so_dien_thoai,ngay_tao)
             VALUES ($account,'Khách Demo Nguyễn','0912345678',$now)
             RETURNING id;
             """, ("$account", tenantAccountId), ("$now", now));
+        var conflictTenantId = Scalar(connection, tx, """
+            INSERT INTO khach_thue(tai_khoan_id,ho_ten,so_dien_thoai,ngay_tao)
+            VALUES ($account,'Khách Xung đột Demo','0912345679',$now)
+            RETURNING id;
+            """, ("$account", conflictTenantAccountId), ("$now", now));
 
         var alphaId = Scalar(connection, tx, """
             INSERT INTO toa_nha(chu_nha_id,ten_toa_nha,dia_chi,phuong_xa,quan_huyen,tinh_thanh,so_tang,dang_hoat_dong)
@@ -76,23 +88,27 @@ public static class RequestDemoSeeder
             """, ("$owner", ownerId));
 
         var roomAlpha = InsertRoom(connection, tx, alphaId, "A101-DEMO", 1, now);
+        var roomAlphaViewing = InsertRoom(connection, tx, alphaId, "A102-DEMO", 1, now);
         var roomBeta = InsertRoom(connection, tx, betaId, "B202-DEMO", 2, now);
         var listingAlpha = InsertListing(connection, tx, roomAlpha, ownerId, "Demo yêu cầu thuê - Phòng Alpha", now);
+        var listingAlphaViewing = InsertListing(connection, tx, roomAlphaViewing, ownerId, "Demo lịch xem - Phòng Alpha A102", now);
         var listingBeta = InsertListing(connection, tx, roomBeta, ownerId, "Demo yêu cầu thuê - Phòng Beta", now);
 
-        InsertRequest(connection, tx, "DEMO-YC-001", listingAlpha, tenantId, "THUE_NGAY", "MOI", now.AddHours(-1), now.AddDays(1), null, null);
-        InsertRequest(connection, tx, "DEMO-YC-002", listingAlpha, tenantId, "XEM_PHONG", "MOI", now.AddHours(-26), now.AddDays(2), null, null);
-        InsertRequest(connection, tx, "DEMO-YC-003", listingAlpha, tenantId, "XEM_PHONG", "DA_HEN_LICH", now.AddHours(-30), now.AddDays(3), ownerId, now.AddHours(-20));
-        InsertRequest(connection, tx, "DEMO-YC-004", listingBeta, tenantId, "THUE_NGAY", "DA_DUYET", now.AddHours(-2), now.AddDays(4), adminId, now.AddHours(-1));
-        InsertRequest(connection, tx, "DEMO-YC-005", listingBeta, tenantId, "XEM_PHONG", "TU_CHOI", now.AddHours(-3), now.AddDays(5), adminId, now.AddHours(-2));
-        InsertRequest(connection, tx, "DEMO-YC-006", listingBeta, tenantId, "THUE_NGAY", "DA_HUY", now.AddHours(-4), now.AddDays(6), null, null);
+        var conflictAppointment = now.AddDays(3);
+        var instantRequestId = InsertRequest(connection, tx, "DEMO-YC-001", listingAlpha, tenantId, "THUE_NGAY", "MOI", now.AddHours(-1), now.AddDays(1), null, null);
+        var confirmRequestId = InsertRequest(connection, tx, "DEMO-YC-002", listingAlphaViewing, tenantId, "XEM_PHONG", "MOI", now.AddHours(-26), now.AddDays(2), null, null);
+        var conflictRequestId = InsertRequest(connection, tx, "DEMO-YC-003", listingAlphaViewing, conflictTenantId, "XEM_PHONG", "DA_HEN_LICH", now.AddHours(-30), conflictAppointment, ownerId, now.AddHours(-20));
+        var rejectRequestId = InsertRequest(connection, tx, "DEMO-YC-004", listingBeta, tenantId, "XEM_PHONG", "MOI", now.AddHours(-2), now.AddDays(4), null, null);
 
         tx.Commit();
         Console.WriteLine("Request demo data seeded.");
         Console.WriteLine("Backup: " + backupPath);
-        Console.WriteLine("Admin: " + AdminEmail + " / " + Password);
-        Console.WriteLine("Owner: " + OwnerEmail + " / " + Password);
-        Console.WriteLine("Tenant: " + TenantEmail + " / " + Password);
+        Console.WriteLine("Owner: " + OwnerEmail + " / " + password);
+        Console.WriteLine("Tenant: " + TenantEmail + " / " + password);
+        Console.WriteLine($"Confirm and clash warning: /LichHen/ChiTiet/{confirmRequestId}");
+        Console.WriteLine($"Existing conflicting appointment: /LichHen/ChiTiet/{conflictRequestId} at {conflictAppointment.AddHours(7):dd/MM/yyyy HH:mm} Vietnam time");
+        Console.WriteLine($"Reject with required reason: /LichHen/ChiTiet/{rejectRequestId}");
+        Console.WriteLine($"Approve instant rental: /LichHen/ChiTiet/{instantRequestId}");
     }
 
     private static int InsertAccount(SqliteConnection connection, SqliteTransaction tx, string name, string email, string phone, string role, string passwordHash, DateTime now) =>
@@ -119,7 +135,7 @@ public static class RequestDemoSeeder
             RETURNING id;
             """, ("$room", roomId), ("$owner", ownerId), ("$title", title), ("$now", now), ("$expires", now.AddDays(30)));
 
-    private static void InsertRequest(
+    private static int InsertRequest(
         SqliteConnection connection,
         SqliteTransaction tx,
         string code,
@@ -132,11 +148,12 @@ public static class RequestDemoSeeder
         int? handlerId,
         DateTime? handledAt)
     {
-        Execute(connection, tx, """
+        return Scalar(connection, tx, """
             INSERT INTO yeu_cau_thue
                 (ma_yeu_cau,tin_dang_id,khach_thue_id,loai_yeu_cau,ngay_mong_muon,so_nguoi_du_kien,loi_nhan,lich_hen,trang_thai,ly_do_tu_choi,nguoi_xu_ly_id,ngay_xu_ly,ngay_tao)
             VALUES
-                ($code,$listing,$tenant,$type,$desired,2,'Dữ liệu demo kiểm thử tiêu chí danh sách yêu cầu thuê',$appointment,$status,$rejectReason,$handler,$handled,$created);
+                ($code,$listing,$tenant,$type,$desired,2,'Dữ liệu demo kiểm thử tiêu chí xử lý lịch hẹn',$appointment,$status,$rejectReason,$handler,$handled,$created)
+            RETURNING id;
             """,
             ("$code", code),
             ("$listing", listingId),

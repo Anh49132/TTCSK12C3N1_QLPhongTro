@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace QL_PhongTro.ViewModels;
 
 public sealed class TinDangDanhSachViewModel
@@ -5,6 +7,42 @@ public sealed class TinDangDanhSachViewModel
     public int Id { get; init; }
     public string TieuDe { get; init; } = string.Empty;
     public string? AnhDaiDien { get; init; }
+}
+
+public sealed class TinDangQuanLyItemViewModel
+{
+    public int PhongId { get; init; }
+    public string MaPhong { get; init; } = string.Empty;
+    public string TenToaNha { get; init; } = string.Empty;
+    public string TrangThaiPhong { get; init; } = string.Empty;
+    public int? TinDangId { get; init; }
+    public string? TieuDe { get; init; }
+    public string? TrangThaiTin { get; init; }
+    public DateTime? NgayHetHan { get; init; }
+}
+
+public sealed class TinDangQuanLyViewModel
+{
+    public IReadOnlyList<TinDangQuanLyItemViewModel> DanhSach { get; init; } = [];
+}
+
+public sealed record TaoTinDangViewModel
+{
+    [Required(ErrorMessage = "Không xác định được phòng cần đăng tin.")]
+    public int PhongId { get; set; }
+
+    public string MaPhong { get; init; } = string.Empty;
+    public string TenToaNha { get; init; } = string.Empty;
+    public decimal DienTich { get; init; }
+    public long GiaThue { get; init; }
+    public string TrangThaiPhong { get; init; } = string.Empty;
+
+    [Required(ErrorMessage = "Tiêu đề là bắt buộc.")]
+    [StringLength(200, ErrorMessage = "Tiêu đề không vượt quá 200 ký tự.")]
+    public string TieuDe { get; set; } = string.Empty;
+
+    [StringLength(4000, ErrorMessage = "Mô tả không vượt quá 4.000 ký tự.")]
+    public string? NoiDung { get; set; }
 }
 
 public sealed class AnhPhongQuanLyViewModel

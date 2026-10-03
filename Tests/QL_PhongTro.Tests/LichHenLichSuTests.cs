@@ -348,6 +348,7 @@ public class LichHenLichSuTests : IDisposable
         Assert.Equal(HanhDongYeuCau.XacNhan, model.LichSu[0].HanhDong);
         Assert.Equal(HanhDongYeuCau.TaoYeuCau, model.LichSu[^1].HanhDong);
         Assert.False(model.LaChuNha);
+        Assert.True(model.HienThiNutHuy);
     }
 
     [Fact]
@@ -363,6 +364,7 @@ public class LichHenLichSuTests : IDisposable
     [InlineData(HanhDongYeuCau.DoiLich, "Chủ nhà đổi lịch hẹn")]
     [InlineData(HanhDongYeuCau.DuyetThueNgay, "Chủ nhà duyệt thuê ngay")]
     [InlineData(HanhDongYeuCau.TuChoi, "Chủ nhà từ chối yêu cầu")]
+    [InlineData(HanhDongYeuCau.Huy, "Hủy yêu cầu")]
     [InlineData(HanhDongYeuCau.TaoYeuCau, "Khách gửi yêu cầu")]
     public void HanhDongLabel_HienThiDungTen(string hanhDong, string nhan)
     {

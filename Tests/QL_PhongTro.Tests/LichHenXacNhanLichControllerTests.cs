@@ -204,6 +204,19 @@ public class LichHenXacNhanLichControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task XacNhanLich_Luc0GioSang_ThenLuuDungUtc()
+    {
+        var id = TaoYeuCau();
+        var controller = ControllerCho(_chuNhaId);
+        var nhap = new DateTime(2026, 3, 11, 0, 0, 0, DateTimeKind.Unspecified);
+
+        await controller.XacNhanLich(id, nhap, default);
+
+        Assert.Equal(LichHenTrangThai.DaHenLich, Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", id)));
+        Assert.Equal("2026-03-10 17:00:00", Scalar("SELECT lich_hen FROM yeu_cau_thue WHERE id=$id", ("$id", id)));
+    }
+
+    [Fact]
     public async Task DoiLich_ThieuNgayGio_ThenBaoChonVaGiuNguyenLichCu()
     {
         var lichCu = _hienTai.AddDays(1);

@@ -7,6 +7,9 @@
     var ok = TempData["LichHenOk"] as string;
     var err = TempData["LichHenError"] as string;
     var yeuCau = Model.YeuCau;
+    var ngayHenNhap = Model.LichHenNhap?.ToString("yyyy-MM-dd");
+    var gioHenNhap = Model.LichHenNhap?.ToString("HH:mm");
+    var lichHenNhap = Model.LichHenNhap?.ToString("yyyy-MM-ddTHH:mm");
 }
 <p class="eyebrow">LỊCH HẸN XEM PHÒNG</p>
 <h1>@yeuCau.MaYeuCau</h1>
@@ -49,9 +52,15 @@
 @if (Model.HienThiFormXacNhan) {
 <h2>Xác nhận lịch hẹn</h2>
 <form method="post" class="row g-3 mb-4" asp-action="XacNhanLich" asp-route-id="@yeuCau.Id">
-    <div class="col-md-4">
-        <label asp-for="LichHenNhap" class="form-label">Ngày giờ hẹn (giờ Việt Nam)</label>
-        <input asp-for="LichHenNhap" type="datetime-local" class="form-control" data-role="lich-hen" />
+    <div class="col-md-3">
+        <label for="lich-hen-ngay" class="form-label">Ngày hẹn</label>
+        <input id="lich-hen-ngay" type="date" class="form-control" value="@ngayHenNhap" required data-role="lich-hen-ngay" />
+    </div>
+    <div class="col-md-2">
+        <label for="lich-hen-gio" class="form-label">Giờ hẹn (24 giờ)</label>
+        <input id="lich-hen-gio" type="text" class="form-control" value="@gioHenNhap" placeholder="00:00"
+               inputmode="numeric" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" required data-role="lich-hen-gio" />
+        <input type="hidden" name="LichHenNhap" value="@lichHenNhap" data-role="lich-hen" />
     </div>
     <div class="col-md-4 d-flex align-items-end">
         <button class="btn btn-primary" type="submit">Xác nhận lịch</button>
@@ -65,9 +74,15 @@
 @if (Model.HienThiFormDoiLich) {
 <h2>Đổi lịch hẹn</h2>
 <form method="post" class="row g-3 mb-4" asp-action="DoiLich" asp-route-id="@yeuCau.Id">
-    <div class="col-md-4">
-        <label asp-for="LichHenNhap" class="form-label">Ngày giờ hẹn mới (giờ Việt Nam)</label>
-        <input asp-for="LichHenNhap" type="datetime-local" class="form-control" data-role="lich-hen" />
+    <div class="col-md-3">
+        <label for="lich-hen-ngay" class="form-label">Ngày hẹn mới</label>
+        <input id="lich-hen-ngay" type="date" class="form-control" value="@ngayHenNhap" required data-role="lich-hen-ngay" />
+    </div>
+    <div class="col-md-2">
+        <label for="lich-hen-gio" class="form-label">Giờ hẹn mới (24 giờ)</label>
+        <input id="lich-hen-gio" type="text" class="form-control" value="@gioHenNhap" placeholder="00:00"
+               inputmode="numeric" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" required data-role="lich-hen-gio" />
+        <input type="hidden" name="LichHenNhap" value="@lichHenNhap" data-role="lich-hen" />
     </div>
     <div class="col-md-4 d-flex align-items-end">
         <button class="btn btn-primary" type="submit">Lưu lịch mới</button>
@@ -117,6 +132,17 @@
         <button class="btn btn-outline-danger" type="submit">Từ chối</button>
     </div>
 </form>
+}
+
+@if (Model.HienThiNutHuy) {
+<section class="border-top pt-4 mb-4" aria-labelledby="huy-yeu-cau-heading">
+    <h2 id="huy-yeu-cau-heading">Hủy yêu cầu</h2>
+    <p class="text-muted">Yêu cầu đã hủy không thể tiếp tục xác nhận, đổi lịch hoặc duyệt thuê.</p>
+    <form method="post" asp-action="Huy" asp-route-id="@yeuCau.Id"
+          onsubmit="return confirm('Bạn chắc chắn muốn hủy yêu cầu này?');">
+        <button class="btn btn-outline-danger" type="submit">Hủy yêu cầu</button>
+    </form>
+</section>
 }
 
 <h2>Lịch sử yêu cầu</h2>

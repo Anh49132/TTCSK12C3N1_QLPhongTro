@@ -1,5 +1,45 @@
 # Tiến độ và bàn giao dự án
 
+## Chủ nhà quản lý tin đăng và gửi lại sau khi hủy yêu cầu (04/10/2026)
+
+- Bổ sung `/TinDang/QuanLy` cho vai trò Chủ nhà: liệt kê phòng thuộc các tòa nhà do tài khoản sở hữu, cho đăng/đăng lại tin khi phòng `TRONG` và gỡ tin đang hiển thị. Gỡ tin chuyển trạng thái sang `TAM_AN`, không xóa bản ghi; mọi thao tác kiểm tra lại quyền sở hữu và quyền ghi `TIN_DANG` ở backend. Sidebar Chủ nhà dẫn vào màn quản lý; danh sách phòng có nút **Đăng tin** cho phòng trống.
+- Form đăng tin lấy sẵn phòng, tòa nhà, diện tích, giá thuê và mô tả phòng; Chủ nhà nhập/chỉnh tiêu đề, mô tả. Tin được hiển thị 30 ngày và unique index hiện có tiếp tục bảo đảm mỗi phòng chỉ có tối đa một tin `DANG_HIEN_THI`.
+- Xác nhận truy vấn nghiệp vụ đã loại `DA_HUY`; lỗi demo trước đây do cùng Khách Demo còn một yêu cầu `MOI` khác trên chính tin đó. Sửa `RequestDemoSeeder` để mỗi khách/tin chỉ có một yêu cầu mở, vẫn giữ khách phụ riêng cho ca cảnh báo trùng lịch. Tạo mới `data/s2-08-demo/demo-v2.sqlite`; file demo cũ được giữ nguyên, không ghi đè. Demo v2 có 3 tài khoản giả, 3 phòng, 3 tin, 4 yêu cầu và không có cặp khách/tin mở trùng.
+- File chính: `TinDangController`, `TinDangViewModels`, Razor `TinDang/QuanLy`, `TinDang/Tao`, sidebar, danh sách phòng, `RequestDemoSeeder`, `OwnerListingManagementTests`. Không đổi schema hoặc quy trình database.
+- Xác minh thực tế: build PASS; nhóm tin công khai + quản lý tin + lịch hẹn **150/150 PASS**; kiểm thử riêng xác nhận yêu cầu `DA_HUY` không chặn `Send`; HTTP đăng nhập thật xác nhận màn quản lý tin và toàn bộ tiêu chí lịch hẹn hiện có PASS; `git diff --check` PASS. Web demo v2 đang chạy tại `http://127.0.0.1:5268`.
+
+## Hủy yêu cầu bởi Chủ nhà và Khách thuê (04/10/2026)
+
+- Bổ sung nút **Hủy yêu cầu** trên trang chi tiết cho cả đúng Chủ nhà của phòng và đúng Khách thuê đã gửi yêu cầu. Chỉ hiện và chỉ cho phép xử lý ở trạng thái `MOI` hoặc `DA_HEN_LICH`; endpoint kiểm tra lại quyền/trạng thái ở backend và có hộp thoại xác nhận trước khi gửi.
+- Khi hủy, yêu cầu chuyển `DA_HUY` bằng cập nhật có kiểm tra phiên bản, ghi lịch sử gồm người thực hiện/vai trò/thời điểm và gửi thông báo cho bên còn lại trong cùng transaction. Chủ nhà vẫn có luồng **Từ chối** riêng với danh sách lý do bắt buộc. Không thay đổi schema hoặc quy trình database.
+- File chính: `Services/LichHenService.cs`, `Controllers/LichHenController.cs`, `Views/LichHen/ChiTiet.cshtml`, các model/view model lịch hẹn và test `LichHenTuChoiTests.cs`, `LichHenLichSuTests.cs`.
+- Xác minh thực tế: build PASS; nhóm `LichHen` **148/148 PASS**; `git diff --check` PASS. HTTP đăng nhập thật xác nhận cả Chủ nhà và Khách thuê đều thấy form **Hủy yêu cầu** trỏ đúng endpoint trên yêu cầu còn mở; không bấm hủy để giữ nguyên fixture demo. Cảnh báo NuGet/ImageSharp có sẵn, không có test lỗi. Web demo đã chạy lại tại `http://127.0.0.1:5268`.
+
+## Giờ hẹn 24 giờ và danh sách yêu cầu của Khách thuê (04/10/2026)
+
+- Thay control `datetime-local` bằng ô ngày và ô giờ 24 giờ cho màn hình xác nhận/đổi lịch; chấp nhận `0:00` hoặc `00:00`, chuẩn hóa thành `00:00` trước khi gửi. Đồng thời sửa tên trường POST của luồng đổi lịch để bind đúng `LichHenNhap`.
+- `/YeuCau` cho phép vai trò Khách thuê và chỉ truy vấn yêu cầu gắn với tài khoản khách hiện tại. Giao diện đổi thành **Yêu cầu của tôi**, ẩn bộ lọc tòa nhà và giữ nút **Chi tiết**; trang chi tiết tiếp tục chặn chỉnh sửa đối với khách.
+- Không thay đổi schema/database. Xác minh: build PASS; nhóm `LichHen` **144/144 PASS** gồm ca `00:00`; HTTP đăng nhập thật xác nhận Khách thuê mở `/YeuCau`, thấy đúng 4 liên kết chi tiết và không có control xử lý; Chủ nhà thấy ô giờ 24 giờ `00:00`, cảnh báo trùng lịch và các thao tác cũ vẫn còn. Web demo đã chạy lại tại `http://127.0.0.1:5268`.
+
+## Bổ sung lối vào chi tiết lịch hẹn từ danh sách (04/10/2026)
+
+- Danh sách **Yêu cầu của khách** đã có cột **Thao tác** và nút **Chi tiết** trên từng dòng, dẫn tới `/LichHen/ChiTiet/{id}`. View model/projection được bổ sung ID thật của `yeu_cau_thue`; trang đích tiếp tục kiểm tra quyền chủ nhà/khách ở backend.
+- Không đổi schema hoặc dữ liệu demo. Xác minh: build PASS; nhóm `LichHen` **143/143 PASS**; đăng nhập Chủ nhà qua HTTP, `/YeuCau` trả đủ bốn nút với đích `/LichHen/ChiTiet/1..4`. Web demo đã chạy lại tại `http://127.0.0.1:5268`.
+
+## Dữ liệu demo và hướng dẫn nghiệm thu S2-08 (04/10/2026)
+
+- Đã tạo database demo mới, schema v12 tại `data/s2-08-demo/demo.sqlite` (đang được Git ignore), gồm hai tài khoản giả Chủ nhà/Khách thuê, hai phòng và bốn yêu cầu tách riêng cho xác nhận/cảnh báo trùng lịch, từ chối, xem lịch sử và duyệt Thuê ngay. Không đọc, sao chép hoặc ghi database cá nhân.
+- Sửa `RequestDemoSeeder` để lấy mật khẩu từ `RequestDemo:Password`, không nhúng mật khẩu và không tạo ADMIN. Seeder chỉ chấp nhận database mới không có tài khoản/dữ liệu nghiệp vụ, kiểm tra schema trước ghi và tạo backup; console in các URL demo cùng giờ lịch xung đột. `Program.cs` truyền cấu hình này; README có quy trình máy mới và nhắc máy có DB cần giữ dữ liệu không được chạy seeder.
+- Web demo đang chạy tại `http://127.0.0.1:5268` với Data Protection keys riêng trong thư mục demo. Credential và hướng dẫn chi tiết nằm trong `data/s2-08-demo/access.txt`, không đưa vào Git.
+- Xác minh thực tế: build PASS; `--check-database` PASS; truy vấn SQLite `mode=ro` xác nhận schema v12, không lỗi FK, 2 tài khoản có BCrypt hash dài 60, 4 yêu cầu và 2 phòng đều đúng trạng thái đầu; nhóm `LichHen` **143/143 PASS**; HTTP đăng nhập thật cho cả hai vai trò và kiểm tra form/cảnh báo/4 lý do/nút duyệt/quyền xem lịch sử đều PASS. Chưa bấm các thao tác ghi trong browser để giữ fixture nguyên trạng cho người nghiệm thu.
+
+## Kiểm tra tiêu chí xử lý lịch hẹn S2-08 (03/10/2026)
+
+- Đã đối chiếu controller, service, Razor/JavaScript, migration v10 và kiểm thử hiện có. Ba tiêu chí đầu đạt: xác nhận bắt buộc ngày giờ tương lai và cảnh báo lịch cùng phòng trong khoảng ±30 phút; từ chối chỉ nhận đúng 4 lý do và `LY_DO_KHAC` bắt buộc ghi chú 5–500 ký tự; các thao tác xác nhận, đổi lịch, từ chối, duyệt thuê ngay ghi lịch sử cùng người thực hiện/thời điểm, khách của yêu cầu xem được lịch sử.
+- Tiêu chí duyệt **Thuê ngay** đạt phần cập nhật nghiệp vụ: yêu cầu chuyển `DA_DUYET`, phòng chuyển `DA_DAT_COC` trong cùng transaction và nút **Lập hợp đồng** chỉ hiện cho chủ nhà khi hai trạng thái khớp. Chưa đạt nếu hiểu nút phải mở form lập hợp đồng hoàn chỉnh: route hiện chỉ dẫn đến trang chờ S3-01, chưa tạo hợp đồng.
+- Xác minh thực tế: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --filter "FullyQualifiedName~LichHen"` **143/143 PASS**. Có cảnh báo không tải được dữ liệu lỗ hổng NuGet, ImageSharp license và CS8601 sẵn có; không có test lỗi. Database mặc định `QL_PhongTro/Data/local-dev.sqlite` không tồn tại và cấu hình không chỉ định đường dẫn khác, nên không tạo/ghi DB local và chưa kiểm thử trình duyệt thật.
+- Không thay đổi mã nguồn, schema hay quy trình database. Bước tiếp theo phù hợp là S3-01: thay trang chờ `Views/LichHen/LapHopDong.cshtml` bằng luồng lập hợp đồng thật và giữ điều kiện quyền/trạng thái hiện có.
+
 ## Merge S2-02 xoá ảnh phòng vào dev (03/10/2026)
 
 - Đã merge `feature/S2-2/owner-delete-room-photo` vào nhánh local `dev` tracking `origin/dev`. Tự xử lý conflict ở `AccountReuseSchema.cs`, `DatabaseUpdates.cs`, `README.md` và `docs/tien-do.md`.

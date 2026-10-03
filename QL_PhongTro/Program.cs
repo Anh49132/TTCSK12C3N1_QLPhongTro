@@ -85,7 +85,7 @@ if (args.Contains("--seed-request-demo"))
 {
     if (!builder.Environment.IsDevelopment())
         throw new InvalidOperationException("--seed-request-demo is available only in Development.");
-    RequestDemoSeeder.Seed(databasePath);
+    RequestDemoSeeder.Seed(databasePath, builder.Configuration["RequestDemo:Password"]);
     return;
 }
 

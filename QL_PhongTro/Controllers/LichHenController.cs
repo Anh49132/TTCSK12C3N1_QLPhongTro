@@ -59,6 +59,7 @@ public class LichHenController(LichHenService service) : Controller
             HienThiNutLapHopDong = laChuNha
                 && yeuCau.TrangThai == LichHenTrangThai.DaDuyet
                 && yeuCau.TrangThaiPhong == LichHenTrangThai.PhongDaDatCoc,
+            HienThiNutHuy = yeuCau.TrangThai is LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich,
             LichSu = lichSu
         };
         return View(view);
@@ -136,11 +137,11 @@ public class LichHenController(LichHenService service) : Controller
     /// stored slot and the current clock.
     /// </summary>
     [HttpPost("/LichHen/DoiLich"), ValidateAntiForgeryToken, ModuleAccess("YEU_CAU_THUE", write: true)]
-    public async Task<IActionResult> DoiLich(int id, DateTime? lichHen, CancellationToken ct)
+    public async Task<IActionResult> DoiLich(int id, DateTime? LichHenNhap, CancellationToken ct)
     {
         try
         {
-            if (lichHen is not { } nhap) throw new InvalidOperationException("Hãy chọn ngày giờ hẹn mới.");
+            if (LichHenNhap is not { } nhap) throw new InvalidOperationException("Hãy chọn ngày giờ hẹn mới.");
             await service.DoiLichAsync(id, AccountId, ChuyenNhapSangUtc(nhap)!.Value, ct);
             TempData["LichHenOk"] = "Đã đổi lịch hẹn.";
         }
@@ -173,6 +174,23 @@ public class LichHenController(LichHenService service) : Controller
         {
             await service.TuChoiAsync(id, AccountId, lyDo ?? "", ghiChu, ct);
             TempData["LichHenOk"] = "Đã từ chối yêu cầu.";
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (Exception ex) when (ex is InvalidOperationException or LichHenConflictException)
+        {
+            TempData["LichHenError"] = ex.Message;
+        }
+        return RedirectToAction(nameof(ChiTiet), new { id });
+    }
+
+    [HttpPost("/LichHen/Huy"), ValidateAntiForgeryToken, ModuleAccess("YEU_CAU_THUE", write: true)]
+    public async Task<IActionResult> Huy(int id, CancellationToken ct)
+    {
+        try
+        {
+            await service.HuyAsync(id, AccountId, ct);
+            TempData["LichHenOk"] = "Đã hủy yêu cầu.";
         }
         catch (KeyNotFoundException) { return NotFound(); }
         catch (UnauthorizedAccessException) { return Forbid(); }
