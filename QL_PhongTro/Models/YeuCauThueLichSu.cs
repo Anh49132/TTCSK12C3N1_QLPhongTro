@@ -41,12 +41,14 @@ public static class HanhDongYeuCau
 {
     public const string XacNhan = "XAC_NHAN";
     public const string DoiLich = "DOI_LICH";
+    public const string DuyetThueNgay = "DUYET_THUE_NGAY";
     public const string TuChoi = "TU_CHOI";
 
     public static string Label(string hanhDong) => hanhDong switch
     {
         XacNhan => "Chủ nhà xác nhận lịch hẹn",
         DoiLich => "Chủ nhà đổi lịch hẹn",
+        DuyetThueNgay => "Chủ nhà duyệt thuê ngay",
         TuChoi => "Chủ nhà từ chối yêu cầu",
         _ => hanhDong
     };

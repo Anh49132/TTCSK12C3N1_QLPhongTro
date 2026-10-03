@@ -33,5 +33,6 @@ public static class LoaiThongBaoYeuCau
 {
     public const string XacNhanLich = "XAC_NHAN_LICH";
     public const string YeuCauDoiLich = "YEU_CAU_DOI_LICH";
+    public const string YeuCauDuyet = "YEU_CAU_DUYET";
     public const string YeuCauTuChoi = "YEU_CAU_TU_CHOI";
 }

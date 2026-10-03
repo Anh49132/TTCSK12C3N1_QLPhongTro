@@ -14,6 +14,12 @@ public static class LichHenTrangThai
     public const string LoaiXemPhong = "XEM_PHONG";
     public const string LoaiThueNgay = "THUE_NGAY";
 
+    // phong_tro.trang_thai belongs to S1-03 and is already constrained by RoomSchemaInitializer.
+    // Only the two room states S2-08 writes or checks are mirrored here, so LichHenService
+    // does not have to reach into the ViewModels enum.
+    public const string PhongTrong = "TRONG";
+    public const string PhongDaDatCoc = "DA_DAT_COC";
+
     public static string Label(string trangThai) => trangThai switch
     {
         Moi => "Chờ xác nhận",

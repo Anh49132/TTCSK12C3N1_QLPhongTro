@@ -40,7 +40,10 @@ public class LichHenController(LichHenService service) : Controller
             LichHenNhap = ChuyenUtcSangNhap(yeuCau.LichHen),
             HienThiFormTuChoi = laChuNha
                 && yeuCau.TrangThai is LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich,
-            HienThiFormDoiLich = laChuNha && yeuCau.TrangThai == LichHenTrangThai.DaHenLich
+            HienThiFormDoiLich = laChuNha && yeuCau.TrangThai == LichHenTrangThai.DaHenLich,
+            HienThiNutDuyetThueNgay = laChuNha
+                && yeuCau.LoaiYeuCau == LichHenTrangThai.LoaiThueNgay
+                && yeuCau.TrangThai is LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich
         };
         return View(view);
     }
@@ -96,6 +99,21 @@ public class LichHenController(LichHenService service) : Controller
             if (lichHen is not { } nhap) throw new InvalidOperationException("Hãy chọn ngày giờ hẹn mới.");
             await service.DoiLichAsync(id, AccountId, ChuyenNhapSangUtc(nhap)!.Value, ct);
             TempData["LichHenOk"] = "Đã đổi lịch hẹn.";
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (LichHenConflictException ex) { TempData["LichHenError"] = ex.Message; }
+        catch (InvalidOperationException ex) { TempData["LichHenError"] = ex.Message; }
+        return RedirectToAction(nameof(ChiTiet), new { id });
+    }
+
+    [HttpPost("/LichHen/DuyetThueNgay"), ValidateAntiForgeryToken, ModuleAccess("YEU_CAU_THUE", write: true)]
+    public async Task<IActionResult> DuyetThueNgay(int id, CancellationToken ct)
+    {
+        try
+        {
+            await service.DuyetThueNgayAsync(id, AccountId, ct);
+            TempData["LichHenOk"] = "Đã duyệt yêu cầu thuê ngay.";
         }
         catch (KeyNotFoundException) { return NotFound(); }
         catch (UnauthorizedAccessException) { return Forbid(); }
