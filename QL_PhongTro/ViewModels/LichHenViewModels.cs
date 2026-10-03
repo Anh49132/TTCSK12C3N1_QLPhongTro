@@ -22,6 +22,12 @@ public sealed class LichHenChiTietViewModel
     /// </summary>
     public bool HienThiFormTuChoi { get; init; }
 
+    /// <summary>
+    /// Rescheduling only makes sense once a slot is booked, so the form appears for the
+    /// landlord exactly in DA_HEN_LICH, next to the reject form.
+    /// </summary>
+    public bool HienThiFormDoiLich { get; init; }
+
     /// <summary>Wall-clock time the landlord typed, kept in Vietnam time for the input control.</summary>
     [DataType(DataType.DateTime)]
     public DateTime? LichHenNhap { get; set; }

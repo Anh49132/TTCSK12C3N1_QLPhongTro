@@ -39,7 +39,8 @@ public class LichHenController(LichHenService service) : Controller
             HienThiFormXacNhan = laChuNha && yeuCau.TrangThai == LichHenTrangThai.Moi,
             LichHenNhap = ChuyenUtcSangNhap(yeuCau.LichHen),
             HienThiFormTuChoi = laChuNha
-                && yeuCau.TrangThai is LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich
+                && yeuCau.TrangThai is LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich,
+            HienThiFormDoiLich = laChuNha && yeuCau.TrangThai == LichHenTrangThai.DaHenLich
         };
         return View(view);
     }
@@ -79,6 +80,27 @@ public class LichHenController(LichHenService service) : Controller
         {
             TempData["LichHenError"] = ex.Message;
         }
+        return RedirectToAction(nameof(ChiTiet), new { id });
+    }
+
+    /// <summary>
+    /// Moves an already booked slot. The browser sends a naive datetime-local value in
+    /// Vietnam time, so it is converted to UTC before the service compares it against the
+    /// stored slot and the current clock.
+    /// </summary>
+    [HttpPost("/LichHen/DoiLich"), ValidateAntiForgeryToken, ModuleAccess("YEU_CAU_THUE", write: true)]
+    public async Task<IActionResult> DoiLich(int id, DateTime? lichHen, CancellationToken ct)
+    {
+        try
+        {
+            if (lichHen is not { } nhap) throw new InvalidOperationException("Hãy chọn ngày giờ hẹn mới.");
+            await service.DoiLichAsync(id, AccountId, ChuyenNhapSangUtc(nhap)!.Value, ct);
+            TempData["LichHenOk"] = "Đã đổi lịch hẹn.";
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (LichHenConflictException ex) { TempData["LichHenError"] = ex.Message; }
+        catch (InvalidOperationException ex) { TempData["LichHenError"] = ex.Message; }
         return RedirectToAction(nameof(ChiTiet), new { id });
     }
 
