@@ -40,10 +40,12 @@ public class YeuCauThueLichSu
 public static class HanhDongYeuCau
 {
     public const string XacNhan = "XAC_NHAN";
+    public const string TuChoi = "TU_CHOI";
 
     public static string Label(string hanhDong) => hanhDong switch
     {
         XacNhan => "Chủ nhà xác nhận lịch hẹn",
+        TuChoi => "Chủ nhà từ chối yêu cầu",
         _ => hanhDong
     };
 }

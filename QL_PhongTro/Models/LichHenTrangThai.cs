@@ -31,3 +31,16 @@ public static class LichHenTrangThai
         _ => loai
     };
 }
+
+// yeu_cau_thue.ly_do_tu_choi is a free TEXT column under S2-06, so S2-08 fixes the list of
+// reasons it accepts here and LichHenService rejects anything else before writing.
+public static class LyDoTuChoi
+{
+    public const string DaCoKhachThue = "DA_CO_KHACH_THUE";
+    public const string KhongPhuHop = "KHONG_PHU_HOP_SO_NGUOI";
+    public const string KhachKhongLienLacDuoc = "KHACH_KHONG_LIEN_LAC_DUOC";
+    public const string Khac = "LY_DO_KHAC";
+
+    public static readonly string[] All =
+        [DaCoKhachThue, KhongPhuHop, KhachKhongLienLacDuoc, Khac];
+}

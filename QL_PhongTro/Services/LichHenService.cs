@@ -22,6 +22,10 @@ public sealed record LichHenYeuCau
     public DateTime NgayTao { get; init; }
     public DateTime? LichHen { get; init; }
     public string? LyDoTuChoi { get; init; }
+
+    /// <summary>Free text the landlord left when rejecting, read back from the newest history row.</summary>
+    public string? GhiChuTuChoi { get; init; }
+
     public int? NguoiXuLyId { get; init; }
     public DateTime? NgayXuLy { get; init; }
     public int PhienBan { get; init; }
@@ -47,12 +51,18 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
     /// <summary>Two appointments of the same room closer than this are reported as a clash.</summary>
     public static readonly TimeSpan KhoangTrungLich = TimeSpan.FromMinutes(30);
 
+    public const int GhiChuToiDa = 500;
+    public const int GhiChuToiThieuLyDoKhac = 5;
+
     private const string DocSql = """
         SELECT r.id, r.ma_yeu_cau, r.loai_yeu_cau, r.trang_thai, r.ngay_tao, r.lich_hen,
                r.ly_do_tu_choi, r.nguoi_xu_ly_id, r.ngay_xu_ly, r.phien_ban,
                r.ngay_mong_muon, r.so_nguoi_du_kien, r.loi_nhan,
                p.id, p.ma_phong, b.ten_toa_nha, b.dia_chi, b.chu_nha_id, c.ho_ten AS ten_chu_nha,
-               k.id AS khach_thue_id, k.tai_khoan_id, k.ho_ten AS ten_khach, t.so_dien_thoai
+               k.id AS khach_thue_id, k.tai_khoan_id, k.ho_ten AS ten_khach, t.so_dien_thoai,
+               (SELECT h.ghi_chu_tu_choi FROM yeu_cau_thue_lich_su h
+                WHERE h.yeu_cau_thue_id = r.id AND h.ghi_chu_tu_choi IS NOT NULL
+                ORDER BY h.id DESC LIMIT 1) AS ghi_chu_tu_choi
         FROM yeu_cau_thue r
         JOIN tin_dang d ON d.id = r.tin_dang_id
         JOIN phong_tro p ON p.id = d.phong_id
@@ -108,7 +118,8 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
             KhachThueId = reader.GetInt32(19),
             TaiKhoanKhachId = reader.IsDBNull(20) ? null : reader.GetInt32(20),
             TenKhach = reader.IsDBNull(21) ? string.Empty : reader.GetString(21),
-            SoDienThoaiKhach = reader.IsDBNull(22) ? null : reader.GetString(22)
+            SoDienThoaiKhach = reader.IsDBNull(22) ? null : reader.GetString(22),
+            GhiChuTuChoi = reader.IsDBNull(23) ? null : reader.GetString(23)
         };
     }
 
@@ -224,6 +235,76 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
             now, ct);
         tx.Commit();
     }
+
+    /// <summary>
+    /// Rejects a request with a reason and an optional note. yeu_cau_thue has no note column
+    /// and S2-06 owns that table, so the note lives in yeu_cau_thue_lich_su and is read back
+    /// from there for the detail page. A landlord may still walk away from a slot they already
+    /// confirmed, so DA_HEN_LICH is accepted alongside MOI.
+    /// </summary>
+    public async Task TuChoiAsync(int yeuCauId, int accountId, string lyDo, string? ghiChu, CancellationToken ct)
+    {
+        var note = ghiChu?.Trim() ?? string.Empty;
+        ValidateLyDoTuChoi(lyDo, note);
+
+        var yeuCau = await LoadAsync(yeuCauId, ct) ?? throw new KeyNotFoundException("Yêu cầu không tồn tại.");
+        if (yeuCau.ChuNhaId != accountId)
+            throw new UnauthorizedAccessException("Chỉ chủ nhà của phòng này mới từ chối được yêu cầu.");
+        if (yeuCau.TrangThai is not (LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich))
+            throw new InvalidOperationException("Yêu cầu này không còn ở trạng thái cho phép từ chối.");
+        var now = UtcHienTai();
+
+        await db.Database.OpenConnectionAsync();
+        using var tx = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+        using (var update = tx.Connection!.CreateCommand())
+        {
+            update.Transaction = tx;
+            update.CommandText = """
+                UPDATE yeu_cau_thue
+                SET trang_thai = $trangThai, ly_do_tu_choi = $lyDo, nguoi_xu_ly_id = $nguoiXuLy,
+                    ngay_xu_ly = $now, phien_ban = phien_ban + 1
+                WHERE id = $id AND phien_ban = $phienBan AND trang_thai = $trangThaiCu;
+                """;
+            update.Parameters.AddWithValue("$trangThai", LichHenTrangThai.TuChoi);
+            update.Parameters.AddWithValue("$lyDo", lyDo);
+            update.Parameters.AddWithValue("$nguoiXuLy", accountId);
+            update.Parameters.AddWithValue("$now", SqlUtc(now));
+            update.Parameters.AddWithValue("$id", yeuCauId);
+            update.Parameters.AddWithValue("$phienBan", yeuCau.PhienBan);
+            update.Parameters.AddWithValue("$trangThaiCu", yeuCau.TrangThai);
+            if (await update.ExecuteNonQueryAsync(ct) != 1)
+                throw new LichHenConflictException("Yêu cầu vừa được cập nhật bởi người khác. Vui lòng tải lại trang.");
+        }
+
+        var (ten, vaiTro) = await DocNguoiThucHienAsync(tx, accountId, ct);
+        await GhiLichSuAsync(tx, yeuCauId, yeuCau.TrangThai, LichHenTrangThai.TuChoi,
+            HanhDongYeuCau.TuChoi, accountId, ten, vaiTro, yeuCau.LichHen, yeuCau.LichHen,
+            lyDo, note.Length == 0 ? null : note, now, ct);
+        await GhiThongBaoAsync(tx, yeuCau, LoaiThongBaoYeuCau.YeuCauTuChoi,
+            "Yêu cầu đã bị từ chối",
+            $"Yêu cầu {yeuCau.MaYeuCau} đã bị từ chối. Lý do: {LyDoLabel(lyDo)}.",
+            now, ct);
+        tx.Commit();
+    }
+
+    private static void ValidateLyDoTuChoi(string lyDo, string note)
+    {
+        if (!LyDoTuChoi.All.Contains(lyDo))
+            throw new InvalidOperationException("Lý do từ chối không hợp lệ.");
+        if (lyDo == LyDoTuChoi.Khac && note.Length < GhiChuToiThieuLyDoKhac)
+            throw new InvalidOperationException("Chọn lý do khác thì phải nhập ghi chú ít nhất 5 ký tự.");
+        if (note.Length > GhiChuToiDa)
+            throw new InvalidOperationException($"Ghi chú không được dài quá {GhiChuToiDa} ký tự.");
+    }
+
+    public static string LyDoLabel(string lyDo) => lyDo switch
+    {
+        LyDoTuChoi.DaCoKhachThue => "Phòng đã có khách thuê",
+        LyDoTuChoi.KhongPhuHop => "Không phù hợp số người",
+        LyDoTuChoi.KhachKhongLienLacDuoc => "Khách không liên lạc được",
+        LyDoTuChoi.Khac => "Lý do khác",
+        _ => lyDo
+    };
 
     private static async Task<(string? Ten, string? VaiTro)> DocNguoiThucHienAsync(SqliteTransaction tx, int accountId, CancellationToken ct)
     {
