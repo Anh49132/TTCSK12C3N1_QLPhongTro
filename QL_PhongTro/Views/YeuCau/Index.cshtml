@@ -33,7 +33,9 @@
                     <td>
                         @if (item.ChoPhepHuy)
                         {
-                            <button type="button" class="btn btn-sm btn-outline-danger" data-open-cancel-confirmation aria-haspopup="dialog">Huỷ</button>
+                            <form method="post" asp-action="Huy" asp-route-id="@item.Id" data-cancel-request>
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-open-cancel-confirmation aria-haspopup="dialog">Huỷ</button>
+                            </form>
                         }
                         else
                         {

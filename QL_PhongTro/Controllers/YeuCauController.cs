@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization; using Microsoft.AspNetCore.Mvc; using Microsoft.AspNetCore.Mvc.Rendering; using Microsoft.EntityFrameworkCore; using QL_PhongTro.Authorization; using QL_PhongTro.Data; using QL_PhongTro.Models; using QL_PhongTro.Services; using QL_PhongTro.ViewModels;
 namespace QL_PhongTro.Controllers;
 [Authorize(Roles = "CHU_NHA,QUAN_LY,ADMIN,KHACH_THUE")][ModuleAccess("YEU_CAU_THUE")][ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class YeuCauController(AppDbContext db, ITimeProvider clock, YeuCauThueService requests) : Controller
+public class YeuCauController(AppDbContext db, ITimeProvider clock, YeuCauThueService requests, LichHenService appointments) : Controller
 {
     [HttpGet] public async Task<IActionResult> Index(string? trangThai, int? toaNhaId)
     {
@@ -88,5 +88,28 @@ public class YeuCauController(AppDbContext db, ITimeProvider clock, YeuCauThueSe
             item.QuaHanChuaXuLy = TrangThaiYeuCau.ChuaXuLy(item.TrangThai) && nowUtc - createdUtc >= TimeSpan.FromHours(24);
         }
         return View(new DanhSachYeuCauViewModel { YeuCaus = items, LaKhachThue = laKhachThue, TrangThai = validStatus, ToaNhaId = validBuilding, ToaNhaOptions = buildings });
+    }
+
+    [HttpPost("/YeuCau/Huy/{id:int}"), Authorize(Roles = "KHACH_THUE"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> Huy(int id, CancellationToken ct)
+    {
+        var accountId = int.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var parsedId) ? parsedId : 0;
+        if (accountId == 0) return Forbid();
+
+        try
+        {
+            await appointments.HuyAsync(id, accountId, ct);
+            TempData["Success"] = "Đã huỷ yêu cầu.";
+        }
+        catch (Exception ex) when (ex is KeyNotFoundException or UnauthorizedAccessException)
+        {
+            TempData["Error"] = "Không thể huỷ yêu cầu này. Vui lòng tải lại danh sách.";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or LichHenConflictException)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 }
