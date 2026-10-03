@@ -63,6 +63,21 @@ public sealed record LichHenYeuCau
     public string? SoDienThoaiKhach { get; init; }
 }
 
+/// <summary>One line of a request trail, shaped for reading rather than for writing.</summary>
+public sealed record LichHenLichSuMuc
+{
+    public string? TrangThaiCu { get; init; }
+    public string TrangThaiMoi { get; init; } = string.Empty;
+    public string HanhDong { get; init; } = string.Empty;
+    public string? TenNguoiThucHien { get; init; }
+    public string? VaiTro { get; init; }
+    public DateTime? LichHenCu { get; init; }
+    public DateTime? LichHenMoi { get; init; }
+    public string? LyDoTuChoi { get; init; }
+    public string? GhiChuTuChoi { get; init; }
+    public DateTime ThoiDiem { get; init; }
+}
+
 public class LichHenService(AppDbContext db, ITimeProvider clock)
 {
     /// <summary>Two appointments of the same room closer than this are reported as a clash.</summary>
@@ -464,6 +479,55 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
         LyDoTuChoi.Khac => "Lý do khác",
         _ => lyDo
     };
+
+    /// <summary>
+    /// AC3: mỗi lần đổi trạng thái đều ghi lịch sử, và khách xem được lịch sử đó. Chỉ khách của
+    /// yêu cầu và chủ nhà của phòng được đọc; người khác bị từ chối để không lộ yêu cầu nào tồn tại.
+    /// Đây là lớp duy nhất S2-08 đọc yeu_cau_thue_lich_su.
+    /// </summary>
+    public async Task<List<LichHenLichSuMuc>> LichSuAsync(int accountId, int yeuCauId, CancellationToken ct)
+    {
+        var yeuCau = await LoadAsync(yeuCauId, ct) ?? throw new KeyNotFoundException("Yêu cầu không tồn tại.");
+        if (yeuCau.TaiKhoanKhachId != accountId && yeuCau.ChuNhaId != accountId)
+            throw new UnauthorizedAccessException("Bạn không có quyền xem lịch sử yêu cầu này.");
+
+        await db.Database.OpenConnectionAsync();
+        using var cmd = ((SqliteConnection)db.Database.GetDbConnection()).CreateCommand();
+        cmd.CommandText = """
+            SELECT trang_thai_cu, trang_thai_moi, hanh_dong, ten_nguoi_thuc_hien,
+                   vai_tro_luc_thuc_hien, lich_hen_cu, lich_hen_moi, ly_do_tu_choi,
+                   ghi_chu_tu_choi, thoi_diem
+            FROM yeu_cau_thue_lich_su
+            WHERE yeu_cau_thue_id = $id
+            ORDER BY thoi_diem DESC, id DESC;
+            """;
+        cmd.Parameters.AddWithValue("$id", yeuCauId);
+        var danhSach = new List<LichHenLichSuMuc>();
+        try
+        {
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+                danhSach.Add(new LichHenLichSuMuc
+                {
+                    TrangThaiCu = reader.IsDBNull(0) ? null : reader.GetString(0),
+                    TrangThaiMoi = reader.GetString(1),
+                    HanhDong = reader.GetString(2),
+                    TenNguoiThucHien = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    VaiTro = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    LichHenCu = DocUtc(reader.IsDBNull(5) ? null : reader.GetString(5)),
+                    LichHenMoi = DocUtc(reader.IsDBNull(6) ? null : reader.GetString(6)),
+                    LyDoTuChoi = reader.IsDBNull(7) ? null : reader.GetString(7),
+                    GhiChuTuChoi = reader.IsDBNull(8) ? null : reader.GetString(8),
+                    ThoiDiem = DocUtc(reader.GetString(9)) ?? default
+                });
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 1)
+        {
+            // Bảng lịch sử thuộc S2-08 nên trên dev luôn có; nếu thiếu thì coi như chưa có lịch sử.
+            danhSach.Clear();
+        }
+        return danhSach;
+    }
 
     private static async Task<(string? Ten, string? VaiTro)> DocNguoiThucHienAsync(SqliteTransaction tx, int accountId, CancellationToken ct)
     {

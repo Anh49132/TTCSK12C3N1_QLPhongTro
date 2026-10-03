@@ -119,6 +119,46 @@
 </form>
 }
 
+<h2>Lịch sử yêu cầu</h2>
+@if (Model.LichSu.Count == 0) {
+    <p class="text-muted mb-4">Chưa có thay đổi nào được ghi nhận.</p>
+} else {
+    <ul class="list-unstyled mb-4">
+    @foreach (var muc in Model.LichSu) {
+        <li class="border-bottom pb-2 mb-2">
+            <div>
+                <strong>@HanhDongYeuCau.Label(muc.HanhDong)</strong>
+                @if (muc.TrangThaiCu is { } cu && cu != muc.TrangThaiMoi) {
+                    <span class="text-muted">· @LichHenTrangThai.Label(cu) → @LichHenTrangThai.Label(muc.TrangThaiMoi)</span>
+                } else {
+                    <span class="text-muted">· @LichHenTrangThai.Label(muc.TrangThaiMoi)</span>
+                }
+            </div>
+            <div class="text-muted">
+                @if (!string.IsNullOrWhiteSpace(muc.TenNguoiThucHien)) {
+                    <text>@muc.TenNguoiThucHien</text>
+                    @if (muc.VaiTro == LichHenTrangThai.VaiTroChuNha) { <text> (chủ nhà)</text> }
+                    else if (muc.VaiTro == LichHenTrangThai.VaiTroKhachThue) { <text> (khách)</text> }
+                    <text> · </text>
+                }
+                <text>@LichHenService.HienThoiGio(muc.ThoiDiem)</text>
+            </div>
+            @if (muc.LichHenCu is { } lichCu && muc.LichHenMoi is { } lichMoi && lichCu != lichMoi) {
+                <div class="text-muted">Lịch: @LichHenService.HienThoiGio(lichCu) → @LichHenService.HienThoiGio(lichMoi)</div>
+            } else if (muc.LichHenMoi is { } lichMoi2) {
+                <div class="text-muted">Lịch hẹn: @LichHenService.HienThoiGio(lichMoi2)</div>
+            }
+            @if (!string.IsNullOrEmpty(muc.LyDoTuChoi)) {
+                <div class="text-muted">Lý do: @LichHenService.LyDoLabel(muc.LyDoTuChoi)</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(muc.GhiChuTuChoi)) {
+                <div class="text-muted">Ghi chú: @muc.GhiChuTuChoi</div>
+            }
+        </li>
+    }
+    </ul>
+}
+
 @section Scripts {
 <script src="~/js/lich-hen.js" asp-append-version="true"></script>
 }

@@ -37,6 +37,13 @@ public class LichHenController(LichHenService service) : Controller
         var laChuNha = await service.ChuNhaCuaYeuCauAsync(AccountId, id, ct);
         if (!laChuNha && !await service.KhachChuYeuCauAsync(AccountId, id, ct)) return Forbid();
 
+        List<LichHenLichSuMuc> lichSu;
+        try
+        {
+            lichSu = await service.LichSuAsync(AccountId, id, ct);
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
+
         var view = new LichHenChiTietViewModel
         {
             YeuCau = yeuCau,
@@ -51,7 +58,8 @@ public class LichHenController(LichHenService service) : Controller
                 && yeuCau.TrangThai is LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich,
             HienThiNutLapHopDong = laChuNha
                 && yeuCau.TrangThai == LichHenTrangThai.DaDuyet
-                && yeuCau.TrangThaiPhong == LichHenTrangThai.PhongDaDatCoc
+                && yeuCau.TrangThaiPhong == LichHenTrangThai.PhongDaDatCoc,
+            LichSu = lichSu
         };
         return View(view);
     }
