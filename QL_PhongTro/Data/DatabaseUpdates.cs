@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 10;
+    private const int CurrentVersion = 9;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -217,84 +217,13 @@ public static class DatabaseUpdates
         if (version < 6) RoomServicesSchema.Upgrade(c);
         if (version < 7) RoomServicePriceSchema.Upgrade(c);
         if (version < 8) RoomServiceRemovalSchema.Upgrade(c);
-    if (version < 9)
+        if (version < 9)
         {
-            using var tx = c.BeginTransaction();
-            using var command = c.CreateCommand();
-            command.Transaction = tx;
-            command.CommandText = """
-                CREATE TABLE IF NOT EXISTS tin_dang (
-                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                    phong_id INTEGER NOT NULL REFERENCES phong_tro(id) ON DELETE RESTRICT,
-                    nguoi_dang_id INTEGER NOT NULL REFERENCES tai_khoan(id) ON DELETE RESTRICT,
-                    tin_goc_id INTEGER REFERENCES tin_dang(id) ON DELETE RESTRICT,
-                    tieu_de TEXT NOT NULL CHECK(length(tieu_de) <= 200),
-                    noi_dung TEXT,
-                    ngay_dang TEXT,
-                    ngay_het_han TEXT,
-                    trang_thai TEXT NOT NULL DEFAULT 'NHAP' CHECK(length(trang_thai) <= 25),
-                    ngay_tao TEXT NOT NULL
-                );
-                CREATE INDEX ix_tin_dang_phong_id_trang_thai ON tin_dang(phong_id, trang_thai);
-                CREATE INDEX ix_tin_dang_trang_thai_ngay_het_han ON tin_dang(trang_thai, ngay_het_han);
-                CREATE UNIQUE INDEX ux_tin_dang_phong_dang_hien_thi ON tin_dang(phong_id) WHERE trang_thai = 'DANG_HIEN_THI';
-                CREATE TABLE IF NOT EXISTS anh_phong (
-                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                    phong_id INTEGER NOT NULL REFERENCES phong_tro(id) ON DELETE RESTRICT,
-                    duong_dan TEXT NOT NULL CHECK(length(duong_dan) <= 500),
-                    duong_dan_anh_nho TEXT CHECK(duong_dan_anh_nho IS NULL OR length(duong_dan_anh_nho) <= 500),
-                    thu_tu INTEGER NOT NULL CHECK(thu_tu BETWEEN 1 AND 8),
-                    mo_ta TEXT CHECK(mo_ta IS NULL OR length(mo_ta) <= 255),
-                    ngay_tao TEXT NOT NULL,
-                    UNIQUE(phong_id, thu_tu)
-                );
+            Execute(c, """
+                CREATE TABLE IF NOT EXISTS yeu_cau (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, ma_yeu_cau TEXT NOT NULL UNIQUE, khach_thue_id INTEGER NOT NULL REFERENCES khach_thue(id) ON DELETE RESTRICT, phong_id INTEGER NOT NULL REFERENCES phong_tro(id) ON DELETE RESTRICT, toa_nha_id INTEGER NOT NULL REFERENCES toa_nha(id) ON DELETE RESTRICT, loai_yeu_cau TEXT NOT NULL, ngay_mong_muon TEXT, trang_thai TEXT NOT NULL DEFAULT 'MOI', ngay_tao TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS ix_yeu_cau_toa_nha_ngay_tao ON yeu_cau(toa_nha_id, ngay_tao);
                 INSERT INTO app_schema_version(version,applied_at) VALUES(9,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
-                """;
-            command.ExecuteNonQuery();
-            tx.Commit();
-        }
-        if (version < 10)
-        {
-            Check(path);
-            using var tx = c.BeginTransaction();
-            using var command = c.CreateCommand();
-            command.Transaction = tx;
-            // S2-08 only adds its own two tables. yeu_cau_thue belongs to S2-06 and is
-            // installed separately by RentalRequestSchema, so nothing here touches it and
-            // neither table declares a foreign key into it.
-            command.CommandText = """
-                CREATE TABLE IF NOT EXISTS yeu_cau_thue_lich_su (
-                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                    yeu_cau_thue_id INTEGER NULL,
-                    trang_thai_cu TEXT CHECK(length(trang_thai_cu) <= 25),
-                    trang_thai_moi TEXT NOT NULL CHECK(length(trang_thai_moi) <= 25),
-                    hanh_dong TEXT NOT NULL CHECK(length(hanh_dong) <= 40),
-                    nguoi_thuc_hien_id INTEGER NULL,
-                    ten_nguoi_thuc_hien TEXT CHECK(length(ten_nguoi_thuc_hien) <= 100),
-                    vai_tro_luc_thuc_hien TEXT CHECK(length(vai_tro_luc_thuc_hien) <= 20),
-                    lich_hen_cu TEXT NULL,
-                    lich_hen_moi TEXT NULL,
-                    ly_do_tu_choi TEXT CHECK(length(ly_do_tu_choi) <= 30),
-                    ghi_chu_tu_choi TEXT CHECK(length(ghi_chu_tu_choi) <= 500),
-                    thoi_diem TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS ix_yeu_cau_thue_lich_su ON yeu_cau_thue_lich_su(yeu_cau_thue_id, thoi_diem);
-                CREATE TABLE IF NOT EXISTS yeu_cau_thue_thong_bao (
-                    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                    yeu_cau_thue_id INTEGER NULL,
-                    nguoi_nhan_id INTEGER NOT NULL,
-                    loai TEXT NOT NULL CHECK(length(loai) <= 40),
-                    tieu_de TEXT NOT NULL CHECK(length(tieu_de) <= 200),
-                    noi_dung TEXT NOT NULL CHECK(length(noi_dung) <= 500),
-                    duong_dan TEXT CHECK(length(duong_dan) <= 200),
-                    da_doc INTEGER NOT NULL DEFAULT 0 CHECK(da_doc IN (0,1)),
-                    ngay_tao TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS ix_yeu_cau_thue_thong_bao_nguoi ON yeu_cau_thue_thong_bao(nguoi_nhan_id, da_doc, ngay_tao);
-                INSERT INTO app_schema_version(version,applied_at) VALUES(10,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
-                """;
-            command.ExecuteNonQuery();
-            tx.Commit();
+                """);
         }
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");

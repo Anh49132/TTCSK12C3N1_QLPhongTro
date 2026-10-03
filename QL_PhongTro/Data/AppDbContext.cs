@@ -22,8 +22,7 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
     public DbSet<TaiKhoan> TaiKhoans { get; set; } = null!;
     public DbSet<ToaNha> ToaNhas { get; set; } = null!;
     public DbSet<PhongTro> PhongTros { get; set; } = null!;
-    public DbSet<TinDang> TinDangs => Set<TinDang>();
-    public DbSet<AnhPhong> AnhPhongs => Set<AnhPhong>();
+    public DbSet<YeuCau> YeuCaus { get; set; } = null!;
 
     public DbSet<AppRole> AppRoles { get; set; } = null!;
     public DbSet<AppModule> AppModules { get; set; } = null!;
@@ -150,73 +149,15 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         room.HasIndex(e => new { e.ToaNhaId, e.MaPhong }).HasDatabaseName("ux_phong_tro_toa_nha_ma_phong").IsUnique();
         room.HasIndex(e => new { e.ToaNhaId, e.TrangThai }).HasDatabaseName("ix_phong_tro_toa_nha_trang_thai");
         room.HasOne<ToaNha>().WithMany().HasForeignKey(e => e.ToaNhaId).OnDelete(DeleteBehavior.Restrict);
-
-        var listing = modelBuilder.Entity<TinDang>();
-        listing.ToTable("tin_dang");
-        listing.HasKey(e => e.Id);
-        listing.Property(e => e.Id).HasColumnName("id");
-        listing.Property(e => e.PhongId).HasColumnName("phong_id").IsRequired();
-        listing.Property(e => e.NguoiDangId).HasColumnName("nguoi_dang_id").IsRequired();
-        listing.Property(e => e.TinGocId).HasColumnName("tin_goc_id");
-        listing.Property(e => e.TieuDe).HasColumnName("tieu_de").IsRequired().HasMaxLength(200);
-        listing.Property(e => e.NoiDung).HasColumnName("noi_dung");
-        listing.Property(e => e.NgayDang).HasColumnName("ngay_dang");
-        listing.Property(e => e.NgayHetHan).HasColumnName("ngay_het_han");
-        listing.Property(e => e.TrangThai).HasColumnName("trang_thai").IsRequired().HasMaxLength(25).HasDefaultValue("NHAP");
-        listing.Property(e => e.NgayTao).HasColumnName("ngay_tao").IsRequired();
-        listing.HasIndex(e => new { e.PhongId, e.TrangThai });
-        listing.HasIndex(e => new { e.TrangThai, e.NgayHetHan });
-        listing.HasOne<PhongTro>().WithMany().HasForeignKey(e => e.PhongId).OnDelete(DeleteBehavior.Restrict);
-        listing.HasOne<TaiKhoan>().WithMany().HasForeignKey(e => e.NguoiDangId).OnDelete(DeleteBehavior.Restrict);
-        listing.HasOne<TinDang>().WithMany().HasForeignKey(e => e.TinGocId).OnDelete(DeleteBehavior.Restrict);
-
-        var roomImage = modelBuilder.Entity<AnhPhong>();
-        roomImage.ToTable("anh_phong");
-        roomImage.HasKey(e => e.Id);
-        roomImage.Property(e => e.Id).HasColumnName("id");
-        roomImage.Property(e => e.PhongId).HasColumnName("phong_id").IsRequired();
-        roomImage.Property(e => e.DuongDan).HasColumnName("duong_dan").IsRequired().HasMaxLength(500);
-        roomImage.Property(e => e.DuongDanAnhNho).HasColumnName("duong_dan_anh_nho").HasMaxLength(500);
-        roomImage.Property(e => e.ThuTu).HasColumnName("thu_tu").IsRequired();
-        roomImage.Property(e => e.MoTa).HasColumnName("mo_ta").HasMaxLength(255);
-        roomImage.Property(e => e.NgayTao).HasColumnName("ngay_tao").IsRequired();
-        roomImage.HasIndex(e => new { e.PhongId, e.ThuTu }).IsUnique();
-        roomImage.HasOne<PhongTro>().WithMany().HasForeignKey(e => e.PhongId).OnDelete(DeleteBehavior.Restrict);
-
-        // S2-08 tables. yeu_cau_thue stays out of the model on purpose: S2-06 owns it and
-        // LichHenService reaches it with plain SQL, so no navigation back into it is mapped.
-        var requestHistory = modelBuilder.Entity<YeuCauThueLichSu>();
-        requestHistory.ToTable("yeu_cau_thue_lich_su");
-        requestHistory.HasKey(e => e.Id);
-        requestHistory.Property(e => e.Id).HasColumnName("id");
-        requestHistory.Property(e => e.YeuCauThueId).HasColumnName("yeu_cau_thue_id");
-        requestHistory.Property(e => e.TrangThaiCu).HasColumnName("trang_thai_cu").HasMaxLength(25);
-        requestHistory.Property(e => e.TrangThaiMoi).HasColumnName("trang_thai_moi").IsRequired().HasMaxLength(25);
-        requestHistory.Property(e => e.HanhDong).HasColumnName("hanh_dong").IsRequired().HasMaxLength(40);
-        requestHistory.Property(e => e.NguoiThucHienId).HasColumnName("nguoi_thuc_hien_id");
-        requestHistory.Property(e => e.TenNguoiThucHien).HasColumnName("ten_nguoi_thuc_hien").HasMaxLength(100);
-        requestHistory.Property(e => e.VaiTroLucThucHien).HasColumnName("vai_tro_luc_thuc_hien").HasMaxLength(20);
-        requestHistory.Property(e => e.LichHenCu).HasColumnName("lich_hen_cu");
-        requestHistory.Property(e => e.LichHenMoi).HasColumnName("lich_hen_moi");
-        requestHistory.Property(e => e.LyDoTuChoi).HasColumnName("ly_do_tu_choi").HasMaxLength(30);
-        requestHistory.Property(e => e.GhiChuTuChoi).HasColumnName("ghi_chu_tu_choi").HasMaxLength(500);
-        requestHistory.Property(e => e.ThoiDiem).HasColumnName("thoi_diem").IsRequired();
-        requestHistory.HasIndex(e => new { e.YeuCauThueId, e.ThoiDiem }).HasDatabaseName("ix_yeu_cau_thue_lich_su");
-        requestHistory.HasOne<TaiKhoan>().WithMany().HasForeignKey(e => e.NguoiThucHienId).OnDelete(DeleteBehavior.Restrict);
-
-        var requestNotice = modelBuilder.Entity<YeuCauThueThongBao>();
-        requestNotice.ToTable("yeu_cau_thue_thong_bao");
-        requestNotice.HasKey(e => e.Id);
-        requestNotice.Property(e => e.Id).HasColumnName("id");
-        requestNotice.Property(e => e.YeuCauThueId).HasColumnName("yeu_cau_thue_id");
-        requestNotice.Property(e => e.NguoiNhanId).HasColumnName("nguoi_nhan_id").IsRequired();
-        requestNotice.Property(e => e.Loai).HasColumnName("loai").IsRequired().HasMaxLength(40);
-        requestNotice.Property(e => e.TieuDe).HasColumnName("tieu_de").IsRequired().HasMaxLength(200);
-        requestNotice.Property(e => e.NoiDung).HasColumnName("noi_dung").IsRequired().HasMaxLength(500);
-        requestNotice.Property(e => e.DuongDan).HasColumnName("duong_dan").HasMaxLength(200);
-        requestNotice.Property(e => e.DaDoc).HasColumnName("da_doc").HasDefaultValue(false);
-        requestNotice.Property(e => e.NgayTao).HasColumnName("ngay_tao").IsRequired();
-        requestNotice.HasIndex(e => new { e.NguoiNhanId, e.DaDoc, e.NgayTao }).HasDatabaseName("ix_yeu_cau_thue_thong_bao_nguoi");
-        requestNotice.HasOne<TaiKhoan>().WithMany().HasForeignKey(e => e.NguoiNhanId).OnDelete(DeleteBehavior.Restrict);
+        var request = modelBuilder.Entity<YeuCau>();
+        request.ToTable("yeu_cau"); request.HasKey(e => e.Id);
+        request.Property(e => e.MaYeuCau).HasColumnName("ma_yeu_cau").IsRequired().HasMaxLength(30);
+        request.Property(e => e.KhachThueId).HasColumnName("khach_thue_id"); request.Property(e => e.PhongId).HasColumnName("phong_id"); request.Property(e => e.ToaNhaId).HasColumnName("toa_nha_id");
+        request.Property(e => e.LoaiYeuCau).HasColumnName("loai_yeu_cau").IsRequired().HasMaxLength(50); request.Property(e => e.NgayMongMuon).HasColumnName("ngay_mong_muon");
+        request.Property(e => e.TrangThai).HasColumnName("trang_thai").IsRequired().HasMaxLength(25); request.Property(e => e.NgayTao).HasColumnName("ngay_tao").IsRequired();
+        request.HasIndex(e => e.MaYeuCau).IsUnique(); request.HasIndex(e => new { e.ToaNhaId, e.NgayTao });
+        request.HasOne<KhachThue>().WithMany().HasForeignKey(e => e.KhachThueId).OnDelete(DeleteBehavior.Restrict);
+        request.HasOne<PhongTro>().WithMany().HasForeignKey(e => e.PhongId).OnDelete(DeleteBehavior.Restrict);
+        request.HasOne<ToaNha>().WithMany().HasForeignKey(e => e.ToaNhaId).OnDelete(DeleteBehavior.Restrict);
     }
 }
