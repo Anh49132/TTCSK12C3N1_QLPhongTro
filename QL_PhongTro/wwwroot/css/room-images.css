@@ -1,0 +1,104 @@
+.room-image-manager {
+    display: grid;
+    gap: 12px;
+    padding-top: 8px;
+}
+
+.room-image-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.room-image-heading h2 {
+    margin: 0 0 4px;
+    font-size: 18px;
+}
+
+.room-image-heading p {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 13px;
+}
+
+.room-image-heading strong {
+    flex: 0 0 auto;
+    color: var(--color-primary);
+    font-size: 14px;
+}
+
+.room-image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+}
+
+.room-image-card {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    background: var(--color-bg);
+    animation: room-image-in 180ms ease-out both;
+}
+
+.room-image-card img,
+.room-image-preview {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    background: var(--color-bg-muted);
+}
+
+.room-image-card > span,
+.room-image-card > p {
+    display: block;
+    margin: 0;
+    padding: 7px 9px;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.room-image-card > p {
+    color: var(--color-danger);
+}
+
+.room-image-progress {
+    height: 4px;
+    overflow: hidden;
+    background: var(--color-bg-muted);
+}
+
+.room-image-progress span {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--color-success);
+    transition: width 90ms linear;
+}
+
+.room-image-card.is-failed {
+    border-color: var(--color-danger);
+}
+
+.room-image-card.is-failed .room-image-progress span {
+    background: var(--color-danger);
+}
+
+@keyframes room-image-in {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 480px) {
+    .room-image-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .room-image-card { animation: none; }
+    .room-image-progress span { transition: none; }
+}

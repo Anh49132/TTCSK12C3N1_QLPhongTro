@@ -31,6 +31,8 @@ if (args.Contains("--check-email-config"))
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddSingleton<QL_PhongTro.Services.GiayToImageStore>();
+builder.Services.AddSingleton(sp => new QL_PhongTro.Services.RoomImageStore(
+    sp.GetRequiredService<IWebHostEnvironment>()));
 builder.Services.AddScoped<QL_PhongTro.Services.HoSoAccess>();
 builder.Services.AddScoped<QL_PhongTro.Services.LichHenService>();
 builder.Services.AddScoped<QL_PhongTro.Services.ICredentialValidationService, QL_PhongTro.Services.CredentialValidationService>();

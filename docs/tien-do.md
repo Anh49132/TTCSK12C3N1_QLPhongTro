@@ -1,5 +1,17 @@
 # Tiến độ và bàn giao dự án
 
+## S2-02 — ảnh phòng và thumbnail (03/10/2026)
+
+- PO chốt: trang chi tiết dùng ảnh lớn + dải thumbnail; phòng chưa ảnh dùng placeholder chung; chủ nhà tải trong form sửa phòng; thumbnail giữ tỉ lệ, không phóng ảnh nhỏ; JPEG quality 82, PNG nén lossless.
+- Hoàn tất upload tối đa 8 ảnh/phòng, 5 MiB/tệp, JPG/PNG kiểm tra cả nội dung; xác minh ảnh hỏng, ảnh vượt cỡ, MIME/đuôi giả và quyền sở hữu phía server. Ghi ảnh gốc + thumbnail đã auto-orient trong `wwwroot/uploads/rooms/{roomId}`, lưu đường dẫn/thứ tự/thời điểm vào `anh_phong`; transaction SQLite immediate cấp thứ tự, dọn cặp tệp nếu lỗi/hủy. Upload nhiều tệp có tiến trình/lỗi riêng và lưới xem trước `x/8`.
+- Trang danh sách tin chỉ truy vấn thumbnail đầu tiên; chi tiết tải ảnh gốc và cho chọn ảnh bằng thumbnail. Hai trang dùng cùng `room-placeholder.svg` khi phòng chưa ảnh. Chưa có sắp xếp/xóa ảnh theo phạm vi task.
+- Bảng `anh_phong` và ánh xạ đã tồn tại từ schema v9; không đổi schema/version hoặc quy trình database, không cần cập nhật README. Media local mới được ignore. Không mở/ghi database mặc định `QL_PhongTro/Data/local-dev.sqlite`; mọi test/demo dùng DB giả riêng trong temp hoặc `data/room-images-demo-d51197c4/`.
+- File/thành phần chính: `Services/RoomImageStore.cs`, `Controllers/PhongTroController.cs`, `Controllers/TinDangController.cs`, ViewModels và Razor `PhongTro/Create`, `TinDang/Index`, `TinDang/ChiTiet`; CSS/JS ảnh công khai và chủ nhà, `wwwroot/room-placeholder.svg`, `.gitignore`. Test thêm ở `RoomImageStoreTests.cs`, `RoomImageUploadTests.cs`, cập nhật `PublicListingTests.cs`.
+- Xác minh: build Debug PASS; full xUnit **94/94 PASS**, nhóm ảnh focused **15/15 PASS**; `git diff --check` PASS. Test gồm JPG/PNG, đúng 5 MiB/5,1 MiB, nội dung giả/hỏng, giới hạn 8/9, sở hữu/đăng nhập, thumbnail 400px, ảnh nhỏ, EXIF orientation, cancellation khi ghi, list/detail/placeholder.
+- Browser demo trên DB/tài khoản/ảnh giả: tải 5 ảnh thấy `5/8`; GIF và ảnh 5,1 MiB báo đúng lý do; chọn 10 ảnh cùng lúc khi đã có 5 chỉ thêm 3, lên `8/8`, 7 ảnh còn lại báo đủ 8. List tải thumbnail đầu tiên **8.010 byte** thay vì ảnh gốc **41.955 byte**; chi tiết khách có gallery ảnh gốc + 5 thumbnail. Server demo đang chạy tại `http://localhost:5259`, hiện phòng demo có 8 ảnh; thông tin đăng nhập/DB mẫu ở `data/room-images-demo-d51197c4/access.json` (không chia sẻ/commit).
+- Giới hạn xác minh: chưa throttling mạng 3G hoặc ngắt kết nối HTTP thật; cancellation được test tại bước ghi tệp và đảm bảo không để lại file. Browser yêu cầu viewport 375px nhưng môi trường cấp 469px; không tràn ngang ở viewport thực tế đó. ImageSharp license warning và CS8601 trong `AuthController` là cảnh báo có sẵn.
+- Bước tiếp theo: nghiệm thu mạng yếu/ngắt kết nối thật và nếu PO yêu cầu thì làm task riêng cho sắp xếp/xóa ảnh. Không có migration cần chạy trên DB thành viên.
+
 ## Sửa xung đột PR #29 với dev (02/10/2026)
 
 - Merge `origin/dev` tại `a2bae7f` vào `feature/S2-06/prevent-duplicate-open-requests`; sidebar giữ cả Tìm phòng trọ `/TimTin` và Tin đăng cho thuê `/TinDang` (không lặp menu module). README giữ câu hướng dẫn updater v9 của dev. Giữ mã tìm phòng và warmup từ dev cùng luồng gửi/chặn trùng/mở yêu cầu cũ S2-06. Không đổi schema hoặc ghi DB local, không chụp ảnh.
