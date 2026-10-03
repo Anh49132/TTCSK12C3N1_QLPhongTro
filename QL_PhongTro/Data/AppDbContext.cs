@@ -22,7 +22,6 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
     public DbSet<TaiKhoan> TaiKhoans { get; set; } = null!;
     public DbSet<ToaNha> ToaNhas { get; set; } = null!;
     public DbSet<PhongTro> PhongTros { get; set; } = null!;
-    public DbSet<YeuCau> YeuCaus { get; set; } = null!;
     public DbSet<TinDang> TinDangs => Set<TinDang>();
     public DbSet<AnhPhong> AnhPhongs => Set<AnhPhong>();
 
@@ -87,6 +86,7 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         profile.Property(e => e.AnhGiayToSau).HasColumnName("anh_giay_to_sau").HasMaxLength(500);
         profile.Property(e => e.QueQuan).HasColumnName("dia_chi_thuong_tru");
         profile.Property(e => e.NgheNghiep).HasColumnName("nghe_nghiep").HasMaxLength(150);
+        profile.Property(e => e.SoDienThoai).HasColumnName("so_dien_thoai").HasMaxLength(15);
         profile.Property(e => e.NgayTao).HasColumnName("ngay_tao");
         profile.HasIndex(e => e.TaiKhoanId).IsUnique();
         profile.HasOne<TaiKhoan>().WithMany().HasForeignKey(e => e.TaiKhoanId).OnDelete(DeleteBehavior.Restrict);
@@ -220,21 +220,5 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         requestNotice.HasIndex(e => new { e.NguoiNhanId, e.DaDoc, e.NgayTao }).HasDatabaseName("ix_yeu_cau_thue_thong_bao_nguoi");
         requestNotice.HasOne<TaiKhoan>().WithMany().HasForeignKey(e => e.NguoiNhanId).OnDelete(DeleteBehavior.Restrict);
 
-        var ownerRequest = modelBuilder.Entity<YeuCau>();
-        ownerRequest.ToTable("yeu_cau");
-        ownerRequest.HasKey(e => e.Id);
-        ownerRequest.Property(e => e.MaYeuCau).HasColumnName("ma_yeu_cau").IsRequired().HasMaxLength(30);
-        ownerRequest.Property(e => e.KhachThueId).HasColumnName("khach_thue_id");
-        ownerRequest.Property(e => e.PhongId).HasColumnName("phong_id");
-        ownerRequest.Property(e => e.ToaNhaId).HasColumnName("toa_nha_id");
-        ownerRequest.Property(e => e.LoaiYeuCau).HasColumnName("loai_yeu_cau").IsRequired().HasMaxLength(50);
-        ownerRequest.Property(e => e.NgayMongMuon).HasColumnName("ngay_mong_muon");
-        ownerRequest.Property(e => e.TrangThai).HasColumnName("trang_thai").IsRequired().HasMaxLength(25);
-        ownerRequest.Property(e => e.NgayTao).HasColumnName("ngay_tao").IsRequired();
-        ownerRequest.HasIndex(e => e.MaYeuCau).IsUnique();
-        ownerRequest.HasIndex(e => new { e.ToaNhaId, e.NgayTao });
-        ownerRequest.HasOne<KhachThue>().WithMany().HasForeignKey(e => e.KhachThueId).OnDelete(DeleteBehavior.Restrict);
-        ownerRequest.HasOne<PhongTro>().WithMany().HasForeignKey(e => e.PhongId).OnDelete(DeleteBehavior.Restrict);
-        ownerRequest.HasOne<ToaNha>().WithMany().HasForeignKey(e => e.ToaNhaId).OnDelete(DeleteBehavior.Restrict);
     }
 }

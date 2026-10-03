@@ -78,6 +78,13 @@ if (args.Contains("--create-local-admin"))
         builder.Configuration["LocalAdmin:Phone"]);
     return;
 }
+if (args.Contains("--seed-request-demo"))
+{
+    if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException("--seed-request-demo is available only in Development.");
+    RequestDemoSeeder.Seed(databasePath);
+    return;
+}
 
 var demoIndex = Array.IndexOf(args, "--create-permission-demo");
 if (demoIndex >= 0)

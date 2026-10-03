@@ -2,11 +2,12 @@ using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
+using QL_PhongTro.Services;
 
 namespace QL_PhongTro.Authorization;
 
 // Scoped to one request: menu, page and API read the same current database snapshot.
-public sealed class PermissionService(AppDbContext db, IHttpContextAccessor accessor)
+public sealed class PermissionService(AppDbContext db, IHttpContextAccessor accessor, YeuCauThueService requests)
 {
     private Task<List<RolePermission>>? permissions;
     public string? RoleCode => accessor.HttpContext?.User.FindFirstValue(ClaimTypes.Role);
@@ -43,12 +44,20 @@ public sealed class PermissionService(AppDbContext db, IHttpContextAccessor acce
 
     public async Task<int> UnprocessedRequestCountAsync()
     {
-        if (RoleCode != "CHU_NHA") return 0;
+        if (RoleCode is not ("CHU_NHA" or "QUAN_LY" or "ADMIN")) return 0;
+        if (!await AllowsAsync("YEU_CAU_THUE")) return 0;
         if (!int.TryParse(accessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId)) return 0;
-        return await db.YeuCaus.AsNoTracking()
-            .Where(x => TrangThaiYeuCau.ChuaXuLy(x.TrangThai))
-            .Join(db.ToaNhas.AsNoTracking().Where(x => x.ChuNhaId == accountId && x.DangHoatDong),
-                request => request.ToaNhaId, building => building.Id, (_, _) => 1)
+        if (!await requests.IsInstalled()) return 0;
+        var role = RoleCode;
+        var visibleBuildings = db.ToaNhas.AsNoTracking().Where(x => x.DangHoatDong &&
+            (role == "ADMIN" || x.ChuNhaId == accountId || (role == "QUAN_LY" && x.QuanLyId == accountId)));
+        return await db.YeuCauThues.AsNoTracking()
+            .Where(x => x.TrangThai == TrangThaiYeuCau.Moi)
+            .Join(db.TinDangs.AsNoTracking(), request => request.TinDangId, listing => listing.Id,
+                (request, listing) => listing.PhongId)
+            .Join(db.PhongTros.AsNoTracking(), phongId => phongId, room => room.Id,
+                (_, room) => room.ToaNhaId)
+            .Join(visibleBuildings, toaNhaId => toaNhaId, building => building.Id, (_, _) => 1)
             .CountAsync();
     }
 }

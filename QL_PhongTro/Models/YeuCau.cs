@@ -6,7 +6,16 @@ public static class TrangThaiYeuCau
     public static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>
     { [Moi] = "Mới", [DaHenLich] = "Đã hẹn lịch", [DaDuyet] = "Đã duyệt", [TuChoi] = "Từ chối", [DaHuy] = "Đã huỷ" };
 
-    public static bool ChuaXuLy(string trangThai) => trangThai is Moi or DaHenLich;
+    // A scheduled request has already been handled by the owner. Only a new request
+    // belongs in the "chua xu ly" counter and can become overdue.
+    public static bool ChuaXuLy(string trangThai) => trangThai == Moi;
+
+    public static string LoaiLabel(string loaiYeuCau) => loaiYeuCau switch
+    {
+        LichHenTrangThai.LoaiXemPhong => "Xem phòng",
+        LichHenTrangThai.LoaiThueNgay => "Thuê ngay",
+        _ => loaiYeuCau
+    };
 }
 public class YeuCau
 {
