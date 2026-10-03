@@ -34,6 +34,17 @@ public sealed class LichHenChiTietViewModel
     /// </summary>
     public bool HienThiNutDuyetThueNgay { get; init; }
 
+    /// <summary>
+    /// After approval the request is the input of a rental contract, so the landlord gets the
+    /// entry point. Contract drafting is S3-01 and has no screen on dev yet: the button still
+    /// obeys the real conditions and leads to the placeholder page, which is the only thing
+    /// waiting for S3-01 to take over.
+    /// </summary>
+    public bool HienThiNutLapHopDong { get; init; }
+
+    /// <summary>Where the button points. Change this one line when S3-01 publishes its route.</summary>
+    public const string DuongDanLapHopDong = "/LichHen/LapHopDong";
+
     /// <summary>Wall-clock time the landlord typed, kept in Vietnam time for the input control.</summary>
     [DataType(DataType.DateTime)]
     public DateTime? LichHenNhap { get; set; }
@@ -44,4 +55,17 @@ public sealed class LichHenChiTietViewModel
 
     [StringLength(LichHenService.GhiChuToiDa, ErrorMessage = "Ghi chú không được dài quá 500 ký tự.")]
     public string? GhiChuTuChoi { get; set; }
+}
+
+/// <summary>
+/// Placeholder page behind the "Lập hợp đồng" button of AC4. It carries the request code so the
+/// landlord can tell which request is waiting, and exists only until S3-01 has the real screen.
+/// </summary>
+public sealed class LichHenLapHopDongViewModel
+{
+    public required int YeuCauId { get; init; }
+    public required string MaYeuCau { get; init; }
+    public string TenPhong { get; init; } = string.Empty;
+    public string TenToaNha { get; init; } = string.Empty;
+    public string TenKhach { get; init; } = string.Empty;
 }

@@ -1,6 +1,7 @@
 @model QL_PhongTro.ViewModels.LichHenChiTietViewModel
 @using QL_PhongTro.Models
 @using QL_PhongTro.Services
+@using QL_PhongTro.ViewModels
 @{
     ViewData["Title"] = "Chi tiết yêu cầu " + Model.YeuCau.MaYeuCau;
     var ok = TempData["LichHenOk"] as string;
@@ -84,6 +85,13 @@
         <span class="text-muted">Phòng sẽ chuyển sang trạng thái Đã đặt cọc.</span>
     </div>
 </form>
+}
+
+@if (Model.HienThiNutLapHopDong) {
+<div class="mb-4">
+    <a class="btn btn-primary" href="@LichHenChiTietViewModel.DuongDanLapHopDong?@($"id={yeuCau.Id}")">Lập hợp đồng</a>
+    <span class="text-muted">Yêu cầu đã duyệt và phòng đã đặt cọc, sẵn sàng lập hợp đồng.</span>
+</div>
 }
 
 @if (Model.HienThiFormTuChoi) {
