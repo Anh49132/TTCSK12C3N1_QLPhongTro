@@ -3,8 +3,14 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using QL_PhongTro.Data;
+using QL_PhongTro.Services;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
@@ -51,6 +57,44 @@ public sealed partial class PermissionTests
         Assert.Contains("2/8 ảnh", edit);
         Assert.Contains("data-image-id", edit);
         CleanupRoomImages(roomId);
+    }
+
+    [Fact]
+    public async Task ConfiguredRoomImagePathOutsideWebRootIsServedAtUploadsRooms()
+    {
+        var externalStorage = Path.Combine(temp, "external-room-images");
+        using var externalFactory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseContentRoot(appPath);
+            builder.UseWebRoot(Path.Combine(temp, "external-wwwroot"));
+            builder.UseSetting("DatabasePath", database);
+            builder.UseSetting("RoomImagesPath", externalStorage);
+            builder.UseEnvironment("Development");
+            builder.ConfigureLogging(logging => logging.ClearProviders());
+            builder.ConfigureServices(services => services.AddDataProtection().UseEphemeralDataProtectionProvider());
+        });
+        using var owner = externalFactory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await Login(owner, "CHU_NHA");
+        RentalRequestSchema.Initialize(database);
+        var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+        var (roomId, _) = GetListingRoomAndBuilding(listingId);
+        var token = await RoomImageToken(owner, roomId);
+
+        using var upload = await Upload(owner, roomId, token, "external.png", EncodePng(640, 480));
+        Assert.Equal(HttpStatusCode.OK, upload.StatusCode);
+        using var json = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
+        var originalPath = json.RootElement.GetProperty("originalPath").GetString()!;
+        var thumbnailPath = json.RootElement.GetProperty("thumbnailPath").GetString()!;
+        Assert.True(File.Exists(Path.Combine(externalStorage, roomId.ToString(), Path.GetFileName(originalPath))));
+        Assert.True(File.Exists(Path.Combine(externalStorage, roomId.ToString(), Path.GetFileName(thumbnailPath))));
+
+        using var guest = externalFactory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using var original = await guest.GetAsync(originalPath);
+        using var thumbnail = await guest.GetAsync(thumbnailPath);
+        Assert.Equal(HttpStatusCode.OK, original.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, thumbnail.StatusCode);
+        Assert.True((await thumbnail.Content.ReadAsByteArrayAsync()).Length > 0);
+        CleanupExternalRoomImages(externalStorage, roomId);
     }
 
     [Fact]
@@ -257,6 +301,104 @@ public sealed partial class PermissionTests
         Assert.Equal((long)ownerBId, Convert.ToInt64(Scalar("SELECT chu_nha_id FROM toa_nha WHERE id=$building", ("$building", buildingId))));
     }
 
+    [Fact]
+    public async Task OwnerDeletesImageFilesReordersAndPublicListingUsesNextPrimary()
+    {
+        RentalRequestSchema.Initialize(database);
+        var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+        var (roomId, _) = GetListingRoomAndBuilding(listingId);
+        using var owner = await Login("CHU_NHA");
+        var token = await RoomImageToken(owner, roomId);
+        var uploads = new List<(int Id, string Original, string Thumbnail)>();
+        for (var index = 0; index < 3; index++)
+        {
+            using var upload = await Upload(owner, roomId, token, $"delete-{index}.jpg", EncodeJpeg(96, 72));
+            Assert.Equal(HttpStatusCode.OK, upload.StatusCode);
+            using var json = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
+            uploads.Add((
+                json.RootElement.GetProperty("id").GetInt32(),
+                json.RootElement.GetProperty("originalPath").GetString()!,
+                json.RootElement.GetProperty("thumbnailPath").GetString()!));
+        }
+
+        using var deletePrimary = await DeleteImage(owner, roomId, uploads[0].Id, token);
+        Assert.Equal(HttpStatusCode.OK, deletePrimary.StatusCode);
+        using var deleteJson = JsonDocument.Parse(await deletePrimary.Content.ReadAsStringAsync());
+        Assert.Equal(2, deleteJson.RootElement.GetProperty("count").GetInt32());
+        Assert.False(File.Exists(StorageFile(uploads[0].Original)));
+        Assert.False(File.Exists(StorageFile(uploads[0].Thumbnail)));
+        Assert.Equal(new[] { uploads[1].Id, uploads[2].Id }, ReadImageIds(roomId));
+        Assert.Equal(1L, Scalar("SELECT thu_tu FROM anh_phong WHERE id=$id", ("$id", uploads[1].Id)));
+        Assert.Equal(2L, Scalar("SELECT thu_tu FROM anh_phong WHERE id=$id", ("$id", uploads[2].Id)));
+
+        using var guest = Client();
+        var listingIndex = WebUtility.HtmlDecode(await guest.GetStringAsync("/TinDang"));
+        Assert.DoesNotContain(uploads[0].Thumbnail, listingIndex);
+        Assert.Contains($"src=\"{uploads[1].Thumbnail}\"", listingIndex);
+        using var detailResponse = await guest.GetAsync($"/api/tin-dang/{listingId}");
+        using var detail = JsonDocument.Parse(await detailResponse.Content.ReadAsStringAsync());
+        Assert.Equal(uploads[1].Original, detail.RootElement.GetProperty("anh")[0].GetProperty("duongDan").GetString());
+
+        using var deleteAgain = await DeleteImage(owner, roomId, uploads[0].Id, token);
+        Assert.Equal(HttpStatusCode.OK, deleteAgain.StatusCode);
+        Assert.Equal(new[] { uploads[1].Id, uploads[2].Id }, ReadImageIds(roomId));
+
+        using var deleteMiddle = await DeleteImage(owner, roomId, uploads[1].Id, token);
+        Assert.Equal(HttpStatusCode.OK, deleteMiddle.StatusCode);
+        Assert.Equal(new[] { uploads[2].Id }, ReadImageIds(roomId));
+        Assert.Equal(1L, Scalar("SELECT thu_tu FROM anh_phong WHERE id=$id", ("$id", uploads[2].Id)));
+
+        using var deleteLast = await DeleteImage(owner, roomId, uploads[2].Id, token);
+        Assert.Equal(HttpStatusCode.OK, deleteLast.StatusCode);
+        Assert.Equal(0L, Scalar("SELECT COUNT(*) FROM anh_phong WHERE phong_id=$room", ("$room", roomId)));
+        var emptyIndex = await guest.GetStringAsync("/TinDang");
+        Assert.Contains("room-placeholder.svg", emptyIndex);
+
+        for (var indexUpload = 0; indexUpload < 8; indexUpload++)
+        {
+            using var upload = await Upload(owner, roomId, token, $"after-delete-{indexUpload}.jpg", EncodeJpeg(64, 48));
+            Assert.Equal(HttpStatusCode.OK, upload.StatusCode);
+        }
+        Assert.Equal(8L, Scalar("SELECT COUNT(*) FROM anh_phong WHERE phong_id=$room", ("$room", roomId)));
+        using (var scope = factory.Services.CreateScope())
+        {
+            var check = await scope.ServiceProvider.GetRequiredService<RoomImageDeletionService>().CheckStorageAsync();
+            Assert.Equal(0, check.OrphanFiles);
+            Assert.Equal(0, check.MissingFiles);
+        }
+        CleanupRoomImages(roomId);
+    }
+
+    [Fact]
+    public async Task OwnerCannotDeleteAnotherOwnersImageAndStorageCheckFindsNoOrphans()
+    {
+        var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+        var (roomId, buildingId) = GetListingRoomAndBuilding(listingId);
+        using var ownerA = await Login("CHU_NHA");
+        var tokenA = await RoomImageToken(ownerA, roomId);
+        using var upload = await Upload(ownerA, roomId, tokenA, "owned.jpg", EncodeJpeg(64, 48));
+        using var uploadJson = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
+        var imageId = uploadJson.RootElement.GetProperty("id").GetInt32();
+
+        var ownerBEmail = "delete-owner-b@s202.test";
+        var ownerBHash = BCrypt.Net.BCrypt.HashPassword("TestPass123!");
+        var now = DateTime.UtcNow.ToString("O");
+        Execute("INSERT INTO tai_khoan(ho_ten,email,so_dien_thoai,mat_khau,vai_tro,dang_hoat_dong,is_staff,is_superuser,ngay_tao,ngay_cap_nhat) VALUES('Owner B',$email,'0970000002',$hash,'CHU_NHA',1,0,0,$now,$now)",
+            ("$email", ownerBEmail), ("$hash", ownerBHash), ("$now", now));
+        var ownerBId = Convert.ToInt32(Scalar("SELECT id FROM tai_khoan WHERE email=$email", ("$email", ownerBEmail)));
+        Execute("UPDATE toa_nha SET chu_nha_id=$owner WHERE id=$building", ("$owner", ownerBId), ("$building", buildingId));
+
+        using var denied = await DeleteImage(ownerA, roomId, imageId, tokenA);
+        Assert.Equal(HttpStatusCode.NotFound, denied.StatusCode);
+        Assert.Equal(1L, Scalar("SELECT COUNT(*) FROM anh_phong WHERE id=$id", ("$id", imageId)));
+
+        using var scope = factory.Services.CreateScope();
+        var check = await scope.ServiceProvider.GetRequiredService<RoomImageDeletionService>().CheckStorageAsync();
+        Assert.Equal(0, check.OrphanFiles);
+        Assert.Equal(0, check.MissingFiles);
+        CleanupRoomImages(roomId);
+    }
+
     private static async Task<string> RoomImageToken(HttpClient client, int roomId)
     {
         var html = await client.GetStringAsync($"/PhongTro/Edit/{roomId}");
@@ -283,6 +425,13 @@ public sealed partial class PermissionTests
         return await client.SendAsync(request);
     }
 
+    private static async Task<HttpResponseMessage> DeleteImage(HttpClient client, int roomId, int imageId, string token)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/PhongTro/DeleteImage/{roomId}?imageId={imageId}");
+        request.Headers.Add("RequestVerificationToken", token);
+        return await client.SendAsync(request);
+    }
+
     private int[] ReadImageIds(int roomId)
     {
         var count = Convert.ToInt32(Scalar("SELECT COUNT(*) FROM anh_phong WHERE phong_id=$room", ("$room", roomId)));
@@ -293,9 +442,18 @@ public sealed partial class PermissionTests
 
     private string RoomImageDirectory(int roomId) => Path.Combine(temp, "wwwroot", "uploads", "rooms", roomId.ToString());
 
+    private string StorageFile(string publicPath) => Path.Combine(temp, "wwwroot",
+        publicPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+
     private void CleanupRoomImages(int roomId)
     {
         var directory = RoomImageDirectory(roomId);
+        if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+    }
+
+    private static void CleanupExternalRoomImages(string root, int roomId)
+    {
+        var directory = Path.Combine(root, roomId.ToString());
         if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
     }
 

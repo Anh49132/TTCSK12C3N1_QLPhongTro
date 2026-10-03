@@ -17,7 +17,7 @@ namespace QL_PhongTro.Controllers;
 [Authorize(Roles = "CHU_NHA,QUAN_LY,ADMIN")]
 [ModuleAccess("PHONG_TRO")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class PhongTroController(AppDbContext db, DichVuPhongService roomServices, RoomImageStore imageStore) : Controller
+public class PhongTroController(AppDbContext db, DichVuPhongService roomServices, RoomImageStore imageStore, RoomImageDeletionService imageDeletion) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> ToaNha(string? tuKhoa)
@@ -618,6 +618,30 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
 
         await transaction!.CommitAsync(cancellationToken);
         return Ok(new { imageIds });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> DeleteImage(int id, int imageId, CancellationToken cancellationToken)
+    {
+        if (CurrentAccountId() is not { } ownerId)
+            return Forbid();
+
+        var result = await imageDeletion.DeleteOwnedImageAsync(id, imageId, ownerId, cancellationToken);
+        return result.Status switch
+        {
+            RoomImageDeleteStatus.NotFound => NotFound(),
+            RoomImageDeleteStatus.StorageFailed => StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                message = result.Message,
+                images = result.Images,
+                count = result.Images.Count
+            }),
+            _ => Ok(new
+            {
+                images = result.Images,
+                count = result.Images.Count
+            })
+        };
     }
 
     [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]

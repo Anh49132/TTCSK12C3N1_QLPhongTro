@@ -14,6 +14,7 @@
     let draggedCard = null;
     let orderAtDragStart = null;
     let isSavingOrder = false;
+    let isDeletingImage = false;
     const updateCount = () => { countElement.textContent = `${count}/8 ảnh`; };
 
     function imageCards() {
@@ -35,18 +36,20 @@
     function updateOrderPresentation() {
         const touch = window.matchMedia('(pointer: coarse)').matches;
         imageCards().forEach((card, index, cards) => {
-            card.draggable = !touch && !isSavingOrder;
+            card.draggable = !touch && !isSavingOrder && !isDeletingImage;
             const order = index + 1;
             const label = card.querySelector('[data-order-label]');
             const image = card.querySelector('img');
             const primary = card.querySelector('[data-primary-label]');
             const up = card.querySelector('[data-move-image="up"]');
             const down = card.querySelector('[data-move-image="down"]');
+            const remove = card.querySelector('[data-delete-image]');
             if (label) label.textContent = `Ảnh ${order}`;
             if (image) image.alt = `Ảnh phòng thứ ${order}`;
             if (primary) primary.hidden = index !== 0;
-            if (up) up.disabled = index === 0 || isSavingOrder;
-            if (down) down.disabled = index === cards.length - 1 || isSavingOrder;
+            if (up) up.disabled = index === 0 || isSavingOrder || isDeletingImage;
+            if (down) down.disabled = index === cards.length - 1 || isSavingOrder || isDeletingImage;
+            if (remove) remove.disabled = isSavingOrder || isDeletingImage;
         });
     }
 
@@ -70,6 +73,14 @@
             button.textContent = icon;
             controls.append(button);
         }
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'room-image-delete-button';
+        remove.dataset.deleteImage = '';
+        remove.setAttribute('aria-label', 'Xóa ảnh');
+        remove.title = 'Xóa ảnh';
+        remove.textContent = 'Xóa';
+        controls.append(remove);
         footer.append(label, controls);
         const primary = document.createElement('span');
         primary.className = 'room-image-primary';
@@ -125,9 +136,92 @@
     committedOrder = imageIds();
     updateOrderPresentation();
 
+    function confirmDelete() {
+        return new Promise(resolve => {
+            const dialog = document.createElement('dialog');
+            dialog.className = 'room-image-confirm';
+            dialog.innerHTML = `
+                <form method="dialog">
+                    <p>Xoá ảnh này? Ảnh sẽ bị xoá vĩnh viễn và không thể khôi phục.</p>
+                    <div>
+                        <button value="cancel">Huỷ</button>
+                        <button value="delete" class="room-image-confirm-delete">Xoá</button>
+                    </div>
+                </form>`;
+            document.body.append(dialog);
+            dialog.addEventListener('close', () => {
+                const accepted = dialog.returnValue === 'delete';
+                dialog.remove();
+                resolve(accepted);
+            }, { once: true });
+            if (typeof dialog.showModal === 'function') {
+                dialog.showModal();
+            } else {
+                const accepted = window.confirm('Xoá ảnh này? Ảnh sẽ bị xoá vĩnh viễn và không thể khôi phục.');
+                dialog.remove();
+                resolve(accepted);
+            }
+        });
+    }
+
+    function applyServerImages(images) {
+        const ids = new Set((images || []).map(image => Number(image.id)));
+        imageCards().forEach(card => {
+            if (!ids.has(Number(card.dataset.imageId))) card.remove();
+        });
+        arrangeCards((images || []).map(image => Number(image.id)));
+        count = ids.size;
+        committedOrder = imageIds();
+        updateCount();
+        updateOrderPresentation();
+    }
+
+    function deleteImage(card) {
+        if (!manager.dataset.deleteUrlTemplate || isSavingOrder || isDeletingImage) return;
+        const imageId = Number(card.dataset.imageId);
+        if (!imageId) return;
+        confirmDelete().then(accepted => {
+            if (!accepted) return;
+            isDeletingImage = true;
+            sortStatus.textContent = 'Đang xoá ảnh...';
+            sortStatus.classList.remove('is-error');
+            updateOrderPresentation();
+
+            const request = new XMLHttpRequest();
+            request.open('POST', manager.dataset.deleteUrlTemplate.replace('__imageId__', encodeURIComponent(imageId)));
+            request.setRequestHeader('RequestVerificationToken', token);
+            request.onload = () => {
+                let response = {};
+                try { response = JSON.parse(request.responseText); } catch { }
+                if (request.status >= 200 && request.status < 300) {
+                    applyServerImages(response.images || []);
+                    sortStatus.textContent = 'Đã xoá ảnh.';
+                } else {
+                    sortStatus.textContent = response.message || 'Không xoá được ảnh. Vui lòng thử lại.';
+                    sortStatus.classList.add('is-error');
+                }
+                isDeletingImage = false;
+                updateOrderPresentation();
+            };
+            request.onerror = () => {
+                sortStatus.textContent = 'Mất kết nối khi xoá ảnh. Ảnh vẫn được giữ nguyên.';
+                sortStatus.classList.add('is-error');
+                isDeletingImage = false;
+                updateOrderPresentation();
+            };
+            request.send();
+        });
+    }
+
     grid.addEventListener('click', event => {
+        const deleteButton = event.target.closest('[data-delete-image]');
+        if (deleteButton) {
+            const card = deleteButton.closest('.room-image-card[data-image-id]');
+            if (card) deleteImage(card);
+            return;
+        }
         const button = event.target.closest('[data-move-image]');
-        if (!button || isSavingOrder) return;
+        if (!button || isSavingOrder || isDeletingImage) return;
         const card = button.closest('.room-image-card[data-image-id]');
         const cards = imageCards();
         const index = cards.indexOf(card);
@@ -143,7 +237,7 @@
 
     grid.addEventListener('dragstart', event => {
         const card = event.target.closest('.room-image-card[data-image-id]');
-        if (!card || isSavingOrder || window.matchMedia('(pointer: coarse)').matches) {
+        if (!card || isSavingOrder || isDeletingImage || window.matchMedia('(pointer: coarse)').matches) {
             event.preventDefault();
             return;
         }
@@ -155,7 +249,7 @@
     });
 
     grid.addEventListener('dragover', event => {
-        if (!draggedCard || isSavingOrder) return;
+        if (!draggedCard || isSavingOrder || isDeletingImage) return;
         const target = event.target.closest('.room-image-card[data-image-id]');
         if (!target || target === draggedCard) return;
         event.preventDefault();

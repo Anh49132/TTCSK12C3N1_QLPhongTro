@@ -21,4 +21,11 @@ public class AnhPhong
     public string? MoTa { get; set; }
 
     public DateTime NgayTao { get; set; }
+
+    public bool DangChoXoa { get; set; }
+
+    [MaxLength(1000)]
+    public string? LoiXoaGanNhat { get; set; }
+
+    public DateTime? LanThuXoaGanNhat { get; set; }
 }

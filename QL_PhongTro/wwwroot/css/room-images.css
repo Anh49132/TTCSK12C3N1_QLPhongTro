@@ -100,7 +100,7 @@
 
 .room-image-move-controls button {
     display: grid;
-    width: 30px;
+    min-width: 30px;
     aspect-ratio: 1;
     place-items: center;
     padding: 0;
@@ -110,6 +110,14 @@
     color: var(--color-text);
     font-size: 17px;
     line-height: 1;
+}
+
+.room-image-move-controls .room-image-delete-button {
+    width: auto;
+    aspect-ratio: auto;
+    padding: 0 8px;
+    color: var(--color-danger);
+    font-size: 12px;
 }
 
 .room-image-move-controls button:disabled {
@@ -175,6 +183,43 @@
 
 .room-image-card.is-failed .room-image-progress span {
     background: var(--color-danger);
+}
+
+.room-image-confirm {
+    width: min(360px, calc(100vw - 32px));
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 16px;
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.room-image-confirm::backdrop {
+    background: rgb(0 0 0 / 45%);
+}
+
+.room-image-confirm p {
+    margin: 0 0 14px;
+}
+
+.room-image-confirm div {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.room-image-confirm button {
+    min-height: 34px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 0 12px;
+    background: var(--color-bg);
+}
+
+.room-image-confirm-delete {
+    border-color: var(--color-danger) !important;
+    background: var(--color-danger) !important;
+    color: #fff;
 }
 
 @keyframes room-image-in {

@@ -59,7 +59,8 @@
     {
         <section class="col-12 room-image-manager"
              data-upload-url="@Url.Action("UploadImage", new { id = ViewData["RoomId"] })"
-             data-reorder-url="@Url.Action("ReorderImages", new { id = ViewData["RoomId"] })">
+             data-reorder-url="@Url.Action("ReorderImages", new { id = ViewData["RoomId"] })"
+             data-delete-url-template="@Url.Action("DeleteImage", new { id = ViewData["RoomId"], imageId = "__imageId__" })">
             <div class="room-image-heading">
                 <div>
                     <h2>Ảnh phòng</h2>
@@ -82,6 +83,7 @@
                             <div class="room-image-move-controls" aria-label="Sắp xếp ảnh">
                                 <button type="button" data-move-image="up" aria-label="Đưa ảnh lên trước" title="Đưa ảnh lên trước" disabled="@(image.ThuTu == 1)">↑</button>
                                 <button type="button" data-move-image="down" aria-label="Đưa ảnh xuống sau" title="Đưa ảnh xuống sau">↓</button>
+                                <button type="button" class="room-image-delete-button" data-delete-image aria-label="Xóa ảnh" title="Xóa ảnh">Xóa</button>
                             </div>
                         </div>
                     </article>

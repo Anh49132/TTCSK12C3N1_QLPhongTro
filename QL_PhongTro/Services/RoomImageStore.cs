@@ -8,6 +8,7 @@ namespace QL_PhongTro.Services;
 
 public sealed record PreparedRoomImage(byte[] OriginalBytes, byte[] ThumbnailBytes, string Extension);
 public sealed record StoredRoomImage(string OriginalPath, string ThumbnailPath);
+public sealed record RoomImageDeleteResult(bool Success, string? ErrorMessage);
 
 public sealed class RoomImageStore
 {
@@ -110,14 +111,53 @@ public sealed class RoomImageStore
         DeletePublicPath(image.ThumbnailPath);
     }
 
+    public RoomImageDeleteResult DeletePermanent(StoredRoomImage? image)
+    {
+        if (image is null) return new(true, null);
+        var errors = new List<string>();
+        DeletePublicPathStrict(image.OriginalPath, errors);
+        DeletePublicPathStrict(image.ThumbnailPath, errors);
+        return errors.Count == 0
+            ? new RoomImageDeleteResult(true, null)
+            : new RoomImageDeleteResult(false, string.Join("; ", errors));
+    }
+
+    public bool TryGetFullPath(string? publicPath, out string fullPath)
+    {
+        fullPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(publicPath)) return false;
+        var prefix = "/uploads/rooms/";
+        if (!publicPath.StartsWith(prefix, StringComparison.Ordinal)) return false;
+        var relativePath = publicPath[prefix.Length..].Replace('/', Path.DirectorySeparatorChar);
+        var candidate = Path.GetFullPath(Path.Combine(root, relativePath));
+        if (!candidate.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) return false;
+        fullPath = candidate;
+        return true;
+    }
+
+    public IReadOnlyList<string> EnumerateStoredFiles()
+    {
+        if (!Directory.Exists(root)) return [];
+        return Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+            .Select(Path.GetFullPath)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     private void DeletePublicPath(string path)
     {
-        var prefix = "/uploads/rooms/";
-        if (!path.StartsWith(prefix, StringComparison.Ordinal)) return;
-        var relativePath = path[prefix.Length..].Replace('/', Path.DirectorySeparatorChar);
-        var fullPath = Path.GetFullPath(Path.Combine(root, relativePath));
-        if (!fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) return;
+        if (!TryGetFullPath(path, out var fullPath)) return;
         DeleteFile(fullPath);
+    }
+
+    private void DeletePublicPathStrict(string? path, List<string> errors)
+    {
+        if (!TryGetFullPath(path, out var fullPath)) return;
+        try { File.Delete(fullPath); }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            errors.Add($"{path}: {exception.Message}");
+        }
     }
 
     private static void DeleteFile(string path)

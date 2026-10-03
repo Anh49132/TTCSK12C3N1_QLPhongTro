@@ -180,6 +180,9 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         roomImage.Property(e => e.ThuTu).HasColumnName("thu_tu").IsRequired();
         roomImage.Property(e => e.MoTa).HasColumnName("mo_ta").HasMaxLength(255);
         roomImage.Property(e => e.NgayTao).HasColumnName("ngay_tao").IsRequired();
+        roomImage.Property(e => e.DangChoXoa).HasColumnName("dang_cho_xoa").HasDefaultValue(false);
+        roomImage.Property(e => e.LoiXoaGanNhat).HasColumnName("loi_xoa_gan_nhat").HasMaxLength(1000);
+        roomImage.Property(e => e.LanThuXoaGanNhat).HasColumnName("lan_thu_xoa_gan_nhat");
         roomImage.HasIndex(e => new { e.PhongId, e.ThuTu }).IsUnique();
         roomImage.HasOne<PhongTro>().WithMany().HasForeignKey(e => e.PhongId).OnDelete(DeleteBehavior.Restrict);
 

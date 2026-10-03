@@ -160,7 +160,7 @@ public sealed partial class RoomServicesTests : IDisposable
         using (var c = Open())
         using (var cmd = c.CreateCommand())
         {
-            cmd.CommandText = "DROP TABLE anh_phong; DROP TABLE tin_dang; DROP TABLE ngung_dich_vu_phong; DROP TABLE dich_vu_phong; DROP TABLE dich_vu_toa_nha; DELETE FROM app_schema_version WHERE version IN (6,7,8,9,10);";
+            cmd.CommandText = "DROP TABLE anh_phong; DROP TABLE tin_dang; DROP TABLE ngung_dich_vu_phong; DROP TABLE dich_vu_phong; DROP TABLE dich_vu_toa_nha; DELETE FROM app_schema_version WHERE version IN (6,7,8,9,10,11);";
             cmd.ExecuteNonQuery();
         }
         SqliteConnection.ClearAllPools();
