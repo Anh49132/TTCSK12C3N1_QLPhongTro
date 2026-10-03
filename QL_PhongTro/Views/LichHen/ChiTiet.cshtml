@@ -22,7 +22,7 @@
 <table class="table align-top">
     <tbody>
     <tr><th>Loại yêu cầu</th><td>@LichHenTrangThai.LoaiLabel(yeuCau.LoaiYeuCau)</td></tr>
-    <tr><th>Trạng thái</th><td>@LichHenTrangThai.Label(yeuCau.TrangThai)</td></tr>
+    <tr><th>Trạng thái</th><td>@LichHenTrangThai.LabelHienThi(yeuCau.TrangThai, yeuCau.DaDoiLich)</td></tr>
     <tr><th>Khách</th><td>@yeuCau.TenKhach @if (!string.IsNullOrWhiteSpace(yeuCau.SoDienThoaiKhach)) { <text>· @yeuCau.SoDienThoaiKhach</text> }</td></tr>
     @if (!Model.LaChuNha) { <tr><th>Chủ nhà</th><td>@yeuCau.TenChuNha</td></tr> }
     <tr><th>Ngày mong muốn</th><td>@yeuCau.NgayMongMuon</td></tr>
@@ -99,18 +99,64 @@
 <form method="post" class="row g-3 mb-4" asp-action="TuChoi" asp-route-id="@yeuCau.Id">
     <div class="col-md-4">
         <label asp-for="LyDoTuChoi" class="form-label">Lý do từ chối</label>
-        <select asp-for="LyDoTuChoi" class="form-select">
+        <select asp-for="LyDoTuChoi" class="form-select" data-role="ly-do-tu-choi">
             @foreach (var lyDo in LyDoTuChoi.All) { <option value="@lyDo">@LichHenService.LyDoLabel(lyDo)</option> }
         </select>
     </div>
     <div class="col-md-5">
-        <label asp-for="GhiChuTuChoi" class="form-label">Ghi chú (bắt buộc nếu chọn "Lý do khác")</label>
-        <input asp-for="GhiChuTuChoi" class="form-control" maxlength="500" />
+        @* Ô ghi chú chỉ hiện khi chọn "Lý do khác". Giao diện chặn trước để khách thấy lỗi ngay,
+           nhưng LichHenService vẫn là nơi quyết định: post thiếu hoặc quá ngắn vẫn bị từ chối. *@
+        <div class="mb-3 @(Model.LyDoTuChoi == LyDoTuChoi.Khac ? "" : "d-none")" data-role="vung-ghi-chu">
+            <label asp-for="GhiChuTuChoi" class="form-label">Ghi chú <span class="text-danger">*</span></label>
+            <input asp-for="GhiChuTuChoi" class="form-control" maxlength="500"
+                   data-role="ghi-chu-tu-choi" data-doi-kiem-tra="1" />
+            <div class="form-text" data-role="loi-ghi-chu"></div>
+        </div>
     </div>
     <div class="col-md-3 d-flex align-items-end">
         <button class="btn btn-outline-danger" type="submit">Từ chối</button>
     </div>
 </form>
+}
+
+<h2>Lịch sử yêu cầu</h2>
+@if (Model.LichSu.Count == 0) {
+    <p class="text-muted mb-4">Chưa có thay đổi nào được ghi nhận.</p>
+} else {
+    <ul class="list-unstyled mb-4">
+    @foreach (var muc in Model.LichSu) {
+        <li class="border-bottom pb-2 mb-2">
+            <div>
+                <strong>@HanhDongYeuCau.Label(muc.HanhDong)</strong>
+                @if (muc.TrangThaiCu is { } cu && cu != muc.TrangThaiMoi) {
+                    <span class="text-muted">· @LichHenTrangThai.Label(cu) → @LichHenTrangThai.Label(muc.TrangThaiMoi)</span>
+                } else {
+                    <span class="text-muted">· @LichHenTrangThai.Label(muc.TrangThaiMoi)</span>
+                }
+            </div>
+            <div class="text-muted">
+                @if (!string.IsNullOrWhiteSpace(muc.TenNguoiThucHien)) {
+                    @muc.TenNguoiThucHien
+                    @if (muc.VaiTro == LichHenTrangThai.VaiTroChuNha) { <text> (chủ nhà)</text> }
+                    else if (muc.VaiTro == LichHenTrangThai.VaiTroKhachThue) { <text> (khách)</text> }
+                    <text> · </text>
+                }
+                @LichHenService.HienThoiGio(muc.ThoiDiem)
+            </div>
+            @if (muc.LichHenCu is { } lichCu && muc.LichHenMoi is { } lichMoi && lichCu != lichMoi) {
+                <div class="text-muted">Lịch: @LichHenService.HienThoiGio(lichCu) → @LichHenService.HienThoiGio(lichMoi)</div>
+            } else if (muc.LichHenMoi is { } lichMoi2) {
+                <div class="text-muted">Lịch hẹn: @LichHenService.HienThoiGio(lichMoi2)</div>
+            }
+            @if (!string.IsNullOrEmpty(muc.LyDoTuChoi)) {
+                <div class="text-muted">Lý do: @LichHenService.LyDoLabel(muc.LyDoTuChoi)</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(muc.GhiChuTuChoi)) {
+                <div class="text-muted">Ghi chú: @muc.GhiChuTuChoi</div>
+            }
+        </li>
+    }
+    </ul>
 }
 
 @section Scripts {

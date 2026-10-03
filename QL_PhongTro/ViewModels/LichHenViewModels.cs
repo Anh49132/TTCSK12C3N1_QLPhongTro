@@ -42,6 +42,12 @@ public sealed class LichHenChiTietViewModel
     /// </summary>
     public bool HienThiNutLapHopDong { get; init; }
 
+    /// <summary>
+    /// AC3: khách xem được lịch sử thay đổi của yêu cầu. LichSuService đã chặn sẵn mọi người
+    /// không phải chủ nhà phòng hay khách của yêu cầu đó.
+    /// </summary>
+    public IReadOnlyList<LichHenLichSuMuc> LichSu { get; init; } = [];
+
     /// <summary>Where the button points. Change this one line when S3-01 publishes its route.</summary>
     public const string DuongDanLapHopDong = "/LichHen/LapHopDong";
 

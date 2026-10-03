@@ -44,12 +44,21 @@ public static class HanhDongYeuCau
     public const string DuyetThueNgay = "DUYET_THUE_NGAY";
     public const string TuChoi = "TU_CHOI";
 
+    /// <summary>
+    /// Dòng mở đầu của dấu vết. S2-06 tạo yêu cầu trong YeuCauThueService.Send và file đó không
+    /// thuộc S2-08, nên dòng này được SUY RA lúc hiển thị chứ không ghi vào bảng: thời điểm lấy
+    /// từ ngay_tao của yêu cầu, người thực hiện là khách, vai trò là khách thuê. Khi S2-06 ghi
+    /// vào bảng thì bỏ hàm nay đi, không còn chỗ nào khác ghi dòng này.
+    /// </summary>
+    public const string TaoYeuCau = "TAO_YEU_CAU";
+
     public static string Label(string hanhDong) => hanhDong switch
     {
         XacNhan => "Chủ nhà xác nhận lịch hẹn",
         DoiLich => "Chủ nhà đổi lịch hẹn",
         DuyetThueNgay => "Chủ nhà duyệt thuê ngay",
         TuChoi => "Chủ nhà từ chối yêu cầu",
+        TaoYeuCau => "Khách gửi yêu cầu",
         _ => hanhDong
     };
 }
