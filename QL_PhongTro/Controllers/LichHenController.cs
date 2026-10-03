@@ -43,9 +43,40 @@ public class LichHenController(LichHenService service) : Controller
             HienThiFormDoiLich = laChuNha && yeuCau.TrangThai == LichHenTrangThai.DaHenLich,
             HienThiNutDuyetThueNgay = laChuNha
                 && yeuCau.LoaiYeuCau == LichHenTrangThai.LoaiThueNgay
-                && yeuCau.TrangThai is LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich
+                && yeuCau.TrangThai is LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich,
+            HienThiNutLapHopDong = laChuNha
+                && yeuCau.TrangThai == LichHenTrangThai.DaDuyet
+                && yeuCau.TrangThaiPhong == LichHenTrangThai.PhongDaDatCoc
         };
         return View(view);
+    }
+
+    /// <summary>
+    /// Entry point of AC4 "mở nút lập hợp đồng". Drafting the contract is S3-01 and its screen is
+    /// not on dev, so this page only states that the request is ready and shows the request code.
+    /// The conditions are still enforced here rather than trusted from the button: a landlord,
+    /// an approved request, a room already held. When S3-01 publishes a route, change
+    /// LichHenChiTietViewModel.DuongDanLapHopDong and redirect there instead of rendering this.
+    /// </summary>
+    [HttpGet("/LichHen/LapHopDong"), ModuleAccess("HOP_DONG", write: true)]
+    public async Task<IActionResult> LapHopDong(int id, CancellationToken ct)
+    {
+        if (await service.DocAsync(id, ct) is not { } yeuCau) return NotFound();
+        if (!await service.ChuNhaCuaYeuCauAsync(AccountId, id, ct)) return Forbid();
+        if (yeuCau.TrangThai != LichHenTrangThai.DaDuyet
+            || yeuCau.TrangThaiPhong != LichHenTrangThai.PhongDaDatCoc)
+        {
+            TempData["LichHenError"] = "Chỉ yêu cầu đã duyệt và phòng đã đặt cọc mới lập được hợp đồng.";
+            return RedirectToAction(nameof(ChiTiet), new { id });
+        }
+        return View(new LichHenLapHopDongViewModel
+        {
+            YeuCauId = yeuCau.Id,
+            MaYeuCau = yeuCau.MaYeuCau,
+            TenPhong = yeuCau.MaPhong,
+            TenToaNha = yeuCau.TenToaNha,
+            TenKhach = yeuCau.TenKhach
+        });
     }
 
     /// <summary>
