@@ -184,11 +184,41 @@ public class LichHenLichSuTests : IDisposable
     }
 
     [Fact]
-    public async Task LichSu_ChuaCoThayDoi_ThenRong()
+    public async Task LichSu_ChuaCoThayDoi_ThenChiCoDongGửiYêuCầu()
+    {
+        // Dòng mở đầu được suy ra lúc hiển thị, không nằm trong bảng.
+        var id = TaoYeuCau();
+
+        var muc = Assert.Single(await _service.LichSuAsync(_chuNhaId, id, default));
+
+        Assert.Equal(HanhDongYeuCau.TaoYeuCau, muc.HanhDong);
+        Assert.Equal(LichHenTrangThai.Moi, muc.TrangThaiMoi);
+        Assert.Null(muc.TrangThaiCu);
+    }
+
+    [Fact]
+    public async Task LichSu_DongGửiYêuCầu_CóNgườiThựcHiệnVàThờiĐiểm()
+    {
+        // AC3 đòi cả người thực hiện lẫn thời điểm, kể cả ở dòng mở đầu. Thời điểm lấy từ
+        // ngay_tao của yêu cầu nên đúng lúc khách gửi, không phải lúc mở trang.
+        var id = TaoYeuCau();
+
+        var muc = Assert.Single(await _service.LichSuAsync(_khachAccountId, id, default));
+
+        Assert.Equal(KhachHoTen, muc.TenNguoiThucHien);
+        Assert.Equal(LichHenTrangThai.VaiTroKhachThue, muc.VaiTro);
+        Assert.Equal(_hienTai, muc.ThoiDiem);
+    }
+
+    [Fact]
+    public async Task LichSu_DongGửiYêuCầu_KhongGhiVaoBảng()
     {
         var id = TaoYeuCau();
 
-        Assert.Empty(await _service.LichSuAsync(_chuNhaId, id, default));
+        await _service.LichSuAsync(_khachAccountId, id, default);
+        await _service.LichSuAsync(_khachAccountId, id, default);
+
+        Assert.Equal("0", CountLichSu(id));
     }
 
     [Fact]
@@ -200,7 +230,7 @@ public class LichHenLichSuTests : IDisposable
         var chuNha = await _service.LichSuAsync(_chuNhaId, id, default);
         var khach = await _service.LichSuAsync(_khachAccountId, id, default);
 
-        Assert.Single(chuNha);
+        Assert.Equal(2, chuNha.Count);
         Assert.Equal(chuNha.Select(x => x.HanhDong), khach.Select(x => x.HanhDong));
     }
 
@@ -211,9 +241,9 @@ public class LichHenLichSuTests : IDisposable
         var id = TaoYeuCau();
         await _service.XacNhanLichAsync(id, _chuNhaId, _hienTai.AddDays(1), default);
 
-        var muc = Assert.Single(await _service.LichSuAsync(_khachAccountId, id, default));
+        var muc = Assert.Single(await _service.LichSuAsync(_khachAccountId, id, default),
+            x => x.HanhDong == HanhDongYeuCau.XacNhan);
 
-        Assert.Equal(HanhDongYeuCau.XacNhan, muc.HanhDong);
         Assert.Equal(ChuNhaHoTen, muc.TenNguoiThucHien);
         Assert.Equal(LichHenTrangThai.VaiTroChuNha, muc.VaiTro);
         Assert.Equal(_hienTai, muc.ThoiDiem);
@@ -231,7 +261,9 @@ public class LichHenLichSuTests : IDisposable
 
         var lichSu = await _service.LichSuAsync(_chuNhaId, id, default);
 
-        Assert.Equal([HanhDongYeuCau.TuChoi, HanhDongYeuCau.XacNhan], lichSu.Select(x => x.HanhDong));
+        Assert.Equal(
+            [HanhDongYeuCau.TuChoi, HanhDongYeuCau.XacNhan, HanhDongYeuCau.TaoYeuCau],
+            lichSu.Select(x => x.HanhDong));
     }
 
     [Fact]
@@ -243,8 +275,8 @@ public class LichHenLichSuTests : IDisposable
 
         await _service.DoiLichAsync(id, _chuNhaId, lichMoi, default);
 
-        var muc = Assert.Single(await _service.LichSuAsync(_khachAccountId, id, default));
-        Assert.Equal(HanhDongYeuCau.DoiLich, muc.HanhDong);
+        var muc = Assert.Single(await _service.LichSuAsync(_khachAccountId, id, default),
+            x => x.HanhDong == HanhDongYeuCau.DoiLich);
         Assert.Equal(lichCu, muc.LichHenCu);
         Assert.Equal(lichMoi, muc.LichHenMoi);
     }
@@ -256,7 +288,8 @@ public class LichHenLichSuTests : IDisposable
 
         await _service.TuChoiAsync(id, _chuNhaId, LyDoTuChoi.Khac, "khách đã thuê chỗ khác", default);
 
-        var muc = Assert.Single(await _service.LichSuAsync(_khachAccountId, id, default));
+        var muc = Assert.Single(await _service.LichSuAsync(_khachAccountId, id, default),
+            x => x.HanhDong == HanhDongYeuCau.TuChoi);
         Assert.Equal(LyDoTuChoi.Khac, muc.LyDoTuChoi);
         Assert.Equal("khách đã thuê chỗ khác", muc.GhiChuTuChoi);
     }
@@ -268,8 +301,8 @@ public class LichHenLichSuTests : IDisposable
         var idKhac = TaoYeuCau();
         await _service.XacNhanLichAsync(id, _chuNhaId, _hienTai.AddDays(1), default);
 
-        Assert.Single(await _service.LichSuAsync(_chuNhaId, id, default));
-        Assert.Empty(await _service.LichSuAsync(_chuNhaId, idKhac, default));
+        Assert.Equal(2, (await _service.LichSuAsync(_chuNhaId, id, default)).Count);
+        Assert.Single(await _service.LichSuAsync(_chuNhaId, idKhac, default));
     }
 
     [Fact]
@@ -310,7 +343,10 @@ public class LichHenLichSuTests : IDisposable
         var view = await ControllerCho(_khachAccountId).ChiTiet(id, default);
 
         var model = Assert.IsType<LichHenChiTietViewModel>(Assert.IsType<ViewResult>(view).Model);
-        Assert.Single(model.LichSu);
+        Assert.Equal(2, model.LichSu.Count);
+        // Mới đến cũ: xác nhận ở trên, dòng gửi yêu cầu ở dưới cùng.
+        Assert.Equal(HanhDongYeuCau.XacNhan, model.LichSu[0].HanhDong);
+        Assert.Equal(HanhDongYeuCau.TaoYeuCau, model.LichSu[^1].HanhDong);
         Assert.False(model.LaChuNha);
     }
 
@@ -327,6 +363,7 @@ public class LichHenLichSuTests : IDisposable
     [InlineData(HanhDongYeuCau.DoiLich, "Chủ nhà đổi lịch hẹn")]
     [InlineData(HanhDongYeuCau.DuyetThueNgay, "Chủ nhà duyệt thuê ngay")]
     [InlineData(HanhDongYeuCau.TuChoi, "Chủ nhà từ chối yêu cầu")]
+    [InlineData(HanhDongYeuCau.TaoYeuCau, "Khách gửi yêu cầu")]
     public void HanhDongLabel_HienThiDungTen(string hanhDong, string nhan)
     {
         Assert.Equal(nhan, HanhDongYeuCau.Label(hanhDong));

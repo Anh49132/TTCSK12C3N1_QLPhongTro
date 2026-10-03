@@ -526,8 +526,26 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
             // Bảng lịch sử thuộc S2-08 nên trên dev luôn có; nếu thiếu thì coi như chưa có lịch sử.
             danhSach.Clear();
         }
+        // Dòng mở đầu là sự kiện cũ nhất nên nằm cuối danh sách, sau các dòng đã ghi trong bảng.
+        danhSach.Add(DongTaoYeuCau(yeuCau));
         return danhSach;
     }
+
+    /// <summary>
+    /// Dòng mở đầu "Khách gửi yêu cầu" của AC3. S2-06 tạo yêu cầu trong YeuCauThueService.Send và
+    /// file đó không thuộc S2-08 để sửa, nên dòng này được suy ra lúc hiển thị chứ không ghi vào
+    /// bảng: thời điểm là ngay_tao của yêu cầu, người thực hiện là khách, vai trò khách thuê.
+    /// Hàm này không đụng vào CSDL nên xem lịch sử bao nhiêu lần cũng không sinh thêm dòng nào.
+    /// Khi S2-06 ghi dòng mở đầu vào yeu_cau_thue_lich_su thì bỏ hàm nay đi.
+    /// </summary>
+    private static LichHenLichSuMuc DongTaoYeuCau(LichHenYeuCau yeuCau) => new()
+    {
+        TrangThaiMoi = LichHenTrangThai.Moi,
+        HanhDong = HanhDongYeuCau.TaoYeuCau,
+        TenNguoiThucHien = yeuCau.TenKhach,
+        VaiTro = LichHenTrangThai.VaiTroKhachThue,
+        ThoiDiem = yeuCau.NgayTao
+    };
 
     private static async Task<(string? Ten, string? VaiTro)> DocNguoiThucHienAsync(SqliteTransaction tx, int accountId, CancellationToken ct)
     {
