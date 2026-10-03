@@ -72,7 +72,9 @@ public sealed partial class PermissionTests : IDisposable
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseContentRoot(appPath);
+            builder.UseWebRoot(Path.Combine(temp, "wwwroot"));
             builder.UseSetting("DatabasePath", database);
+            builder.UseSetting("RoomImagesPath", Path.Combine(temp, "wwwroot", "uploads", "rooms"));
             builder.UseEnvironment("Development");
             builder.ConfigureLogging(logging => logging.ClearProviders());
             builder.ConfigureServices(services => services.AddDataProtection().UseEphemeralDataProtectionProvider());

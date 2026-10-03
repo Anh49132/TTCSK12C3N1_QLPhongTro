@@ -1,7 +1,10 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using QL_PhongTro.Data;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Data.Sqlite;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
@@ -73,6 +76,30 @@ public sealed partial class PermissionTests
     }
 
     [Fact]
+    public async Task SingleImageIsPrimaryAndItsThumbnailIsUsedOnListing()
+    {
+        RentalRequestSchema.Initialize(database);
+        var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+        var (roomId, _) = GetListingRoomAndBuilding(listingId);
+        using var owner = await Login("CHU_NHA");
+        var token = await RoomImageToken(owner, roomId);
+        using var upload = await Upload(owner, roomId, token, "only.jpg", EncodeJpeg(800, 600));
+        Assert.Equal(HttpStatusCode.OK, upload.StatusCode);
+
+        var edit = WebUtility.HtmlDecode(await owner.GetStringAsync($"/PhongTro/Edit/{roomId}"));
+        Assert.Contains("Ảnh đại diện", edit);
+        Assert.Contains("data-primary-label", edit);
+        Assert.Contains("1/8 ảnh", edit);
+
+        using var guest = Client();
+        var index = WebUtility.HtmlDecode(await guest.GetStringAsync("/TinDang"));
+        using var saved = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
+        var thumbnail = saved.RootElement.GetProperty("thumbnailPath").GetString();
+        Assert.Contains($"src=\"{thumbnail}\"", index);
+        CleanupRoomImages(roomId);
+    }
+
+    [Fact]
     public async Task InvalidUploadFormatsAndOversizedFilesAreRejectedWithoutRowsOrFiles()
     {
         var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
@@ -128,6 +155,108 @@ public sealed partial class PermissionTests
         Assert.True(!Directory.Exists(RoomImageDirectory(roomId)) || Directory.GetFiles(RoomImageDirectory(roomId)).Length == 0);
     }
 
+    [Fact]
+    public async Task ReorderPersistsExactOrderAcrossTabsAndNewUploadAppends()
+    {
+        RentalRequestSchema.Initialize(database);
+        var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+        var (roomId, _) = GetListingRoomAndBuilding(listingId);
+        using var owner = await Login("CHU_NHA");
+        var token = await RoomImageToken(owner, roomId);
+        var imageIds = new List<int>();
+        for (var index = 0; index < 5; index++)
+        {
+            using var upload = await Upload(owner, roomId, token, $"sort-{index}.jpg", EncodeJpeg(80, 60));
+            Assert.Equal(HttpStatusCode.OK, upload.StatusCode);
+            using var result = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
+            imageIds.Add(result.RootElement.GetProperty("id").GetInt32());
+        }
+
+        var firstTabOrder = new[] { imageIds[2], imageIds[0], imageIds[1], imageIds[3], imageIds[4] };
+        using var firstSave = await Reorder(owner, roomId, token, firstTabOrder);
+        Assert.Equal(HttpStatusCode.OK, firstSave.StatusCode);
+        Assert.Equal(firstTabOrder, ReadImageIds(roomId));
+
+        var secondTabOrder = new[] { imageIds[1], imageIds[2], imageIds[0], imageIds[4], imageIds[3] };
+        using var secondSave = await Reorder(owner, roomId, token, secondTabOrder);
+        Assert.Equal(HttpStatusCode.OK, secondSave.StatusCode);
+        Assert.Equal(secondTabOrder, ReadImageIds(roomId));
+        Assert.Equal(imageIds.Order().ToArray(), ReadImageIds(roomId).Order().ToArray());
+
+        using var guest = Client();
+        var list = WebUtility.HtmlDecode(await guest.GetStringAsync("/TinDang"));
+        var leadingThumbnail = Scalar("SELECT duong_dan_anh_nho FROM anh_phong WHERE id=$id", ("$id", secondTabOrder[0]))?.ToString();
+        Assert.Contains($"src=\"{leadingThumbnail}\"", list);
+        using var detailResponse = await guest.GetAsync($"/api/tin-dang/{listingId}");
+        using var detail = JsonDocument.Parse(await detailResponse.Content.ReadAsStringAsync());
+        var detailPaths = detail.RootElement.GetProperty("anh").EnumerateArray()
+            .Select(image => image.GetProperty("duongDan").GetString()).ToArray();
+        var expectedPaths = secondTabOrder.Select(imageId => Scalar("SELECT duong_dan FROM anh_phong WHERE id=$id", ("$id", imageId))?.ToString()).ToArray();
+        Assert.Equal(expectedPaths, detailPaths);
+
+        using var added = await Upload(owner, roomId, token, "appended.jpg", EncodeJpeg(80, 60));
+        Assert.Equal(HttpStatusCode.OK, added.StatusCode);
+        using var addedJson = JsonDocument.Parse(await added.Content.ReadAsStringAsync());
+        Assert.Equal(6, addedJson.RootElement.GetProperty("order").GetInt32());
+        Assert.Equal(6, ReadImageIds(roomId).Length);
+        CleanupRoomImages(roomId);
+    }
+
+    [Fact]
+    public async Task ReorderRejectsMissingExtraAndDuplicateIdsWithoutChangingOrder()
+    {
+        var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+        var (roomId, _) = GetListingRoomAndBuilding(listingId);
+        using var owner = await Login("CHU_NHA");
+        var token = await RoomImageToken(owner, roomId);
+        var imageIds = new List<int>();
+        for (var index = 0; index < 3; index++)
+        {
+            using var upload = await Upload(owner, roomId, token, $"invalid-order-{index}.jpg", EncodeJpeg(80, 60));
+            using var result = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
+            imageIds.Add(result.RootElement.GetProperty("id").GetInt32());
+        }
+        var before = ReadImageIds(roomId);
+        var invalidLists = new[]
+        {
+            new[] { imageIds[0], imageIds[2] },
+            new[] { imageIds[0], imageIds[1], imageIds[2], 999999 },
+            new[] { imageIds[0], imageIds[0], imageIds[2] }
+        };
+
+        foreach (var invalid in invalidLists)
+        {
+            using var response = await Reorder(owner, roomId, token, invalid);
+            Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+            Assert.Contains("Danh sách ảnh đã thay đổi", await response.Content.ReadAsStringAsync());
+            Assert.Equal(before, ReadImageIds(roomId));
+        }
+        CleanupRoomImages(roomId);
+    }
+
+    [Fact]
+    public async Task OwnerCannotReorderAnotherOwnersRoom()
+    {
+        var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+        var (roomId, buildingId) = GetListingRoomAndBuilding(listingId);
+        Execute("INSERT INTO anh_phong(phong_id,duong_dan,duong_dan_anh_nho,thu_tu,ngay_tao) VALUES($room,'/fake/one.jpg','/fake/one-thumb.jpg',1,$created)",
+            ("$room", roomId), ("$created", DateTime.UtcNow.ToString("O")));
+        using var ownerA = await Login("CHU_NHA");
+        var token = await RoomImageToken(ownerA, roomId);
+        var ownerBEmail = "second-owner@s104.test";
+        var ownerBHash = BCrypt.Net.BCrypt.HashPassword("TestPass123!");
+        var now = DateTime.UtcNow.ToString("O");
+        Execute("INSERT INTO tai_khoan(ho_ten,email,so_dien_thoai,mat_khau,vai_tro,dang_hoat_dong,is_staff,is_superuser,ngay_tao,ngay_cap_nhat) VALUES('Owner B',$email,'0970000001',$hash,'CHU_NHA',1,0,0,$now,$now)",
+            ("$email", ownerBEmail), ("$hash", ownerBHash), ("$now", now));
+        var ownerBId = Convert.ToInt32(Scalar("SELECT id FROM tai_khoan WHERE email=$email", ("$email", ownerBEmail)));
+        Execute("UPDATE toa_nha SET chu_nha_id=$owner WHERE id=$building", ("$owner", ownerBId), ("$building", buildingId));
+
+        using var response = await Reorder(ownerA, roomId, token, [1]);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(1L, Scalar("SELECT COUNT(*) FROM anh_phong WHERE phong_id=$room AND thu_tu=1", ("$room", roomId)));
+        Assert.Equal((long)ownerBId, Convert.ToInt64(Scalar("SELECT chu_nha_id FROM toa_nha WHERE id=$building", ("$building", buildingId))));
+    }
+
     private static async Task<string> RoomImageToken(HttpClient client, int roomId)
     {
         var html = await client.GetStringAsync($"/PhongTro/Edit/{roomId}");
@@ -144,7 +273,25 @@ public sealed partial class PermissionTests
         return await client.PostAsync($"/PhongTro/UploadImage/{roomId}", content);
     }
 
-    private string RoomImageDirectory(int roomId) => Path.Combine(appPath, "wwwroot", "uploads", "rooms", roomId.ToString());
+    private static async Task<HttpResponseMessage> Reorder(HttpClient client, int roomId, string token, IReadOnlyList<int> imageIds)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/PhongTro/ReorderImages/{roomId}")
+        {
+            Content = JsonContent.Create(imageIds)
+        };
+        request.Headers.Add("RequestVerificationToken", token);
+        return await client.SendAsync(request);
+    }
+
+    private int[] ReadImageIds(int roomId)
+    {
+        var count = Convert.ToInt32(Scalar("SELECT COUNT(*) FROM anh_phong WHERE phong_id=$room", ("$room", roomId)));
+        return Enumerable.Range(1, count)
+            .Select(order => Convert.ToInt32(Scalar("SELECT id FROM anh_phong WHERE phong_id=$room AND thu_tu=$order", ("$room", roomId), ("$order", order))))
+            .ToArray();
+    }
+
+    private string RoomImageDirectory(int roomId) => Path.Combine(temp, "wwwroot", "uploads", "rooms", roomId.ToString());
 
     private void CleanupRoomImages(int roomId)
     {

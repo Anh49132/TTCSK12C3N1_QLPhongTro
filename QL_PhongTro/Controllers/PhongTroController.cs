@@ -562,6 +562,65 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
     }
 
     [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
+    public async Task<IActionResult> ReorderImages(int id, [FromBody] List<int>? imageIds, CancellationToken cancellationToken)
+    {
+        if (CurrentAccountId() is not { } ownerId)
+            return Forbid();
+        if (imageIds is null || imageIds.Count > RoomImageStore.MaxImagesPerRoom)
+            return BadRequest(new { message = "Danh sách thứ tự ảnh không hợp lệ. Vui lòng tải lại trang." });
+
+        await db.Database.OpenConnectionAsync(cancellationToken);
+        var connection = (SqliteConnection)db.Database.GetDbConnection();
+        using var sqliteTransaction = connection.BeginTransaction(deferred: false);
+        await using var transaction = await db.Database.UseTransactionAsync(sqliteTransaction);
+
+        var roomIsOwned = await db.PhongTros.AsNoTracking().AnyAsync(room => room.Id == id
+            && db.ToaNhas.Any(building => building.Id == room.ToaNhaId
+                && building.ChuNhaId == ownerId && building.DangHoatDong), cancellationToken);
+        if (!roomIsOwned)
+            return NotFound();
+
+        var currentImages = await db.AnhPhongs.AsNoTracking()
+            .Where(image => image.PhongId == id)
+            .OrderBy(image => image.ThuTu)
+            .ToListAsync(cancellationToken);
+        var submittedIds = imageIds.ToHashSet();
+        if (imageIds.Count != currentImages.Count || submittedIds.Count != imageIds.Count
+            || !submittedIds.SetEquals(currentImages.Select(image => image.Id)))
+            return Conflict(new { message = "Danh sách ảnh đã thay đổi ở một tab khác. Tải lại trang rồi thử lại." });
+
+        await using var command = connection.CreateCommand();
+        command.Transaction = sqliteTransaction;
+        try
+        {
+            command.CommandText = "PRAGMA ignore_check_constraints=ON";
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            command.CommandText = "UPDATE anh_phong SET thu_tu=thu_tu+8 WHERE phong_id=$roomId";
+            command.Parameters.AddWithValue("$roomId", id);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            command.Parameters.Clear();
+            command.CommandText = "UPDATE anh_phong SET thu_tu=$order WHERE id=$imageId AND phong_id=$roomId";
+            for (var index = 0; index < imageIds.Count; index++)
+            {
+                command.Parameters.Clear();
+                command.Parameters.AddWithValue("$order", index + 1);
+                command.Parameters.AddWithValue("$imageId", imageIds[index]);
+                command.Parameters.AddWithValue("$roomId", id);
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+        finally
+        {
+            command.Parameters.Clear();
+            command.CommandText = "PRAGMA ignore_check_constraints=OFF";
+            await command.ExecuteNonQueryAsync(CancellationToken.None);
+        }
+
+        await transaction!.CommitAsync(cancellationToken);
+        return Ok(new { imageIds });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
     public async Task<IActionResult> Delete(int id)
     {
         var room = await GetOwnedRoom(id);

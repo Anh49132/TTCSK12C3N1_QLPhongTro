@@ -57,7 +57,9 @@
     </div>
     @if (isEdit)
     {
-        <section class="col-12 room-image-manager" data-upload-url="@Url.Action("UploadImage", new { id = ViewData["RoomId"] })">
+        <section class="col-12 room-image-manager"
+             data-upload-url="@Url.Action("UploadImage", new { id = ViewData["RoomId"] })"
+             data-reorder-url="@Url.Action("ReorderImages", new { id = ViewData["RoomId"] })">
             <div class="room-image-heading">
                 <div>
                     <h2>Ảnh phòng</h2>
@@ -71,12 +73,22 @@
                 @foreach (var image in Model.Anh)
                 {
                     <article class="room-image-card" data-image-id="@image.Id">
-                        <img src="@(image.DuongDanAnhNho ?? image.DuongDan)" alt="Ảnh phòng thứ @image.ThuTu" />
-                        <span>Ảnh @image.ThuTu</span>
+                        <div class="room-image-preview">
+                            <img src="@(image.DuongDanAnhNho ?? image.DuongDan)" alt="Ảnh phòng thứ @image.ThuTu" />
+                            <span class="room-image-primary" data-primary-label hidden="@(image.ThuTu != 1)">Ảnh đại diện</span>
+                        </div>
+                        <div class="room-image-card-footer">
+                            <span data-order-label>Ảnh @image.ThuTu</span>
+                            <div class="room-image-move-controls" aria-label="Sắp xếp ảnh">
+                                <button type="button" data-move-image="up" aria-label="Đưa ảnh lên trước" title="Đưa ảnh lên trước" disabled="@(image.ThuTu == 1)">↑</button>
+                                <button type="button" data-move-image="down" aria-label="Đưa ảnh xuống sau" title="Đưa ảnh xuống sau">↓</button>
+                            </div>
+                        </div>
                     </article>
                 }
             </div>
             <div class="room-image-queue" data-image-queue aria-live="polite"></div>
+            <p class="room-image-sort-status" data-sort-status role="status" aria-live="polite"></p>
         </section>
     }
     <div class="col-12 d-flex gap-2 pt-2">

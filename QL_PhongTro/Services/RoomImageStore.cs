@@ -17,8 +17,12 @@ public sealed class RoomImageStore
     private const long MaxPixels = 50_000_000;
     private readonly string root;
 
-    public RoomImageStore(IWebHostEnvironment environment)
-        : this(environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot")) { }
+    public RoomImageStore(IWebHostEnvironment environment, IConfiguration configuration)
+    {
+        var webRoot = environment.WebRootPath ?? Path.Combine(environment.ContentRootPath, "wwwroot");
+        root = Path.GetFullPath(configuration["RoomImagesPath"]
+            ?? Path.Combine(webRoot, "uploads", "rooms"));
+    }
 
     public RoomImageStore(string webRootPath) => root = Path.GetFullPath(Path.Combine(webRootPath, "uploads", "rooms"));
 
