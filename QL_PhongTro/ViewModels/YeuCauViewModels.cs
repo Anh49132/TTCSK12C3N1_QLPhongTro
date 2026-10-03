@@ -11,6 +11,7 @@ public class YeuCauListItemViewModel
 public class DanhSachYeuCauViewModel
 {
     public IReadOnlyList<YeuCauListItemViewModel> YeuCaus { get; set; } = [];
+    public IReadOnlyList<YeuCauThueItemViewModel> YeuCausCuaKhach { get; set; } = [];
     public bool LaKhachThue { get; set; }
     public string? TrangThai { get; set; }
     public int? ToaNhaId { get; set; }

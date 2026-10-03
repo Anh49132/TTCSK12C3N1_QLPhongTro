@@ -15,6 +15,48 @@ public class YeuCauController(AppDbContext db, ITimeProvider clock, YeuCauThueSe
         var validStatus = Models.TrangThaiYeuCau.Labels.ContainsKey(trangThai ?? "") ? trangThai : null;
         if (!await requests.IsInstalled())
             return View(new DanhSachYeuCauViewModel { LaKhachThue = laKhachThue, TrangThai = validStatus, ToaNhaId = validBuilding, ToaNhaOptions = buildings });
+        if (laKhachThue)
+        {
+            var tenantRequests = await (from request in db.YeuCauThues.AsNoTracking()
+                                        join tenant in db.KhachThues.AsNoTracking() on request.KhachThueId equals tenant.Id
+                                        join listing in db.TinDangs.AsNoTracking() on request.TinDangId equals listing.Id
+                                        join room in db.PhongTros.AsNoTracking() on listing.PhongId equals room.Id
+                                        where tenant.TaiKhoanId == accountId
+                                            && (validStatus == null || request.TrangThai == validStatus)
+                                        orderby request.NgayTao descending, request.Id descending
+                                        select new
+                                        {
+                                            request.Id,
+                                            request.MaYeuCau,
+                                            room.MaPhong,
+                                            request.NgayTao,
+                                            request.TrangThai,
+                                            request.LichHen,
+                                            request.LyDoTuChoi
+                                        }).ToListAsync();
+
+            var tenantItems = tenantRequests.Select(request => new YeuCauThueItemViewModel(
+                request.Id,
+                request.MaYeuCau,
+                request.MaPhong,
+                request.NgayTao,
+                request.TrangThai,
+                TrangThaiYeuCau.Labels.GetValueOrDefault(request.TrangThai, request.TrangThai),
+                request.LichHen,
+                request.TrangThai == LichHenTrangThai.TuChoi
+                    ? string.IsNullOrWhiteSpace(request.LyDoTuChoi)
+                        ? "Không có lý do"
+                        : LichHenService.LyDoLabel(request.LyDoTuChoi)
+                    : null)).ToList();
+
+            return View(new DanhSachYeuCauViewModel
+            {
+                YeuCausCuaKhach = tenantItems,
+                LaKhachThue = true,
+                TrangThai = validStatus,
+                ToaNhaOptions = buildings
+            });
+        }
         var buildingIds = buildings.Select(x => int.Parse(x.Value)).ToArray();
         var query = from request in db.YeuCauThues.AsNoTracking()
                     join listing in db.TinDangs.AsNoTracking() on request.TinDangId equals listing.Id
