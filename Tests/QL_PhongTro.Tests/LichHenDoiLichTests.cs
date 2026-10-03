@@ -206,6 +206,32 @@ public class LichHenDoiLichTests : IDisposable
     }
 
     [Fact]
+    public async Task DoiLich_HienThiChuDaDoiLich_HaVuDungMaTrangThai()
+    {
+        // AC4 yêu cầu thấy chữ "Đã đổi lịch" nhưng bộ lọc của S2-07 chỉ nhận 5 trạng thái cũ,
+        // nên nhãn phải suy ra từ cờ đã đổi lịch chứ không ghi thêm trạng thái mới.
+        var id = TaoYeuCauDaHenLich();
+        await _service.DoiLichAsync(id, _chuNhaId, _hienTai.AddDays(1).AddHours(3), default);
+
+        var doc = await _service.DocAsync(id, default);
+
+        Assert.Equal(LichHenTrangThai.DaHenLich, doc!.TrangThai);
+        Assert.True(doc.DaDoiLich);
+        Assert.Equal("Đã đổi lịch hẹn", LichHenTrangThai.LabelHienThi(doc.TrangThai, doc.DaDoiLich));
+    }
+
+    [Fact]
+    public async Task DoiLich_ChuaDoiLich_HienThiChuXacNhanLich()
+    {
+        var id = TaoYeuCauDaHenLich();
+
+        var doc = await _service.DocAsync(id, default);
+
+        Assert.False(doc!.DaDoiLich);
+        Assert.Equal("Đã xác nhận lịch hẹn", LichHenTrangThai.LabelHienThi(doc.TrangThai, doc.DaDoiLich));
+    }
+
+    [Fact]
     public async Task DoiLich_HaiLanLienTiep_GiuDayDuChuoiLichCu()
     {
         var cu = _hienTai.AddDays(1);

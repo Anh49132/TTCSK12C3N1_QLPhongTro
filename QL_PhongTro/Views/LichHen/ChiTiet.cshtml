@@ -22,7 +22,7 @@
 <table class="table align-top">
     <tbody>
     <tr><th>Loại yêu cầu</th><td>@LichHenTrangThai.LoaiLabel(yeuCau.LoaiYeuCau)</td></tr>
-    <tr><th>Trạng thái</th><td>@LichHenTrangThai.Label(yeuCau.TrangThai)</td></tr>
+    <tr><th>Trạng thái</th><td>@LichHenTrangThai.LabelHienThi(yeuCau.TrangThai, yeuCau.DaDoiLich)</td></tr>
     <tr><th>Khách</th><td>@yeuCau.TenKhach @if (!string.IsNullOrWhiteSpace(yeuCau.SoDienThoaiKhach)) { <text>· @yeuCau.SoDienThoaiKhach</text> }</td></tr>
     @if (!Model.LaChuNha) { <tr><th>Chủ nhà</th><td>@yeuCau.TenChuNha</td></tr> }
     <tr><th>Ngày mong muốn</th><td>@yeuCau.NgayMongMuon</td></tr>

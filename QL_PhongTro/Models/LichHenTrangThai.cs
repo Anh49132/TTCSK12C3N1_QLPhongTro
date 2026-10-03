@@ -20,6 +20,11 @@ public static class LichHenTrangThai
     public const string PhongTrong = "TRONG";
     public const string PhongDaDatCoc = "DA_DAT_COC";
 
+    // tai_khoan.vai_tro, chép vào lịch sử để dòng đã ghi vẫn đọc đúng sau khi người đó đổi
+    // vai trò hoặc tài khoản bị gỡ.
+    public const string VaiTroChuNha = "CHU_NHA";
+    public const string VaiTroKhachThue = "KHACH_THUE";
+
     public static string Label(string trangThai) => trangThai switch
     {
         Moi => "Chờ xác nhận",
@@ -29,6 +34,15 @@ public static class LichHenTrangThai
         DaHuy => "Đã huỷ",
         _ => trangThai
     };
+
+    /// <summary>
+    /// Nhãn hiển thị cho màn hình yêu cầu. Đổi lịch cố ý giữ trang_thai ở DA_HEN_LICH: bộ lọc
+    /// danh sách của S2-07 chỉ nhận đúng Mới, Đã hẹn lịch, Đã duyệt, Từ chối, Đã huỷ, nên nếu ghi
+    /// một giá trị DA_DOI_LICH mới thì yêu cầu sẽ rơi khỏi mọi bộ lọc đó. Vì vậy chữ "đã đổi lịch"
+    /// suy ra từ cờ đã đổi lịch chứ không lưu thành trạng thái riêng.
+    /// </summary>
+    public static string LabelHienThi(string trangThai, bool daDoiLich) =>
+        daDoiLich && trangThai == DaHenLich ? "Đã đổi lịch hẹn" : Label(trangThai);
 
     public static string LoaiLabel(string loai) => loai switch
     {
