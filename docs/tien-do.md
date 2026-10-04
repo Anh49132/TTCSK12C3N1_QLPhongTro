@@ -1,5 +1,14 @@
 # Tiến độ và bàn giao dự án
 
+## Hoàn thiện sau rà soát S2-01 đến S2-10 (04/10/2026)
+
+- S2-03: thêm `TinDangExpirationService` và tác vụ nền chạy mỗi phút; các lối vào danh sách công khai, tìm kiếm và quản lý cũng đồng bộ ngay. Tin `DANG_HIEN_THI` quá hạn chuyển `TAM_AN`; Chủ nhà thấy cảnh báo/nhãn **Đã hết hạn** và có thể đăng lại. Không đổi schema.
+- S2-07: thống nhất `MOI` và `DA_HEN_LICH` là chưa xử lý cho cả đánh dấu quá 24 giờ và badge menu; badge 0 được ẩn. Bổ sung test xác nhận hai trạng thái được đếm/đánh dấu, trạng thái đã duyệt không bị tính.
+- S2-09: mọi dòng yêu cầu của Khách thuê đều mở đúng tin liên kết. Tin còn public hoạt động như cũ; tin ẩn/hết hạn/phòng không còn trống chỉ chính khách đã gửi yêu cầu được xem lại ở chế độ chỉ đọc, có cảnh báo và không có form gửi mới. API/khách khác vẫn không truy cập được.
+- Cập nhật `verification/s206_http.py` theo public layout và hành vi xem lại tin; script PASS toàn bộ trên database mới, gồm validation, quyền/CSRF, chống trùng, mã yêu cầu, gửi đồng thời, rollback, integrity/FK và tin hết hạn chỉ đọc. Không đọc/ghi database cá nhân.
+- Xác minh: build test project PASS; `PermissionTests` 50/50 PASS; `RoomServices|RoomImage` 31/31 PASS; `LichHen|YeuCauTenant|DesiredDate` 152/152 PASS; nhóm hồi quy mới 6/6 PASS; `git diff --check` PASS. Đo lại S2-04 với 500 tin PASS dưới 2 giây: request đầu 140,808 ms, mẫu chậm nhất 36,82 ms. Cảnh báo còn lại: NU1900 do không lấy được dữ liệu lỗ hổng NuGet, thiếu license ImageSharp và CS8601 có sẵn trong `AuthController`.
+- Database mặc định không tồn tại; mọi xác minh dùng database mới trong `data/` hoặc thư mục tạm. Không thay đổi quy trình database, không commit/push. Chưa nghiệm thu trực quan ở viewport 360 px; form lập hợp đồng vẫn thuộc S3-01.
+
 ## Chủ nhà quản lý tin đăng và gửi lại sau khi hủy yêu cầu (04/10/2026)
 
 - Bổ sung `/TinDang/QuanLy` cho vai trò Chủ nhà: liệt kê phòng thuộc các tòa nhà do tài khoản sở hữu, cho đăng/đăng lại tin khi phòng `TRONG` và gỡ tin đang hiển thị. Gỡ tin chuyển trạng thái sang `TAM_AN`, không xóa bản ghi; mọi thao tác kiểm tra lại quyền sở hữu và quyền ghi `TIN_DANG` ở backend. Sidebar Chủ nhà dẫn vào màn quản lý; danh sách phòng có nút **Đăng tin** cho phòng trống.

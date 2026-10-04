@@ -11,6 +11,10 @@
 </section>
 
 @if (ok is not null) { <div class="alert alert-success" role="status">@ok</div> }
+@if (Model.DanhSach.Any(item => item.DaHetHan))
+{
+    <div class="alert alert-warning" role="status">Có tin đã hết hạn và được tự động chuyển sang Tạm ẩn. Bạn có thể kiểm tra rồi đăng lại tin.</div>
+}
 
 @if (Model.DanhSach.Count == 0)
 {
@@ -33,7 +37,10 @@ else
                     <th>@item.MaPhong</th>
                     <td>@(item.TrangThaiPhong == "TRONG" ? "Trống" : item.TrangThaiPhong)</td>
                     <td>@(item.TieuDe ?? "Chưa có tin")</td>
-                    <td>@(item.TrangThaiTin switch { "DANG_HIEN_THI" => "Đang hiển thị", "TAM_AN" => "Tạm ẩn", "NHAP" => "Nháp", "DA_CHO_THUE" => "Đã cho thuê", _ => item.TrangThaiTin ?? "Chưa có" })</td>
+                    <td>
+                        @(item.TrangThaiTin switch { "DANG_HIEN_THI" => "Đang hiển thị", "TAM_AN" => "Tạm ẩn", "NHAP" => "Nháp", "DA_CHO_THUE" => "Đã cho thuê", _ => item.TrangThaiTin ?? "Chưa có" })
+                        @if (item.DaHetHan) { <span class="badge text-bg-warning d-block mt-1">Đã hết hạn</span> }
+                    </td>
                     <td class="text-end">
                         <div class="d-flex justify-content-end gap-2">
                             @if (dangHienThi && item.TinDangId is { } listingId)

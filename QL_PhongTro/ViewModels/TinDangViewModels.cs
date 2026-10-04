@@ -19,6 +19,7 @@ public sealed class TinDangQuanLyItemViewModel
     public string? TieuDe { get; init; }
     public string? TrangThaiTin { get; init; }
     public DateTime? NgayHetHan { get; init; }
+    public bool DaHetHan { get; init; }
 }
 
 public sealed class TinDangQuanLyViewModel

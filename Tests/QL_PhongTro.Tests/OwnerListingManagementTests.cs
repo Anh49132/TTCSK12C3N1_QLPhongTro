@@ -70,6 +70,24 @@ public sealed partial class PermissionTests
     }
 
     [Fact]
+    public async Task TinQuaHan_TuDongTamAnVaCanhBaoChuNha()
+    {
+        var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+        Execute("UPDATE tin_dang SET ngay_het_han=$expired WHERE id=$id",
+            ("$expired", DateTime.UtcNow.AddMinutes(-1).ToString("yyyy-MM-dd HH:mm:ss")), ("$id", listingId));
+        using var owner = await Login("CHU_NHA");
+
+        var manage = WebUtility.HtmlDecode(await owner.GetStringAsync("/TinDang/QuanLy"));
+
+        Assert.Equal("TAM_AN", Scalar("SELECT trang_thai FROM tin_dang WHERE id=$id", ("$id", listingId)));
+        Assert.Contains("Đã hết hạn", manage);
+        Assert.Contains("tự động chuyển sang Tạm ẩn", manage);
+        Assert.Contains("Đăng lại", manage);
+        using var guest = Client();
+        Assert.Equal(HttpStatusCode.NotFound, (await guest.GetAsync($"/TinDang/ChiTiet/{listingId}")).StatusCode);
+    }
+
+    [Fact]
     public async Task YeuCauDaHuy_KhongChanKhachGuiYeuCauMoi()
     {
         var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);

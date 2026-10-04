@@ -170,6 +170,8 @@ builder.Services.AddScoped<DichVuPhongService>();
 builder.Services.AddScoped<HoaDonDichVuService>();
 builder.Services.AddScoped<RoomImageDeletionService>();
 builder.Services.AddHostedService<RoomImageCleanupHostedService>();
+builder.Services.AddScoped<TinDangExpirationService>();
+builder.Services.AddHostedService<TinDangExpirationHostedService>();
 builder.Services.Configure<DichVuMacDinhOptions>(builder.Configuration.GetSection("DichVuMacDinh"));
 
 builder.Services.AddAuthentication()

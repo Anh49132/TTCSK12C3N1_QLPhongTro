@@ -11,8 +11,12 @@
     <a href="/">Trang chủ</a><span aria-hidden="true">/</span><span>Chi tiết tin thuê</span>
 </nav>
 <article class="listing-page" data-listing-id="@Model.PublicDetail.Id">
+    @if (!Model.TinConCongKhai)
+    {
+        <div class="alert alert-warning" role="status">Tin đăng này không còn hiển thị công khai. Bạn đang xem lại thông tin gắn với yêu cầu đã gửi.</div>
+    }
     <header class="listing-heading">
-        <p class="listing-eyebrow">PHÒNG ĐANG CHO THUÊ</p>
+        <p class="listing-eyebrow">@(Model.TinConCongKhai ? "PHÒNG ĐANG CHO THUÊ" : "THÔNG TIN TIN ĐĂNG ĐÃ GỬI YÊU CẦU")</p>
         <h1>@Model.PublicDetail.TieuDe</h1>
         <p class="listing-address">@Model.PublicDetail.DiaChi@if (!string.IsNullOrEmpty(location)) { <span>, @location</span> }</p>
     </header>
@@ -134,7 +138,7 @@
         </aside>
     </section>
 </article>
-@if (Model.RequestModuleInstalled && User.IsInRole("KHACH_THUE"))
+@if (Model.TinConCongKhai && Model.RequestModuleInstalled && User.IsInRole("KHACH_THUE"))
 {
     @if (Model.OpenRequestId is { } existingId)
     {
@@ -171,11 +175,11 @@
         </form>
     </section>
 }
-else if (Model.RequestModuleInstalled && User.Identity?.IsAuthenticated != true)
+else if (Model.TinConCongKhai && Model.RequestModuleInstalled && User.Identity?.IsAuthenticated != true)
 {
     <a class="btn btn-primary" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Url.Action("ChiTiet", new { id = Model.Tin.Id })">Đăng nhập để gửi yêu cầu</a>
 }
-else if (Model.RequestModuleInstalled) { <p>Chức năng gửi yêu cầu dành cho tài khoản Khách thuê.</p> }
+else if (Model.TinConCongKhai && Model.RequestModuleInstalled) { <p>Chức năng gửi yêu cầu dành cho tài khoản Khách thuê.</p> }
 
 @section Scripts {
     <script src="~/js/public-gallery.js" asp-append-version="true"></script>

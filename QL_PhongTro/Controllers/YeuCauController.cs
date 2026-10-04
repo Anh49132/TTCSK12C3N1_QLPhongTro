@@ -36,19 +36,10 @@ public class YeuCauController(AppDbContext db, ITimeProvider clock, YeuCauThueSe
                                             request.LyDoTuChoi
                                         }).ToListAsync();
 
-            var tenantListingIds = tenantRequests.Select(request => request.TinDangId).Distinct().ToArray();
-            var availableTenantListingIds = tenantListingIds.Length == 0
-                ? new HashSet<int>()
-                : await requests.PublicListings()
-                    .Where(listing => tenantListingIds.Contains(listing.Id))
-                    .Select(listing => listing.Id)
-                    .ToHashSetAsync();
-
             var tenantItems = tenantRequests.Select(request => new YeuCauThueItemViewModel(
                 request.Id,
                 request.MaYeuCau,
                 request.TinDangId,
-                availableTenantListingIds.Contains(request.TinDangId),
                 request.MaPhong,
                 request.NgayTao,
                 request.TrangThai,
@@ -112,12 +103,6 @@ public class YeuCauController(AppDbContext db, ITimeProvider clock, YeuCauThueSe
                                where request.Id == id && tenant.TaiKhoanId == accountId
                                select (int?)request.TinDangId).SingleOrDefaultAsync();
         if (listingId is null) return NotFound();
-
-        if (!await requests.PublicListings().AnyAsync(listing => listing.Id == listingId.Value))
-        {
-            TempData["Error"] = "Tin đăng này hiện không thể xem hoặc không còn khả dụng.";
-            return RedirectToAction(nameof(Index));
-        }
 
         return RedirectToAction("ChiTiet", "TinDang", new { id = listingId.Value });
     }

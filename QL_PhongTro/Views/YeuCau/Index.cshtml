@@ -23,7 +23,7 @@
             <tbody>
             @foreach (var item in Model.YeuCausCuaKhach)
             {
-                var openListingUrl = item.TinDangConKhaDung ? Url.Action("MoTinDang", "YeuCau", new { id = item.Id }) : null;
+                var openListingUrl = Url.Action("MoTinDang", "YeuCau", new { id = item.Id });
                 <tr data-request-status="@item.TrangThai" data-open-listing-url="@(openListingUrl ?? string.Empty)">
                     <th scope="row">@item.MaYeuCau</th>
                     <td>@item.MaPhong</td>
@@ -32,14 +32,7 @@
                     <td>@(item.LichHen is { } appointment ? LichHenService.HienThoiGio(appointment) : "Chưa có lịch hẹn")</td>
                     <td>@(item.LyDoTuChoi ?? "—")</td>
                     <td>
-                        @if (item.TinDangConKhaDung)
-                        {
-                            <a asp-action="MoTinDang" asp-route-id="@item.Id">Mở tin đăng</a>
-                        }
-                        else
-                        {
-                            <span class="text-secondary">Tin đăng không còn khả dụng</span>
-                        }
+                        <a asp-action="MoTinDang" asp-route-id="@item.Id">Mở tin đăng</a>
                     </td>
                     <td>
                         @if (item.ChoPhepHuy)

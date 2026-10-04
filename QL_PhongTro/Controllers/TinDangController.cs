@@ -11,7 +11,8 @@ using QL_PhongTro.ViewModels;
 namespace QL_PhongTro.Controllers;
 
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class TinDangController(AppDbContext db, YeuCauThueService requests, DichVuService services, DichVuPhongService roomServices) : Controller
+public class TinDangController(AppDbContext db, YeuCauThueService requests, DichVuService services,
+    DichVuPhongService roomServices, TinDangExpirationService expiration) : Controller
 {
     private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
 
@@ -19,6 +20,7 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
     public async Task<IActionResult> Index()
     {
         if (!await requests.IsInstalled()) return View("ChuaCaiDat");
+        await expiration.ExpireAsync();
         var listings = await requests.PublicListings().OrderByDescending(t => t.NgayDang).Take(100)
             .Select(post => new TinDangDanhSachViewModel
             {
@@ -36,7 +38,16 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
     [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
     public async Task<IActionResult> ChiTiet(int id)
     {
+        await expiration.ExpireAsync();
         var model = await Detail(id, new());
+        if (model is null && User.IsInRole("KHACH_THUE")
+            && int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId)
+            && await requests.IsInstalled()
+            && await db.YeuCauThues.AsNoTracking().AnyAsync(request => request.TinDangId == id
+                && db.KhachThues.Any(tenant => tenant.Id == request.KhachThueId && tenant.TaiKhoanId == accountId)))
+        {
+            model = await HistoricalDetail(id);
+        }
         return model is null ? NotFound() : View(model);
     }
 
@@ -44,6 +55,8 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
     public async Task<IActionResult> QuanLy()
     {
         if (AccountId == 0) return Forbid();
+        await expiration.ExpireAsync();
+        var now = DateTime.UtcNow;
         var rooms = await (from room in db.PhongTros.AsNoTracking()
                            join building in db.ToaNhas.AsNoTracking() on room.ToaNhaId equals building.Id
                            where building.ChuNhaId == AccountId && building.DangHoatDong
@@ -67,7 +80,8 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
                     TinDangId = listing?.Id,
                     TieuDe = listing?.TieuDe,
                     TrangThaiTin = listing?.TrangThai,
-                    NgayHetHan = listing?.NgayHetHan
+                    NgayHetHan = listing?.NgayHetHan,
+                    DaHetHan = listing?.NgayHetHan is { } expires && expires < now
                 };
             }).ToList()
         });
@@ -236,6 +250,20 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
         return new(tin, room, form, requests.Today) { OpenRequestId = existing?.Id, PublicDetail = publicDetail, RequestModuleInstalled = installed };
     }
 
+    private async Task<ChiTietTinDangViewModel?> HistoricalDetail(int id)
+    {
+        var detail = await GetListingAsync(id, requirePublic: false);
+        if (detail is null) return null;
+        var post = await db.TinDangs.AsNoTracking().SingleAsync(item => item.Id == id);
+        var room = await db.PhongTros.AsNoTracking().SingleAsync(item => item.Id == post.PhongId);
+        return new(post, room, new(), requests.Today)
+        {
+            PublicDetail = detail,
+            RequestModuleInstalled = await requests.IsInstalled(),
+            TinConCongKhai = false
+        };
+    }
+
     [Authorize(Roles = "KHACH_THUE"), HttpGet]
     [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
     public async Task<IActionResult> YeuCau(int id)
@@ -255,6 +283,9 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
     }
 
     private async Task<TinDangChiTietViewModel?> GetPublicListingAsync(int id)
+        => await GetListingAsync(id, requirePublic: true);
+
+    private async Task<TinDangChiTietViewModel?> GetListingAsync(int id, bool requirePublic)
     {
         var now = DateTime.UtcNow;
         var result = await (
@@ -262,10 +293,10 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
             join room in db.PhongTros.AsNoTracking() on post.PhongId equals room.Id
             join building in db.ToaNhas.AsNoTracking() on room.ToaNhaId equals building.Id
             where post.Id == id
-                && post.TrangThai == "DANG_HIEN_THI"
-                && (post.NgayHetHan == null || post.NgayHetHan > now)
-                && room.TrangThai == "TRONG"
-                && building.DangHoatDong
+                && (!requirePublic || (post.TrangThai == "DANG_HIEN_THI"
+                    && (post.NgayHetHan == null || post.NgayHetHan >= now)
+                    && room.TrangThai == "TRONG"
+                    && building.DangHoatDong))
             select new
             {
                 RoomId = room.Id,

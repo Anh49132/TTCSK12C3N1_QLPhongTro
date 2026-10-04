@@ -3,18 +3,20 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
+using QL_PhongTro.Services;
 using QL_PhongTro.ViewModels;
 
 namespace QL_PhongTro.Controllers;
 
 [AllowAnonymous]
-public class TimTinController(AppDbContext db) : Controller
+public class TimTinController(AppDbContext db, TinDangExpirationService expiration) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(
         [Bind("QuanHuyen,GiaToiThieu,GiaToiDa,DienTichToiThieu,DienTichToiDa,SoNguoiToiDa,SapXep,Trang")] TimTinViewModel model,
         CancellationToken cancellationToken)
     {
+        await expiration.ExpireAsync(cancellationToken);
         model.QuanHuyen = model.QuanHuyen?.Trim();
         if (string.IsNullOrEmpty(model.SapXep)) model.SapXep = "moi-nhat";
         if (model.SapXep is not ("moi-nhat" or "gia-tang" or "gia-giam"))

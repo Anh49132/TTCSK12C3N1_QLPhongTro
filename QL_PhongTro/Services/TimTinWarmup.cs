@@ -33,7 +33,9 @@ public static class TimTinWarmup
             context.Request.RouteValues = route.Values;
             var action = new ActionContext(context, route, new ControllerActionDescriptor
             { ControllerName = "TimTin", ActionName = "Index" });
-            var controller = new TimTinController(provider.GetRequiredService<AppDbContext>())
+            var controller = new TimTinController(
+                provider.GetRequiredService<AppDbContext>(),
+                provider.GetRequiredService<TinDangExpirationService>())
             { ControllerContext = new ControllerContext(action) };
             foreach (var order in new[] { "moi-nhat", "gia-tang", "gia-giam" })
             {

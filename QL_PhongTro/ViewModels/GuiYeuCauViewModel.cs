@@ -22,4 +22,5 @@ public record ChiTietTinDangViewModel(TinDang Tin, PhongTro Phong, GuiYeuCauView
     public TinDangChiTietViewModel PublicDetail { get; init; } = null!;
     public bool RequestModuleInstalled { get; init; }
     public int? OpenRequestId { get; init; }
+    public bool TinConCongKhai { get; init; } = true;
 }

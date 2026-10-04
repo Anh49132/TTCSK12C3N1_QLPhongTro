@@ -51,7 +51,7 @@ public sealed partial class PermissionTests
     }
 
     [Fact]
-    public async Task UnavailableListingShowsMessageAndNeverRedirectsToAnotherListing()
+    public async Task UnavailableListingStillOpensReadOnlyForTheRequestOwner()
     {
         var requestId = CreateTenantCancellationRequest(accounts["KHACH_THUE"], "MOI", "YC-LISTING-UNAVAILABLE");
         var listingId = Convert.ToInt32(Scalar("SELECT tin_dang_id FROM yeu_cau_thue WHERE id=$id", ("$id", requestId)));
@@ -61,15 +61,16 @@ public sealed partial class PermissionTests
         var list = WebUtility.HtmlDecode(await tenant.GetStringAsync("/YeuCau"));
         var row = Regex.Match(list, "(?s)<tr data-request-status=\"MOI\"[^>]*>.*?YC-LISTING-UNAVAILABLE.*?</tr>").Value;
         Assert.NotEmpty(row);
-        Assert.Contains("Tin đăng không còn khả dụng", row);
-        Assert.DoesNotContain("Mở tin đăng", row);
-        Assert.Contains("data-open-listing-url=\"\"", row);
+        Assert.Contains("Mở tin đăng", row);
+        Assert.Contains($"data-open-listing-url=\"/YeuCau/MoTinDang/{requestId}\"", row);
 
         var resolve = await tenant.GetAsync($"/YeuCau/MoTinDang/{requestId}");
         Assert.Equal(HttpStatusCode.Redirect, resolve.StatusCode);
-        Assert.Equal("/YeuCau", resolve.Headers.Location?.OriginalString);
-        var updatedList = WebUtility.HtmlDecode(await tenant.GetStringAsync(resolve.Headers.Location!.ToString()));
-        Assert.Contains("Tin đăng này hiện không thể xem hoặc không còn khả dụng.", updatedList);
+        Assert.Equal($"/TinDang/ChiTiet/{listingId}", resolve.Headers.Location?.OriginalString);
+        var detail = WebUtility.HtmlDecode(await tenant.GetStringAsync(resolve.Headers.Location!.ToString()));
+        Assert.Contains($"data-listing-id=\"{listingId}\"", detail);
+        Assert.Contains("không còn hiển thị công khai", detail);
+        Assert.DoesNotContain("id=\"gui-yeu-cau\"", detail);
         Assert.Equal("MOI", Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", requestId))?.ToString());
     }
 

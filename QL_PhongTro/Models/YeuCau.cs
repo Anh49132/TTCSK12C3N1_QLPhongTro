@@ -6,9 +6,9 @@ public static class TrangThaiYeuCau
     public static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>
     { [Moi] = "Mới", [DaHenLich] = "Đã hẹn lịch", [DaDuyet] = "Đã duyệt", [TuChoi] = "Từ chối", [DaHuy] = "Đã huỷ" };
 
-    // A scheduled request has already been handled by the owner. Only a new request
-    // belongs in the "chua xu ly" counter and can become overdue.
-    public static bool ChuaXuLy(string trangThai) => trangThai == Moi;
+    // PO S2-07: both a new request and a scheduled request remain open until they
+    // are approved, rejected or cancelled.
+    public static bool ChuaXuLy(string trangThai) => trangThai is Moi or DaHenLich;
 
     public static string LoaiLabel(string loaiYeuCau) => loaiYeuCau switch
     {

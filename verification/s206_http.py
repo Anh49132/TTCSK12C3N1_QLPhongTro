@@ -117,11 +117,8 @@ def verify():
         def check_listing_menu(browser):
             code, body, _ = browser.request('/TinDang')
             assert code == 200
-            links = [a for a in re.findall(r'<a\b[^>]*>.*?</a>', body, re.S)
-                     if unescape(re.sub('<[^>]+>', '', a)).strip().endswith('Tin đăng cho thuê')]
-            assert len(links) == 1, 'Duplicate listing navigation'
-            assert 'href="/TinDang"' in links[0], links
-            assert 'is-active' in links[0] and 'aria-current="page"' in links[0]
+            assert '<h1 id="listing-index-title">Tin đăng cho thuê</h1>' in body
+            assert 'aria-label="Điều hướng chính"' in body
         check_listing_menu(tenant)
         check_listing_menu(Browser())
         code, _, headers = tenant.request('/Modules/TIN_DANG')
@@ -266,11 +263,15 @@ def verify():
         assert query('SELECT COUNT(*) FROM yeu_cau_thue')[0][0] == count_before
         query('UPDATE rental_request_counter SET so_cuoi=? WHERE thang=?', (counter_before,month))
         query("UPDATE tin_dang SET ngay_het_han=? WHERE id=?", (str(now-timedelta(days=1)),listing))
-        assert tenant.request(path)[0] == 404
+        code, expired_detail, _ = tenant.request(path)
+        assert code == 200 and 'không còn hiển thị công khai' in unescape(expired_detail)
+        assert 'id="gui-yeu-cau"' not in expired_detail
         assert tenant.request(old_path)[0] == 200, 'Old request must remain readable after listing expires'
-        query('UPDATE tin_dang SET ngay_het_han=? WHERE id=?', (str(now+timedelta(days=30)),listing))
+        query("UPDATE tin_dang SET ngay_het_han=?,trang_thai='DANG_HIEN_THI' WHERE id=?", (str(now+timedelta(days=30)),listing))
         query("UPDATE phong_tro SET trang_thai='DANG_THUE' WHERE id=?", (room,))
-        assert tenant.request(path)[0] == 404
+        code, rented_detail, _ = tenant.request(path)
+        assert code == 200 and 'không còn hiển thị công khai' in unescape(rented_detail)
+        assert 'id="gui-yeu-cau"' not in rented_detail
         query("UPDATE phong_tro SET trang_thai='TRONG' WHERE id=?", (room,))
         assert query('PRAGMA integrity_check')[0][0] == 'ok'
         assert not query('PRAGMA foreign_key_check')

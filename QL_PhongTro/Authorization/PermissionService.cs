@@ -52,7 +52,7 @@ public sealed class PermissionService(AppDbContext db, IHttpContextAccessor acce
         var visibleBuildings = db.ToaNhas.AsNoTracking().Where(x => x.DangHoatDong &&
             (role == "ADMIN" || x.ChuNhaId == accountId || (role == "QUAN_LY" && x.QuanLyId == accountId)));
         return await db.YeuCauThues.AsNoTracking()
-            .Where(x => x.TrangThai == TrangThaiYeuCau.Moi)
+            .Where(x => x.TrangThai == TrangThaiYeuCau.Moi || x.TrangThai == TrangThaiYeuCau.DaHenLich)
             .Join(db.TinDangs.AsNoTracking(), request => request.TinDangId, listing => listing.Id,
                 (request, listing) => listing.PhongId)
             .Join(db.PhongTros.AsNoTracking(), phongId => phongId, room => room.Id,
