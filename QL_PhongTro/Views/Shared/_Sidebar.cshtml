@@ -46,5 +46,8 @@ var moduleUrl = module.Code == "YEU_CAU_THUE"
 @if (User.IsInRole("KHACH_THUE")) {
 <a class="sidebar-link @Active(controller == "HoSo" && action == "Index")" asp-controller="HoSo" asp-action="Index"><span class="menu-icon" aria-hidden="true">○</span>Hồ sơ cá nhân</a>
 }
+@if (User.IsInRole("CHU_NHA")) {
+<a class="sidebar-link @Active(controller == "HoSo")" asp-controller="HoSo" asp-action="DanhSach"><span class="menu-icon" aria-hidden="true">○</span>Hồ sơ khách thuê</a>
+}
 </nav>
 </div>

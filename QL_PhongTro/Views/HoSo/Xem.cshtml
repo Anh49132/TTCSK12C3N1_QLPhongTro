@@ -1,11 +1,11 @@
 @model QL_PhongTro.ViewModels.XemHoSoViewModel
 @{ ViewData["Title"] = "Xem hồ sơ"; }
 <h1>Xem hồ sơ</h1>
-<form asp-action="Xem" method="get" class="mb-4">
-    <label for="profile-id" class="form-label">Mã hồ sơ</label>
-    <input id="profile-id" name="id" type="number" min="1" required class="form-control" />
-    <button class="btn btn-primary mt-2" type="submit">Xem hồ sơ</button>
-</form>
+@if (User.IsInRole("CHU_NHA"))
+{
+    <p><a asp-action="DanhSach">Danh sách hồ sơ khách thuê</a></p>
+    <p class="text-muted">Bạn chỉ có quyền xem hồ sơ khách thuê đã có hợp đồng với mình.</p>
+}
 @if (Model.Id > 0)
 {
     <p>Mã hồ sơ: @Model.Id</p>

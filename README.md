@@ -20,6 +20,8 @@ Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt `$env:
 
 Chạy nhanh trên Windows:
 
+Trên máy hiện tại, `.env.local` chọn bộ demo Sprint 2 và kho ảnh tương ứng. Dùng `run.bat` để chạy tại `http://localhost:5247`; liên kết email dùng `PasswordReset__PublicBaseUrl` trong cấu hình local. Cổng mặc định của script tạo demo cũng là 5247. Mật khẩu demo nằm trong `access.json` và `report.md` đã ignore. Server cần đang chạy để mở website; sau khi khởi động lại máy, chạy lại `run.bat`.
+
 ```bat
 run.bat
 ```

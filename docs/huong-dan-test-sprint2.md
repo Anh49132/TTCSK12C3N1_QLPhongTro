@@ -67,13 +67,13 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\verification\Start-Sprint2Demo.ps1
 ```
 
-Giữ terminal mở. Đợi `Now listening on: http://localhost:5268`. Script tự truyền đúng database, thư mục ảnh và thư mục khóa cookie; không cần chạy updater/admin initializer của README cho bộ mẫu này. Nếu chưa cấu hình SMTP, email được lưu vào thư mục thử nghiệm. Nếu terminal có đủ các biến `PasswordReset__Host`, `PasswordReset__Username`, `PasswordReset__Password` và `PasswordReset__From`, script tự tắt chế độ lưu file và dùng SMTP. Sau khi đổi cấu hình email phải dừng server cũ bằng Ctrl+C rồi khởi động lại để ứng dụng nạp cấu hình mới.
+Giữ terminal mở. Đợi `Now listening on: http://localhost:5247`. Script tự truyền đúng database, thư mục ảnh và thư mục khóa cookie; không cần chạy updater/admin initializer của README cho bộ mẫu này. Nếu chưa cấu hình SMTP, email được lưu vào thư mục thử nghiệm. Nếu terminal có đủ các biến `PasswordReset__Host`, `PasswordReset__Username`, `PasswordReset__Password` và `PasswordReset__From`, script tự tắt chế độ lưu file và dùng SMTP. Sau khi đổi cấu hình email phải dừng server cũ bằng Ctrl+C rồi khởi động lại để ứng dụng nạp cấu hình mới.
 
 ### Bước 4 — mở website và đăng nhập
 
-Mở **http://localhost:5268/Account/Login**, nhập email và mật khẩu ở mục 1.
+Mở **http://localhost:5247/Account/Login**, nhập email và mật khẩu ở mục 1.
 
-Nên dùng cửa sổ thường cho Chủ nhà, cửa sổ ẩn danh cho Khách thuê để không đăng xuất qua lại. Dùng cửa sổ ẩn danh thứ hai hoặc trình duyệt khác cho khách thứ hai nếu cần. Mọi URL bên dưới dùng tiền tố `http://localhost:5268`.
+Nên dùng cửa sổ thường cho Chủ nhà, cửa sổ ẩn danh cho Khách thuê để không đăng xuất qua lại. Dùng cửa sổ ẩn danh thứ hai hoặc trình duyệt khác cho khách thứ hai nếu cần. Mọi URL bên dưới dùng tiền tố `http://localhost:5247`.
 
 ### Bước 5 — dừng và chạy lại
 
@@ -85,7 +85,7 @@ Muốn quay về trạng thái ban đầu: dừng server → chạy `New-Sprint2
 .\verification\Start-Sprint2Demo.ps1 -Directory 'D:\TTCS_T926_K12C3_N1\data\sprint2-demo\TEN-THU-MUC-CU'
 ```
 
-Cổng 5268 bị chiếm: dừng đúng server cũ, hoặc tạo bản mới dùng cổng khác:
+Cổng 5247 bị chiếm: dừng đúng server cũ, hoặc tạo bản mới dùng cổng khác:
 
 ```powershell
 .\verification\New-Sprint2Demo.ps1 -Port 5270

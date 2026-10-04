@@ -1,4 +1,4 @@
-param([string]$Password, [int]$Port = 5268)
+﻿param([string]$Password, [int]$Port = 5247)
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $demoRoot = Join-Path $repoRoot 'data\sprint2-demo'

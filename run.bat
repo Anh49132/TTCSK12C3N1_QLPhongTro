@@ -16,6 +16,7 @@ if exist ".env.local" (
         if /I "%%A"=="RoomImagesPath" if not defined RoomImagesPath set "RoomImagesPath=%%B"
         if /I "%%A"=="DataProtectionKeysPath" if not defined DataProtectionKeysPath set "DataProtectionKeysPath=%%B"
         if /I "%%A"=="PasswordReset__PickupDirectory" if not defined PasswordReset__PickupDirectory set "PasswordReset__PickupDirectory=%%B"
+        if /I "%%A"=="PasswordReset__PublicBaseUrl" if not defined PasswordReset__PublicBaseUrl set "PasswordReset__PublicBaseUrl=%%B"
         if /I "%%A"=="Logging__EventLog__LogLevel__Default" if not defined Logging__EventLog__LogLevel__Default set "Logging__EventLog__LogLevel__Default=%%B"
     )
 )
@@ -76,7 +77,7 @@ if /I "%~1"=="--check-only" (
 
 echo [INFO] Dang chay web tai http://localhost:5247
 echo [INFO] Nhan Ctrl+C de dung ung dung.
-dotnet run --project "%PROJECT%" --no-restore --launch-profile http
+dotnet run --project "%PROJECT%" --no-restore --launch-profile http -- --urls http://localhost:5247
 set "EXIT_CODE=%ERRORLEVEL%"
 popd
 exit /b %EXIT_CODE%

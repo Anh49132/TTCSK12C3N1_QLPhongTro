@@ -1,5 +1,27 @@
 # Tiến độ và bàn giao dự án
 
+## Giới hạn quyền hồ sơ khách thuê (05/10/2026)
+
+- Khách thuê chỉ xem/sửa hồ sơ gắn với tài khoản đang đăng nhập; endpoint xem chi tiết chặn hồ sơ khác ở backend và không còn form nhập mã hồ sơ bất kỳ. Ảnh giấy tờ áp dụng cùng phạm vi quyền.
+- Chủ nhà có menu Hồ sơ khách thuê và danh sách `/HoSo/DanhSach`, chỉ gồm người đứng tên/người ở ghép của hợp đồng tại tòa thuộc mình. Chủ nhà xem chi tiết/ảnh nhưng GET/POST sửa và xóa đều bị chặn. Danh sách không trùng khi khách có nhiều hợp đồng.
+- Diễn giải yêu cầu “đã có hợp đồng”: hợp đồng CHO_HIEU_LUC, DANG_HIEU_LUC hoặc DA_KET_THUC cấp quyền; NHAP/DA_HUY và yêu cầu thuê không cấp quyền. Giữ quyền ADMIN hiện có. Schema hợp đồng chưa cài/không tương thích không cấp quyền; bảng người ở ghép là tùy chọn.
+- Build riêng tại data/profile-check PASS; 4/4 kiểm thử hồ sơ PASS, gồm truy cập hồ sơ/ảnh người khác, hợp đồng nháp/kết thúc, đổi chủ tòa, danh sách chỉ đúng khách, chủ nhà không sửa được và hồi quy tạo/sửa/xóa hồ sơ cá nhân. Không đổi schema/database thật.
+- Phiên web của người dùng vẫn chạy mã cũ để giữ cấu hình SMTP trong terminal. Cần Ctrl+C rồi chạy lại run.bat tại chính terminal đó để nạp bản sửa. Chưa nghiệm thu UI trực quan.
+
+## Thống nhất cổng localhost (05/10/2026)
+
+- Theo yêu cầu người dùng, chuyển bộ demo `20261005-012411-0d3b1e` sang http://localhost:5247; cập nhật access.json, report.md và hướng dẫn test local. Giữ database, kho ảnh và mật khẩu demo hiện tại.
+- `.env.local` đã ignore trỏ run.bat tới đúng database/kho ảnh/khóa/email pickup của bộ demo, cùng PublicBaseUrl http://localhost:5247. run.bat đọc thêm PublicBaseUrl và truyền URL 5247 tường minh; New-Sprint2Demo mặc định dùng 5247. Hướng dẫn Sprint 2 dùng cổng 5247.
+- Dừng đúng hai tiến trình của dự án từng chạy ở 5248 và 5270 để tập trung sử dụng cổng 5247. Những lần sau chạy run.bat ở gốc repository; server cần đang chạy để truy cập website.
+
+## Tạo bộ nghiệm thu Sprint 2 mới (05/10/2026)
+
+- Đọc hướng dẫn, yêu cầu Sprint 2, mô hình DBML và tiến độ; dùng seeder hiện có tạo fixture mới `data/sprint2-demo/20261005-012411-0d3b1e`, runtime riêng, chạy tại http://localhost:5270. Không ghi database cá nhân. Credential chung của 7 tài khoản nằm trong access.json và report.md đã ignore.
+- 35 tin công khai ở 4 quận/huyện, 6 tin bị loại; chọn 35 để trang cuối lẻ (12/12/11). Khách 1 chưa có yêu cầu trên tin A108 nhưng có yêu cầu khác phục vụ tự hủy. Hóa đơn cũ kỳ 09/2026, cấu hình hiện tại 10/2026 và nước chờ 11/2026.
+- Build PASS; upload 5 ảnh PNG qua HTTP PASS; integrity/FK, đăng nhập 7 tài khoản và smoke test PASS. Xác minh riêng 3 trang HTTP 12/12/11, thumbnail rộng 400px, Chủ nhà B mở dịch vụ phòng A1 trả 403. Hướng dẫn từng AC theo cổng mới nằm ở huong-dan-test.md cạnh report.md.
+- Python mặc định trỏ Microsoft Store; hoàn tất upload/xác minh bằng Python runtime có sẵn của Codex. latest.txt chỉ được cập nhật sau kiểm tra thành công. Hai thư mục chuẩn bị chưa hoàn tất trước đó được giữ, không chọn làm mẫu bàn giao.
+- Chưa chạy full xUnit, nghiệm thu UI/responsive/3G, SMTP thật hoặc hiệu năng 500 tin trong phiên này. Email demo dùng pickup; các tài khoản đã xác nhận email. Server đang chạy để người dùng tự nghiệm thu các thao tác làm thay đổi dữ liệu.
+
 ## Dùng fixture Sprint 2 làm database local (04/10/2026)
 
 - Không chép đè `QL_PhongTro/Data/local-dev.sqlite` vì file này đã tồn tại. Tạo `.env.local` đã Git ignore để `run.bat` trỏ `DatabasePath`, `RoomImagesPath`, Data Protection keys và thư mục email pickup tới fixture `data/sprint2-demo/20261004-185115-e98174` mà người dùng vừa kiểm thử.

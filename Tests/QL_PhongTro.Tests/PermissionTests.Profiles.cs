@@ -101,4 +101,45 @@ public sealed partial class PermissionTests
         Assert.DoesNotContain("Đã xóa hồ sơ cá nhân thành công.", page);
         Assert.Equal(1L, Scalar("SELECT COUNT(*) FROM khach_thue WHERE tai_khoan_id=$id", ("$id", accounts["KHACH_THUE"])));
     }
+
+    [Fact]
+    public async Task ProfileReadIsScopedToSelfOrSignedContractAndOwnerCannotEdit()
+    {
+        using var tenant = await Login("KHACH_THUE");
+        var form = await ProfileForm(tenant, new DateOnly(2000, 1, 1));
+        Assert.Equal(HttpStatusCode.Redirect, (await tenant.PostAsync("/HoSo", new FormUrlEncodedContent(form))).StatusCode);
+        var own = Scalar("SELECT id FROM khach_thue WHERE tai_khoan_id=$id", ("$id", accounts["KHACH_THUE"]))!;
+        Execute("INSERT INTO khach_thue(ho_ten,ngay_tao) VALUES ('Unrelated tenant','2026-01-01')");
+        var other = Scalar("SELECT id FROM khach_thue WHERE ho_ten='Unrelated tenant'")!;
+        Assert.Equal(HttpStatusCode.OK, (await tenant.GetAsync($"/HoSo/Xem?id={own}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await tenant.GetAsync($"/HoSo/Xem?id={other}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await tenant.GetAsync("/HoSo/DanhSach")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await tenant.GetAsync($"/HoSo/Anh?id={other}&mat=truoc")).StatusCode);
+
+        using var owner = await Login("CHU_NHA");
+        Assert.Equal(HttpStatusCode.Forbidden, (await owner.GetAsync($"/HoSo/Xem?id={own}")).StatusCode);
+        Execute("""
+            INSERT INTO toa_nha(chu_nha_id,ten_toa_nha,dia_chi,dang_hoat_dong) VALUES ($owner,'Profile building','Demo',1);
+            INSERT INTO phong_tro(toa_nha_id,ma_phong,tang,dien_tich,gia_thue,so_nguoi_toi_da,trang_thai,ngay_tao)
+            VALUES (last_insert_rowid(),'PROFILE-1',1,25,2000000,3,'TRONG','2026-01-01');
+            CREATE TABLE hop_dong(id INTEGER PRIMARY KEY,phong_id INTEGER,khach_dung_ten_id INTEGER,trang_thai TEXT);
+            INSERT INTO hop_dong VALUES (1,last_insert_rowid(),$tenant,'NHAP');
+            """, ("$owner", accounts["CHU_NHA"]), ("$tenant", own));
+        Assert.Equal(HttpStatusCode.Forbidden, (await owner.GetAsync($"/HoSo/Xem?id={own}")).StatusCode);
+        Execute("UPDATE hop_dong SET trang_thai='DA_KET_THUC'");
+        var page = WebUtility.HtmlDecode(await owner.GetStringAsync("/HoSo/DanhSach"));
+        Assert.Contains("Hồ sơ kiểm thử", page);
+        Assert.DoesNotContain("Unrelated tenant", page);
+        var detail = WebUtility.HtmlDecode(await owner.GetStringAsync($"/HoSo/Xem?id={own}"));
+        Assert.Contains("012345678901", detail);
+        Assert.DoesNotContain("Chỉnh sửa hồ sơ của tôi", detail);
+        var tokenPage = await owner.GetStringAsync("/Account/ChangePassword");
+        form["__RequestVerificationToken"] = WebUtility.HtmlDecode(Regex.Match(tokenPage, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
+        form["HoTen"] = "Owner overwrite";
+        Assert.Equal(HttpStatusCode.Forbidden, (await owner.PostAsync("/HoSo", new FormUrlEncodedContent(form))).StatusCode);
+        Assert.Equal("Hồ sơ kiểm thử", Scalar("SELECT ho_ten FROM khach_thue WHERE id=$id", ("$id", own)));
+        Execute("UPDATE toa_nha SET chu_nha_id=$other", ("$other", accounts["ADMIN"]));
+        Assert.Equal(HttpStatusCode.Forbidden, (await owner.GetAsync($"/HoSo/Xem?id={own}")).StatusCode);
+        Assert.DoesNotContain("Hồ sơ kiểm thử", WebUtility.HtmlDecode(await owner.GetStringAsync("/HoSo/DanhSach")));
+    }
 }

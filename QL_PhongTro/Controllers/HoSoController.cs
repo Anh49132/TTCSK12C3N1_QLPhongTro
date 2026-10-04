@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,20 +16,24 @@ public class HoSoController(AppDbContext db, GiayToImageStore images, HoSoAccess
     private async Task<TaiKhoan?> CurrentViewerAsync()
     {
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id)) return null;
-        return await db.TaiKhoans.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.DangHoatDong);
+        return await db.TaiKhoans.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.DangHoatDong && !x.IsDeleted);
     }
     private async Task<TaiKhoan?> CurrentTenantAsync()
     {
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id))
             return null;
-        return await db.TaiKhoans.SingleOrDefaultAsync(x => x.Id == id && x.DangHoatDong && x.VaiTro == "KHACH_THUE");
+        return await db.TaiKhoans.SingleOrDefaultAsync(x => x.Id == id && x.DangHoatDong && !x.IsDeleted && x.VaiTro == "KHACH_THUE");
     }
 
     [HttpGet]
     public async Task<IActionResult> Index()
     {
         var tenant = await CurrentTenantAsync();
-        if (tenant is null) return Forbid();
+        if (tenant is null)
+        {
+            var viewer = await CurrentViewerAsync();
+            return viewer?.VaiTro == "CHU_NHA" ? RedirectToAction(nameof(DanhSach)) : Forbid();
+        }
         var profile = await db.KhachThues.AsNoTracking().SingleOrDefaultAsync(x => x.TaiKhoanId == tenant.Id);
         return View(new HoSoViewModel
         {
@@ -145,7 +149,7 @@ public class HoSoController(AppDbContext db, GiayToImageStore images, HoSoAccess
             ? await db.KhachThues.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id.Value)
             : await db.KhachThues.AsNoTracking().SingleOrDefaultAsync(x => x.TaiKhoanId == viewer.Id);
         if (profile is null) return NotFound();
-        if (profile.TaiKhoanId != viewer.Id && !await access.CanReadFullAsync(viewer, profile.Id)) return NotFound();
+        if (!(viewer.VaiTro == "KHACH_THUE" && profile.TaiKhoanId == viewer.Id) && !await access.CanReadFullAsync(viewer, profile.Id)) return NotFound();
         var path = images.GetPath(mat == "truoc" ? profile?.AnhGiayToTruoc : profile?.AnhGiayToSau);
         if (path is null || !System.IO.File.Exists(path)) return NotFound();
         Response.Headers["X-Content-Type-Options"] = "nosniff";
@@ -161,16 +165,29 @@ public class HoSoController(AppDbContext db, GiayToImageStore images, HoSoAccess
     }
 
     [HttpGet]
+    public async Task<IActionResult> DanhSach()
+    {
+        var viewer = await CurrentViewerAsync();
+        if (viewer?.VaiTro != "CHU_NHA") return Forbid();
+        var ids = await access.RelatedProfileIdsAsync(viewer.Id);
+        return View(await db.KhachThues.AsNoTracking().Where(x => ids.Contains(x.Id))
+            .OrderBy(x => x.HoTen).ThenBy(x => x.Id).ToListAsync());
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Xem(int? id)
     {
         var viewer = await CurrentViewerAsync();
         if (viewer is null) return Forbid();
+        if (viewer.VaiTro == "CHU_NHA" && !id.HasValue) return RedirectToAction(nameof(DanhSach));
+        if (viewer.VaiTro is not ("KHACH_THUE" or "CHU_NHA" or "ADMIN")) return Forbid();
         var profile = id.HasValue
             ? await db.KhachThues.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id.Value)
             : await db.KhachThues.AsNoTracking().SingleOrDefaultAsync(x => x.TaiKhoanId == viewer.Id);
         if (profile is null) return id.HasValue ? NotFound() : View(new XemHoSoViewModel());
+        var own = viewer.VaiTro == "KHACH_THUE" && profile.TaiKhoanId == viewer.Id;
         var full = await access.CanReadFullAsync(viewer, profile.Id);
-        var own = profile.TaiKhoanId == viewer.Id;
+        if (!own && !full) return Forbid();
         return View(new XemHoSoViewModel
         {
             Id = profile.Id, HoTen = profile.HoTen,
