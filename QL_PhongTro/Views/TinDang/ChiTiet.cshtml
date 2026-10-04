@@ -20,16 +20,29 @@
     @if (Model.PublicDetail.Anh.Count > 0)
     {
         <section class="listing-gallery" aria-label="Bộ ảnh phòng">
-            @foreach (var image in Model.PublicDetail.Anh)
+            <div class="listing-gallery-stage">
+                <img data-gallery-main src="@Model.PublicDetail.Anh[0].DuongDan" alt="@(Model.PublicDetail.Anh[0].MoTa ?? Model.PublicDetail.TieuDe)" fetchpriority="high" />
+            </div>
+            @if (Model.PublicDetail.Anh.Count > 1)
             {
-                <img src="@(image.DuongDanAnhNho ?? image.DuongDan)" alt="@(image.MoTa ?? Model.PublicDetail.TieuDe)" loading="lazy" />
+                <div class="listing-gallery-thumbnails" role="group" aria-label="Chọn ảnh phòng">
+                    @foreach (var image in Model.PublicDetail.Anh)
+                    {
+                        <button type="button" class="listing-gallery-thumb" data-gallery-thumb data-full="@image.DuongDan"
+                            data-alt="@(image.MoTa ?? Model.PublicDetail.TieuDe)"
+                            aria-label="Hiển thị ảnh @(image.MoTa ?? $"thứ {image.ThuTu}")"
+                            aria-pressed="@(image == Model.PublicDetail.Anh[0] ? "true" : "false")">
+                            <img src="@(image.DuongDanAnhNho ?? image.DuongDan)" alt="" loading="lazy" />
+                        </button>
+                    }
+                </div>
             }
         </section>
     }
     else
     {
         <section class="listing-gallery listing-gallery-empty" aria-label="Bộ ảnh phòng">
-            <span aria-hidden="true">⌂</span>
+            <img src="~/room-placeholder.svg" alt="Phòng chưa có ảnh" />
             <p>Tin này chưa có hình ảnh.</p>
         </section>
     }
@@ -165,6 +178,7 @@ else if (Model.RequestModuleInstalled && User.Identity?.IsAuthenticated != true)
 else if (Model.RequestModuleInstalled) { <p>Chức năng gửi yêu cầu dành cho tài khoản Khách thuê.</p> }
 
 @section Scripts {
+    <script src="~/js/public-gallery.js" asp-append-version="true"></script>
     <script>
         const people = document.getElementById('Form_SoNguoiDuKien');
         if (people) {

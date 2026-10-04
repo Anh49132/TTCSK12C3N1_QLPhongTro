@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 10;
+    private const int CurrentVersion = 12;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -36,11 +36,21 @@ public static class DatabaseUpdates
 
     public static void Check(string path) => Check(path, true, true, true, true);
 
-    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true, bool requireRoomServices = false, bool requirePublicListings = false)
+    private static void Check(string path, bool requireAudit, bool requireAccountSecurity = true, bool requireRoomServices = false,
+        bool requirePublicListings = false, bool requireCurrentVersion = true)
     {
         using var c = Open(path, true);
         var problems = new List<string>();
         using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(c).Options);
+        var schemaVersion = 0;
+        if (HasTable(c, "app_schema_version"))
+        {
+            using var versionCommand = c.CreateCommand();
+            versionCommand.CommandText = "SELECT COALESCE(MAX(version),0) FROM app_schema_version";
+            schemaVersion = Convert.ToInt32(versionCommand.ExecuteScalar());
+        }
+        if (requireCurrentVersion && schemaVersion != CurrentVersion)
+            problems.Add($"app_schema_version: expected {CurrentVersion}, actual {schemaVersion}");
         var contracts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "hop_dong", "ky_hop_dong" };
         var services = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "dich_vu", "cau_hinh_dich_vu", "khoi_tao_dich_vu" };
         var invoices = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "hoa_don", "chi_tiet_hoa_don", "hop_dong_dich_vu" };
@@ -68,6 +78,8 @@ public static class DatabaseUpdates
             var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
             var columns = entity.GetProperties().Select(p => p.GetColumnName(store)!)
                 .Where(column => requireAccountSecurity || table != "tai_khoan" || column is not ("email_confirmed" or "is_deleted"));
+            if (table == "anh_phong" && schemaVersion < 12)
+                columns = columns.Where(column => column is not ("dang_cho_xoa" or "loi_xoa_gan_nhat" or "lan_thu_xoa_gan_nhat"));
             Probe(table, columns);
         }
         Probe("password_reset_token", ["token_hash", "account_id", "expires_at", "used_at"]);
@@ -131,7 +143,7 @@ public static class DatabaseUpdates
             Console.WriteLine($"Database already up to date (version {CurrentVersion}). No changes.");
             return;
         }
-        if (version >= 5) Check(path, true, true, version >= 8, false);
+        if (version >= 5) Check(path, true, true, version >= 8, false, false);
         var backupPath = path + ".before-update-" + Guid.NewGuid().ToString("N") + ".bak";
         using (var backup = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = backupPath }.ToString()))
         {
@@ -190,12 +202,12 @@ public static class DatabaseUpdates
         }
         if (version < 3)
         {
-            Check(path, false, false, false);
+            Check(path, false, false, false, false, false);
             AuditSchema.Upgrade(c);
         }
         if (version < 4)
         {
-            Check(path, true, false, false);
+            Check(path, true, false, false, false, false);
             using var tx = c.BeginTransaction();
             using var command = c.CreateCommand();
             command.Transaction = tx;
@@ -255,7 +267,7 @@ public static class DatabaseUpdates
         }
         if (version < 10)
         {
-            Check(path);
+            Check(path, true, true, true, true, false);
             using var tx = c.BeginTransaction();
             using var command = c.CreateCommand();
             command.Transaction = tx;
@@ -295,6 +307,44 @@ public static class DatabaseUpdates
                 """;
             command.ExecuteNonQuery();
             tx.Commit();
+        }
+        if (version < 11)
+        {
+            using var tx = c.BeginTransaction();
+            using var command = c.CreateCommand();
+            command.Transaction = tx;
+            command.CommandText = """
+                CREATE TABLE IF NOT EXISTS yeu_cau (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, ma_yeu_cau TEXT NOT NULL UNIQUE, khach_thue_id INTEGER NOT NULL REFERENCES khach_thue(id) ON DELETE RESTRICT, phong_id INTEGER NOT NULL REFERENCES phong_tro(id) ON DELETE RESTRICT, toa_nha_id INTEGER NOT NULL REFERENCES toa_nha(id) ON DELETE RESTRICT, loai_yeu_cau TEXT NOT NULL, ngay_mong_muon TEXT, trang_thai TEXT NOT NULL DEFAULT 'MOI', ngay_tao TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS ix_yeu_cau_toa_nha_ngay_tao ON yeu_cau(toa_nha_id, ngay_tao);
+                INSERT INTO app_schema_version(version,applied_at) VALUES(11,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                """;
+            command.ExecuteNonQuery();
+            tx.Commit();
+        }
+        if (version < 12)
+        {
+            Check(path, true, true, true, true, false);
+            using var tx = c.BeginTransaction();
+            using var command = c.CreateCommand();
+            command.Transaction = tx;
+            AddColumnIfMissing("dang_cho_xoa", "ALTER TABLE anh_phong ADD COLUMN dang_cho_xoa INTEGER NOT NULL DEFAULT 0 CHECK(dang_cho_xoa IN (0,1))");
+            AddColumnIfMissing("loi_xoa_gan_nhat", "ALTER TABLE anh_phong ADD COLUMN loi_xoa_gan_nhat TEXT CHECK(loi_xoa_gan_nhat IS NULL OR length(loi_xoa_gan_nhat) <= 1000)");
+            AddColumnIfMissing("lan_thu_xoa_gan_nhat", "ALTER TABLE anh_phong ADD COLUMN lan_thu_xoa_gan_nhat TEXT");
+            command.CommandText = "INSERT INTO app_schema_version(version,applied_at) VALUES(12,strftime('%Y-%m-%dT%H:%M:%fZ','now'))";
+            command.ExecuteNonQuery();
+            tx.Commit();
+
+            void AddColumnIfMissing(string column, string sql)
+            {
+                command.Parameters.Clear();
+                command.CommandText = "SELECT COUNT(*) FROM pragma_table_info('anh_phong') WHERE name=$column";
+                command.Parameters.AddWithValue("$column", column);
+                if (Convert.ToInt64(command.ExecuteScalar()) != 0)
+                    return;
+                command.Parameters.Clear();
+                command.CommandText = sql;
+                command.ExecuteNonQuery();
+            }
         }
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");

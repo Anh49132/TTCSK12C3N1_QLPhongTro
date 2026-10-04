@@ -1,11 +1,15 @@
 @model QL_PhongTro.ViewModels.LichHenChiTietViewModel
 @using QL_PhongTro.Models
 @using QL_PhongTro.Services
+@using QL_PhongTro.ViewModels
 @{
     ViewData["Title"] = "Chi tiết yêu cầu " + Model.YeuCau.MaYeuCau;
     var ok = TempData["LichHenOk"] as string;
     var err = TempData["LichHenError"] as string;
     var yeuCau = Model.YeuCau;
+    var ngayHenNhap = Model.LichHenNhap?.ToString("yyyy-MM-dd");
+    var gioHenNhap = Model.LichHenNhap?.ToString("HH:mm");
+    var lichHenNhap = Model.LichHenNhap?.ToString("yyyy-MM-ddTHH:mm");
 }
 <p class="eyebrow">LỊCH HẸN XEM PHÒNG</p>
 <h1>@yeuCau.MaYeuCau</h1>
@@ -21,17 +25,24 @@
 <table class="table align-top">
     <tbody>
     <tr><th>Loại yêu cầu</th><td>@LichHenTrangThai.LoaiLabel(yeuCau.LoaiYeuCau)</td></tr>
-    <tr><th>Trạng thái</th><td>@LichHenTrangThai.Label(yeuCau.TrangThai)</td></tr>
+    <tr><th>Trạng thái</th><td>@LichHenTrangThai.LabelHienThi(yeuCau.TrangThai, yeuCau.DaDoiLich)</td></tr>
     <tr><th>Khách</th><td>@yeuCau.TenKhach @if (!string.IsNullOrWhiteSpace(yeuCau.SoDienThoaiKhach)) { <text>· @yeuCau.SoDienThoaiKhach</text> }</td></tr>
     @if (!Model.LaChuNha) { <tr><th>Chủ nhà</th><td>@yeuCau.TenChuNha</td></tr> }
     <tr><th>Ngày mong muốn</th><td>@yeuCau.NgayMongMuon</td></tr>
     <tr><th>Số người dự kiến</th><td>@yeuCau.SoNguoiDuKien</td></tr>
     @if (!string.IsNullOrWhiteSpace(yeuCau.LoiNhan)) { <tr><th>Lý do</th><td>@yeuCau.LoiNhan</td></tr> }
+    @if (yeuCau.TrangThai == LichHenTrangThai.TuChoi) {
+    <tr><th>Lý do từ chối</th><td>@(yeuCau.LyDoTuChoi is null ? "" : LichHenService.LyDoLabel(yeuCau.LyDoTuChoi))</td></tr>
+    @if (!string.IsNullOrWhiteSpace(yeuCau.GhiChuTuChoi)) { <tr><th>Ghi chú</th><td>@yeuCau.GhiChuTuChoi</td></tr> }
+    }
     <tr>
         <th>Lịch hẹn</th>
         <td>
             @if (yeuCau.LichHen is { } lichHen) { <text>@LichHenService.HienThoiGio(lichHen)</text> }
             else { <text>Chưa có lịch hẹn</text> }
+            @if (yeuCau.DaDoiLich && yeuCau.LichHenCu is { } cuNhat) {
+                <br /><span class="text-muted">Lịch trước: @LichHenService.HienThoiGio(cuNhat)</span>
+            }
         </td>
     </tr>
     </tbody>
@@ -41,9 +52,15 @@
 @if (Model.HienThiFormXacNhan) {
 <h2>Xác nhận lịch hẹn</h2>
 <form method="post" class="row g-3 mb-4" asp-action="XacNhanLich" asp-route-id="@yeuCau.Id">
-    <div class="col-md-4">
-        <label asp-for="LichHenNhap" class="form-label">Ngày giờ hẹn (giờ Việt Nam)</label>
-        <input asp-for="LichHenNhap" type="datetime-local" class="form-control" data-role="lich-hen" />
+    <div class="col-md-3">
+        <label for="lich-hen-ngay" class="form-label">Ngày hẹn</label>
+        <input id="lich-hen-ngay" type="date" class="form-control" value="@ngayHenNhap" required data-role="lich-hen-ngay" />
+    </div>
+    <div class="col-md-2">
+        <label for="lich-hen-gio" class="form-label">Giờ hẹn (24 giờ)</label>
+        <input id="lich-hen-gio" type="text" class="form-control" value="@gioHenNhap" placeholder="00:00"
+               inputmode="numeric" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" required data-role="lich-hen-gio" />
+        <input type="hidden" name="LichHenNhap" value="@lichHenNhap" data-role="lich-hen" />
     </div>
     <div class="col-md-4 d-flex align-items-end">
         <button class="btn btn-primary" type="submit">Xác nhận lịch</button>
@@ -52,6 +69,120 @@
 <p class="text-muted" data-role="canh-bao-trung" data-yeu-cau-id="@yeuCau.Id">
     Hệ thống cảnh báo nếu phòng đã có lịch hẹn khác trong khoảng ±30 phút. Cảnh báo không chặn xác nhận.
 </p>
+}
+
+@if (Model.HienThiFormDoiLich) {
+<h2>Đổi lịch hẹn</h2>
+<form method="post" class="row g-3 mb-4" asp-action="DoiLich" asp-route-id="@yeuCau.Id">
+    <div class="col-md-3">
+        <label for="lich-hen-ngay" class="form-label">Ngày hẹn mới</label>
+        <input id="lich-hen-ngay" type="date" class="form-control" value="@ngayHenNhap" required data-role="lich-hen-ngay" />
+    </div>
+    <div class="col-md-2">
+        <label for="lich-hen-gio" class="form-label">Giờ hẹn mới (24 giờ)</label>
+        <input id="lich-hen-gio" type="text" class="form-control" value="@gioHenNhap" placeholder="00:00"
+               inputmode="numeric" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" required data-role="lich-hen-gio" />
+        <input type="hidden" name="LichHenNhap" value="@lichHenNhap" data-role="lich-hen" />
+    </div>
+    <div class="col-md-4 d-flex align-items-end">
+        <button class="btn btn-primary" type="submit">Lưu lịch mới</button>
+    </div>
+</form>
+<p class="text-muted" data-role="canh-bao-trung" data-yeu-cau-id="@yeuCau.Id">
+    Lịch cũ được giữ lại để cả chủ nhà và người thuê đều thấy thay đổi. Cảnh báo trùng lịch không chặn lưu.
+</p>
+}
+
+@if (Model.HienThiNutDuyetThueNgay) {
+<form method="post" class="row g-3 mb-4" asp-action="DuyetThueNgay" asp-route-id="@yeuCau.Id">
+    <div class="col-md-4 d-flex align-items-center gap-2">
+        <button class="btn btn-success" type="submit">Duyệt thuê ngay</button>
+        <span class="text-muted">Phòng sẽ chuyển sang trạng thái Đã đặt cọc.</span>
+    </div>
+</form>
+}
+
+@if (Model.HienThiNutLapHopDong) {
+<div class="mb-4">
+    <a class="btn btn-primary" href="@LichHenChiTietViewModel.DuongDanLapHopDong?@($"id={yeuCau.Id}")">Lập hợp đồng</a>
+    <span class="text-muted">Yêu cầu đã duyệt và phòng đã đặt cọc, sẵn sàng lập hợp đồng.</span>
+</div>
+}
+
+@if (Model.HienThiFormTuChoi) {
+<h2>Từ chối yêu cầu</h2>
+<form method="post" class="row g-3 mb-4" asp-action="TuChoi" asp-route-id="@yeuCau.Id">
+    <div class="col-md-4">
+        <label asp-for="LyDoTuChoi" class="form-label">Lý do từ chối</label>
+        <select asp-for="LyDoTuChoi" class="form-select" data-role="ly-do-tu-choi">
+            @foreach (var lyDo in LyDoTuChoi.All) { <option value="@lyDo">@LichHenService.LyDoLabel(lyDo)</option> }
+        </select>
+    </div>
+    <div class="col-md-5">
+        @* Ô ghi chú chỉ hiện khi chọn "Lý do khác". Giao diện chặn trước để khách thấy lỗi ngay,
+           nhưng LichHenService vẫn là nơi quyết định: post thiếu hoặc quá ngắn vẫn bị từ chối. *@
+        <div class="mb-3 @(Model.LyDoTuChoi == LyDoTuChoi.Khac ? "" : "d-none")" data-role="vung-ghi-chu">
+            <label asp-for="GhiChuTuChoi" class="form-label">Ghi chú <span class="text-danger">*</span></label>
+            <input asp-for="GhiChuTuChoi" class="form-control" maxlength="500"
+                   data-role="ghi-chu-tu-choi" data-doi-kiem-tra="1" />
+            <div class="form-text" data-role="loi-ghi-chu"></div>
+        </div>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-outline-danger" type="submit">Từ chối</button>
+    </div>
+</form>
+}
+
+@if (Model.HienThiNutHuy) {
+<section class="border-top pt-4 mb-4" aria-labelledby="huy-yeu-cau-heading">
+    <h2 id="huy-yeu-cau-heading">Hủy yêu cầu</h2>
+    <p class="text-muted">Yêu cầu đã hủy không thể tiếp tục xác nhận, đổi lịch hoặc duyệt thuê.</p>
+    <form method="post" asp-action="Huy" asp-route-id="@yeuCau.Id"
+          onsubmit="return confirm('Bạn chắc chắn muốn hủy yêu cầu này?');">
+        <button class="btn btn-outline-danger" type="submit">Hủy yêu cầu</button>
+    </form>
+</section>
+}
+
+<h2>Lịch sử yêu cầu</h2>
+@if (Model.LichSu.Count == 0) {
+    <p class="text-muted mb-4">Chưa có thay đổi nào được ghi nhận.</p>
+} else {
+    <ul class="list-unstyled mb-4">
+    @foreach (var muc in Model.LichSu) {
+        <li class="border-bottom pb-2 mb-2">
+            <div>
+                <strong>@HanhDongYeuCau.Label(muc.HanhDong)</strong>
+                @if (muc.TrangThaiCu is { } cu && cu != muc.TrangThaiMoi) {
+                    <span class="text-muted">· @LichHenTrangThai.Label(cu) → @LichHenTrangThai.Label(muc.TrangThaiMoi)</span>
+                } else {
+                    <span class="text-muted">· @LichHenTrangThai.Label(muc.TrangThaiMoi)</span>
+                }
+            </div>
+            <div class="text-muted">
+                @if (!string.IsNullOrWhiteSpace(muc.TenNguoiThucHien)) {
+                    @muc.TenNguoiThucHien
+                    @if (muc.VaiTro == LichHenTrangThai.VaiTroChuNha) { <text> (chủ nhà)</text> }
+                    else if (muc.VaiTro == LichHenTrangThai.VaiTroKhachThue) { <text> (khách)</text> }
+                    <text> · </text>
+                }
+                @LichHenService.HienThoiGio(muc.ThoiDiem)
+            </div>
+            @if (muc.LichHenCu is { } lichCu && muc.LichHenMoi is { } lichMoi && lichCu != lichMoi) {
+                <div class="text-muted">Lịch: @LichHenService.HienThoiGio(lichCu) → @LichHenService.HienThoiGio(lichMoi)</div>
+            } else if (muc.LichHenMoi is { } lichMoi2) {
+                <div class="text-muted">Lịch hẹn: @LichHenService.HienThoiGio(lichMoi2)</div>
+            }
+            @if (!string.IsNullOrEmpty(muc.LyDoTuChoi)) {
+                <div class="text-muted">Lý do: @LichHenService.LyDoLabel(muc.LyDoTuChoi)</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(muc.GhiChuTuChoi)) {
+                <div class="text-muted">Ghi chú: @muc.GhiChuTuChoi</div>
+            }
+        </li>
+    }
+    </ul>
 }
 
 @section Scripts {

@@ -16,6 +16,7 @@ __pycache__/
 /data/*.sqlite
 /data/backups/
 /QL_PhongTro/App_Data/
+/QL_PhongTro/wwwroot/uploads/rooms/
 /data/S1-06-images/
 *.sqlite-shm
 *.sqlite-wal

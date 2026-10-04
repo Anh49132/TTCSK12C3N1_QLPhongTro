@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.FileProviders;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -31,6 +32,8 @@ if (args.Contains("--check-email-config"))
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddSingleton<QL_PhongTro.Services.GiayToImageStore>();
+builder.Services.AddSingleton(sp => new QL_PhongTro.Services.RoomImageStore(
+    sp.GetRequiredService<IWebHostEnvironment>(), sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddScoped<QL_PhongTro.Services.HoSoAccess>();
 builder.Services.AddScoped<QL_PhongTro.Services.LichHenService>();
 builder.Services.AddScoped<QL_PhongTro.Services.ICredentialValidationService, QL_PhongTro.Services.CredentialValidationService>();
@@ -76,6 +79,13 @@ if (args.Contains("--create-local-admin"))
         builder.Configuration["LocalAdmin:Email"],
         builder.Configuration["LocalAdmin:Password"],
         builder.Configuration["LocalAdmin:Phone"]);
+    return;
+}
+if (args.Contains("--seed-request-demo"))
+{
+    if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException("--seed-request-demo is available only in Development.");
+    RequestDemoSeeder.Seed(databasePath, builder.Configuration["RequestDemo:Password"]);
     return;
 }
 
@@ -158,6 +168,8 @@ builder.Services.AddScoped<DichVuService>();
 builder.Services.AddScoped<YeuCauThueService>();
 builder.Services.AddScoped<DichVuPhongService>();
 builder.Services.AddScoped<HoaDonDichVuService>();
+builder.Services.AddScoped<RoomImageDeletionService>();
+builder.Services.AddHostedService<RoomImageCleanupHostedService>();
 builder.Services.Configure<DichVuMacDinhOptions>(builder.Configuration.GetSection("DichVuMacDinh"));
 
 builder.Services.AddAuthentication()
@@ -195,6 +207,30 @@ builder.Services.AddAuthentication()
 
 var app = builder.Build();
 
+if (args.Contains("--retry-pending-room-image-deletes"))
+{
+    DatabaseUpdates.Check(databasePath);
+    using var scope = app.Services.CreateScope();
+    var result = await scope.ServiceProvider.GetRequiredService<RoomImageDeletionService>().RetryPendingDeletesAsync();
+    Console.WriteLine($"Pending room image delete retry finished. Deleted: {result.Deleted}; failed: {result.Failed}.");
+    return;
+}
+
+if (args.Contains("--check-room-image-storage"))
+{
+    DatabaseUpdates.Check(databasePath);
+    using var scope = app.Services.CreateScope();
+    var result = await scope.ServiceProvider.GetRequiredService<RoomImageDeletionService>().CheckStorageAsync();
+    Console.WriteLine($"Room image storage check. Expected files: {result.ExpectedFiles}; missing: {result.MissingFiles}; orphan: {result.OrphanFiles}.");
+    foreach (var path in result.Missing.Take(20))
+        Console.WriteLine("MISSING " + path);
+    foreach (var path in result.Orphans.Take(20))
+        Console.WriteLine("ORPHAN " + path);
+    if (result.MissingFiles > 0 || result.OrphanFiles > 0)
+        Environment.ExitCode = 2;
+    return;
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -203,6 +239,26 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+var configuredRoomImagesPath = builder.Configuration["RoomImagesPath"];
+if (!string.IsNullOrWhiteSpace(configuredRoomImagesPath))
+{
+    var roomImagesPath = Path.GetFullPath(Path.IsPathRooted(configuredRoomImagesPath)
+        ? configuredRoomImagesPath
+        : Path.Combine(builder.Environment.ContentRootPath, configuredRoomImagesPath));
+    Directory.CreateDirectory(roomImagesPath);
+    var defaultRoomImagesPath = Path.GetFullPath(Path.Combine(
+        app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"),
+        "uploads",
+        "rooms"));
+    if (!string.Equals(roomImagesPath, defaultRoomImagesPath, StringComparison.OrdinalIgnoreCase))
+    {
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(roomImagesPath),
+            RequestPath = "/uploads/rooms"
+        });
+    }
+}
 app.UseRouting();
 app.UseAuthentication();
 app.UseMiddleware<RequirePasswordChangeMiddleware>();

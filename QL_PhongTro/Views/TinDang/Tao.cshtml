@@ -1,17 +1,17 @@
 @model QL_PhongTro.ViewModels.TaoTinDangViewModel
 @using System.Globalization
 @{
-    ViewData["Title"] = "Tạo tin đăng nháp";
+    ViewData["Title"] = "Đăng tin cho thuê";
     var culture = CultureInfo.GetCultureInfo("vi-VN");
 }
 
 <section class="mb-4">
     <p class="text-uppercase text-secondary small fw-semibold mb-2">Tin đăng</p>
-    <h1 class="h2 mb-1">Tạo tin đăng nháp</h1>
-    <p class="text-secondary mb-0">Phòng @Model.MaPhong · thông tin phòng được lấy trực tiếp từ hồ sơ phòng.</p>
+    <h1 class="h2 mb-1">Đăng tin cho thuê</h1>
+    <p class="text-secondary mb-0">@Model.TenToaNha · phòng @Model.MaPhong</p>
 </section>
 
-<form asp-action="Tao" method="post">
+<form method="post" asp-action="Tao">
     <input asp-for="PhongId" type="hidden" />
     <div asp-validation-summary="All" class="text-danger mb-3" role="alert"></div>
 
@@ -23,9 +23,9 @@
             <span asp-validation-for="TieuDe" class="text-danger"></span>
         </div>
         <div class="mb-3">
-            <label asp-for="MoTaThem" class="form-label">Mô tả thêm</label>
-            <textarea asp-for="MoTaThem" class="form-control" rows="4" maxlength="4000"></textarea>
-            <span asp-validation-for="MoTaThem" class="text-danger"></span>
+            <label asp-for="NoiDung" class="form-label">Mô tả thêm</label>
+            <textarea asp-for="NoiDung" class="form-control" rows="4" maxlength="4000"></textarea>
+            <span asp-validation-for="NoiDung" class="text-danger"></span>
         </div>
     </section>
 
@@ -43,7 +43,7 @@
             <div class="col-sm-6">
                 <label for="NgayHetHan" class="form-label">Ngày hết hạn</label>
                 <input id="NgayHetHan" class="form-control" value="@Model.NgayHetHan.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" readonly aria-readonly="true" />
-                <div class="form-text">Tin nháp hết hạn sau 30 ngày.</div>
+                <div class="form-text">Tin đăng hết hạn sau 30 ngày.</div>
             </div>
         </div>
     </section>
@@ -92,7 +92,8 @@
     </section>
 
     <div class="d-flex flex-wrap gap-2">
-        <button type="submit" class="btn btn-primary">Lưu bản nháp</button>
-        <a asp-controller="PhongTro" asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-secondary">Quay lại danh sách phòng</a>
+        <button type="submit" name="intent" value="NHAP" class="btn btn-outline-secondary">Lưu bản nháp</button>
+        <button type="submit" name="intent" value="DANG_HIEN_THI" class="btn btn-primary">Đăng tin</button>
+        <a asp-controller="TinDang" asp-action="QuanLy" class="btn btn-link">Quay lại quản lý tin</a>
     </div>
 </form>

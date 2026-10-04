@@ -86,6 +86,7 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         profile.Property(e => e.AnhGiayToSau).HasColumnName("anh_giay_to_sau").HasMaxLength(500);
         profile.Property(e => e.QueQuan).HasColumnName("dia_chi_thuong_tru");
         profile.Property(e => e.NgheNghiep).HasColumnName("nghe_nghiep").HasMaxLength(150);
+        profile.Property(e => e.SoDienThoai).HasColumnName("so_dien_thoai").HasMaxLength(15);
         profile.Property(e => e.NgayTao).HasColumnName("ngay_tao");
         profile.HasIndex(e => e.TaiKhoanId).IsUnique();
         profile.HasOne<TaiKhoan>().WithMany().HasForeignKey(e => e.TaiKhoanId).OnDelete(DeleteBehavior.Restrict);
@@ -180,6 +181,9 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         roomImage.Property(e => e.ThuTu).HasColumnName("thu_tu").IsRequired();
         roomImage.Property(e => e.MoTa).HasColumnName("mo_ta").HasMaxLength(255);
         roomImage.Property(e => e.NgayTao).HasColumnName("ngay_tao").IsRequired();
+        roomImage.Property(e => e.DangChoXoa).HasColumnName("dang_cho_xoa").HasDefaultValue(false);
+        roomImage.Property(e => e.LoiXoaGanNhat).HasColumnName("loi_xoa_gan_nhat").HasMaxLength(1000);
+        roomImage.Property(e => e.LanThuXoaGanNhat).HasColumnName("lan_thu_xoa_gan_nhat");
         roomImage.HasIndex(e => new { e.PhongId, e.ThuTu }).IsUnique();
         roomImage.HasOne<PhongTro>().WithMany().HasForeignKey(e => e.PhongId).OnDelete(DeleteBehavior.Restrict);
 
@@ -218,5 +222,6 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         requestNotice.Property(e => e.NgayTao).HasColumnName("ngay_tao").IsRequired();
         requestNotice.HasIndex(e => new { e.NguoiNhanId, e.DaDoc, e.NgayTao }).HasDatabaseName("ix_yeu_cau_thue_thong_bao_nguoi");
         requestNotice.HasOne<TaiKhoan>().WithMany().HasForeignKey(e => e.NguoiNhanId).OnDelete(DeleteBehavior.Restrict);
+
     }
 }

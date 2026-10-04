@@ -56,8 +56,8 @@ public class LichHenMigrationTests : IDisposable
 
     private void HaVeBanV9()
     {
-        Chay("DROP TABLE yeu_cau_thue_lich_su; DROP TABLE yeu_cau_thue_thong_bao;"
-            + " DELETE FROM app_schema_version WHERE version=10;");
+        Chay("DROP TABLE yeu_cau_thue_lich_su; DROP TABLE yeu_cau_thue_thong_bao; DROP TABLE yeu_cau;"
+            + " DELETE FROM app_schema_version WHERE version IN (10,11,12);");
         SqliteConnection.ClearAllPools();
     }
 
@@ -66,7 +66,7 @@ public class LichHenMigrationTests : IDisposable
     {
         LocalDatabaseInitializer.Create(_dbPath, _seedPath);
 
-        Assert.Equal("10", Scalar("SELECT COALESCE(MAX(version),0) FROM app_schema_version"));
+        Assert.Equal("12", Scalar("SELECT COALESCE(MAX(version),0) FROM app_schema_version"));
         Assert.Equal("2", Scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN"
             + " ('yeu_cau_thue_lich_su','yeu_cau_thue_thong_bao')"));
         DatabaseUpdates.Check(_dbPath);
@@ -80,7 +80,7 @@ public class LichHenMigrationTests : IDisposable
 
         DatabaseUpdates.Update(_dbPath, _seedPath);
 
-        Assert.Equal("10", Scalar("SELECT COALESCE(MAX(version),0) FROM app_schema_version"));
+        Assert.Equal("12", Scalar("SELECT COALESCE(MAX(version),0) FROM app_schema_version"));
         Assert.Equal("1", Scalar("SELECT COUNT(*) FROM sqlite_master WHERE name='yeu_cau_thue_lich_su'"));
         Assert.Equal("1", Scalar("SELECT COUNT(*) FROM sqlite_master WHERE name='yeu_cau_thue_thong_bao'"));
         DatabaseUpdates.Check(_dbPath);
@@ -91,11 +91,11 @@ public class LichHenMigrationTests : IDisposable
     {
         LocalDatabaseInitializer.Create(_dbPath, _seedPath);
         DatabaseUpdates.Update(_dbPath, _seedPath);
-        var truoc = Scalar("SELECT version || '|' || applied_at FROM app_schema_version WHERE version=10");
+        var truoc = Scalar("SELECT version || '|' || applied_at FROM app_schema_version WHERE version=12");
 
         DatabaseUpdates.Update(_dbPath, _seedPath);
 
-        Assert.Equal(truoc, Scalar("SELECT version || '|' || applied_at FROM app_schema_version WHERE version=10"));
+        Assert.Equal(truoc, Scalar("SELECT version || '|' || applied_at FROM app_schema_version WHERE version=12"));
         DatabaseUpdates.Check(_dbPath);
     }
 

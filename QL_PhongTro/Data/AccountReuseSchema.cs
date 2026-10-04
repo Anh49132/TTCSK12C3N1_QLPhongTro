@@ -2,7 +2,8 @@ using Microsoft.Data.Sqlite;
 
 namespace QL_PhongTro.Data;
 
-// Narrow, automatic v4 -> v5 update. Keep account IDs/contact history and all FKs.
+// Narrow, automatic v4 -> v5 update. Newer application schema versions keep the
+// same account-reuse contract, so validation remains safe after unrelated upgrades.
 public static class AccountReuseSchema
 {
     private static readonly Dictionary<string, string> Indexes = new()
@@ -21,7 +22,7 @@ public static class AccountReuseSchema
         cmd.Transaction = tx;
         cmd.CommandText = "SELECT MAX(version) FROM app_schema_version";
         var version = Convert.ToInt32(cmd.ExecuteScalar());
-    if (version < 4 || version > 10) throw new InvalidOperationException("Account reuse requires schema v4-v10; no changes made.");
+        if (version < 4 || version > 12) throw new InvalidOperationException("Account reuse requires schema v4-v12; no changes made.");
         // Refuse unknown UNIQUE constraints (including SQLite autoindexes) rather than
         // rebuild a referenced table or silently leave a constraint blocking reuse.
         cmd.CommandText = "PRAGMA index_list(tai_khoan)";

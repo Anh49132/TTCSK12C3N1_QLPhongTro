@@ -55,6 +55,44 @@
         </select>
         <span asp-validation-for="TrangThai" class="text-danger"></span>
     </div>
+    @if (isEdit)
+    {
+        <section class="col-12 room-image-manager"
+             data-upload-url="@Url.Action("UploadImage", new { id = ViewData["RoomId"] })"
+             data-reorder-url="@Url.Action("ReorderImages", new { id = ViewData["RoomId"] })"
+             data-delete-url-template="@Url.Action("DeleteImage", new { id = ViewData["RoomId"], imageId = "__imageId__" })">
+            <div class="room-image-heading">
+                <div>
+                    <h2>Ảnh phòng</h2>
+                    <p>JPG hoặc PNG, tối đa 5 MB mỗi ảnh. Có thể chọn nhiều ảnh cùng lúc.</p>
+                </div>
+                <strong data-image-count>@Model.Anh.Count/8 ảnh</strong>
+            </div>
+            <label for="room-image-files" class="form-label">Chọn ảnh tải lên</label>
+            <input id="room-image-files" class="form-control" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple />
+            <div class="room-image-grid" data-image-grid aria-live="polite">
+                @foreach (var image in Model.Anh)
+                {
+                    <article class="room-image-card" data-image-id="@image.Id">
+                        <div class="room-image-preview">
+                            <img src="@(image.DuongDanAnhNho ?? image.DuongDan)" alt="Ảnh phòng thứ @image.ThuTu" />
+                            <span class="room-image-primary" data-primary-label hidden="@(image.ThuTu != 1)">Ảnh đại diện</span>
+                        </div>
+                        <div class="room-image-card-footer">
+                            <span data-order-label>Ảnh @image.ThuTu</span>
+                            <div class="room-image-move-controls" aria-label="Sắp xếp ảnh">
+                                <button type="button" data-move-image="up" aria-label="Đưa ảnh lên trước" title="Đưa ảnh lên trước" disabled="@(image.ThuTu == 1)">↑</button>
+                                <button type="button" data-move-image="down" aria-label="Đưa ảnh xuống sau" title="Đưa ảnh xuống sau">↓</button>
+                                <button type="button" class="room-image-delete-button" data-delete-image aria-label="Xóa ảnh" title="Xóa ảnh">Xóa</button>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+            <div class="room-image-queue" data-image-queue aria-live="polite"></div>
+            <p class="room-image-sort-status" data-sort-status role="status" aria-live="polite"></p>
+        </section>
+    }
     <div class="col-12 d-flex gap-2 pt-2">
         <button type="submit" class="btn btn-primary">@(isEdit ? "Lưu thay đổi" : "Thêm phòng")</button>
         <a asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-secondary">Hủy</a>
@@ -64,4 +102,8 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/room-form.js" asp-append-version="true"></script>
+    @if (isEdit)
+    {
+        <script src="~/js/room-images.js" asp-append-version="true"></script>
+    }
 }

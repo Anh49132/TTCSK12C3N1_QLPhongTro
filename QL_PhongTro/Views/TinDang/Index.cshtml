@@ -1,8 +1,27 @@
-@model IReadOnlyList<QL_PhongTro.Models.TinDang>
-@{ ViewData["Title"] = "Tin đăng cho thuê"; }
-<h1>Tin đăng cho thuê</h1>
-@if (Model.Count == 0) { <p>Hiện chưa có tin đăng đang hiển thị.</p> }
-@foreach (var tin in Model)
-{
-    <article class="card p-3 mb-3"><h2 class="h5"><a asp-action="ChiTiet" asp-route-id="@tin.Id">@tin.TieuDe</a></h2></article>
+@model IReadOnlyList<QL_PhongTro.ViewModels.TinDangDanhSachViewModel>
+@{
+    ViewData["Title"] = "Tin đăng cho thuê";
+    Layout = "~/Views/Shared/_PublicLayout.cshtml";
 }
+<section class="listing-index" aria-labelledby="listing-index-title">
+    <p class="listing-eyebrow">PHÒNG TRỐNG ĐANG CHO THUÊ</p>
+    <h1 id="listing-index-title">Tin đăng cho thuê</h1>
+    @if (Model.Count == 0)
+    {
+        <p class="listing-muted">Hiện chưa có tin đăng đang hiển thị.</p>
+    }
+    else
+    {
+        <div class="listing-index-grid">
+            @foreach (var tin in Model)
+            {
+                <article class="listing-index-item">
+                    <a asp-action="ChiTiet" asp-route-id="@tin.Id" class="listing-index-image">
+                        <img src="@(tin.AnhDaiDien ?? Url.Content("~/room-placeholder.svg"))" alt="Ảnh đại diện: @tin.TieuDe" loading="lazy" />
+                    </a>
+                    <h2><a asp-action="ChiTiet" asp-route-id="@tin.Id">@tin.TieuDe</a></h2>
+                </article>
+            }
+        </div>
+    }
+</section>

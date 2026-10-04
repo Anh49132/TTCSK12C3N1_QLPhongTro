@@ -72,7 +72,9 @@ public sealed partial class PermissionTests : IDisposable
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseContentRoot(appPath);
+            builder.UseWebRoot(Path.Combine(temp, "wwwroot"));
             builder.UseSetting("DatabasePath", database);
+            builder.UseSetting("RoomImagesPath", Path.Combine(temp, "wwwroot", "uploads", "rooms"));
             builder.UseEnvironment("Development");
             builder.ConfigureLogging(logging => logging.ClearProviders());
             builder.ConfigureServices(services => services.AddDataProtection().UseEphemeralDataProtectionProvider());
@@ -119,6 +121,12 @@ public sealed partial class PermissionTests : IDisposable
     private async Task<HttpClient> Login(string role)
     {
         var client = Client();
+        await Login(client, role);
+        return client;
+    }
+
+    private async Task Login(HttpClient client, string role)
+    {
         var html = await client.GetStringAsync("/Account/Login");
         var token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
         Assert.NotEmpty(token);
@@ -128,7 +136,6 @@ public sealed partial class PermissionTests : IDisposable
             ["__RequestVerificationToken"] = WebUtility.HtmlDecode(token)
         }));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        return client;
     }
 
     [Fact]
