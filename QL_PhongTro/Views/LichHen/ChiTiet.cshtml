@@ -1,4 +1,5 @@
 @model QL_PhongTro.ViewModels.LichHenChiTietViewModel
+@using System.Globalization
 @using QL_PhongTro.Models
 @using QL_PhongTro.Services
 @using QL_PhongTro.ViewModels
@@ -8,8 +9,8 @@
     var err = TempData["LichHenError"] as string;
     var yeuCau = Model.YeuCau;
     var ngayHenNhap = Model.LichHenNhap?.ToString("yyyy-MM-dd");
-    var gioHenNhap = Model.LichHenNhap?.ToString("HH:mm");
-    var lichHenNhap = Model.LichHenNhap?.ToString("yyyy-MM-ddTHH:mm");
+    var gioHenNhap = Model.LichHenNhap?.ToString("HH':'mm", CultureInfo.InvariantCulture);
+    var lichHenNhap = Model.LichHenNhap?.ToString("yyyy-MM-ddTHH':'mm", CultureInfo.InvariantCulture);
 }
 <p class="eyebrow">LỊCH HẸN XEM PHÒNG</p>
 <h1>@yeuCau.MaYeuCau</h1>
@@ -58,8 +59,8 @@
     </div>
     <div class="col-md-2">
         <label for="lich-hen-gio" class="form-label">Giờ hẹn (24 giờ)</label>
-        <input id="lich-hen-gio" type="text" class="form-control" value="@gioHenNhap" placeholder="00:00"
-               inputmode="numeric" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" required data-role="lich-hen-gio" />
+        <input id="lich-hen-gio" type="text" class="form-control" value="@gioHenNhap" placeholder="19:30" maxlength="5" autocomplete="off"
+               inputmode="text" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" title="Nhập giờ theo định dạng HH:mm, ví dụ 19:30" required data-role="lich-hen-gio" />
         <input type="hidden" name="LichHenNhap" value="@lichHenNhap" data-role="lich-hen" />
     </div>
     <div class="col-md-4 d-flex align-items-end">
@@ -80,8 +81,8 @@
     </div>
     <div class="col-md-2">
         <label for="lich-hen-gio" class="form-label">Giờ hẹn mới (24 giờ)</label>
-        <input id="lich-hen-gio" type="text" class="form-control" value="@gioHenNhap" placeholder="00:00"
-               inputmode="numeric" pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" required data-role="lich-hen-gio" />
+        <input id="lich-hen-gio" type="text" class="form-control" value="@gioHenNhap" placeholder="19:30" maxlength="5" autocomplete="off"
+               inputmode="text" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" title="Nhập giờ theo định dạng HH:mm, ví dụ 19:30" required data-role="lich-hen-gio" />
         <input type="hidden" name="LichHenNhap" value="@lichHenNhap" data-role="lich-hen" />
     </div>
     <div class="col-md-4 d-flex align-items-end">
@@ -118,18 +119,14 @@
             @foreach (var lyDo in LyDoTuChoi.All) { <option value="@lyDo">@LichHenService.LyDoLabel(lyDo)</option> }
         </select>
     </div>
-    <div class="col-md-5">
-        @* Ô ghi chú chỉ hiện khi chọn "Lý do khác". Giao diện chặn trước để khách thấy lỗi ngay,
-           nhưng LichHenService vẫn là nơi quyết định: post thiếu hoặc quá ngắn vẫn bị từ chối. *@
-        <div class="mb-3 @(Model.LyDoTuChoi == LyDoTuChoi.Khac ? "" : "d-none")" data-role="vung-ghi-chu">
-            <label asp-for="GhiChuTuChoi" class="form-label">Ghi chú <span class="text-danger">*</span></label>
-            <input asp-for="GhiChuTuChoi" class="form-control" maxlength="500"
-                   data-role="ghi-chu-tu-choi" data-doi-kiem-tra="1" />
-            <div class="form-text" data-role="loi-ghi-chu"></div>
-        </div>
-    </div>
-    <div class="col-md-3 d-flex align-items-end">
+    <div class="col-auto d-flex align-items-end">
         <button class="btn btn-outline-danger" type="submit">Từ chối</button>
+    </div>
+    <div class="col-12 @(Model.LyDoTuChoi == LyDoTuChoi.Khac ? "" : "d-none")" data-role="vung-ghi-chu">
+        <label asp-for="GhiChuTuChoi" class="form-label">Ghi chú <span class="text-danger">*</span></label>
+        <input asp-for="GhiChuTuChoi" class="form-control" maxlength="500"
+               data-role="ghi-chu-tu-choi" data-doi-kiem-tra="1" />
+        <div class="form-text" data-role="loi-ghi-chu"></div>
     </div>
 </form>
 }

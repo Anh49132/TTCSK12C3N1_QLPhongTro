@@ -1,5 +1,11 @@
 # Tiến độ và bàn giao dự án
 
+## Thu gọn từ chối và chuẩn hóa giờ hẹn (05/10/2026)
+
+- Đặt nút Từ chối ngay cạnh ô lý do; ghi chú Lý do khác nằm ở hàng dưới và ẩn cả cột khi không cần, bỏ khoảng trống đẩy nút ra xa.
+- Ô xác nhận/đổi lịch dùng định dạng 24 giờ HH:mm, ví dụ 19:30, tối đa 5 ký tự và bàn phím cho phép nhập dấu hai chấm. Chuẩn hóa 1930 thành 19:30 và 9:30 thành 09:30; giờ ngoài 00:00–23:59 báo lỗi. Razor định dạng giờ với dấu hai chấm cố định và invariant culture. Giữ giá trị ngày giờ ISO gửi backend và cảnh báo trùng lịch.
+- Không chụp ảnh. Kiểm tra cú pháp JavaScript PASS; build Razor để xác minh. Cần khởi động lại app tại terminal giữ cấu hình SMTP để nạp giao diện mới. Chưa push.
+
 ## Sắp xếp giá và phân trang danh sách tin (05/10/2026)
 
 - `/TinDang` thêm Mới đăng nhất/Giá tăng dần/Giá giảm dần, phân trang ở database 12 tin/trang, hiển thị giá thuê và tổng tin/trang. Link Trang trước/Trang sau giữ cách sắp xếp; áp dụng sắp xếp về trang đầu. Form lọc sang `/TimTin` truyền cách sắp xếp đang chọn; `/TimTin` đã có lọc và phân trang 12 từ trước.

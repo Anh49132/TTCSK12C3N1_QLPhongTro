@@ -13,8 +13,18 @@
     const defaultText = warning.textContent;
     let lastChecked = null;
 
+    function normalizeTime() {
+        const value = timePicker.value.trim();
+        const compact = value.match(/^([01]\d|2[0-3])([0-5]\d)$/);
+        const short = value.match(/^([0-9]):([0-5]\d)$/);
+        if (compact) timePicker.value = `${compact[1]}:${compact[2]}`;
+        else if (short) timePicker.value = `0${short[1]}:${short[2]}`;
+    }
+
     function syncValue() {
-        const match = timePicker.value.trim().match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+        normalizeTime();
+        const match = timePicker.value.trim().match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+        timePicker.setCustomValidity(match || !timePicker.value ? '' : 'Nhập giờ theo định dạng HH:mm, ví dụ 19:30.');
         if (!datePicker.value || !match) {
             picker.value = '';
             return '';
@@ -55,6 +65,10 @@
     }
 
     datePicker.addEventListener('change', check);
+    timePicker.addEventListener('input', () => {
+        normalizeTime();
+        syncValue();
+    });
     timePicker.addEventListener('change', check);
     picker.form.addEventListener('submit', syncValue);
     check();
