@@ -19,17 +19,28 @@
     else
     {
         <div class="table-responsive"><table class="table table-hover align-middle">
-            <thead class="table-light"><tr><th>Mã yêu cầu</th><th>Phòng</th><th>Ngày gửi</th><th>Trạng thái</th><th>Lịch hẹn</th><th>Lý do từ chối</th><th>Thao tác</th></tr></thead>
+            <thead class="table-light"><tr><th>Mã yêu cầu</th><th>Phòng</th><th>Ngày gửi</th><th>Trạng thái</th><th>Lịch hẹn</th><th>Lý do từ chối</th><th>Tin đăng</th><th>Thao tác</th></tr></thead>
             <tbody>
             @foreach (var item in Model.YeuCausCuaKhach)
             {
-                <tr data-request-status="@item.TrangThai">
+                var openListingUrl = item.TinDangConKhaDung ? Url.Action("MoTinDang", "YeuCau", new { id = item.Id }) : null;
+                <tr data-request-status="@item.TrangThai" data-open-listing-url="@(openListingUrl ?? string.Empty)">
                     <th scope="row">@item.MaYeuCau</th>
                     <td>@item.MaPhong</td>
                     <td>@LichHenService.HienThoiGio(item.NgayTao)</td>
                     <td>@item.TrangThaiHienThi</td>
                     <td>@(item.LichHen is { } appointment ? LichHenService.HienThoiGio(appointment) : "Chưa có lịch hẹn")</td>
                     <td>@(item.LyDoTuChoi ?? "—")</td>
+                    <td>
+                        @if (item.TinDangConKhaDung)
+                        {
+                            <a asp-action="MoTinDang" asp-route-id="@item.Id">Mở tin đăng</a>
+                        }
+                        else
+                        {
+                            <span class="text-secondary">Tin đăng không còn khả dụng</span>
+                        }
+                    </td>
                     <td>
                         @if (item.ChoPhepHuy)
                         {

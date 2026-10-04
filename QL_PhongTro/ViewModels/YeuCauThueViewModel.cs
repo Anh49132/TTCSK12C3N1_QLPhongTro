@@ -5,6 +5,8 @@ namespace QL_PhongTro.ViewModels;
 public sealed record YeuCauThueItemViewModel(
     int Id,
     string MaYeuCau,
+    int TinDangId,
+    bool TinDangConKhaDung,
     string MaPhong,
     DateTime NgayTao,
     string TrangThai,

@@ -28,7 +28,7 @@ public sealed partial class PermissionTests
         Assert.Equal(1L, Scalar("SELECT COUNT(*) FROM yeu_cau_thue_lich_su WHERE yeu_cau_thue_id=$id AND trang_thai_moi='DA_HUY'", ("$id", requestId)));
 
         var updatedList = WebUtility.HtmlDecode(await tenant.GetStringAsync("/YeuCau"));
-        var row = Regex.Match(updatedList, "(?s)<tr data-request-status=\"DA_HUY\">.*?</tr>").Value;
+        var row = Regex.Match(updatedList, "(?s)<tr data-request-status=\"DA_HUY\"[^>]*>.*?</tr>").Value;
         Assert.Contains("YC-TENANT-CANCEL", row);
         Assert.Contains("Đã huỷ", row);
         Assert.DoesNotContain("data-open-cancel-confirmation", row);
@@ -42,7 +42,7 @@ public sealed partial class PermissionTests
         using var reauthenticatedTenant = await Login("KHACH_THUE");
         var afterLogin = WebUtility.HtmlDecode(await reauthenticatedTenant.GetStringAsync("/YeuCau"));
         Assert.Equal("DA_HUY", Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", requestId))?.ToString());
-        var rowAfterLogin = Regex.Match(afterLogin, "(?s)<tr data-request-status=\"DA_HUY\">.*?</tr>").Value;
+        var rowAfterLogin = Regex.Match(afterLogin, "(?s)<tr data-request-status=\"DA_HUY\"[^>]*>.*?</tr>").Value;
         Assert.Contains("YC-TENANT-CANCEL", rowAfterLogin);
         Assert.Contains("Đã huỷ", rowAfterLogin);
         Assert.DoesNotContain("data-open-cancel-confirmation", rowAfterLogin);
@@ -90,7 +90,7 @@ public sealed partial class PermissionTests
         var requestId = CreateTenantCancellationRequest(accounts["KHACH_THUE"], "DA_HUY", "YC-TENANT-NO-RESTORE");
         using var tenant = await Login("KHACH_THUE");
         var list = WebUtility.HtmlDecode(await tenant.GetStringAsync("/YeuCau"));
-        var row = Regex.Match(list, "(?s)<tr data-request-status=\"DA_HUY\">.*?</tr>").Value;
+        var row = Regex.Match(list, "(?s)<tr data-request-status=\"DA_HUY\"[^>]*>.*?</tr>").Value;
         Assert.Contains("YC-TENANT-NO-RESTORE", row);
         Assert.Contains("Đã huỷ", row);
         Assert.DoesNotContain("data-open-cancel-confirmation", row);

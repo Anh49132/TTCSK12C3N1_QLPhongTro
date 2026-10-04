@@ -1,4 +1,14 @@
 (() => {
+    document.querySelectorAll('[data-open-listing-url]').forEach(row => {
+        const url = row.dataset.openListingUrl;
+        if (!url) return;
+
+        row.addEventListener('click', event => {
+            if (event.target.closest('a, button, form, input, select, textarea')) return;
+            window.location.assign(url);
+        });
+    });
+
     const dialog = document.getElementById('tenant-request-cancel-confirmation');
     if (!dialog) return;
 

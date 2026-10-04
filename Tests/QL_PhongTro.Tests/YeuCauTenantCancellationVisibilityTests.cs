@@ -51,9 +51,11 @@ public sealed partial class PermissionTests
         Assert.DoesNotContain("method=\"post\"", dialog);
 
         var script = File.ReadAllText(Path.Combine(appPath, "wwwroot", "js", "tenant-request-cancel-confirmation.js"));
+        Assert.Contains("window.location.assign(url)", script);
         Assert.Contains("dialog.showModal()", script);
         Assert.Contains("dialog.returnValue === 'confirm'", script);
         Assert.Contains("form.requestSubmit()", script);
+        Assert.Contains("event.target.closest('a, button, form, input, select, textarea')", script);
 
         var after = Scalar("SELECT group_concat(ma_yeu_cau || ':' || trang_thai, ',') FROM (SELECT ma_yeu_cau,trang_thai FROM yeu_cau_thue WHERE khach_thue_id=$tenant ORDER BY ma_yeu_cau)",
             ("$tenant", tenantId))?.ToString();
