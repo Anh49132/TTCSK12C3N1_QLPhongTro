@@ -12,11 +12,11 @@
 <a class="sidebar-brand" asp-controller="Home" asp-action="Index"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m3 10 9-7 9 7v11H3Z M9 21v-8h6v8" /></svg><span><strong>Nhà Trọ</strong><small>Quản lý không gian sống</small></span></a>
 <p class="sidebar-greeting">Xin chào, @(User.Identity?.IsAuthenticated == true ? User.Identity.Name : "bạn")!</p>
 <nav aria-label="Menu chức năng">
+<a class="sidebar-link @Active(controller == "Home" && action == "Index")" asp-controller="Home" asp-action="Index" aria-current="@(controller == "Home" && action == "Index" ? "page" : null)"><span class="menu-icon" aria-hidden="true">⌂</span>Trang chủ</a>
 @if (!menu.Any(m => m.Code == "TIN_DANG")) {
 <a class="sidebar-link @Active(controller == "TinDang")" asp-controller="TinDang" asp-action="@(User.IsInRole("CHU_NHA") ? "QuanLy" : "Index")" aria-current="@(controller == "TinDang" ? "page" : null)"><span class="menu-icon" aria-hidden="true">⌕</span>Tin đăng cho thuê</a>
 }
 <a class="sidebar-link @Active(controller == "TimTin")" asp-controller="TimTin" asp-action="Index"><span class="menu-icon" aria-hidden="true">⌕</span>Tìm phòng trọ</a>
-<a class="sidebar-link @Active(controller == "Home" && action == "Index")" asp-controller="Home" asp-action="Index" aria-current="@(controller == "Home" && action == "Index" ? "page" : null)"><span class="menu-icon" aria-hidden="true">⌂</span>Trang chủ</a>
 @foreach (var group in menu.GroupBy(m => m.GroupName).OrderBy(g => g.Key == "Hệ thống" ? 1 : 0)) {
 <section data-menu-group="@group.Key"><h2>@group.Key</h2>
 @foreach (var module in group) {
