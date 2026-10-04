@@ -34,21 +34,19 @@
     }
 
     function updateOrderPresentation() {
-        const touch = window.matchMedia('(pointer: coarse)').matches;
-        imageCards().forEach((card, index, cards) => {
-            card.draggable = !touch && !isSavingOrder && !isDeletingImage;
+        imageCards().forEach((card, index) => {
+            card.draggable = !isSavingOrder && !isDeletingImage;
             const order = index + 1;
             const label = card.querySelector('[data-order-label]');
             const image = card.querySelector('img');
             const primary = card.querySelector('[data-primary-label]');
-            const up = card.querySelector('[data-move-image="up"]');
-            const down = card.querySelector('[data-move-image="down"]');
             const remove = card.querySelector('[data-delete-image]');
             if (label) label.textContent = `Ảnh ${order}`;
-            if (image) image.alt = `Ảnh phòng thứ ${order}`;
+            if (image) {
+                image.alt = `Ảnh phòng thứ ${order}`;
+                image.draggable = false;
+            }
             if (primary) primary.hidden = index !== 0;
-            if (up) up.disabled = index === 0 || isSavingOrder || isDeletingImage;
-            if (down) down.disabled = index === cards.length - 1 || isSavingOrder || isDeletingImage;
             if (remove) remove.disabled = isSavingOrder || isDeletingImage;
         });
     }
@@ -61,18 +59,6 @@
         const controls = document.createElement('div');
         controls.className = 'room-image-move-controls';
         controls.setAttribute('aria-label', 'Sắp xếp ảnh');
-        for (const [direction, icon, description] of [
-            ['up', '↑', 'Đưa ảnh lên trước'],
-            ['down', '↓', 'Đưa ảnh xuống sau']
-        ]) {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.dataset.moveImage = direction;
-            button.setAttribute('aria-label', description);
-            button.title = description;
-            button.textContent = icon;
-            controls.append(button);
-        }
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'room-image-delete-button';
@@ -220,24 +206,11 @@
             if (card) deleteImage(card);
             return;
         }
-        const button = event.target.closest('[data-move-image]');
-        if (!button || isSavingOrder || isDeletingImage) return;
-        const card = button.closest('.room-image-card[data-image-id]');
-        const cards = imageCards();
-        const index = cards.indexOf(card);
-        const direction = button.dataset.moveImage === 'up' ? -1 : 1;
-        const target = cards[index + direction];
-        if (!target) return;
-        const previousOrder = imageIds();
-        if (direction < 0) grid.insertBefore(card, target);
-        else grid.insertBefore(target, card);
-        updateOrderPresentation();
-        saveCurrentOrder(previousOrder);
     });
 
     grid.addEventListener('dragstart', event => {
         const card = event.target.closest('.room-image-card[data-image-id]');
-        if (!card || isSavingOrder || isDeletingImage || window.matchMedia('(pointer: coarse)').matches) {
+        if (!card || isSavingOrder || isDeletingImage || event.target.closest('button')) {
             event.preventDefault();
             return;
         }
@@ -250,13 +223,15 @@
 
     grid.addEventListener('dragover', event => {
         if (!draggedCard || isSavingOrder || isDeletingImage) return;
+        // The moving card can end up under the cursor. Keep accepting the drop
+        // there and in grid gaps, otherwise dragend rolls the change back.
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
         const target = event.target.closest('.room-image-card[data-image-id]');
         if (!target || target === draggedCard) return;
-        event.preventDefault();
         const bounds = target.getBoundingClientRect();
-        const after = event.clientY > bounds.top + bounds.height / 2
-            || (Math.abs(event.clientY - (bounds.top + bounds.height / 2)) < bounds.height / 4
-                && event.clientX > bounds.left + bounds.width / 2);
+        const after = event.clientX > bounds.left + bounds.width / 2;
+        grid.querySelectorAll('.is-drag-target').forEach(card => card.classList.remove('is-drag-target'));
         target.classList.add('is-drag-target');
         grid.insertBefore(draggedCard, after ? target.nextSibling : target);
     });

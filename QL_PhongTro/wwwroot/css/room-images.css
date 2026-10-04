@@ -98,6 +98,10 @@
     gap: 4px;
 }
 
+.room-image-move-controls [data-move-image] {
+    display: none;
+}
+
 .room-image-move-controls button {
     display: grid;
     min-width: 30px;

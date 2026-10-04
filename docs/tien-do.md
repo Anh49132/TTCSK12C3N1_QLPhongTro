@@ -1,5 +1,14 @@
 # Tiến độ và bàn giao dự án
 
+## Bỏ nút mũi tên sắp xếp ảnh (05/10/2026)
+
+- Theo yêu cầu người dùng, bỏ hai nút lên/xuống khỏi thẻ ảnh có sẵn và thẻ ảnh tạo sau upload; bỏ handler JavaScript tương ứng. Giữ kéo thả và nút Xóa. Kiểm tra cú pháp JavaScript và diff đạt; không chụp ảnh. Razor cần build/khởi động lại ứng dụng để nạp thay đổi.
+
+## Sửa kéo thả thứ tự ảnh phòng (05/10/2026)
+
+- `room-images.js` luôn chấp nhận drop trong grid khi đang kéo, gồm trên chính thẻ vừa di chuyển và khoảng trống; trước đây các vị trí này không preventDefault nên drop bị hủy và dragend phục hồi thứ tự cũ. Tắt native drag của img để trình duyệt kéo thẻ, không kéo riêng tệp ảnh; không khóa chuột dựa vào pointer coarse; nút thao tác không bắt đầu drag. Vị trí trước/sau dựa vào nửa trái/phải của thẻ trong grid.
+- Kiểm tra cú pháp JS PASS. Kiểm tra trực tiếp browser localhost:5247: kéo ảnh ID 3 lên đầu nhận “Đã lưu thứ tự ảnh”, reload giữ thứ tự 3/1/2/4/5; dùng mũi tên đưa về 1/2/3/4/5. Ảnh xác minh tại data/room-drag-fixed.png đã ignore. Chỉ sửa static JS, không cần restart web; người dùng reload trang để nạp bản mới. Chưa push trong lượt này.
+
 ## Giới hạn quyền hồ sơ khách thuê (05/10/2026)
 
 - Khách thuê chỉ xem/sửa hồ sơ gắn với tài khoản đang đăng nhập; endpoint xem chi tiết chặn hồ sơ khác ở backend và không còn form nhập mã hồ sơ bất kỳ. Ảnh giấy tờ áp dụng cùng phạm vi quyền.
