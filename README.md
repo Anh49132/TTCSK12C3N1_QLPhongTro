@@ -10,13 +10,24 @@
 
 ## Chạy dự án
 
-**Demo Sprint 2 đầy đủ:** xem [hướng dẫn chạy, tài khoản/mật khẩu và từng tiêu chí S2-01…S2-10](docs/huong-dan-test-sprint2.md). Tạo dữ liệu bằng `verification/New-Sprint2Demo.ps1`, chạy bằng `verification/Start-Sprint2Demo.ps1`; dùng database mới riêng với 500 tin, ảnh, dịch vụ, hợp đồng/hóa đơn mẫu và các trạng thái yêu cầu.
+**Demo Sprint 2 đầy đủ:** xem [hướng dẫn chạy, tài khoản/mật khẩu và từng tiêu chí S2-01…S2-10](docs/huong-dan-test-sprint2.md). Tạo dữ liệu bằng `verification/New-Sprint2Demo.ps1`, chạy bằng `verification/Start-Sprint2Demo.ps1`; dùng database mới riêng với 7 tài khoản, 35 tin công khai (3 trang), 6 tin bị loại, 5 ảnh upload qua HTTP, dịch vụ, hợp đồng/hóa đơn và các trạng thái yêu cầu. Mật khẩu chung được sinh ngẫu nhiên và chỉ lưu trong `data/.../access.json` cùng `report.md` đã ignore.
 
 Mở Terminal tại thư mục chứa README này. Dừng đúng phiên app bằng Ctrl+C trước khi cập nhật database.
 
 **Trước lần pull nhận thay đổi S2-01 bỏ theo dõi database:** sao lưu database local và các file phụ SQLite ra ngoài repository (dừng app trước). Git có thể xóa bản database trước đây được theo dõi khi pull. Sau pull, khôi phục bản của chính bạn nếu file bị mất; không ghi đè file đang tồn tại.
 
-Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt `$env:DatabasePath` là đường dẫn tuyệt đối riêng trong cùng terminal.
+Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt `$env:DatabasePath` là đường dẫn tuyệt đối riêng trong cùng terminal. `run.bat` cũng đọc các khóa `DatabasePath`, `RoomImagesPath`, `DataProtectionKeysPath` và `PasswordReset__PickupDirectory` từ `.env.local` ở gốc repository. File này chỉ dành cho máy hiện tại và đã được Git ignore; biến môi trường đang đặt trong terminal luôn được ưu tiên.
+
+Chạy nhanh trên Windows:
+
+```bat
+run.bat
+```
+
+`run.bat` tự chạy `dotnet restore`, nạp `.env.local` nếu có, dùng `DatabasePath` hiện có hoặc đường dẫn mặc định, tạo database mới bằng `--initialize-database` nếu file chưa tồn tại, rồi chạy `--check-database` trước khi mở web tại `http://localhost:5247`. Với database đã tồn tại, script giữ nguyên file và **không tự động nâng cấp**; nếu schema cũ, script dừng để bạn sao lưu rồi chạy `--update-database` theo quy trình bên dưới. Dùng `run.bat --check-only` để chỉ restore/khởi tạo nếu cần/kiểm tra mà không mở web. Script không tạo ADMIN hoặc nhúng thông tin đăng nhập.
+
+- Máy mới chưa có database: không tạo `.env.local`, hoặc trỏ `DatabasePath` tới một file chưa tồn tại; `run.bat` sẽ dùng initializer và từ chối ghi đè.
+- Máy đã có database cần giữ: trỏ `.env.local` tới đúng file hiện có và kho ảnh tương ứng; `run.bat` chỉ kiểm tra schema, không sao chép, xóa hay nâng cấp tự động.
 
 Máy mới **chưa có database**:
 
@@ -47,7 +58,7 @@ dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --create-local-admin
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
 ```
 
-Updater kiểm tra schema, sao lưu và nâng lên v12; không tạo lại database. Web không tự nâng schema cũ lên v12. Sau khi cập nhật, có thể kiểm tra chỉ đọc bằng `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database`.
+Updater kiểm tra schema, sao lưu và nâng lên v13; không tạo lại database. Web không tự nâng schema cũ lên v13. Sau khi cập nhật, có thể kiểm tra chỉ đọc bằng `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database`.
 Truy cập http://localhost:5247. Giữ terminal đang hiện `Now listening on: http://localhost:5247` mở trong lúc sử dụng. Muốn dừng server, bấm vào đúng terminal đó, nhấn Ctrl+C và chờ dấu nhắc `PS C:\...>` xuất hiện lại rồi mới build hoặc chạy lần nữa.
 
 Không cần cập nhật database hoặc tạo ADMIN mỗi lần chạy. Sau khi pull thay đổi schema, chạy updater một lần. Tài khoản mới đang chờ xác nhận thì tiếp tục nhập/gửi lại mã, không cần xóa rồi đăng ký lại.
@@ -95,7 +106,7 @@ Trên máy đã kiểm tra, nhật ký `Microsoft-Windows-CodeIntegrity/Operatio
 
 Lệnh `--update-database` sao lưu rồi cập nhật schema còn thiếu; nên dừng ứng dụng trước khi chạy. Ứng dụng yêu cầu file SQLite đã tồn tại và không tự tạo lại CSDL nền. Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt biến môi trường `DatabasePath` để dùng file riêng.
 
-Schema v6 bổ sung dịch vụ S1-09 nếu chưa có và hai bảng `dich_vu_toa_nha`, `dich_vu_phong`. Schema v7 thêm cột giá riêng nullable theo từng cặp phòng/dịch vụ; giá riêng thắng giá chung và không thay đổi snapshot hóa đơn. Schema v8 bổ sung lịch sử ngừng dịch vụ phòng. Schema v11 thêm bảng `yeu_cau`; schema v12 thêm trạng thái chờ xoá cho ảnh phòng để retry khi kho lưu trữ lỗi. Hợp đồng/hóa đơn vẫn là module tùy chọn, không được tự triển khai bởi S2-01.
+Schema v6 bổ sung dịch vụ S1-09 nếu chưa có và hai bảng `dich_vu_toa_nha`, `dich_vu_phong`. Schema v7 thêm cột giá riêng nullable theo từng cặp phòng/dịch vụ; giá riêng thắng giá chung và không thay đổi snapshot hóa đơn. Schema v8 bổ sung lịch sử ngừng dịch vụ phòng. Schema v11 thêm bảng `yeu_cau`; schema v12 thêm trạng thái chờ xoá cho ảnh phòng để retry khi kho lưu trữ lỗi; schema v13 cấp quyền đăng tin cho Quản lý tại tòa được phân công. Hợp đồng/hóa đơn vẫn là module tùy chọn, không được tự triển khai bởi S2-01.
 
 ### Dịch vụ tòa nhà và phòng (S2-01)
 
@@ -158,7 +169,7 @@ Kiểm thử không cần database cá nhân: `dotnet test Tests/QL_PhongTro.Tes
 
 **Trước lần pull nhận thay đổi bỏ theo dõi `QL_PhongTro/Data/local-dev.sqlite`, mỗi thành viên phải dừng app và sao lưu database local ra ngoài repository. Git có thể xóa file đang được theo dõi khi pull.** File trên máy thực hiện task vẫn được giữ nguyên bởi `git rm --cached`. Không chép DB của thành viên khác vào repo; DB, WAL/SHM/journal, backup và credential demo đều bị ignore.
 
-- Máy mới chưa có DB: đặt `DatabasePath` tới file riêng chưa tồn tại, chạy `--initialize-database`, rồi `--check-database`. Khởi tạo schema hiện hành v12 và quyền module; không tạo tài khoản, dữ liệu cá nhân hoặc demo. Lệnh từ chối file đã tồn tại; web không tự tạo database. ADMIN dùng cấu hình riêng như trên.
+- Máy mới chưa có DB: đặt `DatabasePath` tới file riêng chưa tồn tại, chạy `--initialize-database`, rồi `--check-database`. Khởi tạo schema hiện hành v13 và quyền module; không tạo tài khoản, dữ liệu cá nhân hoặc demo. Lệnh từ chối file đã tồn tại; web không tự tạo database. ADMIN dùng cấu hình riêng như trên.
 - Máy đã có DB: kiểm tra đúng `DatabasePath`, dừng app, sao lưu ngoài repository và chạy `--check-database` trước. Khi schema nền cần nâng cấp, dùng `--update-database` có backup, không chạy khởi tạo hoặc chép đè. Nếu lỗi schema lạ, dừng để rà soát.
 - Để sử dụng S2-06 trên DB đã kiểm tra: chạy `--initialize-rental-requests` một lần trên đúng `DatabasePath`, rồi `--check-database`. Module có phiên bản riêng `rental_request_schema=1`, không thay đổi phiên bản nền; sử dụng bảng tin đăng đã có ở v9, chỉ bổ sung yêu cầu và bộ đếm. Cài mới tạo backup `*.before-rental-<id>.bak`, transaction và bảng tin/yêu cầu/bộ đếm; chạy lại không ghi dữ liệu. Schema module chưa có phiên bản hoặc không đầy đủ bị từ chối. Web không tự cài module.
 
@@ -388,7 +399,7 @@ Build Debug ở trên phù hợp để chạy và báo cáo local. Build Release
 ADMIN xem tại `/NhatKy`. Mã hiện tại yêu cầu schema nhật ký v3; kiểm tra schema của đúng database trước khi chạy và chỉ nâng cấp DB đang dùng khi được yêu cầu. Xem mục **Nhật ký hoạt động (S1-10)** trong [bàn giao dự án](docs/tien-do.md).
 ### S2-07 — Danh sách yêu cầu
 
-Schema v11 thêm bảng `yeu_cau`. Với database đã có dữ liệu, dừng web rồi chạy `--update-database` và `--check-database` theo quy trình bên trên; updater sẽ sao lưu trước và giữ nguyên dữ liệu cũ. Database mới được tạo bằng `--initialize-database` sẽ có schema v12 hiện hành nhưng không tự nạp dữ liệu cá nhân hay dữ liệu demo.
+Schema v11 thêm bảng `yeu_cau`; schema v13 cập nhật quyền mặc định của Quản lý đối với tin đăng từ `READ` lên `WRITE`. Với database đã có dữ liệu, dừng web rồi chạy `--update-database` và `--check-database` theo quy trình bên trên; updater sẽ sao lưu trước và giữ nguyên dữ liệu cũ. Database mới được tạo bằng `--initialize-database` sẽ có schema v13 hiện hành nhưng không tự nạp dữ liệu cá nhân hay dữ liệu demo.
 
 Màn hình danh sách của chủ nhà: `/YeuCau`. Dữ liệu mẫu giả để demo nằm tại `docs/sql/S2-07-yeu-cau.sql`; chỉ chạy trên database demo/bản sao đã có tối thiểu ba khách và ba phòng, không chạy trên database local đang sử dụng.
 
@@ -426,7 +437,7 @@ dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore -o data/task1-build/run
 python verification/timtin_http.py --serve
 ```
 
-Script tạo DB mới/schema v12 và tin giả, chạy 25 ca HTTP; nâng cấp chỉ trên bản sao read-only backup của DB nguồn và đối chiếu bảo toàn dữ liệu/hash. Nguồn mặc định là local-dev.sqlite; chọn nguồn khác bằng `TIMTIN_SOURCE_DATABASE` (không đổi DB nguồn). Không đưa dữ liệu nguồn vào demo. Nếu chưa có DB nguồn, dùng DB riêng đã khởi tạo làm nguồn. Script in URL/PID, giữ demo chạy với `--serve`; bỏ cờ này thì dừng sau kiểm thử. Trên Windows server nền chạy ẩn. `data/timtin-demo/latest.txt` trỏ thư mục kết quả có `result.json` và log. Xác nhận PID đúng trước khi `Stop-Process -Id <PID>`; không dừng các server khác. Nếu sandbox chặn Event Log/Data Protection, chạy từ terminal Windows bình thường.
+Script tạo DB mới/schema hiện hành và tin giả, chạy 25 ca HTTP; nâng cấp chỉ trên bản sao read-only backup của DB nguồn và đối chiếu bảo toàn dữ liệu/hash. Nguồn mặc định là local-dev.sqlite; chọn nguồn khác bằng `TIMTIN_SOURCE_DATABASE` (không đổi DB nguồn). Không đưa dữ liệu nguồn vào demo. Nếu chưa có DB nguồn, dùng DB riêng đã khởi tạo làm nguồn. Script in URL/PID, giữ demo chạy với `--serve`; bỏ cờ này thì dừng sau kiểm thử. Trên Windows server nền chạy ẩn. `data/timtin-demo/latest.txt` trỏ thư mục kết quả có `result.json` và log. Xác nhận PID đúng trước khi `Stop-Process -Id <PID>`; không dừng các server khác. Nếu sandbox chặn Event Log/Data Protection, chạy từ terminal Windows bình thường.
 
 Chọn Quận 2, giá 2000000..2000000, diện tích 20.5..20.5, sức chứa 3 → chỉ TIN-C. Demo public không cần đăng nhập; không có tài khoản dùng được hoặc mật khẩu cố định. Không seed dữ liệu giả vào DB đang sử dụng.
 
@@ -451,7 +462,7 @@ dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore -o data/task1-build/fin
 python verification/timtin_performance.py --runtime data/task1-build/final-search-runtime/QL_PhongTro.dll --serve
 ```
 
-Python 3 không cần package ngoài cho HTTP/performance. Script in URL/PID sau PASS, giữ server nền ẩn trên Windows; mở URL in ra, không cần đăng nhập. Không dùng database thật: mỗi lần tạo thư mục UUID/file mới, schema v12 qua initializer, 500 tin giả ở 5 quận (300 đang hiển thị còn hạn, còn lại ẩn/nháp/đã thuê/hết hạn). Không có mật khẩu cố định/dữ liệu cá nhân. Artifact và backup trong data/timtin-demo đã ignore.
+Python 3 không cần package ngoài cho HTTP/performance. Script in URL/PID sau PASS, giữ server nền ẩn trên Windows; mở URL in ra, không cần đăng nhập. Không dùng database thật: mỗi lần tạo thư mục UUID/file mới, schema hiện hành qua initializer, 500 tin giả ở 5 quận (300 đang hiển thị còn hạn, còn lại ẩn/nháp/đã thuê/hết hạn). Không có mật khẩu cố định/dữ liệu cá nhân. Artifact và backup trong data/timtin-demo đã ignore.
 
 1. Không lọc: 300 kết quả hợp lệ, 25 trang ×12 tin.
 2. Chọn Quận 1, giá 1500000..3000000, diện tích 15..25, sức chứa 3: 6 tin khớp tất cả điều kiện.

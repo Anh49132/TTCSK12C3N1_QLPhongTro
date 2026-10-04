@@ -1,20 +1,22 @@
 # Chạy dự án và kiểm tra từng tiêu chí Sprint 2
 
-Tài liệu này dùng bộ mẫu do `verification/New-Sprint2Demo.ps1` tạo. Mọi dữ liệu đều giả và nằm trong `data/sprint2-demo/`; database cá nhân `QL_PhongTro/Data/local-dev.sqlite` không được sử dụng. Ảnh màu là ảnh kỹ thuật để kiểm tra upload/thứ tự, không phải ảnh phòng thật.
+Tài liệu này dùng bộ mẫu do `verification/New-Sprint2Demo.ps1` tạo. Mọi dữ liệu đều giả và nằm trong `data/sprint2-demo/`; database cá nhân `QL_PhongTro/Data/local-dev.sqlite` không được sử dụng. Script nạp 5 ảnh PNG qua HTTP thật và tạo thumbnail 400px.
 
 ## 1. Tài khoản và mật khẩu
 
-Mật khẩu chung mặc định của **cả 5 tài khoản**: **`DemoSprint2@2026`**. Tất cả đã xác nhận email, hoạt động và không cần đổi mật khẩu lần đầu.
+Mật khẩu chung ngẫu nhiên của **cả 7 tài khoản** nằm trong `access.json` và `report.md` của bản mẫu. Tất cả đã xác nhận email, hoạt động và không cần đổi mật khẩu lần đầu; không chép hai file này ra Git.
 
 | Email đăng nhập | Vai trò | Dùng để |
 | --- | --- | --- |
-| `owner.demo@demo.local` | Chủ nhà | Quản lý Alpha/Beta, phòng, dịch vụ, tin và yêu cầu |
-| `tenant.demo@demo.local` | Khách thuê | Gửi yêu cầu, theo dõi, xem lịch sử, hủy |
-| `conflict.demo@demo.local` | Khách thuê thứ hai | Có lịch hẹn sẵn để thử cảnh báo trùng; gửi độc lập với khách thứ nhất |
 | `admin.demo@demo.local` | ADMIN | Kiểm tra trang quản trị nếu cần; không dùng thay Chủ nhà trong bài test |
-| `other.owner@demo.local` | Chủ nhà khác | Quản lý riêng Tòa chủ nhà khác; kiểm tra không xem/sửa được phòng của chủ nhà chính |
+| `owner.demo@demo.local` | CHU_NHA A | Sở hữu A1/A2; quản lý phòng, dịch vụ, tin và yêu cầu |
+| `owner.b.demo@demo.local` | CHU_NHA B | Sở hữu B1/B2; kiểm tra 403 khi truy cập dữ liệu A |
+| `manager.demo@demo.local` | QUAN_LY | Quản lý A1; kiểm tra quyền đăng tin được phân công |
+| `tenant1.demo@demo.local` | KHACH_THUE 1 | Có nhiều trạng thái yêu cầu nhưng chưa gửi trên tin A108 |
+| `tenant2.demo@demo.local` | KHACH_THUE 2 | Đã có yêu cầu mở trên A108 để thử gửi trùng |
+| `tenant3.demo@demo.local` | KHACH_THUE 3 | Tài khoản khách độc lập để thử quyền/cô lập dữ liệu |
 
-Thông tin chính xác của bản mẫu đang chọn được lưu tại `access.json`. Nếu tạo mẫu với `-Password`, dùng mật khẩu trong file đó thay cho mật khẩu mặc định ở tài liệu.
+Thông tin chính xác của bản mẫu đang chọn được lưu tại `access.json`; báo cáo tóm tắt cùng email/mật khẩu/role nằm ở `report.md`. Có thể truyền `-Password` nếu muốn tự chọn mật khẩu demo, nhưng không dùng mật khẩu thật.
 
 ## 2. Chạy dự án từng bước
 
@@ -27,7 +29,7 @@ Set-Location D:\TTCS_T926_K12C3_N1
 dotnet --list-sdks
 ```
 
-Cần .NET SDK 10.0.x. Máy hiện tại đã có 10.0.202. Script chỉ dùng PowerShell và .NET, không cần Python, SQL Server hay cài SQLite riêng.
+Cần .NET SDK 10.0.x và Python 3 (chỉ dùng thư viện chuẩn để upload/xác minh HTTP); không cần SQL Server hay cài SQLite riêng.
 
 ### Bước 2 — sử dụng bộ mẫu đã tạo
 
@@ -51,7 +53,7 @@ Nếu chuyển sang máy khác, chưa có `latest.txt`, hoặc cần dữ liệu
 .\verification\New-Sprint2Demo.ps1
 ```
 
-Script build dự án, tạo thư mục mới, khởi tạo schema, nạp mẫu và kiểm tra integrity/foreign keys. Không ghi đè bản cũ. Chỉ cập nhật `latest.txt` khi tạo thành công. Dừng server demo cũ bằng Ctrl+C trước khi tạo lại vì file build có thể đang bị khóa.
+Script build dự án, tạo thư mục mới, khởi tạo schema, nạp mẫu, bật server tạm để upload 5 ảnh qua HTTP rồi chạy smoke test. Không ghi đè bản cũ và chỉ cập nhật `latest.txt` khi toàn bộ bước thành công. Dừng server demo cũ bằng Ctrl+C trước khi tạo lại vì file build có thể đang bị khóa.
 
 Nếu PowerShell báo không cho chạy script, chỉ mở quyền cho phiên terminal này:
 
@@ -98,12 +100,12 @@ ID bên dưới ổn định vì script luôn tạo database mới. `access.json
 
 | Dữ liệu | ID / URL | Ý nghĩa |
 | --- | --- | --- |
-| Demo Tòa Alpha, Quận 1 | Tòa 1, `/PhongTro/Index?toaNhaId=1` | Điện 4.000 đ/kWh; nước 80.000 đ/người/tháng |
-| Demo Tòa Beta, Quận 3 | Tòa 2, `/PhongTro/Index?toaNhaId=2` | Điện 4.000 đ/kWh; nước 18.000 đ/m³ |
-| Tòa chủ nhà khác, Quận 7 | Tòa 3 | Chỉ tài khoản Chủ nhà khác sở hữu |
-| A101-DEMO, tầng trệt | Phòng 1, tin 1 | 3 ảnh; thuê 3.500.000; cọc 3.500.000; tối đa 3; Internet 150.000; gửi xe giá riêng 70.000; điện giá riêng 4.200 |
-| A102-DEMO | Phòng 2, tin 2 | Không gửi xe; Internet 150.000; có 2 yêu cầu để thử trùng lịch |
-| B202-DEMO | Phòng 3, tin 3 | Yêu cầu chờ từ chối ở tòa Beta |
+| Demo Tòa Alpha (A1), Quận 1 | Tòa 1, `/PhongTro/Index?toaNhaId=1` | 5 dịch vụ; điện 4.000 đ/kWh, nước 80.000 đ/người/tháng; có cấu hình nước chờ kỳ sau |
+| Demo Tòa Beta (A2), Quận 3 | Tòa 2, `/PhongTro/Index?toaNhaId=2` | Cố ý chưa cấu hình điện/nước/dịch vụ |
+| Tòa B1/B2, Quận 7/Bình Thạnh | Tòa 3/4 | Chỉ CHU_NHA B sở hữu; tạo đủ 4 quận/huyện cho tìm kiếm |
+| A101-DEMO, tầng trệt | Phòng 1, tin 1 | 5 ảnh upload HTTP; thuê/cọc 3.500.000; tối đa 3; rác 50.000, Internet 150.000, gửi xe riêng 70.000, điện riêng 4.200 |
+| A102-DEMO, tầng trên | Phòng 2, tin 2 | Không gửi xe; rác 50.000 + Internet 150.000; 2 lịch hẹn cách nhau 15 phút |
+| B202-DEMO | Phòng 3, tin 3 | A2 chưa cấu hình dịch vụ; có yêu cầu chờ từ chối |
 | A103-TAO-TIN | Phòng 4 | Trống, chưa có tin; dùng đăng tin mới |
 | A104-UPLOAD | Phòng 5, `/PhongTro/Edit/5` | Trống, chưa có ảnh; dùng upload tới giới hạn 8 |
 | C001-HOA-DON | Phòng 6, hợp đồng HD-DEMO-C001 | Đang thuê; Internet và gửi xe riêng 70.000; hóa đơn cũ ID 1 tổng 3.720.000 |
@@ -112,24 +114,25 @@ ID bên dưới ổn định vì script luôn tạo database mới. `access.json
 | A106-HET-HAN | Phòng 9, tin 5 | Hết hạn hôm qua, tự chuyển Tạm ẩn khi chạy app |
 | A107-TAM-AN | Phòng 10, tin 6 | Tin Tạm ẩn |
 | OTHER-01 | Phòng 11, tin 7 | Thuộc Chủ nhà khác |
-| A108-GUI-YEU-CAU | Phòng 12, tin 8 | Chưa có yêu cầu mở; tối đa 2 người; thuê 2.500.000, Internet 150.000 |
-| PERF-001…PERF-492 | Các phòng/tin bổ sung | Giá, diện tích, sức chứa khác nhau; đủ **500 tin trong database**, bao gồm các tin không công khai |
+| A108-GUI-YEU-CAU | Phòng 12, tin 8 | Sức chứa 3; khách 1 chưa có yêu cầu trên tin, khách 2 đã có yêu cầu mở |
+| SEARCH-001…SEARCH-033 | Các phòng/tin bổ sung | Tổng cộng **35 tin công khai** và **6 tin bị loại**, đủ 3 trang 12/12/11 |
 
-Dịch vụ mặc định cho phòng mới ở Alpha/Beta: Điện, Nước, Internet. Gửi xe không mặc định. Các phòng PERF phục vụ tìm kiếm và không được gán dịch vụ để giữ dữ liệu đơn giản.
+Dịch vụ mặc định của A1: Điện, Nước, Rác, Gửi xe, Internet. Fixture cố ý bỏ Gửi xe khỏi A102 tầng trên và giữ ở A101 tầng trệt. A2 chưa cấu hình để kiểm tra trạng thái khởi tạo.
 
 | Yêu cầu ID | Khách / tin | Trạng thái ban đầu | Dùng để |
 | --- | --- | --- | --- |
 | 1 | Khách chính / A101 | Mới, Thuê ngay | Duyệt đặt cọc |
-| 2 | Khách chính / A102 | Mới, Xem phòng, tạo hơn 24 giờ | Xác nhận/đổi lịch và đánh dấu quá hạn |
-| 3 | Khách thứ hai / A102 | Đã hẹn lịch, tạo hơn 24 giờ | Lịch trùng; giờ cụ thể trong `$demo.clashVietnam` |
+| 2 | Khách 1 / A102 | Đã hẹn lịch, tạo hơn 24 giờ | Lịch cách yêu cầu 3 đúng 15 phút |
+| 3 | Khách 2 / A102 | Đã hẹn lịch, tạo hơn 24 giờ | Lịch trùng; giờ cụ thể trong `$demo.clashVietnam` |
 | 4 | Khách chính / B202 | Mới, Xem phòng | Từ chối với lý do |
-| 5 | Khách chính / PERF-001 | Từ chối | Lọc trạng thái, hiển thị lý do |
-| 6 | Khách chính / PERF-002 | Đã hủy | Không còn nút hủy/khôi phục |
-| 7 | Khách chính / PERF-003 | Đã duyệt | Phòng đã đặt cọc, tin Đã cho thuê |
+| 5 | Khách 1 / SEARCH-001 | Từ chối | Lọc trạng thái, hiển thị lý do |
+| 6 | Khách 1 / SEARCH-002 | Đã hủy | Không còn nút hủy/khôi phục |
+| 7 | Khách 1 / SEARCH-003 | Đã duyệt | Phòng đã đặt cọc, tin Đã cho thuê |
+| 8 | Khách 2 / A108 | Mới | Gửi trùng cùng khách/tin phải bị từ chối |
 
-Mã mẫu dạng `YC-yyyyMM-0001`…`0007` theo tháng tạo mẫu. Yêu cầu gửi mới bắt đầu từ `0008` nếu chưa gửi thêm yêu cầu trong tháng đó.
+Mã mẫu dạng `YC-yyyyMM-0001`…`0008` theo tháng tạo mẫu. Yêu cầu gửi mới bắt đầu từ `0009` nếu chưa gửi thêm yêu cầu trong tháng đó.
 
-Ảnh thử ở `$demo.sampleImages`: `room-01.png`…`room-10.png`, `room-jpg.jpg`, `over-5mb.png`, `fake-image.png`, `not-an-image.txt`. Ảnh hợp lệ 1200×800; thumbnail sau upload là 400×267. Tệp quá cỡ và giả ảnh phải bị từ chối.
+Ảnh thử ở `$demo.sampleImages`: `room-01.png`…`room-10.png`, `valid-small.png`, `valid-small.jpg`, `over-5mb.png`, `fake-content.jpg`, `09-ninth-image.png`, `not-an-image.txt`. Ảnh hợp lệ 1200×800; thumbnail sau upload là 400×267. Tệp quá cỡ và JPG giả phải bị từ chối.
 
 ## 4. Cách ghi nhận kết quả
 
@@ -143,9 +146,9 @@ Nếu test làm thay đổi phòng/tin/yêu cầu, tạo mẫu mới trước st
 
 | AC | Thao tác từng bước | Kỳ vọng |
 | --- | --- | --- |
-| 1 | 1. Mở `/DichVu?toaNhaId=1`, xem cấu hình mặc định. 2. Mở `/PhongTro/Create?toaNhaId=1`, tạo phòng `TEST-MAC-DINH`, tầng 2, diện tích 25, giá 3.000.000, tối đa 2. 3. Vào Dịch vụ của phòng mới, thêm Gửi xe nếu muốn. | Phòng mới có Điện/Nước/Internet, không có Gửi xe mặc định. Thêm/bỏ được theo từng phòng; phòng khác không thay đổi. |
+| 1 | 1. Mở `/DichVu?toaNhaId=1`, xem cấu hình mặc định. 2. So sánh `/DichVuPhong?phongId=1` và `?phongId=2`. 3. Tạo phòng `TEST-MAC-DINH` ở A1 nếu muốn kiểm tra kế thừa. | A1 có đủ Điện/Nước/Rác/Gửi xe/Internet và giá; A101 tầng trệt có Gửi xe, A102 tầng trên không có; phòng mới kế thừa đủ 5 mặc định. Thêm/bỏ ở một phòng không đổi phòng khác. |
 | 2 | 1. Mở dịch vụ A101. 2. So sánh Gửi xe chung 100.000 và riêng 70.000. 3. Đổi riêng thành 90.000, Lưu giá. 4. Mở tin 1 và hóa đơn cũ ID 1. | Giá đang áp dụng là 90.000; phí cố định tin 1 = 150.000+90.000; hóa đơn đã phát hành vẫn giữ gửi xe 70.000. Bấm Dùng giá chung sẽ quay về 100.000 cho giá mới. |
-| 3 | Mở A101 rồi A102, kiểm tra bảng và dòng tổng. Với dữ liệu nguyên bản, chưa sửa giá. | A101 tổng cố định 220.000; A102 150.000. Không cộng tiền thuê, điện hoặc nước theo người vào tổng cố định. |
+| 3 | Mở A101 rồi A102, kiểm tra bảng và dòng tổng. Với dữ liệu nguyên bản, chưa sửa giá. | A101 tổng cố định 270.000; A102 200.000. Không cộng tiền thuê, điện hoặc nước theo người vào tổng cố định. |
 | 4 | 1. Mở `/HoaDonDichVu/Details/1`, ghi nhận gửi xe 70.000. 2. Mở `/DichVuPhong?phongId=6`, bấm Ngừng từ kỳ sau ở Gửi xe. 3. Mở `/HoaDonDichVu?toaNhaId=1`, chọn HD-DEMO-C001 và ngày đầu tháng hiện tại, Xem dịch vụ. 4. Chọn ngày đầu tháng kế tiếp, Xem dịch vụ. 5. Mở lại hóa đơn ID 1. | Kỳ hiện tại còn Gửi xe; kỳ kế tiếp không còn. Hóa đơn cũ vẫn tổng 3.720.000 và gửi xe 70.000. C002 luôn không có Gửi xe. |
 
 Ngày/kỳ hiện tại và kế tiếp đọc từ `$demo.currentPeriod`, `$demo.nextPeriod`; không cần đổi đồng hồ máy để test kỳ sau.
@@ -156,7 +159,7 @@ Ngày/kỳ hiện tại và kế tiếp đọc từ `$demo.currentPeriod`, `$dem
 
 | AC | Thao tác từng bước | Kỳ vọng |
 | --- | --- | --- |
-| 1 | 1. Upload `room-01.png` đến `room-08.png` vào A104. 2. Thử thêm `room-09.png`. 3. Ở phòng còn chỗ, thử JPG hợp lệ, `over-5mb.png`, `fake-image.png`, tệp TXT. | Tối đa 8 ảnh; ảnh thứ 9 bị từ chối. PNG/JPG hợp lệ được chấp nhận. File >5 MiB hoặc nội dung giả bị báo lỗi. TXT có thể bị trình chọn file chặn trước; kiểm tra API phía server đã nằm trong test tự động. |
+| 1 | 1. Xác nhận A101 đã có đúng 5 ảnh và A104 có placeholder. 2. Upload `room-01.png` đến `room-08.png` vào A104. 3. Thử `09-ninth-image.png`. 4. Ở phòng còn chỗ, thử `valid-small.jpg`, `over-5mb.png`, `fake-content.jpg`, tệp TXT. | 5 ảnh A101 đã đi qua HTTP khi tạo fixture; A104 ban đầu 0 ảnh. Tối đa 8 ảnh; ảnh thứ 9 bị từ chối. PNG/JPG thật được nhận; file >5 MiB hoặc JPG giả bị báo lỗi. |
 | 2 | 1. Mở `/PhongTro/Edit/1`. 2. Kéo ảnh màu thứ ba lên đầu. 3. Reload. 4. Mở `/TinDang`, tìm tin Alpha A101 và mở chi tiết tin 1. | Thứ tự được giữ sau reload; ảnh đầu có nhãn Ảnh đại diện và được dùng trên danh sách/chi tiết. Màn hình cảm ứng có mũi tên thay thế. |
 | 3 | 1. Trong danh sách tin, Inspect ảnh đại diện A101. 2. Kiểm tra `src` có `-thumb`. 3. Mở DevTools → Console, chọn phần tử `<img>` rồi chạy `$0.naturalWidth`. | Danh sách dùng thumbnail, rộng 400px với ảnh mẫu 1200px. Chi tiết dùng bản gốc. Có thể bật Network throttling Slow 3G để quan sát tải; đây là kiểm tra trải nghiệm, không phải test thời gian S2-04. |
 | 4 | 1. Ở `/PhongTro/Edit/1`, bấm Xóa một ảnh rồi Hủy. 2. Bấm Xóa lại và xác nhận. 3. Reload. 4. Kiểm tra cả bản gốc và `-thumb` trong `$demo.roomImagesPath\1`. | Hủy giữ ảnh. Xác nhận xóa bản ghi, gốc và thumbnail; thứ tự còn lại liên tục; xóa ảnh đầu thì ảnh kế lên đại diện. Nếu kho lỗi, ảnh có trạng thái chờ xóa/retry. |
@@ -171,7 +174,7 @@ Chỉ dùng bản sao ảnh mẫu ở thư mục demo để thử xóa. Kiểm t
 | --- | --- | --- |
 | 1 | Mở `/PhongTro/Index?toaNhaId=1`. So sánh A103-TAO-TIN với C001-HOA-DON. Thử trực tiếp `/TinDang/Tao?phongId=6` rồi gửi form. | A103 được đăng; C001 nút bị vô hiệu và có lý do đang thuê. Backend không cho tạo tin cho C001 dù mở URL trực tiếp. |
 | 2 | Mở `/TinDang/Tao?phongId=4`. Kiểm tra diện tích, giá và bảng dịch vụ. Với phòng A101, xem form và ảnh lấy từ phòng. | Lấy sẵn diện tích 25, giá 3.500.000 và dịch vụ đúng phòng; chỉnh được tiêu đề/mô tả. Chỉ xem form A101, không đăng thêm vì đang có tin. |
-| 3 | 1. Với A103, nhập tiêu đề riêng và Lưu bản nháp. 2. Mở lại bằng Đăng lại. 3. Đăng tin. 4. Gỡ tin trong quản lý. 5. Quan sát PERF-003 đã cho thuê. | Có Nháp→Đang hiển thị→Tạm ẩn; nội dung nháp không mất. Tin mới hết hạn sau 30 ngày. PERF-003 hiện Đã cho thuê; duyệt Thuê ngay trong S2-08 cũng tạo trạng thái này. |
+| 3 | 1. Với A103, nhập tiêu đề riêng và Lưu bản nháp. 2. Mở lại bằng Đăng lại. 3. Đăng tin. 4. Gỡ tin trong quản lý. 5. Quan sát SEARCH-003 đã cho thuê. | Có Nháp→Đang hiển thị→Tạm ẩn; nội dung nháp không mất. Tin mới hết hạn sau 30 ngày. SEARCH-003 hiện Đã cho thuê; duyệt Thuê ngay trong S2-08 cũng tạo trạng thái này. |
 | 4 | Sau khi A103 đã hiển thị, mở lại form `/TinDang/Tao?phongId=4` và thử đăng nữa. | Bị từ chối với thông báo đã có tin hiển thị. Không có hai tin hiển thị cùng phòng. |
 | 5 | Quan sát A106-HET-HAN trong quản lý, rồi tìm tin này ở trang công khai. Reload sau tối đa một phút nếu cần. | Tin hết hạn tự thành Tạm ẩn, có nhãn/cảnh báo Đã hết hạn và không còn trong tìm kiếm. Dữ liệu đã quá hạn được script chuẩn bị sẵn. |
 
@@ -182,9 +185,9 @@ Không cần đăng nhập. Mở `/TimTin`.
 | AC | Thao tác từng bước | Kỳ vọng |
 | --- | --- | --- |
 | 1 | Chọn Quận 1, giá 2.000.000–3.000.000, diện tích 20–30, số người tối đa 2; bấm Tìm kiếm. Kiểm tra từng tin. | Tất cả kết quả thỏa đồng thời các bộ lọc. Bộ lọc sức chứa là chọn đúng mức tối đa của phòng. |
-| 2 | Tìm tiêu đề A105-NHAP/A106-HET-HAN/A107-TAM-AN/PERF-003 trong kết quả; thử URL chi tiết tin 4/5/6/11 khi anonymous. | Không xuất hiện; chi tiết không công khai trả 404. Chỉ tin Đang hiển thị còn hạn và phòng trống/tòa hoạt động được trả. |
+| 2 | Tìm tiêu đề A105-NHAP/A106-HET-HAN/A107-TAM-AN/SEARCH-003 trong kết quả; thử URL chi tiết tin 4/5/6/11/12/13 khi anonymous. | Sáu tin Nháp/Tạm ẩn/hết hạn/Đã cho thuê không xuất hiện; chi tiết không công khai trả 404. Chỉ tin Đang hiển thị còn hạn và phòng trống/tòa hoạt động được trả. |
 | 3 | Bỏ lọc; đổi Mới đăng nhất, Giá tăng dần, Giá giảm dần. Sang trang 2. | Giá đúng thứ tự; tối đa 12 tin/trang, giữ bộ lọc khi chuyển trang; bấm tên/ảnh mở đúng chi tiết. |
-| 4 | Giữ nguyên bộ mẫu trước khi tạo thêm tin. Chạy lệnh đo HTTP ở mục 15 trong terminal thứ hai. Hoặc DevTools→Network→Disable cache, reload và xem request document `/TimTin`. | Database có 500 tin; HTTP hoàn tất dưới 2.000ms. 500 là tổng tin trong DB, không phải 500 tin đều công khai. Không tính thời gian khởi động server vào truy vấn. |
+| 4 | Giữ nguyên bộ mẫu trước khi tạo thêm tin. Bỏ lọc và đi lần lượt trang 1, 2, 3. Chạy lệnh đo HTTP ở mục 15 nếu muốn. | Có đúng 35 tin công khai: trang 1 = 12, trang 2 = 12, trang 3 = 11; dữ liệu trải trên Quận 1, Quận 3, Quận 7 và Bình Thạnh. |
 | 5 | Giá tối thiểu 50.000.000, giá tối đa 60.000.000, Tìm kiếm. Bấm Áp dụng khoảng giá gợi ý. | Có thông báo không tìm thấy và gợi ý nới giá; trang không trắng; áp dụng gợi ý cập nhật bộ lọc. |
 
 ## 9. S2-05 — chi tiết và chi phí (4 AC)
@@ -193,22 +196,22 @@ Mở cửa sổ ẩn danh chưa đăng nhập, truy cập `/TinDang/ChiTiet/1`. 
 
 | AC | Thao tác từng bước | Kỳ vọng |
 | --- | --- | --- |
-| 1 | Xem ảnh lớn/dải ảnh và thông tin phòng. Bấm từng thumbnail. | 3 ảnh đúng thứ tự; diện tích 25m², thuê 3.500.000, tối đa 3 người, cọc 3.500.000 và mô tả. |
-| 2 | Đọc bảng dịch vụ A101; mở thêm tin 3 ở Beta. | A101 điện riêng 4.200 đ/kWh, nước 80.000 đ/người/tháng; Internet 150.000 và gửi xe 70.000/tháng. Beta nước 18.000 đ/m³. A102 không xuất hiện gửi xe. |
-| 3 | Xem tổng đầu tháng của tin 1, rồi tin 2. | Tin 1 = 3.720.000; tin 2 = 3.650.000. Có chú thích chưa gồm điện/nước theo sử dụng. Tiền cọc hiển thị riêng, không cộng vào công thức AC này. |
+| 1 | Xem ảnh lớn/dải ảnh và thông tin phòng. Bấm từng thumbnail. | 5 ảnh đúng thứ tự; diện tích 25m², thuê 3.500.000, tối đa 3 người, cọc 3.500.000 và mô tả. |
+| 2 | Đọc bảng dịch vụ A101; mở thêm tin 2. | A101 điện riêng 4.200 đ/kWh, nước 80.000 đ/người/tháng; rác 50.000, Internet 150.000 và gửi xe 70.000/tháng. A102 không có gửi xe. |
+| 3 | Xem tổng đầu tháng của tin 1, rồi tin 2. | Tin 1 = 3.770.000; tin 2 = 3.700.000. Có chú thích chưa gồm điện/nước theo sử dụng. Tiền cọc hiển thị riêng, không cộng vào công thức AC này. |
 | 4 | Khi chưa đăng nhập, bật DevTools→Device toolbar, chọn Responsive width 360px, reload, cuộn hết trang. | Nội dung đọc được, ảnh co theo chiều rộng, không tràn ngang toàn trang; vẫn xem được thông tin và bảng giá. |
 
 ## 10. S2-06 — gửi yêu cầu (5 AC)
 
-Đăng nhập `tenant.demo@demo.local`, mở `/TinDang/ChiTiet/8` (A108, tối đa 2 người). Tạo mẫu mới nếu tin này đã có yêu cầu mở.
+Mở `/TinDang/ChiTiet/8` (A108, tối đa 3 người). KHACH_THUE 1 chưa có yêu cầu trên tin này; KHACH_THUE 2 đã có một yêu cầu Mới.
 
 | AC | Thao tác từng bước | Kỳ vọng |
 | --- | --- | --- |
-| 1 | Kiểm tra form có loại Xem phòng/Thuê ngay, ngày, số người và lời nhắn. Chọn Xem phòng, ngày hôm nay+2, 2 người, lời nhắn mẫu; chỉ gửi sau khi làm AC2/3. | Có đủ trường; loại yêu cầu được lưu đúng. Dùng tài khoản khách thứ hai để thử Thuê ngay trên cùng tin sau đó. |
+| 1 | Đăng nhập KHACH_THUE 1. Kiểm tra form có loại Xem phòng/Thuê ngay, ngày, số người và lời nhắn. Chọn Xem phòng, ngày hôm nay+2, 3 người, lời nhắn mẫu; chỉ gửi sau khi làm AC2/3. | Có đủ trường; loại yêu cầu được lưu đúng; sức chứa 3 người. |
 | 2 | Thử hôm qua và hôm nay+61. Thử hôm nay và hôm nay+60 trong form (có thể chỉ xem validation, chưa gửi). | Ngày quá khứ/+61 bị chặn; hai mốc hôm nay/+60 hợp lệ. Bộ test DesiredDate xác minh cả backend và ranh giới thời gian Việt Nam. |
-| 3 | Nhập 3 người và ngày hợp lệ; bấm gửi. Sau đó sửa 2 người. | 3 người bị từ chối, thông báo tối đa 2. Không tạo yêu cầu lỗi. |
-| 4 | Gửi một lần hợp lệ với 2 người. Mở lại tin và thử gửi nữa. | Không tạo yêu cầu mở thứ hai của cùng khách/tin; hiển thị/chỉ dẫn tới yêu cầu cũ. Khách khác vẫn có thể gửi yêu cầu riêng. |
-| 5 | Xem màn hình thành công sau lần gửi hợp lệ. Ghi mã và mở Yêu cầu của tôi. | Có mã `YC-yyyyMM-xxxx` ngay. Trên mẫu mới trong cùng tháng, lần đầu thường là `...-0008`. Không bắt buộc chính xác 0008 nếu đã gửi trước. |
+| 3 | Nhập 4 người và ngày hợp lệ; bấm gửi. Sau đó sửa 3 người. | 4 người bị từ chối, thông báo tối đa 3. Không tạo yêu cầu lỗi. |
+| 4 | Với KHACH_THUE 1, gửi một lần hợp lệ rồi thử gửi nữa. Sau đó đăng nhập KHACH_THUE 2 và thử gửi trên cùng tin. | Lần đầu của khách 1 thành công, lần hai bị chặn. Khách 2 bị chặn ngay vì đã có yêu cầu mở ID 8; có chỉ dẫn tới yêu cầu cũ. |
+| 5 | Xem màn hình thành công của khách 1. Ghi mã và mở Yêu cầu của tôi. | Có mã `YC-yyyyMM-xxxx` ngay. Trên mẫu mới, mã mới thường là `...-0009`; không bắt buộc đúng 0009 nếu đã thao tác trước. |
 
 ## 11. S2-07 — danh sách yêu cầu Chủ nhà (4 AC)
 
@@ -219,7 +222,7 @@ Mở cửa sổ ẩn danh chưa đăng nhập, truy cập `/TinDang/ChiTiet/1`. 
 | 1 | Xem yêu cầu 1/2/3/4. | Có mã, tên khách, điện thoại, phòng, loại, ngày mong muốn và trạng thái; không thiếu cột. |
 | 2 | Lần lượt chọn Mới, Đã hẹn lịch, Đã duyệt, Từ chối, Đã hủy. Chọn Alpha rồi Beta. | Mỗi trạng thái có dữ liệu mẫu; chọn Beta thấy yêu cầu 4, Alpha không thấy yêu cầu 4. Bộ lọc kết hợp đúng. |
 | 3 | Bỏ lọc, quan sát thứ tự và yêu cầu 2/3. | Mới nhất trước; yêu cầu chưa xử lý hơn 24 giờ được đánh dấu nổi bật. Mới và Đã hẹn lịch được coi là chưa xử lý. |
-| 4 | Trên mẫu sạch xem badge Yêu cầu ở menu. Dùng khách gửi thêm một yêu cầu rồi refresh Chủ nhà. Duyệt/từ chối một yêu cầu và refresh. | Ban đầu badge **4** (ID 1–4). Gửi mới tăng 1; duyệt/từ chối/hủy giảm 1; đổi Mới→Đã hẹn lịch không giảm. Giá trị có thể khác nếu đã thao tác trước. |
+| 4 | Trên mẫu sạch xem badge Yêu cầu ở menu. Dùng khách 1 gửi thêm một yêu cầu rồi refresh Chủ nhà. Duyệt/từ chối một yêu cầu và refresh. | Ban đầu badge **5** (3 Mới + 2 Đã hẹn lịch). Gửi mới tăng 1; duyệt/từ chối/hủy giảm 1; đổi Mới→Đã hẹn lịch không giảm. |
 
 ## 12. S2-08 — lịch hẹn và xử lý (4 AC)
 
@@ -249,9 +252,9 @@ Mở cửa sổ ẩn danh chưa đăng nhập, truy cập `/TinDang/ChiTiet/1`. 
 
 | AC | Thao tác từng bước | Kỳ vọng |
 | --- | --- | --- |
-| 1 | Xem Alpha rồi Beta. Ở Alpha chọn điện Theo đầu người, nước Theo chỉ số. | Mỗi dịch vụ có hai cách độc lập; Alpha ban đầu nước khoán, Beta nước đồng hồ. |
+| 1 | Xem A1 rồi A2. Ở A1 chọn điện Theo đầu người, nước Theo chỉ số. | A1 ban đầu điện theo chỉ số, nước theo người. A2 hiển thị trạng thái chưa cấu hình/khởi tạo; không mượn cấu hình của A1. |
 | 2 | Nhập điện 95.000/người/tháng, nước 18.000/m³ theo lựa chọn ở AC1. Quan sát nhãn/ô nhập. | Ô/nhãn đúng đơn vị cho từng cách; không nhầm giá/kWh với tiền/người. |
-| 3 | 1. Ghi kỳ đang áp dụng. 2. Xem kỳ kế tiếp trước Lưu. 3. Lưu cấu hình hợp lệ. 4. Mở lại và xem cấu hình hiện tại/cấu hình chờ. 5. Xem hóa đơn cũ ID1. | Cách/giá hiện tại không đổi; cấu hình chờ bắt đầu kỳ kế tiếp. Hóa đơn cũ không đổi. Giá riêng 4.200 của A101 được giữ, tính theo đơn vị mới từ kỳ sau như thông báo trên form; cần chỉnh giá riêng nếu muốn 95.000/người. |
+| 3 | 1. Ghi kỳ đang áp dụng. 2. Quan sát cấu hình nước chờ 90.000/người/tháng với nhãn **Áp dụng từ kỳ MM/yyyy**. 3. Nếu muốn thử ghi mới, tạo bộ mẫu sạch rồi đổi riêng cấu hình điện và Lưu. 4. Xem hóa đơn cũ ID1. | Cấu hình hiện tại không đổi; cấu hình chờ bắt đầu kỳ kế tiếp. Hóa đơn cũ không đổi. Giá riêng 4.200 của A101 được giữ theo dữ liệu lịch sử. |
 | 4 | Trước lần lưu hợp lệ, để trống giá của cách đang chọn, thử 0, rồi -1; bấm Lưu từng lần. | Bị từ chối và có thông báo; không tạo phiên bản cấu hình thiếu giá hoặc 0. Test tự động kiểm tra transaction không lưu dở. |
 
 ## 15. Chạy kiểm tra tự động và kiểm tra kho ảnh
@@ -298,7 +301,7 @@ $demo = Get-Content (Join-Path $demoFolder 'access.json') -Raw | ConvertFrom-Jso
 ```powershell
 $demoFolder = (Get-Content .\data\sprint2-demo\latest.txt -Raw).Trim()
 $demo = Get-Content (Join-Path $demoFolder 'access.json') -Raw | ConvertFrom-Json
-$demoRuntime = Join-Path (Get-Location) 'data\sprint2-demo\runtime\QL_PhongTro.dll'
+$demoRuntime = $demo.runtime
 Push-Location .\QL_PhongTro
 try {
     dotnet $demoRuntime --environment Development --DatabasePath $demo.database --check-database
@@ -326,10 +329,7 @@ Tài liệu này nghiệm thu Sprint 2. Chức năng soạn hợp đồng S3-01,
 
 ## 17. Kết quả xác minh bản bàn giao
 
-- Build và tạo mẫu thành công; đúng 500 tin, 5 tài khoản, 7 yêu cầu đủ 5 trạng thái; integrity/FK PASS.
-- Đăng nhập HTTP thật bằng cả 5 email/mật khẩu trên: PASS; kiểm tra 10 trang chủ nhà, trang khách, trang công khai và quyền Chủ nhà khác: PASS.
-- Hai hóa đơn cũ có tổng 3.720.000 và 3.650.000 đúng kỳ vọng.
-- Kho ảnh: 6 tệp gốc/thumbnail, 0 missing, 0 orphan.
-- 5 lần đo HTTP tìm kiếm trên bộ mẫu: 11,715–38,018ms.
-- Full xUnit: 250/250 PASS; log `data/test-results/sprint2-demo-regression.trx`.
-- Kết quả kiểm tra mẫu: `verification.json` trong cùng thư mục `access.json`. Nếu có Python 3, có thể chạy lại bằng `python verification/verify_sprint2_demo.py` khi server đang chạy và mẫu còn nguyên; script từ chối các mẫu đã bị thay đổi số lượng/trạng thái bởi bài test thủ công.
+- Kết quả thực tế của lần tạo gần nhất nằm trong `verification.json` cạnh `access.json`; `report.md` ghi tài khoản và bản đồ dữ liệu.
+- Script tạo mẫu chỉ cập nhật `latest.txt` sau khi build, upload 5 ảnh HTTP, kiểm tra integrity/FK, đăng nhập đủ 7 tài khoản và smoke test đều PASS.
+- Bản bàn giao `20261004-185115-e98174`: tìm kiếm HTTP 5 lần 7,279–29,965 ms; `--check-database` PASS; kho ảnh expected 10, missing 0, orphan 0; full xUnit 259/259 PASS.
+- Có thể chạy lại `python verification/verify_sprint2_demo.py` khi server đang chạy và mẫu còn nguyên; script từ chối mẫu đã bị thay đổi số lượng/trạng thái bởi bài test thủ công.

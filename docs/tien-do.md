@@ -1,5 +1,37 @@
 # Tiến độ và bàn giao dự án
 
+## Dùng fixture Sprint 2 làm database local (04/10/2026)
+
+- Không chép đè `QL_PhongTro/Data/local-dev.sqlite` vì file này đã tồn tại. Tạo `.env.local` đã Git ignore để `run.bat` trỏ `DatabasePath`, `RoomImagesPath`, Data Protection keys và thư mục email pickup tới fixture `data/sprint2-demo/20261004-185115-e98174` mà người dùng vừa kiểm thử.
+- `run.bat` nay đọc bốn cấu hình local trên (và cấu hình Event Log cần cho môi trường hạn chế); biến môi trường đặt sẵn trong terminal vẫn được ưu tiên. README ghi cách dùng cho máy mới và máy có DB cần giữ.
+- Xác minh thực tế: `run.bat --check-only` PASS và báo đúng đường dẫn fixture; `run.bat` mở web tại `http://localhost:5247`; `/TimTin` trả HTTP 200 và một thumbnail từ kho ảnh cấu hình trả `200 image/png`. Đã dừng server sau kiểm tra. Dữ liệu đã thay đổi do lượt test thủ công trước đó được giữ nguyên, không reset fixture.
+
+## Dữ liệu mẫu nghiệm thu S2-01 đến S2-10 (04/10/2026)
+
+- Hoàn thiện `Sprint2DemoSeeder` và bộ script `New/Start-Sprint2Demo`: mỗi lần tạo database/schema v13 và runtime riêng dưới `data/` đã ignore, không đọc/ghi `local-dev.sqlite`, không ghi đè bản cũ. Mật khẩu chung được sinh ngẫu nhiên; email/mật khẩu/role của 7 tài khoản chỉ nằm trong `access.json` và `report.md` local.
+- Fixture mới có: ADMIN; CHU_NHA A sở hữu A1/A2; CHU_NHA B và tòa riêng để thử 403; QUAN_LY được gán A1; 3 KHACH_THUE. A1 có 5 dịch vụ/giá, khác biệt gửi xe theo tầng, giá riêng, hóa đơn cũ và cấu hình nước chờ kỳ sau; A2 chưa cấu hình. Có 35 tin công khai ở 4 quận (12/12/11), 6 tin bị loại, đủ trạng thái phòng/tin/yêu cầu, hai lịch cùng phòng cách 15 phút và ca gửi trùng.
+- Thêm `upload_sprint2_demo_images.py`: server tạm upload 5 PNG vào A101 qua endpoint thật, sinh thumbnail 400px và xác minh đường dẫn DB/tệp; A104 giữ 0 ảnh. Thư mục mẫu có PNG/JPG hợp lệ, file >5 MiB, JPG nội dung giả và ảnh thứ 9.
+- Cách dùng: `powershell -ExecutionPolicy Bypass -File .\verification\New-Sprint2Demo.ps1`, sau đó `.\verification\Start-Sprint2Demo.ps1`. Đọc credential/bản đồ ID trong đường dẫn `data/sprint2-demo/latest.txt` → `access.json`/`report.md`; hướng dẫn từng AC ở `docs/huong-dan-test-sprint2.md`.
+- Xác minh thực tế trên bản `data/sprint2-demo/20261004-185115-e98174`: tạo mới + upload HTTP + smoke test PASS; 7/7 đăng nhập, integrity/FK PASS, 35 tin public/4 quận, đủ 8 yêu cầu/5 trạng thái, quyền CHU_NHA B bị chặn, tìm kiếm 5 lần 7,279–29,965 ms. `--check-database` PASS; kho ảnh expected 10, missing 0, orphan 0; chạy lại `Start-Sprint2Demo.ps1` và GET `/TimTin` trả HTTP 200. Full xUnit **259/259 PASS**; đã cập nhật fixture migration test từ v12 lên schema hiện hành v13. Còn cảnh báo NU1900 do nguồn NuGet và cảnh báo license ImageSharp; chưa thao tác thủ công toàn bộ UI từng AC.
+- File chính: `Data/Sprint2DemoSeeder.cs`, `Data/RequestDemoSeeder.cs`, `Program.cs`, hai PowerShell demo, hai Python verifier/uploader, test migration, README và hướng dẫn Sprint 2. Không đổi schema/quy trình DB sản xuất, không commit/push.
+
+## Chỉnh form tìm kiếm tin công khai (04/10/2026)
+
+- Đổi form tại `/TinDang` sang card tìm kiếm dùng CSS riêng thay cho các lớp Bootstrap không được nạp trong public layout: ô nhập đồng nhất, bố cục 4/2/1 cột theo desktop/tablet/mobile, nhãn có đơn vị, focus rõ và nút tìm kiếm dễ nhận biết. Giữ nguyên action `/TimTin`, method GET, tên và ràng buộc của đủ tám tham số lọc.
+- File thay đổi: `Views/TinDang/Index.cshtml`, `wwwroot/css/public-listing.css`, kiểm thử HTML trong `Sprint2UsabilityTests.cs`. Build và test `PublicListingIndexOffersKeywordAndRequestedFilters` PASS qua output riêng; còn cảnh báo ImageSharp/nullable có sẵn. Chưa kiểm tra trực quan trên trình duyệt vì tiến trình web hiện tại đang chạy bản cũ và khóa output; cần khởi động lại app rồi tải lại `/TinDang`. Không thay đổi database.
+
+## Chỉ Chủ nhà/Quản lý được đăng tin (04/10/2026)
+
+- `TinDangController` cho `CHU_NHA` và `QUAN_LY` mở quản lý/tạo/sửa/gỡ tin; Chủ nhà chỉ thao tác tòa mình sở hữu, Quản lý chỉ thao tác tòa có `quan_ly_id` là tài khoản hiện tại. Khách thuê, ADMIN và quản lý không được phân công bị chặn ở backend. Menu Tin đăng của Chủ nhà/Quản lý dẫn thẳng tới `/TinDang/QuanLy`.
+- Quyền mặc định `TIN_DANG` của `QUAN_LY` đổi từ `READ` sang `WRITE`. Updater v13 sao lưu DB rồi chỉ nâng giá trị `READ` mặc định; quyền đã thu hồi thành `NONE` không bị mở lại. Máy có DB v12 cần dừng app, sao lưu DB ra ngoài repository, chạy `--update-database`, `--check-database`, rồi khởi động lại. Không sửa database local trong task này.
+- File chính: `Controllers/TinDangController.cs`, `_Sidebar.cshtml`, `permissions.seed.json`, `DatabaseUpdates.cs`, `AccountReuseSchema.cs`, hai bộ test quyền/tin đăng, README và `docs/cap-nhat-csdl.md`. Kiểm thử trên database tạm: 6/6 ca quản lý/chủ nhà/phạm vi vai trò PASS và 4/4 ca ma trận quyền/updater v13 PASS; build qua output riêng vì web đang chạy khóa output mặc định. Còn cảnh báo giấy phép ImageSharp có sẵn; chưa nghiệm thu trực quan bằng trình duyệt. Giả định Quản lý chỉ phụ trách tòa được gán qua `toa_nha.quan_ly_id`.
+
+## Thêm `run.bat` khởi động dự án trên Windows (04/10/2026)
+
+- Thêm `run.bat` ở gốc repository: kiểm tra .NET SDK/project, restore, dùng `DatabasePath` đã cấu hình hoặc database mặc định, tự khởi tạo bằng quy trình của dự án khi file chưa tồn tại, kiểm tra schema rồi chạy profile HTTP tại `http://localhost:5247`.
+- Với database đã tồn tại, script không ghi đè và không tự chạy updater; schema chưa sẵn sàng làm script dừng và hướng dẫn sao lưu/chạy `--update-database`. Không tạo ADMIN, không chứa credential. Có `run.bat --check-only` để xác minh mà không giữ web chạy.
+- README đã bổ sung cách dùng cho cả máy mới và máy có database cần giữ dữ liệu. Xác minh thực tế `run.bat --check-only` PASS trên database thử mới: restore, khởi tạo schema hiện hành tại thời điểm kiểm thử và check thành công. Chạy lại trên chính file thử PASS, đi qua nhánh giữ database hiện có và SHA-256 trước/sau không đổi. Không dùng database cá nhân; database mặc định vô tình sinh trong lần gọi thử sai đã được dọn cùng toàn bộ backup liên quan sau khi xác nhận trước đó chưa tồn tại.
+
 ## Hoàn thiện sau rà soát S2-01 đến S2-10 (04/10/2026)
 
 - S2-03: thêm `TinDangExpirationService` và tác vụ nền chạy mỗi phút; các lối vào danh sách công khai, tìm kiếm và quản lý cũng đồng bộ ngay. Tin `DANG_HIEN_THI` quá hạn chuyển `TAM_AN`; Chủ nhà thấy cảnh báo/nhãn **Đã hết hạn** và có thể đăng lại. Không đổi schema.

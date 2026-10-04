@@ -141,7 +141,7 @@
     {
       "roleCode": "QUAN_LY",
       "moduleCode": "TIN_DANG",
-      "accessLevel": "READ",
+      "accessLevel": "WRITE",
       "ownDataOnly": false
     },
     {

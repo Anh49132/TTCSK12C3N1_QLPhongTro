@@ -52,8 +52,10 @@ if (args.Contains("--create-sprint2-demo"))
         throw new InvalidOperationException("Sprint 2 demo is available only in Development.");
     var output = builder.Configuration["Sprint2Demo:Directory"]
         ?? throw new ArgumentException("Set Sprint2Demo:Directory to a new output directory.");
+    var demoPassword = builder.Configuration["Sprint2Demo:Password"]
+        ?? throw new ArgumentException("Set Sprint2Demo:Password. The launcher generates a random local password when omitted.");
     await Sprint2DemoSeeder.CreateAsync(Path.GetFullPath(output), Path.Combine(dataDir, "permissions.seed.json"),
-        builder.Configuration["Sprint2Demo:Password"] ?? "DemoSprint2@2026",
+        demoPassword,
         builder.Configuration["Sprint2Demo:Url"] ?? "http://localhost:5268");
     return;
 }

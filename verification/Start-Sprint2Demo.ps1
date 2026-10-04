@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 if (!$Directory) { $Directory = (Get-Content -LiteralPath (Join-Path $repoRoot 'data\sprint2-demo\latest.txt') -Raw -Encoding UTF8).Trim() }
 $access = Get-Content -LiteralPath (Join-Path $Directory 'access.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-$runtime = Join-Path $repoRoot 'data\sprint2-demo\runtime\QL_PhongTro.dll'
+$runtime = if ($access.runtime) { $access.runtime } else { Join-Path $repoRoot 'data\sprint2-demo\runtime\QL_PhongTro.dll' }
 if (!(Test-Path -LiteralPath $runtime)) { throw 'Chưa có bản build. Chạy New-Sprint2Demo.ps1 trước.' }
 
 $demoUrl = $access.url.TrimEnd('/')
@@ -72,7 +72,8 @@ try {
         '--DatabasePath', $access.database,
         '--RoomImagesPath', $access.roomImagesPath,
         '--DataProtectionKeysPath', (Join-Path $Directory 'keys'),
-        '--PasswordReset:PublicBaseUrl', $demoUrl
+        '--PasswordReset:PublicBaseUrl', $demoUrl,
+        '--Logging:EventLog:LogLevel:Default', 'None'
     )
     if ($smtpRequested) {
         # Whitespace overrides the Development pickup directory while the

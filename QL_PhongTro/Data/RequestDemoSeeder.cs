@@ -5,7 +5,8 @@ namespace QL_PhongTro.Data;
 public static class RequestDemoSeeder
 {
     public const string OwnerEmail = "owner.demo@demo.local";
-    public const string TenantEmail = "tenant.demo@demo.local";
+    public const string TenantEmail = "tenant1.demo@demo.local";
+    public const string Tenant2Email = "tenant2.demo@demo.local";
 
     public static void Seed(string databasePath, string? password)
     {
@@ -63,16 +64,16 @@ public static class RequestDemoSeeder
         var now = new DateTime(utcNow.Year, utcNow.Month, utcNow.Day, utcNow.Hour, utcNow.Minute, 0, DateTimeKind.Utc);
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
         var ownerId = InsertAccount(connection, tx, "Chủ nhà Demo", OwnerEmail, "0900000101", "CHU_NHA", passwordHash, now);
-        var tenantAccountId = InsertAccount(connection, tx, "Khách Demo", TenantEmail, "0900000102", "KHACH_THUE", passwordHash, now);
-        var conflictTenantAccountId = InsertAccount(connection, tx, "Khách Xung đột Demo", "conflict.demo@demo.local", "0900000103", "KHACH_THUE", passwordHash, now);
+        var tenantAccountId = InsertAccount(connection, tx, "Khách thuê 1", TenantEmail, "0900000102", "KHACH_THUE", passwordHash, now);
+        var conflictTenantAccountId = InsertAccount(connection, tx, "Khách thuê 2", Tenant2Email, "0900000103", "KHACH_THUE", passwordHash, now);
         var tenantId = Scalar(connection, tx, """
             INSERT INTO khach_thue(tai_khoan_id,ho_ten,so_dien_thoai,ngay_tao)
-            VALUES ($account,'Khách Demo Nguyễn','0912345678',$now)
+            VALUES ($account,'Khách thuê 1','0912345678',$now)
             RETURNING id;
             """, ("$account", tenantAccountId), ("$now", now));
         var conflictTenantId = Scalar(connection, tx, """
             INSERT INTO khach_thue(tai_khoan_id,ho_ten,so_dien_thoai,ngay_tao)
-            VALUES ($account,'Khách Xung đột Demo','0912345679',$now)
+            VALUES ($account,'Khách thuê 2','0912345679',$now)
             RETURNING id;
             """, ("$account", conflictTenantAccountId), ("$now", now));
 
@@ -96,7 +97,7 @@ public static class RequestDemoSeeder
 
         var conflictAppointment = now.AddDays(3);
         var instantRequestId = InsertRequest(connection, tx, "DEMO-YC-001", listingAlpha, tenantId, "THUE_NGAY", "MOI", now.AddHours(-1), now.AddDays(1), null, null);
-        var confirmRequestId = InsertRequest(connection, tx, "DEMO-YC-002", listingAlphaViewing, tenantId, "XEM_PHONG", "MOI", now.AddHours(-26), now.AddDays(2), null, null);
+        var confirmRequestId = InsertRequest(connection, tx, "DEMO-YC-002", listingAlphaViewing, tenantId, "XEM_PHONG", "DA_HEN_LICH", now.AddHours(-26), conflictAppointment.AddMinutes(15), ownerId, now.AddMinutes(-10));
         var conflictRequestId = InsertRequest(connection, tx, "DEMO-YC-003", listingAlphaViewing, conflictTenantId, "XEM_PHONG", "DA_HEN_LICH", now.AddHours(-30), conflictAppointment, ownerId, now.AddHours(-20));
         var rejectRequestId = InsertRequest(connection, tx, "DEMO-YC-004", listingBeta, tenantId, "XEM_PHONG", "MOI", now.AddHours(-2), now.AddDays(4), null, null);
 

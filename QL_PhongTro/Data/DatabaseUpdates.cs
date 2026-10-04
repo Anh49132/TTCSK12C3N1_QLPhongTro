@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 12;
+    private const int CurrentVersion = 13;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -345,6 +345,20 @@ public static class DatabaseUpdates
                 command.CommandText = sql;
                 command.ExecuteNonQuery();
             }
+        }
+        if (version < 13)
+        {
+            using var tx = c.BeginTransaction();
+            using var command = c.CreateCommand();
+            command.Transaction = tx;
+            command.CommandText = """
+                UPDATE role_permission
+                SET AccessLevel='WRITE'
+                WHERE RoleCode='QUAN_LY' AND ModuleCode='TIN_DANG' AND AccessLevel='READ';
+                INSERT INTO app_schema_version(version,applied_at) VALUES(13,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                """;
+            command.ExecuteNonQuery();
+            tx.Commit();
         }
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");

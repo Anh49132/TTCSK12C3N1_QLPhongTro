@@ -123,6 +123,9 @@ public sealed partial class PermissionTests
         var html = await guest.GetStringAsync("/TinDang");
 
         Assert.Contains("action=\"/TimTin\"", html);
+        Assert.Contains("class=\"listing-search-form\"", html);
+        Assert.Contains("class=\"listing-search-grid\"", html);
+        Assert.Contains("class=\"listing-search-submit\"", html);
         foreach (var field in new[] { "TuKhoa", "PhuongXa", "QuanHuyen", "GiaToiThieu", "GiaToiDa", "DienTichToiThieu", "DienTichToiDa", "SoNguoiToiDa" })
             Assert.Contains($"name=\"{field}\"", html);
     }

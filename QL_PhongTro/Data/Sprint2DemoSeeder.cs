@@ -41,6 +41,7 @@ public static class Sprint2DemoSeeder
         var stamp = now.ToString("O");
         var owner = Id("SELECT id FROM tai_khoan WHERE email=$email", ("$email", RequestDemoSeeder.OwnerEmail));
         var tenant = Id("SELECT id FROM khach_thue WHERE tai_khoan_id=(SELECT id FROM tai_khoan WHERE email=$email)", ("$email", RequestDemoSeeder.TenantEmail));
+        var tenant2 = Id("SELECT id FROM khach_thue WHERE tai_khoan_id=(SELECT id FROM tai_khoan WHERE email=$email)", ("$email", RequestDemoSeeder.Tenant2Email));
         var alpha = Id("SELECT id FROM toa_nha WHERE ten_toa_nha='Demo Tòa Alpha'");
         var beta = Id("SELECT id FROM toa_nha WHERE ten_toa_nha='Demo Tòa Beta'");
         var hash = BCrypt.Net.BCrypt.HashPassword(password);
@@ -50,8 +51,13 @@ public static class Sprint2DemoSeeder
             VALUES($name,$email,$phone,$hash,$role,1,0,0,0,1,0,$now,$now) RETURNING id
             """, ("$name", name), ("$email", email), ("$phone", phone), ("$hash", hash), ("$role", role), ("$now", stamp));
         Account("admin.demo@demo.local", "Admin Sprint 2", "0900000104", "ADMIN");
-        var otherOwner = Account("other.owner@demo.local", "Chủ nhà khác", "0900000105", "CHU_NHA");
-        var otherBuilding = Id("INSERT INTO toa_nha(chu_nha_id,ten_toa_nha,dia_chi,quan_huyen,dang_hoat_dong) VALUES($owner,'Tòa chủ nhà khác','99 Đường Demo','Quận 7',1) RETURNING id", ("$owner", otherOwner));
+        var otherOwner = Account("owner.b.demo@demo.local", "Chủ nhà B", "0900000105", "CHU_NHA");
+        var manager = Account("manager.demo@demo.local", "Quản lý A1", "0900000106", "QUAN_LY");
+        var tenant3Account = Account("tenant3.demo@demo.local", "Khách thuê 3", "0900000107", "KHACH_THUE");
+        Run("INSERT INTO khach_thue(tai_khoan_id,ho_ten,so_dien_thoai,ngay_tao) VALUES($account,'Khách thuê 3','0912345680',$now)", ("$account", tenant3Account), ("$now", stamp));
+        Run("UPDATE toa_nha SET quan_ly_id=$manager WHERE id=$building", ("$manager", manager), ("$building", alpha));
+        var otherBuilding = Id("INSERT INTO toa_nha(chu_nha_id,ten_toa_nha,dia_chi,phuong_xa,quan_huyen,tinh_thanh,so_tang,dang_hoat_dong) VALUES($owner,'Tòa B1','99 Đường Demo','Phường Tân Quy','Quận 7','TP.HCM',4,1) RETURNING id", ("$owner", otherOwner));
+        var otherBuilding2 = Id("INSERT INTO toa_nha(chu_nha_id,ten_toa_nha,dia_chi,phuong_xa,quan_huyen,tinh_thanh,so_tang,dang_hoat_dong) VALUES($owner,'Tòa B2','88 Đường Demo','Phường 25','Bình Thạnh','TP.HCM',3,1) RETURNING id", ("$owner", otherOwner));
         int Room(int building, string code, int floor = 1, string state = "TRONG", long rent = 3500000, int capacity = 3) => Id("""
             INSERT INTO phong_tro(toa_nha_id,ma_phong,tang,dien_tich,gia_thue,tien_coc_du_kien,so_nguoi_toi_da,trang_thai,mo_ta,ngay_tao)
             VALUES($building,$code,$floor,25,$rent,$rent,$capacity,$state,'Phòng mẫu sáng thoáng, có cửa sổ và khu bếp riêng.',$now) RETURNING id
@@ -76,30 +82,35 @@ public static class Sprint2DemoSeeder
         var hiddenListing = Listing(hiddenRoom, "Tin tạm ẩn phòng A107", "TAM_AN");
         var otherRoom = Room(otherBuilding, "OTHER-01");
         var otherListing = Listing(otherRoom, "Tin của chủ nhà khác", account: otherOwner);
-        var availableRoom = Room(alpha, "A108-GUI-YEU-CAU", capacity: 2, rent: 2500000);
-        var availableListing = Listing(availableRoom, "Phòng A108 — gửi yêu cầu mới, tối đa 2 người");
-        // Exactly 500 listings, including draft/hidden/expired and other-owner fixtures.
-        for (var i = 1; i <= 492; i++)
+        var availableRoom = Room(alpha, "A108-GUI-YEU-CAU", capacity: 3, rent: 2500000);
+        var availableListing = Listing(availableRoom, "Phòng A108 — sức chứa 3 người, thử gửi yêu cầu");
+        // 35 public listings: three pages at 12 items/page, with 11 on the last page.
+        // Together with six excluded listings this keeps the acceptance fixture small and auditable.
+        for (var i = 1; i <= 33; i++)
         {
-            var room = Room(i % 2 == 0 ? alpha : beta, $"PERF-{i:000}", 1 + i % 4, rent: 1500000 + i % 12 * 250000, capacity: 1 + i % 4);
+            var building = (i % 4) switch { 0 => alpha, 1 => beta, 2 => otherBuilding, _ => otherBuilding2 };
+            var room = Room(building, $"SEARCH-{i:000}", 1 + i % 4, rent: 1500000 + i % 12 * 250000, capacity: 1 + i % 4);
             Run("UPDATE phong_tro SET dien_tich=$area WHERE id=$room", ("$area", 15 + i % 20), ("$room", room));
-            var id = Listing(room, $"PERF-{i:000} — phòng mẫu", i % 10 == 0 ? "TAM_AN" : "DANG_HIEN_THI");
+            var state = i == 4 ? "TAM_AN" : i == 5 ? "NHAP" : "DANG_HIEN_THI";
+            var publisher = building == alpha || building == beta ? owner : otherOwner;
+            var id = Listing(room, $"SEARCH-{i:000} — phòng mẫu", state, account: publisher);
             Run("UPDATE tin_dang SET ngay_dang=$date WHERE id=$id", ("$date", now.AddMinutes(-i).ToString("O")), ("$id", id));
         }
         int Service(string code, string name) => Id("INSERT INTO dich_vu(ma_dich_vu,ten_dich_vu,dang_hoat_dong) VALUES($code,$name,1) RETURNING id", ("$code", code), ("$name", name));
         var electricity = Service("DIEN", "Điện");
         var water = Service("NUOC", "Nước");
+        var trash = Service("RAC", "Rác");
         var internet = Service("INTERNET", "Internet");
         var parking = Service("GUI_XE", "Gửi xe");
         var catalogs = new Dictionary<(int, int), int>();
-        foreach (var building in new[] { alpha, beta })
+        foreach (var building in new[] { alpha })
         {
-            foreach (var service in new[] { electricity, water, internet, parking })
+            foreach (var service in new[] { electricity, water, trash, parking, internet })
             {
-                catalogs[(building, service)] = Id("INSERT INTO dich_vu_toa_nha(toa_nha_id,dich_vu_id,ap_dung_mac_dinh) VALUES($building,$service,$default) RETURNING id", ("$building", building), ("$service", service), ("$default", service == parking ? 0 : 1));
-                var method = service == electricity || service == water && building == beta ? "THEO_CHI_SO" : service == water ? "THEO_NGUOI" : "CO_DINH";
-                var unit = service == electricity ? "kWh" : service == water ? (building == alpha ? "người/tháng" : "m³") : "phòng/tháng";
-                var rate = service == electricity ? 4000 : service == water ? (building == alpha ? 80000 : 18000) : service == internet ? 150000 : 100000;
+                catalogs[(building, service)] = Id("INSERT INTO dich_vu_toa_nha(toa_nha_id,dich_vu_id,ap_dung_mac_dinh) VALUES($building,$service,1) RETURNING id", ("$building", building), ("$service", service));
+                var method = service == electricity ? "THEO_CHI_SO" : service == water ? "THEO_NGUOI" : "CO_DINH";
+                var unit = service == electricity ? "kWh" : service == water ? "người/tháng" : "phòng/tháng";
+                var rate = service == electricity ? 4000 : service == water ? 80000 : service == trash ? 50000 : service == internet ? 150000 : 100000;
                 Run("""
                     INSERT INTO cau_hinh_dich_vu(toa_nha_id,dich_vu_id,cach_tinh,don_vi_tinh,don_gia,tu_ngay,dang_ap_dung,da_chot_gia,nguoi_tao_id,ngay_tao)
                     VALUES($building,$service,$method,$unit,$rate,$start,1,1,$owner,$now)
@@ -109,13 +120,16 @@ public static class Sprint2DemoSeeder
         }
         foreach (var room in new[] { a101, a102, b202, blank, upload, invoiceRoom, invoiceRoomB, draftRoom, expiredRoom, hiddenRoom, availableRoom })
         {
-            var building = room == b202 ? beta : alpha;
-            foreach (var service in new[] { electricity, water, internet })
-                Run("INSERT INTO dich_vu_phong(phong_id,dich_vu_toa_nha_id) VALUES($room,$catalog)", ("$room", room), ("$catalog", catalogs[(building, service)]));
+            if (room == b202) continue; // A2 deliberately has no service configuration for S2-10.
+            foreach (var service in new[] { electricity, water, trash, internet })
+                Run("INSERT INTO dich_vu_phong(phong_id,dich_vu_toa_nha_id) VALUES($room,$catalog)", ("$room", room), ("$catalog", catalogs[(alpha, service)]));
             if (room == a101 || room == invoiceRoom)
-                Run("INSERT INTO dich_vu_phong(phong_id,dich_vu_toa_nha_id,don_gia_rieng) VALUES($room,$catalog,70000)", ("$room", room), ("$catalog", catalogs[(building, parking)]));
+                Run("INSERT INTO dich_vu_phong(phong_id,dich_vu_toa_nha_id,don_gia_rieng) VALUES($room,$catalog,70000)", ("$room", room), ("$catalog", catalogs[(alpha, parking)]));
         }
         Run("UPDATE dich_vu_phong SET don_gia_rieng=4200 WHERE phong_id=$room AND dich_vu_toa_nha_id=$catalog", ("$room", a101), ("$catalog", catalogs[(alpha, electricity)]));
+        Run("UPDATE cau_hinh_dich_vu SET den_ngay=$end WHERE toa_nha_id=$building AND dich_vu_id=$service", ("$end", month.AddMonths(1).AddDays(-1).ToString("yyyy-MM-dd")), ("$building", alpha), ("$service", water));
+        Run("INSERT INTO cau_hinh_dich_vu(toa_nha_id,dich_vu_id,cach_tinh,don_vi_tinh,don_gia,tu_ngay,dang_ap_dung,da_chot_gia,nguoi_tao_id,ngay_tao) VALUES($building,$service,'THEO_NGUOI','người/tháng',90000,$from,1,1,$owner,$now)",
+            ("$building", alpha), ("$service", water), ("$from", month.AddMonths(1).ToString("yyyy-MM-dd")), ("$owner", owner), ("$now", stamp));
         var prefix = $"YC-{today:yyyyMM}-";
         for (var i = 1; i <= 4; i++) Run("UPDATE yeu_cau_thue SET ma_yeu_cau=$code WHERE id=$id", ("$code", prefix + i.ToString("0000")), ("$id", i));
         for (var i = 5; i <= 7; i++)
@@ -135,7 +149,13 @@ public static class Sprint2DemoSeeder
                 Run("UPDATE tin_dang SET trang_thai='DA_CHO_THUE' WHERE id=$id", ("$id", listing));
             }
         }
-        Run("INSERT INTO rental_request_counter(thang,so_cuoi) VALUES($month,7)", ("$month", today.ToString("yyyyMM")));
+        Run("""
+            INSERT INTO yeu_cau_thue(ma_yeu_cau,tin_dang_id,khach_thue_id,loai_yeu_cau,ngay_mong_muon,so_nguoi_du_kien,
+            loi_nhan,trang_thai,ngay_tao)
+            VALUES($code,$listing,$tenant,'XEM_PHONG',$desired,2,'Yêu cầu mở sẵn để thử gửi trùng','MOI',$now)
+            """, ("$code", prefix + "0008"), ("$listing", availableListing), ("$tenant", tenant2),
+            ("$desired", today.AddDays(2).ToString("yyyy-MM-dd")), ("$now", stamp));
+        Run("INSERT INTO rental_request_counter(thang,so_cuoi) VALUES($month,8)", ("$month", today.ToString("yyyyMM")));
         // Add optional invoice schema using the same isolated fixture path as tests.
         if (Id("SELECT COUNT(*) FROM sqlite_master WHERE name='hop_dong'") == 0)
         {
@@ -168,26 +188,24 @@ public static class Sprint2DemoSeeder
         }
         var samples = Path.Combine(folder, "sample-images");
         Directory.CreateDirectory(samples);
-        var imageStore = new RoomImageStore(folder);
         for (var i = 1; i <= 10; i++)
         {
             using var image = new Image<Rgba32>(1200, 800, new Rgba32((byte)(25 + i * 20), (byte)(220 - i * 15), (byte)(60 + i * 12)));
             var path = Path.Combine(samples, $"room-{i:00}.png");
             await image.SaveAsPngAsync(path);
-            if (i <= 3)
-            {
-                using var stream = File.OpenRead(path);
-                var form = new FormFile(stream, 0, stream.Length, "files", Path.GetFileName(path));
-                var prepared = await imageStore.PrepareAsync(form);
-                var stored = await imageStore.SaveAsync(a101, prepared);
-                Run("INSERT INTO anh_phong(phong_id,duong_dan,duong_dan_anh_nho,thu_tu,mo_ta,ngay_tao) VALUES($room,$original,$thumb,$order,$description,$now)", ("$room", a101), ("$original", stored.OriginalPath), ("$thumb", stored.ThumbnailPath), ("$order", i), ("$description", $"Ảnh mẫu màu {i}"), ("$now", stamp));
-            }
             if (i == 1) await image.SaveAsJpegAsync(Path.Combine(samples, "room-jpg.jpg"));
+            if (i == 9) File.Copy(path, Path.Combine(samples, "09-ninth-image.png"));
         }
-        var oversized = new byte[5 * 1024 * 1024 + 1];
-        await File.WriteAllBytesAsync(Path.Combine(samples, "over-5mb.png"), oversized);
+        File.Copy(Path.Combine(samples, "room-01.png"), Path.Combine(samples, "valid-small.png"));
+        File.Copy(Path.Combine(samples, "room-jpg.jpg"), Path.Combine(samples, "valid-small.jpg"));
+        await using (var oversized = new FileStream(Path.Combine(samples, "over-5mb.png"), FileMode.CreateNew, FileAccess.Write))
+        {
+            var valid = await File.ReadAllBytesAsync(Path.Combine(samples, "room-01.png"));
+            await oversized.WriteAsync(valid);
+            oversized.SetLength(5L * 1024 * 1024 + 1);
+        }
         await File.WriteAllTextAsync(Path.Combine(samples, "not-an-image.txt"), "Tệp mẫu không phải ảnh.");
-        await File.WriteAllTextAsync(Path.Combine(samples, "fake-image.png"), "Nội dung giả, phải bị từ chối.");
+        await File.WriteAllTextAsync(Path.Combine(samples, "fake-content.jpg"), "Nội dung giả, phải bị từ chối dù có đuôi JPG.");
         if (Run("PRAGMA integrity_check")?.ToString() != "ok") throw new InvalidOperationException("Demo integrity check failed.");
         using (var check = connection.CreateCommand())
         {
@@ -199,10 +217,14 @@ public static class Sprint2DemoSeeder
         {
             createdAt = now, database, directory = folder, url, password,
             roomImagesPath = Path.Combine(folder, "uploads", "rooms"), sampleImages = samples,
-            accounts = new[] { new { email = RequestDemoSeeder.OwnerEmail, role = "CHU_NHA" },
-                new { email = RequestDemoSeeder.TenantEmail, role = "KHACH_THUE" }, new { email = "conflict.demo@demo.local", role = "KHACH_THUE" },
-                new { email = "admin.demo@demo.local", role = "ADMIN" }, new { email = "other.owner@demo.local", role = "CHU_NHA" } },
-            buildings = new { alpha, beta, otherBuilding },
+            accounts = new[] { new { email = "admin.demo@demo.local", role = "ADMIN", label = "ADMIN" },
+                new { email = RequestDemoSeeder.OwnerEmail, role = "CHU_NHA", label = "CHU_NHA A" },
+                new { email = "owner.b.demo@demo.local", role = "CHU_NHA", label = "CHU_NHA B" },
+                new { email = "manager.demo@demo.local", role = "QUAN_LY", label = "QUAN_LY" },
+                new { email = RequestDemoSeeder.TenantEmail, role = "KHACH_THUE", label = "KHACH_THUE 1" },
+                new { email = RequestDemoSeeder.Tenant2Email, role = "KHACH_THUE", label = "KHACH_THUE 2" },
+                new { email = "tenant3.demo@demo.local", role = "KHACH_THUE", label = "KHACH_THUE 3" } },
+            buildings = new { a1 = alpha, a2 = beta, b1 = otherBuilding, b2 = otherBuilding2 },
             rooms = new { a101, a102, b202, blank, upload, invoiceRoom, invoiceRoomB, draftRoom, expiredRoom, hiddenRoom, availableRoom },
             listings = new { draftListing, expiredListing, hiddenListing, otherListing, availableListing },
             requests = new { instant = 1, confirm = 2, clash = 3, reject = 4, rejected = 5, cancelled = 6, approved = 7 },
@@ -211,9 +233,34 @@ public static class Sprint2DemoSeeder
                 .AddHours(7).ToString("dd/MM/yyyy HH:mm"),
             currentPeriod = month.ToString("MM/yyyy"), nextPeriod = month.AddMonths(1).ToString("MM/yyyy"),
             invoicePeriod = month.AddMonths(-1).ToString("MM/yyyy"), invoices,
-            listingCount = Id("SELECT COUNT(*) FROM tin_dang"), integrity = "ok", foreignKeys = "ok"
+            listingCount = Id("SELECT COUNT(*) FROM tin_dang"), publicListingCount = 35, excludedListingCount = 6,
+            imageUploadRoom = a101, emptyImageRoom = upload, duplicateRequestListing = availableListing,
+            integrity = "ok", foreignKeys = "ok"
         };
         await File.WriteAllTextAsync(Path.Combine(folder, "access.json"), JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
+        var accountRows = string.Join(Environment.NewLine, manifest.accounts.Select(x => $"| {x.label} | `{x.email}` | `{password}` | {x.role} |"));
+        await File.WriteAllTextAsync(Path.Combine(folder, "report.md"), $"""
+            # Báo cáo dữ liệu mẫu Sprint 2
+
+            Database tách biệt: `{database}`
+            URL: `{url}`
+            Thư mục ảnh: `{Path.Combine(folder, "uploads", "rooms")}`
+
+            | Tài khoản | Email | Mật khẩu chung | Role |
+            | --- | --- | --- | --- |
+            {accountRows}
+
+            - S2-01: A1 là tòa `{alpha}`; phòng tầng trệt `{a101}`, phòng tầng trên `{a102}`, hóa đơn cũ `{invoices[0]}`.
+            - S2-02: phòng upload `{a101}` (được nạp 5 ảnh qua HTTP sau khi seed); phòng không ảnh `{upload}`; file thử ở `{samples}`.
+            - S2-03: phòng tạo tin `{blank}`, phòng đang thuê `{invoiceRoom}`; tin nháp `{draftListing}`, hết hạn `{expiredListing}`, tạm ẩn `{hiddenListing}`.
+            - S2-04: 35 tin công khai hợp lệ ở 4 quận/huyện, 6 tin bị loại; 12 tin/trang cho kết quả 12/12/11.
+            - S2-05: tin chi tiết `1`, có giá riêng điện, các khoản cố định và tiền cọc.
+            - S2-06: phòng `{availableRoom}` sức chứa 3; tin `{availableListing}` đã có yêu cầu mở của KHACH_THUE 2, KHACH_THUE 1 chưa có yêu cầu trên tin này.
+            - S2-07/08/09: yêu cầu 1–8 đủ 5 trạng thái; yêu cầu 2 và 3 cùng phòng, lịch cách 15 phút.
+            - S2-10: A1 có điện theo chỉ số, nước theo người và cấu hình nước chờ kỳ `{month.AddMonths(1):MM/yyyy}`; A2 `{beta}` chưa cấu hình.
+
+            File này và `access.json` nằm dưới `data/`, đã được Git ignore. Không chia sẻ mật khẩu này cho môi trường thật.
+            """);
         Console.WriteLine("Sprint 2 demo ready: " + folder);
         Console.WriteLine("Accounts and password: " + Path.Combine(folder, "access.json"));
     }

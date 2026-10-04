@@ -31,7 +31,7 @@ public sealed partial class PermissionTests : IDisposable
     private readonly string[][] levels = [
         ["READ","READ","NONE","FULL"],
         ["READ","FULL","READ","READ"],
-        ["READ","FULL","READ","READ"],
+        ["READ","FULL","WRITE","READ"],
         ["WRITE","FULL","READ","READ"],
         ["READ","FULL","READ","READ"],
         ["READ","FULL","WRITE","READ"],
@@ -154,6 +154,22 @@ public sealed partial class PermissionTests : IDisposable
         Execute("UPDATE role_permission SET AccessLevel='NONE' WHERE RoleCode='CHU_NHA' AND ModuleCode='TAI_CHINH'");
         PermissionSchemaInitializer.Initialize(database,Path.Combine(appPath,"Data","permissions.seed.json"));
         Assert.Equal("NONE",Scalar("SELECT AccessLevel FROM role_permission WHERE RoleCode='CHU_NHA' AND ModuleCode='TAI_CHINH'"));
+    }
+
+    [Fact]
+    public void UpdateV13_ChoQuanLyQuyenDangTinNhungKhongMoLaiQuyenDaThuHoi()
+    {
+        Execute("DELETE FROM app_schema_version WHERE version=13");
+        Execute("UPDATE role_permission SET AccessLevel='READ' WHERE RoleCode='QUAN_LY' AND ModuleCode='TIN_DANG'");
+
+        DatabaseUpdates.Update(database, Path.Combine(appPath, "Data", "permissions.seed.json"));
+
+        Assert.Equal(13L, Scalar("SELECT MAX(version) FROM app_schema_version"));
+        Assert.Equal("WRITE", Scalar("SELECT AccessLevel FROM role_permission WHERE RoleCode='QUAN_LY' AND ModuleCode='TIN_DANG'"));
+
+        Execute("UPDATE role_permission SET AccessLevel='NONE' WHERE RoleCode='QUAN_LY' AND ModuleCode='TIN_DANG'");
+        DatabaseUpdates.Update(database, Path.Combine(appPath, "Data", "permissions.seed.json"));
+        Assert.Equal("NONE", Scalar("SELECT AccessLevel FROM role_permission WHERE RoleCode='QUAN_LY' AND ModuleCode='TIN_DANG'"));
     }
 
     [Fact]

@@ -16,6 +16,61 @@ public sealed partial class PermissionTests
         Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
 
     [Fact]
+    public async Task QuanLy_ChiDangVaGoTinCuaToaDuocPhanCong()
+    {
+        var assignedListingId = CreatePublicListing("TRONG", "TAM_AN", includePhoto: false);
+        var (assignedRoomId, assignedBuildingId) = GetListingRoomAndBuilding(assignedListingId);
+        var otherListingId = CreatePublicListing("TRONG", "TAM_AN", includePhoto: false);
+        var (otherRoomId, _) = GetListingRoomAndBuilding(otherListingId);
+        Execute("UPDATE toa_nha SET quan_ly_id=$manager WHERE id=$building",
+            ("$manager", accounts["QUAN_LY"]), ("$building", assignedBuildingId));
+
+        using var manager = await Login("QUAN_LY");
+        var manageHtml = WebUtility.HtmlDecode(await manager.GetStringAsync("/TinDang/QuanLy"));
+        Assert.Contains("href=\"/TinDang/QuanLy\"", manageHtml);
+        Assert.Contains($"phongId={assignedRoomId}", manageHtml);
+        Assert.DoesNotContain($"phongId={otherRoomId}", manageHtml);
+
+        var createHtml = await manager.GetStringAsync($"/TinDang/Tao?phongId={assignedRoomId}");
+        var publish = await manager.PostAsync("/TinDang/Tao", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = AntiForgery(createHtml),
+            ["PhongId"] = assignedRoomId.ToString(),
+            ["TieuDe"] = "Tin do quản lý đăng",
+            ["NoiDung"] = "Đúng phạm vi tòa được phân công"
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, publish.StatusCode);
+        Assert.Equal("DANG_HIEN_THI", Scalar("SELECT trang_thai FROM tin_dang WHERE id=$id", ("$id", assignedListingId)));
+        Assert.Equal((long)accounts["QUAN_LY"], Scalar("SELECT nguoi_dang_id FROM tin_dang WHERE id=$id", ("$id", assignedListingId)));
+
+        Assert.Equal(HttpStatusCode.NotFound, (await manager.GetAsync($"/TinDang/Tao?phongId={otherRoomId}")).StatusCode);
+        manageHtml = await manager.GetStringAsync("/TinDang/QuanLy");
+        var removeOther = await manager.PostAsync($"/TinDang/Go/{otherListingId}", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = AntiForgery(manageHtml)
+        }));
+        Assert.Equal(HttpStatusCode.NotFound, removeOther.StatusCode);
+        Assert.Equal("TAM_AN", Scalar("SELECT trang_thai FROM tin_dang WHERE id=$id", ("$id", otherListingId)));
+
+        var removeAssigned = await manager.PostAsync($"/TinDang/Go/{assignedListingId}", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = AntiForgery(manageHtml)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, removeAssigned.StatusCode);
+        Assert.Equal("TAM_AN", Scalar("SELECT trang_thai FROM tin_dang WHERE id=$id", ("$id", assignedListingId)));
+    }
+
+    [Fact]
+    public async Task KhachThueVaAdmin_KhongDuocMoQuanLyTinDang()
+    {
+        using var tenant = await Login("KHACH_THUE");
+        using var admin = await Login("ADMIN");
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await tenant.GetAsync("/TinDang/QuanLy")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await admin.GetAsync("/TinDang/QuanLy")).StatusCode);
+    }
+
+    [Fact]
     public async Task ChuNha_MoLaiBanNhapGiuNguyenNoiDungDaLuu()
     {
         var listingId = CreatePublicListing("TRONG", "NHAP", includePhoto: false);
