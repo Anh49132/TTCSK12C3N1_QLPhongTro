@@ -10,6 +10,8 @@
 
 ## Chạy dự án
 
+**Demo Sprint 2 đầy đủ:** xem [hướng dẫn chạy, tài khoản/mật khẩu và từng tiêu chí S2-01…S2-10](docs/huong-dan-test-sprint2.md). Tạo dữ liệu bằng `verification/New-Sprint2Demo.ps1`, chạy bằng `verification/Start-Sprint2Demo.ps1`; dùng database mới riêng với 500 tin, ảnh, dịch vụ, hợp đồng/hóa đơn mẫu và các trạng thái yêu cầu.
+
 Mở Terminal tại thư mục chứa README này. Dừng đúng phiên app bằng Ctrl+C trước khi cập nhật database.
 
 **Trước lần pull nhận thay đổi S2-01 bỏ theo dõi database:** sao lưu database local và các file phụ SQLite ra ngoài repository (dừng app trước). Git có thể xóa bản database trước đây được theo dõi khi pull. Sau pull, khôi phục bản của chính bạn nếu file bị mất; không ghi đè file đang tồn tại.

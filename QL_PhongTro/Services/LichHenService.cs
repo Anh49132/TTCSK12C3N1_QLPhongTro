@@ -400,6 +400,13 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
                 throw new LichHenConflictException("Yêu cầu hoặc phòng vừa được cập nhật bởi người khác. Vui lòng tải lại trang.");
         }
 
+        using (var listingUpdate = tx.Connection!.CreateCommand())
+        {
+            listingUpdate.Transaction = tx;
+            listingUpdate.CommandText = "UPDATE tin_dang SET trang_thai='DA_CHO_THUE' WHERE phong_id=$room AND trang_thai='DANG_HIEN_THI'";
+            listingUpdate.Parameters.AddWithValue("$room", yeuCau.PhongId);
+            await listingUpdate.ExecuteNonQueryAsync(ct);
+        }
         var (ten, vaiTro) = await DocNguoiThucHienAsync(tx, accountId, ct);
         await GhiLichSuAsync(tx, yeuCauId, yeuCau.TrangThai, LichHenTrangThai.DaDuyet,
             HanhDongYeuCau.DuyetThueNgay, accountId, ten, vaiTro, yeuCau.LichHen, yeuCau.LichHen, null, null, now, ct);

@@ -178,6 +178,7 @@ public class LichHenDuyetThueNgayTests : IDisposable
     {
         var id = TaoYeuCau();
         await _service.DuyetThueNgayAsync(id, _chuNhaId, default);
+        Assert.Equal("DA_CHO_THUE", Scalar("SELECT trang_thai FROM tin_dang WHERE id=$id", ("$id", _tinDangId)));
         Assert.Equal("0", Scalar("SELECT COUNT(*) FROM yeu_cau_thue_thong_bao WHERE nguoi_nhan_id=$tk", ("$tk", _chuNhaId)));
     }
 
@@ -266,6 +267,7 @@ public class LichHenDuyetThueNgayTests : IDisposable
 
         await Assert.ThrowsAnyAsync<Exception>(() => _service.DuyetThueNgayAsync(id, _chuNhaId, default));
 
+        Assert.Equal("DANG_HIEN_THI", Scalar("SELECT trang_thai FROM tin_dang WHERE id=$id", ("$id", _tinDangId)));
         Assert.Equal(LichHenTrangThai.Moi, Scalar("SELECT trang_thai FROM yeu_cau_thue WHERE id=$id", ("$id", id)));
         Assert.Equal("0", Scalar("SELECT phien_ban FROM yeu_cau_thue WHERE id=$id", ("$id", id)));
         Assert.Equal(LichHenTrangThai.PhongTrong, TrangThaiPhong());

@@ -81,7 +81,7 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
                     TieuDe = listing?.TieuDe,
                     TrangThaiTin = listing?.TrangThai,
                     NgayHetHan = listing?.NgayHetHan,
-                    DaHetHan = listing?.NgayHetHan is { } expires && expires < now
+                    DaHetHan = listing?.TrangThai == "TAM_AN" && listing.NgayHetHan is { } expires && expires < now
                 };
             }).ToList()
         });
@@ -159,6 +159,8 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
             return null;
 
         var now = DateTime.UtcNow;
+        var saved = await db.TinDangs.AsNoTracking().Where(post => post.PhongId == roomId)
+            .OrderByDescending(post => post.Id).FirstOrDefaultAsync();
         return new TaoTinDangViewModel
         {
             PhongId = source.Room.Id,
@@ -167,8 +169,8 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
             ToaNhaId = source.Building.Id,
             DienTich = source.Room.DienTich,
             GiaThue = source.Room.GiaThue,
-            TieuDe = "Cho thuê phòng " + source.Room.MaPhong,
-            NoiDung = source.Room.MoTa,
+            TieuDe = saved?.TieuDe ?? "Cho thuê phòng " + source.Room.MaPhong,
+            NoiDung = saved is null ? source.Room.MoTa : saved.NoiDung,
             TrangThaiPhong = source.Room.TrangThai,
             NgayHetHan = now.AddDays(30),
             Anh = await db.AnhPhongs.AsNoTracking()

@@ -118,10 +118,11 @@ public sealed class DichVuPhongService(AppDbContext db, DichVuService prices, IT
         var room = await PhongAsync(accountId, roomId);
         var month = DauKy(date);
         var selection = await db.DichVuPhongs.AsNoTracking().SingleOrDefaultAsync(x => x.PhongId == roomId && x.DichVuToaNha.DichVuId == serviceId);
+        if (selection is null) return null;
         if (selection is not null && await db.NgungDichVuPhongs.AnyAsync(x => x.DichVuPhongId == selection.Id && x.NgungTuKy <= month &&
             (x.ApDungLaiTuKy == null || x.ApDungLaiTuKy > month))) return null;
         var price = await prices.LayDonGiaAsync(accountId, room.ToaNhaId, serviceId, date);
-        // Preserve the pre-existing building-price path for rooms without selection history.
+        // Building prices apply only to services explicitly assigned to this room.
         return price is not null && selection?.DonGiaRieng is { } ownPrice ? price with { DonGia = ownPrice } : price;
     }
 }

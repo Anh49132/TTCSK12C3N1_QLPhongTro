@@ -46,6 +46,17 @@ var databasePath = string.IsNullOrWhiteSpace(configuredDatabasePath)
         ? configuredDatabasePath
         : Path.Combine(builder.Environment.ContentRootPath, configuredDatabasePath));
 
+if (args.Contains("--create-sprint2-demo"))
+{
+    if (!builder.Environment.IsDevelopment())
+        throw new InvalidOperationException("Sprint 2 demo is available only in Development.");
+    var output = builder.Configuration["Sprint2Demo:Directory"]
+        ?? throw new ArgumentException("Set Sprint2Demo:Directory to a new output directory.");
+    await Sprint2DemoSeeder.CreateAsync(Path.GetFullPath(output), Path.Combine(dataDir, "permissions.seed.json"),
+        builder.Configuration["Sprint2Demo:Password"] ?? "DemoSprint2@2026",
+        builder.Configuration["Sprint2Demo:Url"] ?? "http://localhost:5268");
+    return;
+}
 if (args.Contains("--initialize-database"))
 {
     LocalDatabaseInitializer.Create(databasePath, Path.Combine(dataDir, "permissions.seed.json"));

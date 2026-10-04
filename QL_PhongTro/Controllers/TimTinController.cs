@@ -63,13 +63,16 @@ public class TimTinController(AppDbContext db, TinDangExpirationService expirati
                     join toa in db.ToaNhas.AsNoTracking() on phong.ToaNhaId equals toa.Id
                     where tin.TrangThai == "DANG_HIEN_THI"
                         && tin.NgayHetHan != null && tin.NgayHetHan >= now
+                        && phong.TrangThai == "TRONG" && toa.DangHoatDong
                     select new TinTimKiem
                     {
                         Id = tin.Id, NgayDang = tin.NgayDang,
                         TieuDe = tin.TieuDe, DiaChi = toa.DiaChi,
                         QuanHuyen = toa.QuanHuyen == null ? null : toa.QuanHuyen.Trim(),
                         GiaThue = phong.GiaThue, DienTich = phong.DienTich,
-                        SoNguoiToiDa = phong.SoNguoiToiDa
+                        SoNguoiToiDa = phong.SoNguoiToiDa,
+                        AnhDaiDien = db.AnhPhongs.Where(image => image.PhongId == phong.Id)
+                            .OrderBy(image => image.ThuTu).Select(image => image.DuongDanAnhNho).FirstOrDefault()
                     };
         if (!string.IsNullOrEmpty(model.QuanHuyen))
             query = query.Where(t => t.QuanHuyen == model.QuanHuyen);

@@ -90,10 +90,8 @@ public sealed partial class DichVuService
             if (current is { DangApDung: false } || (current is not null && !current.DichVu.DangHoatDong) ||
                 pending is { DangApDung: false } || (pending is not null && !pending.DichVu.DangHoatDong))
                 throw new InvalidOperationException("Dịch vụ đang ngừng áp dụng. Cần kiểm tra lịch dịch vụ trước khi lưu.");
-            var existing = pending ?? current;
-            if (existing is not null && value.CachTinh != existing.CachTinh && await db.DichVuPhongs.AnyAsync(x =>
-                x.DichVuToaNha.ToaNhaId == input.ToaNhaId && x.DichVuToaNha.DichVuId == existing.DichVuId && x.DonGiaRieng != null))
-                throw new InvalidOperationException("Có giá riêng cấp phòng. Chưa chốt cách xử lý khi đổi cách tính cấp tòa.");
+            // Room-specific rates remain authoritative. The next-period method and unit
+            // apply to them too; the form explains this before the owner saves.
             if (pending is not null && await DaThamChieuAsync(pending.Id))
                 throw new InvalidOperationException("Cấu hình chờ đã được chứng từ hoặc hợp đồng tham chiếu. Chưa chốt nghiệp vụ sửa cấu hình này.");
             var row = pending;

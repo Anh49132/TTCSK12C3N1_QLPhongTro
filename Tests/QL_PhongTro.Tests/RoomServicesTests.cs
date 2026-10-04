@@ -82,6 +82,18 @@ public sealed partial class RoomServicesTests : IDisposable
     }
 
     [Fact]
+    public async Task UnassignedServiceHasNoInvoicePriceEvenWhenBuildingHasDefaultPrice()
+    {
+        using var db = Context();
+        var parking = await AddService(db, "Parking", 50000, false);
+        var room = await AddRoom(db, "UPSTAIRS");
+        var serviceId = (await db.DichVuToaNhas.FindAsync(parking))!.DichVuId;
+        Assert.Null(await Rooms(db).LayGiaHoaDonAsync(1, room.Id, serviceId, DichVuService.HomNay()));
+        await Rooms(db).DatDichVuAsync(1, room.Id, parking, true, 60000);
+        Assert.Equal(60000, (await Rooms(db).LayGiaHoaDonAsync(1, room.Id, serviceId, DichVuService.HomNay()))!.DonGia);
+    }
+
+    [Fact]
     public async Task NewRoomsSnapshotDefaultsAndSelectionsAreIndependent()
     {
         using var db = Context();

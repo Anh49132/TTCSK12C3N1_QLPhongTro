@@ -125,7 +125,7 @@ def main():
                           else (r['price'], r['id']) if mode == 'gia-giam' else (r['date'], r['id']),
                           reverse=mode != 'gia-tang')
             number = max(1, min(int(filters.get('Trang', 1)), max(1, pages)))
-            actual = re.findall(r'<h2[^>]*>(PERF-\d+)</h2>', page)
+            actual = re.findall(r'<h2[^>]*>(?:<a[^>]*>)?(PERF-\d+)(?:</a>)?</h2>', page)
             assert actual == [r['title'] for r in expected[(number - 1) * 12:number * 12]], (filters, actual)
             assert f'{total} tin phù hợp · {pages} trang' in page
             assert ('Bạn hãy nới rộng khoảng giá thuê' in page) == (total == 0)

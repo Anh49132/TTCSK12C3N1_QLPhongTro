@@ -121,6 +121,32 @@ public sealed partial class RoomServicesTests
     }
 
     [Theory]
+    [InlineData(CachTinhDichVu.TheoNguoi, 4200L, 90000L)]
+    public async Task ChangingUtilityMethodPreservesRoomRateAndCurrentPeriod(string method, long ownRate, long buildingRate)
+    {
+        using var db = Context();
+        await SeedUtilitiesAsync(db, priced: true);
+        var clock = new MockTimeProvider { UtcNow = new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc) };
+        var service = new DichVuService(db, time: clock);
+        var room = await AddRoom(db, "PRIVATE-RATE");
+        var catalog = await db.DichVuToaNhas.SingleAsync(x => x.DichVu.MaDichVu == "DIEN");
+        var rooms = new DichVuPhongService(db, service, clock);
+        await rooms.DatDichVuAsync(1, room.Id, catalog.Id, true, ownRate);
+        var model = await service.LayCauHinhDienNuocAsync(1, 1);
+        model.Dien.CachTinh = method;
+        model.Dien.TienMotNguoi = buildingRate;
+        await service.LuuCauHinhDienNuocAsync(1, model);
+        var october = await rooms.LayGiaHoaDonAsync(1, room.Id, catalog.DichVuId, new(2026, 10, 31));
+        var november = await rooms.LayGiaHoaDonAsync(1, room.Id, catalog.DichVuId, new(2026, 11, 1));
+        Assert.Equal(CachTinhDichVu.TheoChiSo, october!.CachTinh);
+        Assert.Equal(ownRate, october.DonGia);
+        Assert.Equal(method, november!.CachTinh);
+        Assert.Equal("người/tháng", november.DonViTinh);
+        Assert.Equal(ownRate, november.DonGia);
+        Assert.Equal(buildingRate, (await service.LayDonGiaAsync(1, 1, catalog.DichVuId, new(2026, 11, 1)))!.DonGia);
+    }
+
+    [Theory]
     [InlineData(null)]
     [InlineData(0L)]
     [InlineData(-1L)]

@@ -31,6 +31,7 @@ public class TimTinViewModel
 
 public class TinTimKiem
 {
+    public string? AnhDaiDien { get; set; }
     public int Id { get; set; }
     public DateTime? NgayDang { get; set; }
     public string TieuDe { get; set; } = "";

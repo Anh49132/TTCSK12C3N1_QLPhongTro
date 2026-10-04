@@ -41,6 +41,7 @@ obj/
 # Tests output
 **/TestResults/
 /data/test-results/
+/verification/sprint2-audit/
 
 
 # Password reset schema backups

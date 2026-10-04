@@ -102,8 +102,12 @@ else if (ViewData.ModelState.IsValid)
         @foreach (var tin in Model.TinDangs)
         {
             <div class="col-12 col-md-6 col-xl-4">
-                <article class="card h-100"><div class="card-body">
-                    <h2 class="h5">@tin.TieuDe</h2>
+                <article class="card h-100">
+                    <a asp-controller="TinDang" asp-action="ChiTiet" asp-route-id="@tin.Id">
+                        <img src="@(tin.AnhDaiDien ?? Url.Content("~/room-placeholder.svg"))" alt="Ảnh đại diện: @tin.TieuDe" loading="lazy" class="card-img-top" style="height:200px;object-fit:cover" />
+                    </a>
+                    <div class="card-body">
+                    <h2 class="h5"><a asp-controller="TinDang" asp-action="ChiTiet" asp-route-id="@tin.Id">@tin.TieuDe</a></h2>
                     <p>@tin.DiaChi · @tin.QuanHuyen</p>
                     <p>@tin.GiaThue.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) đ/tháng · @tin.DienTich m²</p>
                     <p>Tối đa @tin.SoNguoiToiDa người</p>

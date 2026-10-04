@@ -11,6 +11,39 @@ namespace QL_PhongTro.Tests;
 public sealed partial class PermissionTests
 {
     [Fact]
+    public async Task SearchLinksToDetailsUsesThumbnailAndExcludesOccupiedRooms()
+    {
+        var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: true);
+        using var guest = Client();
+        var html = await guest.GetStringAsync("/TimTin");
+        Assert.Contains($"href=\"/TinDang/ChiTiet/{listingId}\"", html);
+        Assert.Contains("/images/room-a-small.jpg", html);
+        var (roomId, _) = GetListingRoomAndBuilding(listingId);
+        Execute("UPDATE phong_tro SET trang_thai='DA_DAT_COC' WHERE id=$id", ("$id", roomId));
+        html = await guest.GetStringAsync("/TimTin");
+        Assert.DoesNotContain($"href=\"/TinDang/ChiTiet/{listingId}\"", html);
+    }
+
+    [Fact]
+    public async Task UnassignedParkingIsExcludedFromPublicListingAndTotal()
+    {
+        var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+        var (roomId, buildingId) = GetListingRoomAndBuilding(listingId);
+        var parking = CreateService(buildingId, "PARKING_UNASSIGNED", "Gửi xe tầng trệt");
+        AddServicePrice(buildingId, parking, accounts["CHU_NHA"], CachTinhDichVu.CoDinh, "phòng/tháng", 100000);
+        using var guest = Client();
+        using var response = await guest.GetAsync($"/api/tin-dang/{listingId}");
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Empty(json.RootElement.GetProperty("khoanCoDinh").EnumerateArray());
+        Assert.Equal(2500000m, json.RootElement.GetProperty("tongChiPhiThangDau").GetDecimal());
+        AddRoomSelection(buildingId, roomId, parking, 75000);
+        using var assignedResponse = await guest.GetAsync($"/api/tin-dang/{listingId}");
+        using var assigned = JsonDocument.Parse(await assignedResponse.Content.ReadAsStringAsync());
+        Assert.Single(assigned.RootElement.GetProperty("khoanCoDinh").EnumerateArray());
+        Assert.Equal(2575000m, assigned.RootElement.GetProperty("tongChiPhiThangDau").GetDecimal());
+    }
+
+    [Fact]
     public async Task AnonymousGuestCanReadListingDetailsAndPhotos()
     {
         var listingId = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: true);
@@ -66,6 +99,8 @@ public sealed partial class PermissionTests
         AddServicePrice(buildingId, garbage, ownerId, CachTinhDichVu.TheoNguoi, "người/tháng", 20000);
         AddServicePrice(buildingId, parking, ownerId, CachTinhDichVu.CoDinh, "phòng/tháng", 100000);
         AddServicePrice(buildingId, internet, ownerId, CachTinhDichVu.CoDinh, "phòng/tháng", 150000);
+        foreach (var service in new[] { electricity, water, garbage, parking, internet })
+            AddRoomSelection(buildingId, roomId, service, null);
 
         using var guest = Client();
         var html = WebUtility.HtmlDecode(await guest.GetStringAsync($"/TinDang/ChiTiet/{listingId}"));
@@ -148,6 +183,7 @@ public sealed partial class PermissionTests
         var (roomId, buildingId) = GetListingRoomAndBuilding(listingId);
         var largeFee = CreateService(buildingId, "LARGE", "Phí lớn");
         AddServicePrice(buildingId, largeFee, accounts["CHU_NHA"], CachTinhDichVu.CoDinh, "phòng/tháng", long.MaxValue);
+        AddRoomSelection(buildingId, roomId, largeFee, null);
         using var guest = Client();
 
         using var response = await guest.GetAsync($"/api/tin-dang/{listingId}");
@@ -306,11 +342,11 @@ public sealed partial class PermissionTests
             ("$owner", ownerId), ("$created", DateTime.UtcNow.ToString("O")));
     }
 
-    private void AddRoomSelection(int buildingId, int roomId, int serviceId, long roomPrice)
+    private void AddRoomSelection(int buildingId, int roomId, int serviceId, long? roomPrice)
     {
         var catalogId = Convert.ToInt32(Scalar("SELECT id FROM dich_vu_toa_nha WHERE toa_nha_id=$building AND dich_vu_id=$service",
             ("$building", buildingId), ("$service", serviceId)));
         Execute("INSERT INTO dich_vu_phong(phong_id,dich_vu_toa_nha_id,don_gia_rieng) VALUES($room,$catalog,$price)",
-            ("$room", roomId), ("$catalog", catalogId), ("$price", roomPrice));
+            ("$room", roomId), ("$catalog", catalogId), ("$price", (object?)roomPrice ?? DBNull.Value));
     }
 }

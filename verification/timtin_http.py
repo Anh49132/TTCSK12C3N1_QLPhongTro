@@ -160,7 +160,7 @@ def main():
         ]
         for filters, expected in cases:
             page = request(filters)
-            actual = set(re.findall(r'<h2[^>]*>TIN-([^<]+)</h2>', page))
+            actual = set(re.findall(r'<h2[^>]*>(?:<a[^>]*>)?TIN-([^<]+)(?:</a>)?</h2>', page))
             assert actual == expected, (filters, actual, expected)
             assert ('Bạn hãy nới rộng khoảng giá thuê' in page) == (not expected)
             for field, value in filters.items():
@@ -182,7 +182,7 @@ def main():
         ]
         for filters, message in errors:
             page = request(filters)
-            assert message in page and not re.search(r'<h2[^>]*>TIN-', page), (filters, 'validation failed')
+            assert message in page and not re.search(r'<h2[^>]*>(?:<a[^>]*>)?TIN-', page), (filters, 'validation failed')
         checks.append(f'HTTP: {len(cases)} valid/combined/boundary/blank cases and {len(errors)} invalid cases; selections retained; hidden/expired/draft/rented/NULL expiry excluded')
         if args.task3:
             listings = []
@@ -202,7 +202,7 @@ def main():
                     listings.append((f'P{i:02d}', price, date or '', c.execute('SELECT last_insert_rowid()').fetchone()[0]))
 
             def titles(page):
-                return re.findall(r'<h2[^>]*>TIN-([^<]+)</h2>', page)
+                return re.findall(r'<h2[^>]*>(?:<a[^>]*>)?TIN-([^<]+)(?:</a>)?</h2>', page)
 
             tested = 0
             for mode in ('moi-nhat', 'gia-tang', 'gia-giam'):
@@ -281,7 +281,7 @@ def main():
             ]
             for filters, minimum, maximum, expected in suggestion_cases:
                 page = request(filters)
-                assert not re.findall(r'<h2[^>]*>TIN-', page)
+                assert not re.findall(r'<h2[^>]*>(?:<a[^>]*>)?TIN-', page)
                 assert 'Không có tin phù hợp.' in page and 'Khoảng giá đề xuất:' in page
                 match = re.search(r'<a(?=[^>]*id="tim-tin-price-suggestion")(?=[^>]*href="([^"]+)")[^>]*>', page)
                 assert match, 'Missing apply link'
@@ -294,7 +294,7 @@ def main():
                 assert query['Trang'] == ['1']
                 with urlopen(urljoin(base, target), timeout=15) as response:
                     applied = html.unescape(response.read().decode())
-                assert set(re.findall(r'<h2[^>]*>TIN-([^<]+)</h2>', applied)) == expected
+                assert set(re.findall(r'<h2[^>]*>(?:<a[^>]*>)?TIN-([^<]+)(?:</a>)?</h2>', applied)) == expected
                 if expected:
                     assert 'tim-tin-price-suggestion' not in applied and 'Khoảng giá đề xuất:' not in applied
                 tested += 1

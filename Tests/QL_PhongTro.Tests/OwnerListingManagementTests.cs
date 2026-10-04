@@ -16,6 +16,18 @@ public sealed partial class PermissionTests
         Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
 
     [Fact]
+    public async Task ChuNha_MoLaiBanNhapGiuNguyenNoiDungDaLuu()
+    {
+        var listingId = CreatePublicListing("TRONG", "NHAP", includePhoto: false);
+        var (roomId, _) = GetListingRoomAndBuilding(listingId);
+        Execute("UPDATE tin_dang SET tieu_de='Tiêu đề bản nháp',noi_dung='Mô tả bản nháp đã lưu' WHERE id=$id", ("$id", listingId));
+        using var owner = await Login("CHU_NHA");
+        var html = WebUtility.HtmlDecode(await owner.GetStringAsync($"/TinDang/Tao?phongId={roomId}"));
+        Assert.Contains("Tiêu đề bản nháp", html);
+        Assert.Contains("Mô tả bản nháp đã lưu", html);
+    }
+
+    [Fact]
     public async Task ChuNha_DangLaiVaGoTinCuaPhongMinh()
     {
         var listingId = CreatePublicListing("TRONG", "TAM_AN", includePhoto: false);
