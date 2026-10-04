@@ -33,9 +33,13 @@ public sealed record TaoTinDangViewModel
 
     public string MaPhong { get; init; } = string.Empty;
     public string TenToaNha { get; init; } = string.Empty;
+    public int ToaNhaId { get; init; }
     public decimal DienTich { get; init; }
     public long GiaThue { get; init; }
     public string TrangThaiPhong { get; init; } = string.Empty;
+    public DateTime NgayHetHan { get; init; }
+    public IReadOnlyList<AnhPhongChiTietViewModel> Anh { get; init; } = [];
+    public IReadOnlyList<DichVuTinChiTietViewModel> DichVu { get; init; } = [];
 
     [Required(ErrorMessage = "Tiêu đề là bắt buộc.")]
     [StringLength(200, ErrorMessage = "Tiêu đề không vượt quá 200 ký tự.")]

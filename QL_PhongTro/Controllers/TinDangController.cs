@@ -81,13 +81,16 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
     }
 
     [Authorize(Roles = "CHU_NHA"), ModuleAccess("TIN_DANG", write: true), HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Tao(TaoTinDangViewModel form)
+    public async Task<IActionResult> Tao(TaoTinDangViewModel form, string? intent)
     {
         var source = await TaoModelAsync(form.PhongId);
         if (source is null) return NotFound();
         if (source.TrangThaiPhong != LichHenTrangThai.PhongTrong)
             ModelState.AddModelError("", "Chỉ phòng đang trống mới được đăng tin cho thuê.");
-        if (await db.TinDangs.AnyAsync(x => x.PhongId == form.PhongId && x.TrangThai == "DANG_HIEN_THI"))
+        var isDraft = intent == "NHAP";
+        if (intent is not (null or "NHAP" or "DANG_HIEN_THI"))
+            ModelState.AddModelError("", "Thao tác tin đăng không hợp lệ.");
+        if (!isDraft && await db.TinDangs.AnyAsync(x => x.PhongId == form.PhongId && x.TrangThai == "DANG_HIEN_THI"))
             ModelState.AddModelError("", "Phòng này đã có một tin đang hiển thị.");
         if (!ModelState.IsValid)
             return View(source with { TieuDe = form.TieuDe, NoiDung = form.NoiDung });
@@ -103,16 +106,16 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
         listing.NguoiDangId = AccountId;
         listing.TieuDe = form.TieuDe.Trim();
         listing.NoiDung = string.IsNullOrWhiteSpace(form.NoiDung) ? null : form.NoiDung.Trim();
-        listing.NgayDang = now;
+        listing.NgayDang = isDraft ? null : now;
         listing.NgayHetHan = now.AddDays(30);
-        listing.TrangThai = "DANG_HIEN_THI";
+        listing.TrangThai = isDraft ? "NHAP" : "DANG_HIEN_THI";
         try { await db.SaveChangesAsync(); }
         catch (DbUpdateException)
         {
             ModelState.AddModelError("", "Không thể đăng tin vì phòng vừa có tin khác được hiển thị.");
             return View(source with { TieuDe = form.TieuDe, NoiDung = form.NoiDung });
         }
-        TempData["TinDangOk"] = "Đã đăng tin cho thuê.";
+        TempData["TinDangOk"] = isDraft ? "Đã lưu tin đăng ở trạng thái nháp." : "Đã đăng tin cho thuê.";
         return RedirectToAction(nameof(QuanLy));
     }
 
@@ -134,20 +137,38 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
 
     private async Task<TaoTinDangViewModel?> TaoModelAsync(int roomId)
     {
-        return await (from room in db.PhongTros.AsNoTracking()
-                      join building in db.ToaNhas.AsNoTracking() on room.ToaNhaId equals building.Id
-                      where room.Id == roomId && building.ChuNhaId == AccountId && building.DangHoatDong
-                      select new TaoTinDangViewModel
-                      {
-                          PhongId = room.Id,
-                          MaPhong = room.MaPhong,
-                          TenToaNha = building.TenToaNha,
-                          DienTich = room.DienTich,
-                          GiaThue = room.GiaThue,
-                          TieuDe = "Cho thuê phòng " + room.MaPhong,
-                          NoiDung = room.MoTa,
-                          TrangThaiPhong = room.TrangThai
-                      }).SingleOrDefaultAsync();
+        var source = await (from room in db.PhongTros.AsNoTracking()
+                            join building in db.ToaNhas.AsNoTracking() on room.ToaNhaId equals building.Id
+                            where room.Id == roomId && building.ChuNhaId == AccountId && building.DangHoatDong
+                            select new { Room = room, Building = building }).SingleOrDefaultAsync();
+        if (source is null)
+            return null;
+
+        var now = DateTime.UtcNow;
+        return new TaoTinDangViewModel
+        {
+            PhongId = source.Room.Id,
+            MaPhong = source.Room.MaPhong,
+            TenToaNha = source.Building.TenToaNha,
+            ToaNhaId = source.Building.Id,
+            DienTich = source.Room.DienTich,
+            GiaThue = source.Room.GiaThue,
+            TieuDe = "Cho thuê phòng " + source.Room.MaPhong,
+            NoiDung = source.Room.MoTa,
+            TrangThaiPhong = source.Room.TrangThai,
+            NgayHetHan = now.AddDays(30),
+            Anh = await db.AnhPhongs.AsNoTracking()
+                .Where(image => image.PhongId == source.Room.Id)
+                .OrderBy(image => image.ThuTu)
+                .Select(image => new AnhPhongChiTietViewModel
+                {
+                    DuongDan = image.DuongDan,
+                    DuongDanAnhNho = image.DuongDanAnhNho,
+                    MoTa = image.MoTa,
+                    ThuTu = image.ThuTu
+                }).ToListAsync(),
+            DichVu = await GetPublicServicePricesAsync(source.Building.Id, source.Room.Id, source.Building.ChuNhaId)
+        };
     }
 
     [Authorize(Roles = "KHACH_THUE"), HttpPost, ValidateAntiForgeryToken]
