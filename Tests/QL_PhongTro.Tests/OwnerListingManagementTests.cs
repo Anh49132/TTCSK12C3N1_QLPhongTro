@@ -190,4 +190,33 @@ public sealed partial class PermissionTests
         Assert.NotNull(created);
         Assert.Equal(2L, Scalar("SELECT COUNT(*) FROM yeu_cau_thue WHERE tin_dang_id=$listing AND khach_thue_id=$tenant", ("$listing", listingId), ("$tenant", tenantId)));
     }
+
+    [Fact]
+    public async Task PublicIndexSortsPricesAndPaginatesTwelveListings()
+    {
+        var expected = new List<int>();
+        for (var i = 0; i < 25; i++)
+        {
+            var id = CreatePublicListing("TRONG", "DANG_HIEN_THI", includePhoto: false);
+            var (roomId, _) = GetListingRoomAndBuilding(id);
+            Execute("UPDATE phong_tro SET gia_thue=$price WHERE id=$id", ("$price", 1000000 + i * 100000), ("$id", roomId));
+            expected.Add(id);
+        }
+        CreatePublicListing("TRONG", "NHAP", includePhoto: false);
+        using var guest = Client();
+        async Task<int[]> Ids(string query)
+        {
+            var html = WebUtility.HtmlDecode(await guest.GetStringAsync("/TinDang?" + query));
+            return Regex.Matches(html, "<h2><a href=\"/TinDang/ChiTiet/(\\d+)\"")
+                .Select(m => int.Parse(m.Groups[1].Value)).ToArray();
+        }
+        Assert.Equal(expected.Take(12), await Ids("sapXep=gia-tang"));
+        Assert.Equal(expected.Skip(12).Take(12), await Ids("sapXep=gia-tang&trang=2"));
+        Assert.Equal(expected.Skip(24), await Ids("sapXep=gia-tang&trang=3"));
+        Assert.Equal(expected.AsEnumerable().Reverse().Take(12), await Ids("sapXep=gia-giam"));
+        Assert.Equal(expected.Skip(24), await Ids("sapXep=gia-tang&trang=999"));
+        var page = await guest.GetStringAsync("/TinDang?sapXep=gia-giam");
+        Assert.Contains("sapXep=gia-giam", page);
+        Assert.Contains("trang=2", page);
+    }
 }

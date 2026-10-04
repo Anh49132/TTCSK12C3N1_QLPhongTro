@@ -20,6 +20,13 @@
 
     <section class="border-top py-3" aria-labelledby="listing-editable-title">
         <h2 id="listing-editable-title" class="h5">Nội dung tin</h2>
+        @if (dangChinhSua)
+        {
+            <div class="mb-3">
+                <label for="TrangThaiTin" class="form-label">Trạng thái tin đăng</label>
+                <input id="TrangThaiTin" class="form-control" value="@(Model.TrangThaiTin switch { "DANG_HIEN_THI" => "Đã hiển thị", "NHAP" => "Nháp", "TAM_AN" => "Tạm ẩn", "DA_CHO_THUE" => "Đã cho thuê", _ => Model.TrangThaiTin })" readonly aria-readonly="true" />
+            </div>
+        }
         <div class="mb-3">
             <label asp-for="TieuDe" class="form-label">Tiêu đề</label>
             <input asp-for="TieuDe" class="form-control" maxlength="200" />

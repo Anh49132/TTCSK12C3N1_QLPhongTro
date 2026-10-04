@@ -4,6 +4,7 @@ namespace QL_PhongTro.ViewModels;
 
 public sealed class TinDangDanhSachViewModel
 {
+    public long GiaThue { get; init; }
     public int Id { get; init; }
     public string TieuDe { get; init; } = string.Empty;
     public string? AnhDaiDien { get; init; }

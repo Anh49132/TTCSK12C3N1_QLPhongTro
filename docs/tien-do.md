@@ -1,5 +1,15 @@
 # Tiến độ và bàn giao dự án
 
+## Sắp xếp giá và phân trang danh sách tin (05/10/2026)
+
+- `/TinDang` thêm Mới đăng nhất/Giá tăng dần/Giá giảm dần, phân trang ở database 12 tin/trang, hiển thị giá thuê và tổng tin/trang. Link Trang trước/Trang sau giữ cách sắp xếp; áp dụng sắp xếp về trang đầu. Form lọc sang `/TimTin` truyền cách sắp xếp đang chọn; `/TimTin` đã có lọc và phân trang 12 từ trước.
+- Chỉ lấy tin công khai hợp lệ, giá trùng dùng ID giảm dần; chuẩn hóa cách sắp xếp lạ và giới hạn trang vào phạm vi hợp lệ. Không sửa schema/dữ liệu thật, không chụp ảnh.
+- Build PASS; HTTP integration test PASS trên SQLite tạm với 25 tin hợp lệ và 1 nháp: thứ tự tăng/giảm đúng, trang 12/12/1, trang quá lớn về trang cuối, link giữ cách sắp xếp. Cần khởi động lại app trong terminal đã cấu hình SMTP để nạp thay đổi. Chưa push.
+
+## Hiển thị trạng thái trong màn sửa tin (05/10/2026)
+
+- Thêm trường chỉ đọc “Trạng thái tin đăng” tại phần Nội dung tin của màn chỉnh sửa; DANG_HIEN_THI hiển thị “Đã hiển thị” theo yêu cầu. Các trạng thái còn lại hiển thị Nháp, Tạm ẩn, Đã cho thuê. Trạng thái lấy từ tin đã lưu, giữ luồng đăng/lưu/gỡ hiện có. Không chụp ảnh; cần khởi động lại ứng dụng để nạp Razor mới.
+
 ## Bỏ nút mũi tên sắp xếp ảnh (05/10/2026)
 
 - Theo yêu cầu người dùng, bỏ hai nút lên/xuống khỏi thẻ ảnh có sẵn và thẻ ảnh tạo sau upload; bỏ handler JavaScript tương ứng. Giữ kéo thả và nút Xóa. Kiểm tra cú pháp JavaScript và diff đạt; không chụp ảnh. Razor cần build/khởi động lại ứng dụng để nạp thay đổi.
