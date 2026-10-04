@@ -3,8 +3,15 @@
 @{ ViewData["Title"] = "Tìm phòng trọ"; }
 <h1>Tìm phòng trọ</h1>
 <form asp-controller="TimTin" asp-action="Index" method="get" class="mb-4" id="tim-tin-form">
+    <div class="row g-3 mb-3">
+    <div class="col-12">
+    <label asp-for="TuKhoa" class="form-label">Tiêu đề hoặc thông tin phòng</label>
+    <input asp-for="TuKhoa" class="form-control" maxlength="200" placeholder="Nhập tiêu đề, mô tả, mã phòng hoặc địa chỉ" />
+    <span asp-validation-for="TuKhoa" class="text-danger"></span>
+    </div>
+    <div class="col-12 col-md-6">
     <label asp-for="QuanHuyen" class="form-label">Quận/huyện</label>
-    <select asp-for="QuanHuyen" class="form-select mb-2">
+    <select asp-for="QuanHuyen" class="form-select">
         <option value="">Tất cả quận/huyện</option>
         @foreach (var district in Model.QuanHuyens)
         {
@@ -12,7 +19,15 @@
         }
     </select>
     <span asp-validation-for="QuanHuyen" class="text-danger"></span>
-    <div class="row g-3 mb-3">
+    </div>
+    <div class="col-12 col-md-6">
+    <label asp-for="PhuongXa" class="form-label">Phường/xã</label>
+    <select asp-for="PhuongXa" class="form-select">
+        <option value="">Tất cả phường/xã</option>
+        @foreach (var ward in Model.PhuongXas) { <option value="@ward">@ward</option> }
+    </select>
+    <span asp-validation-for="PhuongXa" class="text-danger"></span>
+    </div>
         <div class="col-12 col-md-6">
             <label asp-for="SapXep" class="form-label">Sắp xếp</label>
             <select asp-for="SapXep" class="form-select">
@@ -55,6 +70,7 @@
         </div>
     </div>
     <button type="submit" class="btn btn-primary">Tìm kiếm</button>
+    <a asp-action="Index" class="btn btn-outline-secondary">Xóa bộ lọc</a>
 </form>
 <p id="tim-tin-loading" role="status" aria-live="polite" hidden>
     <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
@@ -74,6 +90,8 @@ else if (ViewData.ModelState.IsValid)
         {
             var suggestedRoutes = new Dictionary<string, string>
             {
+                ["TuKhoa"] = Model.TuKhoa ?? "",
+                ["PhuongXa"] = Model.PhuongXa ?? "",
                 ["QuanHuyen"] = Model.QuanHuyen ?? "",
                 ["GiaToiThieu"] = Model.GiaGoiYToiThieu?.ToString(CultureInfo.InvariantCulture) ?? "",
                 ["GiaToiDa"] = Model.GiaGoiYToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",
@@ -119,6 +137,8 @@ else if (ViewData.ModelState.IsValid)
     {
         var routes = new Dictionary<string, string>
         {
+            ["TuKhoa"] = Model.TuKhoa ?? "",
+            ["PhuongXa"] = Model.PhuongXa ?? "",
             ["QuanHuyen"] = Model.QuanHuyen ?? "",
             ["GiaToiThieu"] = Model.GiaToiThieu?.ToString(CultureInfo.InvariantCulture) ?? "",
             ["GiaToiDa"] = Model.GiaToiDa?.ToString(CultureInfo.InvariantCulture) ?? "",

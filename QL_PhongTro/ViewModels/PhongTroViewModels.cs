@@ -22,6 +22,7 @@ public enum TrangThaiPhong
 public class DanhSachPhongViewModel
 {
     public int? ToaNhaId { get; set; }
+    public string? TuKhoa { get; set; }
     public TrangThaiPhong? TrangThaiFilter { get; set; }
     public IReadOnlyList<SelectListItem> ToaNhaOptions { get; set; } = [];
     public IReadOnlyList<SelectListItem> TrangThaiOptions { get; set; } = [];

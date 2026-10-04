@@ -46,13 +46,14 @@ else
                             @if (dangHienThi && item.TinDangId is { } listingId)
                             {
                                 <a class="btn btn-sm btn-outline-secondary" asp-action="ChiTiet" asp-route-id="@listingId">Xem</a>
+                                <a class="btn btn-sm btn-outline-primary" asp-action="Tao" asp-route-phongId="@item.PhongId">Sửa tin</a>
                                 <form method="post" asp-action="Go" asp-route-id="@listingId" onsubmit="return confirm('Gỡ tin này khỏi danh sách công khai?');">
                                     <button class="btn btn-sm btn-outline-danger" type="submit">Gỡ tin</button>
                                 </form>
                             }
                             else if (item.TrangThaiPhong == "TRONG")
                             {
-                                <a class="btn btn-sm btn-primary" asp-action="Tao" asp-route-phongId="@item.PhongId">@(item.TinDangId.HasValue ? "Đăng lại" : "Đăng tin")</a>
+                                <a class="btn btn-sm btn-primary" asp-action="Tao" asp-route-phongId="@item.PhongId">@(item.TrangThaiTin == "NHAP" ? "Chỉnh sửa" : item.TinDangId.HasValue ? "Đăng lại" : "Đăng tin")</a>
                             }
                             else
                             {

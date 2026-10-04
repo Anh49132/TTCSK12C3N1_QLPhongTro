@@ -43,17 +43,21 @@
 else
 {
     <form method="get" asp-action="Index" class="row g-2 align-items-end mb-3">
-        <div class="col-sm-6 col-md-4">
+        <div class="col-sm-6 col-md-3">
             <label for="toaNhaId" class="form-label">Tòa nhà</label>
             <select asp-for="ToaNhaId" id="toaNhaId" asp-items="Model.ToaNhaOptions" class="form-select">
                 <option value="">Chọn tòa nhà</option>
             </select>
         </div>
-        <div class="col-sm-6 col-md-4">
+        <div class="col-sm-6 col-md-3">
             <label asp-for="TrangThaiFilter" class="form-label">Trạng thái</label>
             <select asp-for="TrangThaiFilter" asp-items="Model.TrangThaiOptions" class="form-select">
                 <option value="">Tất cả trạng thái</option>
             </select>
+        </div>
+        <div class="col-sm-6 col-md-3">
+            <label asp-for="TuKhoa" class="form-label">Mã phòng</label>
+            <input asp-for="TuKhoa" class="form-control" placeholder="Ví dụ: A101" autocomplete="off" />
         </div>
         <div class="col-auto">
             <button type="submit" class="btn btn-outline-secondary">Lọc danh sách</button>
@@ -77,8 +81,8 @@ else
     else if (Model.PhongTros.Count == 0)
     {
         <div class="border-top border-bottom py-4">
-            <h2 class="h5">Tòa nhà chưa có phòng</h2>
-            <p class="text-secondary">Phòng mới sẽ xuất hiện tại đây sau khi lưu.</p>
+            <h2 class="h5">@(string.IsNullOrWhiteSpace(Model.TuKhoa) ? "Tòa nhà chưa có phòng" : "Không tìm thấy phòng")</h2>
+            <p class="text-secondary">@(string.IsNullOrWhiteSpace(Model.TuKhoa) ? "Phòng mới sẽ xuất hiện tại đây sau khi lưu." : $"Không có mã phòng phù hợp với “{Model.TuKhoa}”.")</p>
         </div>
     }
     else

@@ -1,18 +1,21 @@
 @model QL_PhongTro.ViewModels.TaoTinDangViewModel
 @using System.Globalization
 @{
-    ViewData["Title"] = "Đăng tin cho thuê";
+    var dangChinhSua = Model.TinDangId.HasValue;
+    var dangHienThi = Model.TrangThaiTin == "DANG_HIEN_THI";
+    ViewData["Title"] = dangChinhSua ? "Chỉnh sửa tin đăng" : "Đăng tin cho thuê";
     var culture = CultureInfo.GetCultureInfo("vi-VN");
 }
 
 <section class="mb-4">
     <p class="text-uppercase text-secondary small fw-semibold mb-2">Tin đăng</p>
-    <h1 class="h2 mb-1">Đăng tin cho thuê</h1>
+    <h1 class="h2 mb-1">@(dangChinhSua ? "Chỉnh sửa tin đăng" : "Đăng tin cho thuê")</h1>
     <p class="text-secondary mb-0">@Model.TenToaNha · phòng @Model.MaPhong</p>
 </section>
 
 <form method="post" asp-action="Tao">
     <input asp-for="PhongId" type="hidden" />
+    <input asp-for="TinDangId" type="hidden" />
     <div asp-validation-summary="All" class="text-danger mb-3" role="alert"></div>
 
     <section class="border-top py-3" aria-labelledby="listing-editable-title">
@@ -92,8 +95,8 @@
     </section>
 
     <div class="d-flex flex-wrap gap-2">
-        <button type="submit" name="intent" value="NHAP" class="btn btn-outline-secondary">Lưu bản nháp</button>
-        <button type="submit" name="intent" value="DANG_HIEN_THI" class="btn btn-primary">Đăng tin</button>
+        @if (!dangHienThi) { <button type="submit" name="intent" value="NHAP" class="btn btn-outline-secondary">Lưu bản nháp</button> }
+        <button type="submit" name="intent" value="DANG_HIEN_THI" class="btn btn-primary">@(dangHienThi ? "Lưu thay đổi" : "Đăng tin")</button>
         <a asp-controller="TinDang" asp-action="QuanLy" class="btn btn-link">Quay lại quản lý tin</a>
     </div>
 </form>

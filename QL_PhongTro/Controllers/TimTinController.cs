@@ -13,10 +13,12 @@ public class TimTinController(AppDbContext db, TinDangExpirationService expirati
 {
     [HttpGet]
     public async Task<IActionResult> Index(
-        [Bind("QuanHuyen,GiaToiThieu,GiaToiDa,DienTichToiThieu,DienTichToiDa,SoNguoiToiDa,SapXep,Trang")] TimTinViewModel model,
+        [Bind("TuKhoa,PhuongXa,QuanHuyen,GiaToiThieu,GiaToiDa,DienTichToiThieu,DienTichToiDa,SoNguoiToiDa,SapXep,Trang")] TimTinViewModel model,
         CancellationToken cancellationToken)
     {
         await expiration.ExpireAsync(cancellationToken);
+        model.TuKhoa = model.TuKhoa?.Trim();
+        model.PhuongXa = model.PhuongXa?.Trim();
         model.QuanHuyen = model.QuanHuyen?.Trim();
         if (string.IsNullOrEmpty(model.SapXep)) model.SapXep = "moi-nhat";
         if (model.SapXep is not ("moi-nhat" or "gia-tang" or "gia-giam"))
@@ -29,6 +31,12 @@ public class TimTinController(AppDbContext db, TinDangExpirationService expirati
         model.QuanHuyens = await db.ToaNhas.AsNoTracking()
             .Where(t => t.QuanHuyen != null && t.QuanHuyen.Trim() != "")
             .Select(t => t.QuanHuyen!.Trim()).Distinct().OrderBy(q => q)
+            .ToListAsync(cancellationToken);
+        model.PhuongXas = await db.ToaNhas.AsNoTracking()
+            .Where(t => t.PhuongXa != null && t.PhuongXa.Trim() != ""
+                && (string.IsNullOrEmpty(model.QuanHuyen)
+                    || (t.QuanHuyen != null && t.QuanHuyen.Trim() == model.QuanHuyen)))
+            .Select(t => t.PhuongXa!.Trim()).Distinct().OrderBy(q => q)
             .ToListAsync(cancellationToken);
         model.SoNguoiOptions = await db.PhongTros.AsNoTracking()
             .Where(p => p.SoNguoiToiDa > 0)
@@ -52,6 +60,8 @@ public class TimTinController(AppDbContext db, TinDangExpirationService expirati
         {
             ModelState.AddModelError(nameof(model.QuanHuyen), "Quận/huyện không thuộc danh sách hiện có.");
         }
+        if (!string.IsNullOrEmpty(model.PhuongXa) && !model.PhuongXas.Contains(model.PhuongXa))
+            ModelState.AddModelError(nameof(model.PhuongXa), "Phường/xã không thuộc khu vực đã chọn.");
         if (model.SoNguoiToiDa.HasValue && !model.SoNguoiOptions.Contains(model.SoNguoiToiDa.Value))
             ModelState.AddModelError(nameof(model.SoNguoiToiDa), "Số người ở tối đa không thuộc danh sách hiện có.");
         if (!model.SchemaReady || !ModelState.IsValid) return View(model);
@@ -67,13 +77,22 @@ public class TimTinController(AppDbContext db, TinDangExpirationService expirati
                     select new TinTimKiem
                     {
                         Id = tin.Id, NgayDang = tin.NgayDang,
-                        TieuDe = tin.TieuDe, DiaChi = toa.DiaChi,
+                        TieuDe = tin.TieuDe, NoiDung = tin.NoiDung ?? phong.MoTa, MaPhong = phong.MaPhong, DiaChi = toa.DiaChi,
+                        PhuongXa = toa.PhuongXa == null ? null : toa.PhuongXa.Trim(),
                         QuanHuyen = toa.QuanHuyen == null ? null : toa.QuanHuyen.Trim(),
                         GiaThue = phong.GiaThue, DienTich = phong.DienTich,
                         SoNguoiToiDa = phong.SoNguoiToiDa,
                         AnhDaiDien = db.AnhPhongs.Where(image => image.PhongId == phong.Id)
                             .OrderBy(image => image.ThuTu).Select(image => image.DuongDanAnhNho).FirstOrDefault()
                     };
+        if (!string.IsNullOrEmpty(model.TuKhoa))
+        {
+            var keyword = model.TuKhoa;
+            query = query.Where(t => t.TieuDe.Contains(keyword) || (t.NoiDung != null && t.NoiDung.Contains(keyword))
+                || t.MaPhong.Contains(keyword) || t.DiaChi.Contains(keyword));
+        }
+        if (!string.IsNullOrEmpty(model.PhuongXa))
+            query = query.Where(t => t.PhuongXa == model.PhuongXa);
         if (!string.IsNullOrEmpty(model.QuanHuyen))
             query = query.Where(t => t.QuanHuyen == model.QuanHuyen);
         if (model.GiaToiThieu.HasValue)

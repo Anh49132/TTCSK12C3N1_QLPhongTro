@@ -44,6 +44,22 @@ if ($isDemoRunning) {
     exit 0
 }
 
+$runtimeDirectory = Split-Path -Parent $runtime
+$projectPath = Join-Path $repoRoot 'QL_PhongTro\QL_PhongTro.csproj'
+$runtimeTimestamp = (Get-Item -LiteralPath $runtime).LastWriteTimeUtc
+$sourceChanged = Get-ChildItem -LiteralPath (Join-Path $repoRoot 'QL_PhongTro') -Recurse -File |
+    Where-Object {
+        $_.FullName -notmatch '[\\/](bin|obj)[\\/]' -and
+        $_.Extension -in @('.cs', '.cshtml', '.csproj') -and
+        $_.LastWriteTimeUtc -gt $runtimeTimestamp
+    } |
+    Select-Object -First 1
+if ($sourceChanged) {
+    Write-Host 'Mã nguồn đã thay đổi. Đang cập nhật bản build demo...'
+    dotnet build $projectPath --no-restore --nologo -o $runtimeDirectory
+    if ($LASTEXITCODE -ne 0) { throw 'Không thể cập nhật bản build demo; xem lỗi phía trên.' }
+}
+
 Write-Host "URL: $($access.url) | Database: $($access.database)"
 Write-Host "Tài khoản: owner.demo@demo.local / $($access.password)"
 Write-Host 'Giữ terminal này mở. Nhấn Ctrl+C để dừng đúng phiên demo.'

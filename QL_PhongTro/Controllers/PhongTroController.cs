@@ -48,7 +48,7 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         return View(new DanhSachToaNhaViewModel { TuKhoa = tuKhoa, ToaNhas = buildings });
     }
 
-    public async Task<IActionResult> Index(int? toaNhaId, TrangThaiPhong? trangThaiFilter)
+    public async Task<IActionResult> Index(int? toaNhaId, TrangThaiPhong? trangThaiFilter, string? tuKhoa)
     {
         var ownerId = CurrentAccountId();
         if (ownerId is null)
@@ -64,12 +64,13 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
             ? toaNhaId
             : null;
 
-        var rooms = selectedId is null
+        var roomQuery = selectedId is null ? null : GetRoomQuery(selectedId.Value, trangThaiFilter);
+        tuKhoa = tuKhoa?.Trim();
+        if (roomQuery is not null && !string.IsNullOrWhiteSpace(tuKhoa))
+            roomQuery = roomQuery.Where(room => room.MaPhong.Contains(tuKhoa));
+        var rooms = roomQuery is null
             ? []
-            : await GetRoomQuery(selectedId.Value, trangThaiFilter)
-                .OrderBy(room => room.Tang)
-                .ThenBy(room => room.MaPhong)
-                .ToListAsync();
+            : await roomQuery.OrderBy(room => room.Tang).ThenBy(room => room.MaPhong).ToListAsync();
 
         var statusCounts = Enum.GetValues<TrangThaiPhong>()
             .ToDictionary(status => status.ToString(), _ => 0);
@@ -87,6 +88,7 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         return View(new DanhSachPhongViewModel
         {
             ToaNhaId = selectedId,
+            TuKhoa = tuKhoa,
             TrangThaiFilter = trangThaiFilter,
             ToaNhaOptions = buildings,
             TrangThaiOptions = GetStatusOptions(),

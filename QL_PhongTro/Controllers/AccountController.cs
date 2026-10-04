@@ -231,6 +231,7 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ConfirmEmail(EmailConfirmationViewModel model)
     {
+        if (!ModelState.IsValid) return View(model);
         await using var tx = await db.Database.BeginTransactionAsync();
         var email = model.Email.Trim().ToLowerInvariant();
         var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(model.Code?.Trim() ?? "")));
@@ -257,11 +258,17 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> ResendConfirmation(string email)
+    public async Task<IActionResult> ResendConfirmation(string? email)
     {
         TempData.Remove("RegisterMessage");
         TempData.Remove("RegisterError");
+        email = email?.Trim() ?? "";
         TempData["RegisterEmail"] = email;
+        if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email))
+        {
+            TempData["RegisterError"] = "Vui lòng nhập địa chỉ email hợp lệ để gửi lại mã.";
+            return RedirectToAction(nameof(ConfirmEmail));
+        }
         var account = await db.TaiKhoans.SingleOrDefaultAsync(a => !a.IsDeleted && a.Email.Trim().ToLower() == email.Trim().ToLowerInvariant() && !a.EmailConfirmed && a.DangHoatDong);
         if (account is not null)
         {

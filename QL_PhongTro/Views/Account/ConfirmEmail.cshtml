@@ -5,7 +5,6 @@
 @if (TempData["RegisterMessage"] is string message) { <div class="alert alert-info">@message</div> }
 @if (TempData["RegisterError"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
 <form asp-action="ConfirmEmail" method="post"><div asp-validation-summary="All" class="text-danger"></div>
-<label asp-for="Email" class="form-label">Email</label><input asp-for="Email" class="form-control" readonly />
+<label asp-for="Email" class="form-label">Email</label><input asp-for="Email" type="email" class="form-control" autocomplete="email" placeholder="ban@example.com" />
 <label asp-for="Code" class="form-label mt-3">Mã xác nhận</label><input asp-for="Code" class="form-control" inputmode="numeric" autocomplete="one-time-code" />
-<button class="btn btn-primary mt-3">Xác nhận</button></form>
-<form asp-action="ResendConfirmation" method="post" class="mt-3"><input name="email" value="@Model.Email" type="hidden" /><button class="btn btn-outline-secondary">Gửi lại mã</button></form></section>
+<div class="d-flex flex-wrap gap-2 mt-3"><button class="btn btn-primary" type="submit">Xác nhận</button><button class="btn btn-outline-secondary" type="submit" formaction="@Url.Action("ResendConfirmation", "Account")" formnovalidate>Gửi lại mã</button></div></form></section>

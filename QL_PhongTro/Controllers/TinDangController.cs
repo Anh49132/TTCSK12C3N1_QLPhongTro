@@ -19,7 +19,6 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
     [HttpGet]
     public async Task<IActionResult> Index()
     {
-        if (!await requests.IsInstalled()) return View("ChuaCaiDat");
         await expiration.ExpireAsync();
         var listings = await requests.PublicListings().OrderByDescending(t => t.NgayDang).Take(100)
             .Select(post => new TinDangDanhSachViewModel
@@ -99,19 +98,32 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
     {
         var source = await TaoModelAsync(form.PhongId);
         if (source is null) return NotFound();
+        TinDang? listing;
+        if (form.TinDangId is { } listingId)
+        {
+            listing = await db.TinDangs.SingleOrDefaultAsync(x => x.Id == listingId && x.PhongId == form.PhongId);
+            if (listing is null) return NotFound();
+        }
+        else
+        {
+            listing = await db.TinDangs.Where(x => x.PhongId == form.PhongId && x.TrangThai != "DANG_HIEN_THI")
+                .OrderByDescending(x => x.Id).FirstOrDefaultAsync();
+        }
         if (source.TrangThaiPhong != LichHenTrangThai.PhongTrong)
             ModelState.AddModelError("", "Chỉ phòng đang trống mới được đăng tin cho thuê.");
         var isDraft = intent == "NHAP";
+        var wasPublic = listing?.TrangThai == "DANG_HIEN_THI";
+        var currentListingId = listing?.Id ?? 0;
         if (intent is not (null or "NHAP" or "DANG_HIEN_THI"))
             ModelState.AddModelError("", "Thao tác tin đăng không hợp lệ.");
-        if (!isDraft && await db.TinDangs.AnyAsync(x => x.PhongId == form.PhongId && x.TrangThai == "DANG_HIEN_THI"))
+        if (isDraft && wasPublic)
+            ModelState.AddModelError("", "Tin đang hiển thị không thể chuyển trực tiếp về bản nháp. Hãy gỡ tin nếu muốn tạm ẩn.");
+        if (!isDraft && await db.TinDangs.AnyAsync(x => x.PhongId == form.PhongId && x.TrangThai == "DANG_HIEN_THI" && x.Id != currentListingId))
             ModelState.AddModelError("", "Phòng này đã có một tin đang hiển thị.");
         if (!ModelState.IsValid)
-            return View(source with { TieuDe = form.TieuDe, NoiDung = form.NoiDung });
+            return View(source with { TinDangId = listing?.Id, TrangThaiTin = listing?.TrangThai, TieuDe = form.TieuDe, NoiDung = form.NoiDung });
 
         var now = DateTime.UtcNow;
-        var listing = await db.TinDangs.Where(x => x.PhongId == form.PhongId && x.TrangThai != "DANG_HIEN_THI")
-            .OrderByDescending(x => x.Id).FirstOrDefaultAsync();
         if (listing is null)
         {
             listing = new TinDang { PhongId = form.PhongId, NguoiDangId = AccountId, NgayTao = now };
@@ -120,17 +132,25 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
         listing.NguoiDangId = AccountId;
         listing.TieuDe = form.TieuDe.Trim();
         listing.NoiDung = string.IsNullOrWhiteSpace(form.NoiDung) ? null : form.NoiDung.Trim();
-        listing.NgayDang = isDraft ? null : now;
-        listing.NgayHetHan = now.AddDays(30);
+        if (!isDraft && !wasPublic)
+        {
+            listing.NgayDang = now;
+            listing.NgayHetHan = now.AddDays(30);
+        }
+        else if (isDraft)
+        {
+            listing.NgayDang = null;
+            listing.NgayHetHan = now.AddDays(30);
+        }
         listing.TrangThai = isDraft ? "NHAP" : "DANG_HIEN_THI";
         try { await db.SaveChangesAsync(); }
         catch (DbUpdateException)
         {
             ModelState.AddModelError("", "Không thể đăng tin vì phòng vừa có tin khác được hiển thị.");
-            return View(source with { TieuDe = form.TieuDe, NoiDung = form.NoiDung });
+            return View(source with { TinDangId = listing.Id, TrangThaiTin = listing.TrangThai, TieuDe = form.TieuDe, NoiDung = form.NoiDung });
         }
-        TempData["TinDangOk"] = isDraft ? "Đã lưu tin đăng ở trạng thái nháp." : "Đã đăng tin cho thuê.";
-        return RedirectToAction(nameof(QuanLy));
+        TempData["TinDangOk"] = isDraft ? "Đã lưu tin đăng ở trạng thái nháp." : wasPublic ? "Đã cập nhật tin đăng." : "Đã đăng tin cho thuê.";
+        return isDraft ? RedirectToAction(nameof(QuanLy)) : RedirectToAction(nameof(ChiTiet), new { id = listing.Id });
     }
 
     [Authorize(Roles = "CHU_NHA"), ModuleAccess("TIN_DANG", write: true), HttpPost, ValidateAntiForgeryToken]
@@ -164,6 +184,8 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
         return new TaoTinDangViewModel
         {
             PhongId = source.Room.Id,
+            TinDangId = saved?.Id,
+            TrangThaiTin = saved?.TrangThai,
             MaPhong = source.Room.MaPhong,
             TenToaNha = source.Building.TenToaNha,
             ToaNhaId = source.Building.Id,

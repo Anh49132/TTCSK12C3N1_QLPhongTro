@@ -29,6 +29,9 @@ public sealed class TinDangQuanLyViewModel
 
 public sealed record TaoTinDangViewModel
 {
+    public int? TinDangId { get; set; }
+    public string? TrangThaiTin { get; init; }
+
     [Required(ErrorMessage = "Không xác định được phòng cần đăng tin.")]
     public int PhongId { get; set; }
 
