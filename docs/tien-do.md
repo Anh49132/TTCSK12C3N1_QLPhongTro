@@ -1,5 +1,14 @@
 # Tiến độ và bàn giao dự án
 
+## Giao diện trang chủ NhàTốt khi chưa đăng nhập và đồng bộ điều hướng (05/10/2026)
+
+- Thiết kế trang chủ theo nhận diện NhàTốt khi chưa đăng nhập: Logo NhàTốt - SỐNG ĐÚNG NƠI, thanh điều hướng (Trang Chủ, Tìm Phòng, Tin Đăng Cho Thuê, Giới Thiệu, Đăng nhập, Đăng ký), hero banner tràn viền với ảnh phòng khách hiện đại và slogan "Tìm chốn ở phù hợp, bắt đầu cuộc sống mới."
+- Tích hợp thanh tìm kiếm nhanh ngay tại trang chủ kết nối trực tiếp sang `/TimTin` (theo từ khóa, quận/huyện, khoảng giá).
+- Bổ sung danh sách Tin đăng cho thuê mới nhất từ CSDL hiển thị trực tiếp trên trang chủ kèm giá thuê, diện tích, sức chứa và ảnh đại diện, liên kết xem chi tiết phòng.
+- Thêm trang Giới thiệu tại `/Home/GioiThieu` với 3 cam kết cốt lõi (Giá thật minh bạch, Ảnh thật xác thực, Liên hệ trực tiếp) và quy trình 4 bước thuê phòng.
+- Khi đã đăng nhập, người dùng tiếp tục sử dụng không gian quản lý bình thường; layout công khai `_PublicLayout.cshtml` được đồng bộ cho cả `/`, `/TimTin`, `/TinDang` và `/Home/GioiThieu`.
+- Build PASS; toàn bộ 263/263 kiểm thử tự động PASS (bao gồm 2 ca kiểm thử tích hợp mới cho trang chủ NhàTốt và trang Giới thiệu). Không đổi schema CSDL.
+
 ## Thu gọn từ chối và chuẩn hóa giờ hẹn (05/10/2026)
 
 - Đặt nút Từ chối ngay cạnh ô lý do; ghi chú Lý do khác nằm ở hàng dưới và ẩn cả cột khi không cần, bỏ khoảng trống đẩy nút ra xa.

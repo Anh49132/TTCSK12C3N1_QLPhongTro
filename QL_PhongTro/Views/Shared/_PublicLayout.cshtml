@@ -3,23 +3,80 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Nhà Trọ</title>
+    <title>@ViewData["Title"] - NhàTốt</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/public-listing.css" asp-append-version="true" />
 </head>
 <body class="public-site">
-    <header class="public-header">
-        <a class="public-brand" href="/" aria-label="Nhà Trọ, về trang chủ"><span aria-hidden="true">⌂</span>Nhà Trọ</a>
-        <nav aria-label="Điều hướng chính">
-            <a href="/">Trang chủ</a>
-            <a href="/Account/Login">Đăng nhập</a>
-            <a class="public-register" href="/Account/Register">Tạo tài khoản</a>
-        </nav>
+    @{
+        var path = Context.Request.Path.Value?.ToLowerInvariant() ?? "";
+        var isHome = path == "" || path == "/" || path == "/home" || path == "/home/index";
+        var isTimTin = path.StartsWith("/timtin");
+        var isTinDang = path.StartsWith("/tindang");
+        var isGioiThieu = path.StartsWith("/home/gioithieu") || path.StartsWith("/gioithieu");
+    }
+    <header class="public-header nhatot-header">
+        <div class="nhatot-header-inner">
+            <a class="public-brand nhatot-brand" href="/" aria-label="NhàTốt, về trang chủ">
+                <img src="~/images/nhatot-logo.svg" alt="NhàTốt - SỐNG ĐÚNG NƠI" height="38" />
+            </a>
+            <nav class="public-nav nhatot-nav" aria-label="Điều hướng chính">
+                <a href="/" class="@(isHome ? "active" : "")">Trang Chủ</a>
+                <a href="/TimTin" class="@(isTimTin ? "active" : "")">Tìm Phòng</a>
+                <a href="/TinDang" class="@(isTinDang ? "active" : "")">Tin Đăng Cho Thuê</a>
+                <a href="/Home/GioiThieu" class="@(isGioiThieu ? "active" : "")">Giới Thiệu</a>
+            </nav>
+            <div class="public-auth nhatot-auth">
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <span class="public-user-greeting">Chào, <strong>@User.Identity.Name</strong></span>
+                    <a href="/PhongTro" class="btn-dashboard-link">Vào quản lý ↗</a>
+                    <a href="/Account/Logout" class="public-auth-login">Đăng xuất</a>
+                }
+                else
+                {
+                    <a href="/Account/Login" class="public-auth-login">Đăng nhập</a>
+                    <a class="public-register public-auth-register" href="/Account/Register">Đăng ký</a>
+                }
+            </div>
+        </div>
     </header>
-    <main class="public-main">
+    <main class="public-main @(isHome ? "public-main-home" : "")">
         @RenderBody()
     </main>
-    <footer class="public-footer">Nhà Trọ <span aria-hidden="true">·</span> Không gian sống phù hợp với bạn</footer>
+    @if (!isHome)
+    {
+        <footer class="public-footer nhatot-footer">
+            <div class="nhatot-footer-inner">
+                <div class="footer-brand">
+                    <div class="footer-logo">
+                        <span class="footer-badge">⌂</span>
+                        <strong>NhàTốt</strong>
+                        <small>SỐNG ĐÚNG NƠI</small>
+                    </div>
+                    <p>Khám phá nhà trọ, căn hộ và phòng ở minh bạch. Giá thật, ảnh thật, liên hệ trực tiếp.</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-col">
+                        <h4>Khám phá</h4>
+                        <a href="/">Trang chủ</a>
+                        <a href="/TimTin">Tìm phòng</a>
+                        <a href="/TinDang">Tin đăng cho thuê</a>
+                    </div>
+                    <div class="footer-col">
+                        <h4>Về chúng tôi</h4>
+                        <a href="/Home/GioiThieu">Giới thiệu NhàTốt</a>
+                        <a href="/Account/Login">Dành cho chủ nhà</a>
+                        <a href="/Account/Register">Đăng ký tài khoản</a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; @DateTime.Now.Year NhàTốt · Nền tảng kết nối phòng trọ &amp; quản lý căn hộ minh bạch.</p>
+            </div>
+        </footer>
+    }
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

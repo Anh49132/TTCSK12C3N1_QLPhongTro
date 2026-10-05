@@ -703,3 +703,738 @@
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+/* ===== NHATOT BRANDED HEADER & LANDING ===== */
+.nhatot-header {
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid #edf2f7;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 0 !important;
+}
+
+.nhatot-header-inner {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    min-height: 70px;
+    margin: 0 auto;
+    padding: 0 clamp(24px, 4vw, 64px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 20px;
+}
+
+.nhatot-brand {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    flex-shrink: 0;
+    justify-self: start;
+}
+
+.nhatot-brand img {
+    height: 40px;
+    width: auto;
+    display: block;
+}
+
+.nhatot-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    white-space: nowrap;
+}
+
+.nhatot-nav a {
+    color: #374151;
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.15s ease;
+    padding: 6px 0;
+    position: relative;
+}
+
+.nhatot-nav a:hover {
+    color: #008060;
+}
+
+.nhatot-nav a.active {
+    color: #008060;
+    font-weight: 700;
+}
+
+.nhatot-nav a.active::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #008060;
+    border-radius: 2px;
+}
+
+.nhatot-auth {
+    display: flex;
+    align-items: center;
+    justify-self: end;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.public-auth-login {
+    color: #374151;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 8px 12px;
+    transition: color 0.15s ease;
+}
+
+.public-auth-login:hover {
+    color: #008060;
+}
+
+.public-auth-register {
+    background: #008060 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 9999px !important;
+    padding: 8px 22px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    box-shadow: 0 1px 2px rgba(0, 128, 96, 0.2);
+    transition: background 0.15s ease, transform 0.1s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.public-auth-register:hover {
+    background: #006e52 !important;
+    color: #ffffff !important;
+}
+
+.public-user-greeting {
+    font-size: 14px;
+    color: #4b5563;
+}
+
+.btn-dashboard-link {
+    background: #f0fdf4;
+    color: #008060;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.btn-dashboard-link:hover {
+    background: #dcfce7;
+    color: #006e52;
+}
+
+/* ===== NHATOT LANDING PAGE & HERO ===== */
+.public-main-home {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden;
+}
+
+.nhatot-container {
+    width: 100%;
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+.nhatot-hero {
+    position: relative;
+    min-height: calc(100vh - 72px);
+    max-height: calc(100vh - 72px);
+    background-color: #0f2c2c;
+    background-image: linear-gradient(90deg, rgba(8, 31, 24, 0.78) 0%, rgba(8, 31, 24, 0.62) 42%, rgba(8, 31, 24, 0.18) 68%, rgba(8, 31, 24, 0.12) 100%), url('/images/hero-clean.jpg');
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+}
+
+.nhatot-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    pointer-events: none;
+}
+
+.nhatot-hero-content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 60px 20px 44px;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.nhatot-hero-title {
+    font-size: clamp(1.5rem, 3.2vw, 3.2rem);
+    font-weight: 800;
+    line-height: 1.08;
+    margin: 0;
+    color: #ffffff;
+    letter-spacing: -0.04em;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+    max-width: 620px;
+}
+
+.nhatot-hero-desc {
+    font-size: clamp(0.75rem, 1.15vw, 1.1rem);
+    line-height: 1.5;
+    max-width: 500px;
+    color: rgba(255, 255, 255, 0.92);
+    margin: 0;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.nhatot-quick-search-section {
+    display: none;
+}
+
+.nhatot-search-grid {
+    display: grid;
+    grid-template-columns: 2fr 1.4fr 1.4fr auto;
+    gap: 16px;
+    align-items: end;
+}
+
+.nhatot-search-col label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.nhatot-search-col input,
+.nhatot-search-col select {
+    width: 100%;
+    height: 44px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 0 14px;
+    font-size: 14.5px;
+    color: #1f2937;
+    background: #f9fafb;
+    outline: none;
+    transition: all 0.15s ease;
+}
+
+.nhatot-search-col input:focus,
+.nhatot-search-col select:focus {
+    border-color: #008060;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.15);
+}
+
+.btn-nhatot-search {
+    height: 44px;
+    background: #008060;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 0 24px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+}
+
+.btn-nhatot-search:hover {
+    background: #006e52;
+}
+
+.nhatot-quick-search-section .nhatot-container,
+.nhatot-quick-search-section .nhatot-search-card {
+    margin-bottom: 0;
+}
+
+/* Listings Cards */
+.nhatot-listing-card {
+    background: #ffffff;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nhatot-listing-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+.card-image-wrap {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 10;
+    background: #f3f4f6;
+    overflow: hidden;
+}
+
+.card-image-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.nhatot-listing-card:hover .card-image-wrap img {
+    transform: scale(1.04);
+}
+
+.card-price-badge {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(0, 128, 96, 0.95);
+    color: #ffffff;
+    font-size: 14.5px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 6px;
+    backdrop-filter: blur(4px);
+}
+
+.card-content {
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.card-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    line-height: 1.4;
+}
+
+.card-title a {
+    color: #111827;
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.card-title a:hover {
+    color: #008060;
+}
+
+.card-location {
+    font-size: 13.5px;
+    color: #6b7280;
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.card-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+    color: #4b5563;
+    padding: 10px 0;
+    border-top: 1px dashed #e5e7eb;
+    margin-bottom: 14px;
+}
+
+.card-footer-action {
+    margin-top: auto;
+}
+
+.btn-card-detail {
+    display: block;
+    text-align: center;
+    background: #f0fdf4;
+    color: #008060;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.btn-card-detail:hover {
+    background: #008060;
+    color: #ffffff;
+    border-color: #008060;
+}
+
+/* Feature Value Cards */
+.nhatot-feature-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 28px 24px;
+    border: 1px solid #e5e7eb;
+    height: 100%;
+    transition: all 0.2s ease;
+}
+
+.nhatot-feature-card:hover {
+    border-color: #bbf7d0;
+    box-shadow: 0 8px 20px rgba(0, 128, 96, 0.06);
+}
+
+.feature-icon-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: #e6f4ea;
+    display: grid;
+    place-items: center;
+    font-size: 24px;
+    margin-bottom: 16px;
+}
+
+.nhatot-feature-card h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 10px;
+}
+
+.nhatot-feature-card p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* Section Title & Buttons */
+.section-title {
+    font-size: clamp(1.5rem, 2.2vw, 1.85rem);
+    font-weight: 700;
+    color: #111827;
+}
+
+.gioithieu-tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    color: #008060;
+    margin-bottom: 6px;
+}
+
+.btn-nhatot-primary {
+    background: #008060;
+    color: #ffffff;
+    font-weight: 600;
+    padding: 10px 22px;
+    border-radius: 8px;
+    text-decoration: none;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s;
+}
+
+.btn-nhatot-primary:hover {
+    background: #006e52;
+    color: #ffffff;
+}
+
+.btn-nhatot-secondary {
+    background: #ffffff;
+    color: #008060;
+    border: 1px solid #008060;
+    font-weight: 600;
+    padding: 10px 22px;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+}
+
+.btn-nhatot-secondary:hover {
+    background: #f0fdf4;
+    color: #006e52;
+}
+
+.btn-nhatot-outline {
+    background: transparent;
+    color: #008060;
+    border: 1px solid #008060;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 6px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.15s;
+}
+
+.btn-nhatot-outline:hover {
+    background: #f0fdf4;
+    color: #006e52;
+}
+
+/* Gioi Thieu Page Styles */
+.gioithieu-hero {
+    background: linear-gradient(135deg, #072a20 0%, #008060 100%);
+    color: #ffffff;
+    padding: 60px 24px;
+    text-align: center;
+}
+
+.gioithieu-hero-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.gioithieu-hero .gioithieu-tag {
+    color: #a7f3d0;
+}
+
+.gioithieu-hero h1 {
+    font-size: clamp(2rem, 3.5vw, 2.75rem);
+    font-weight: 800;
+    margin: 8px 0 16px;
+}
+
+.gioithieu-hero p {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #ecfdf5;
+}
+
+.gioithieu-stat-card {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #008060;
+    min-width: 90px;
+}
+
+.stat-label {
+    font-size: 14.5px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.value-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px;
+    height: 100%;
+}
+
+.value-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+}
+
+.step-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 22px;
+    height: 100%;
+    position: relative;
+}
+
+.step-num {
+    display: inline-block;
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #008060;
+    margin-bottom: 8px;
+}
+
+.step-card h4 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.step-card p {
+    font-size: 13.5px;
+    color: #6b7280;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.cta-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 40px 24px;
+}
+
+/* Footer Styling */
+.nhatot-footer {
+    background: #ffffff;
+    border-top: 1px solid #e5e7eb;
+    padding: 48px 0 24px;
+    margin-top: 48px;
+}
+
+.nhatot-footer-inner {
+    width: 100%;
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    justify-content: space-between;
+    gap: 40px;
+    flex-wrap: wrap;
+}
+
+.footer-brand {
+    max-width: 420px;
+}
+
+.footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.footer-badge {
+    background: #008060;
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+    font-size: 16px;
+}
+
+.footer-logo strong {
+    font-size: 18px;
+    color: #111827;
+}
+
+.footer-logo small {
+    font-size: 9px;
+    font-weight: 700;
+    color: #008060;
+    letter-spacing: 0.5px;
+}
+
+.footer-brand p {
+    font-size: 13.5px;
+    color: #6b7280;
+    line-height: 1.6;
+}
+
+.footer-links {
+    display: flex;
+    gap: 48px;
+}
+
+.footer-col h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 14px;
+}
+
+.footer-col a {
+    display: block;
+    font-size: 13.5px;
+    color: #4b5563;
+    text-decoration: none;
+    margin-bottom: 8px;
+    transition: color 0.15s;
+}
+
+.footer-col a:hover {
+    color: #008060;
+}
+
+.footer-bottom {
+    max-width: 1160px;
+    margin: 32px auto 0;
+    padding: 24px 24px 0;
+    border-top: 1px solid #f1f5f9;
+    text-align: center;
+    font-size: 13px;
+    color: #9ca3af;
+}
+
+/* Responsive adjustments */
+@media (max-width: 860px) {
+    .nhatot-header-inner {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+    .nhatot-nav {
+        order: 3;
+        width: 100%;
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        gap: 18px;
+    }
+    .nhatot-search-grid {
+        grid-template-columns: 1fr;
+    }
+    .btn-nhatot-search {
+        width: 100%;
+        justify-content: center;
+    }
+}
