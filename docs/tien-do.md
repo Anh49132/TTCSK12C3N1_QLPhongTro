@@ -1,5 +1,41 @@
 # Tiến độ và bàn giao dự án
 
+## Đồng bộ giao diện xác nhận email (06/10/2026)
+
+- ConfirmEmail dùng layout/CSS đăng nhập, hai cột ảnh nội thất và form nền kem, logo NhàTốt, nút xác nhận xanh và gửi lại mã dạng viền. Giữ Email/Code, CSRF, validation, thông báo lỗi/trạng thái, đường dẫn email local và formnovalidate của Gửi lại mã; mã có inputmode numeric/one-time-code và giới hạn 6 số. Có liên kết về đăng nhập.
+- Build và HTTP GET PASS, đủ trường/CSRF/route gửi lại; server 5247 đã nạp bản mới, 7 tài khoản demo đăng nhập đạt. Không chụp ảnh, không gửi email hoặc xác nhận mã thử trong lượt chỉnh giao diện.
+
+## Đồng bộ giao diện quên mật khẩu (06/10/2026)
+
+- ForgotPassword dùng layout/CSS đăng nhập, ảnh nội thất bên trái, logo NhàTốt và form email nền kem/nút xanh bên phải; dùng cùng responsive mobile. Giữ thông báo ResetRequestMessage, validation, CSRF và liên kết về đăng nhập; không đổi nghiệp vụ gửi email.
+- Build PASS; HTTP 200 và kiểm tra trường email/CSRF/branding đạt. Server 5247 đã nạp bản mới; 7 tài khoản demo đăng nhập đạt. Không chụp ảnh, không gửi email thử trong lượt chỉnh giao diện.
+
+## Đồng bộ trang đăng ký với đăng nhập (06/10/2026)
+
+- Trang Register dùng layout/CSS đăng nhập, hai cột ảnh nội thất và form nền kem, logo NhàTốt trên ảnh dùng chữ sáng, nút xanh; mobile dùng một cột. Giữ họ tên/email/điện thoại/mật khẩu, validation, CSRF và hiện/ẩn mật khẩu. Điều chỉnh khoảng cách cho form dài.
+- Build PASS; HTTP Register 200, đủ trường/CSRF/logo; server 5247 đã nạp bản mới, đăng nhập 7 tài khoản demo đạt. Không chụp ảnh, không gửi đăng ký mới/email, không đổi mã nghiệp vụ đăng ký.
+
+## Đồng nhất thương hiệu trang đăng nhập (06/10/2026)
+
+- Hai vị trí logo trên trang đăng nhập dùng cùng `images/nhatot-logo.svg` với trang chủ: NhàTốt - SỐNG ĐÚNG NƠI. Tiêu đề tab và nhãn trợ năng đổi từ Nhà Mộc sang NhàTốt; logo trên ảnh có nền kem để dễ đọc.
+- Build và xác minh HTML qua HTTP PASS; server 5247 đã nạp bản mới, đăng nhập 7 tài khoản demo đạt. Không chụp ảnh, không đổi dữ liệu/mật khẩu.
+
+## Trang đăng nhập theo ảnh Nhà Mộc (06/10/2026)
+
+- Layout đăng nhập riêng hai cột: ảnh nội thất hiện có bên trái, logo/nội dung theo ảnh tham chiếu, form nền kem và nút xanh bên phải. Mobile hiển thị form một cột. Không chụp ảnh.
+- Giữ validation, CSRF, AJAX nhận token, ReturnUrl, khóa tài khoản/countdown, quên mật khẩu, đăng ký và nút hiện/ẩn mật khẩu. Thêm RememberMe gửi qua form/fetch và điều khiển cookie persistent trong Login.
+- Build PASS; HTTP kiểm tra trang/assets, đăng nhập 7 tài khoản demo và cookie phiên/persistent PASS. Server 5247 đã nạp runtime mới; mật khẩu demo vẫn Demo@2026. Chưa xác minh bố cục trực quan trong browser; ảnh nền dùng asset có sẵn nên không giống hoàn toàn ảnh tham chiếu. Chưa commit/push.
+
+## Bộ dữ liệu sạch nghiệm thu S2-01–S2-10 trong bản - test (05/10/2026)
+
+- Đọc hướng dẫn, yêu cầu, mô hình SQLite/DBML và tiến độ; đối chiếu bộ demo cũ ở dự án gốc. Bộ cũ có 8 tài khoản và yêu cầu 8 đã bị đổi trạng thái, nên tạo bộ mới riêng bằng Sprint2DemoSeeder, không ghi hoặc xóa database cũ.
+- Bộ mới trong `data/sprint2-demo/20261005-172234-428e1c`, được chọn qua `latest.txt`; server riêng `http://localhost:5271`. Có 7 tài khoản đủ 4 vai trò, 4 tòa (A sở hữu A1/A2, B sở hữu B1/B2), 45 phòng, 35 tin công khai và 6 tin bị loại. Chọn 35 thay vì 36 để trang cuối lẻ: 12/12/11.
+- A1 có 5 dịch vụ mặc định có giá, gửi xe chỉ ở các phòng mẫu tầng trệt, có giá riêng và 2 hóa đơn tháng trước. A2 chưa cấu hình. Điện A1 theo chỉ số, nước theo người; cấu hình nước chờ kỳ 11/2026.
+- 8 yêu cầu đủ 5 trạng thái ở 2 tòa; có yêu cầu quá 24 giờ và vừa tạo, 2 lịch cùng phòng cách 15 phút, Thuê ngay chờ duyệt; khách 1 chưa gửi trên A108, khách 2 có yêu cầu mở trên tin đó.
+- Nạp 5 tệp ảnh nội thất JPG/PNG qua HTTP từ các asset hero hiện có (3 asset, có ảnh lặp). Kiểm tra thumbnail rộng 400px, không thiếu tệp/mồ côi. Thử tệp quá 5MB, JPG giả và ảnh thứ 9 đều bị từ chối; phục hồi phòng placeholder về 0 ảnh.
+- Xác minh HTTP đăng nhập 7 tài khoản, các trang dịch vụ/tin/yêu cầu/hóa đơn, Chủ nhà B nhận đúng 403, phân trang 12/12/11 và áp dụng gợi ý giá tìm được tin. SQLite integrity/FK đạt. Tài khoản, mật khẩu chung và bản đồ ID ghi trong `access.json`/`report.md`, kết quả trong `verification.json`; tất cả thuộc `data/` đã ignore.
+- Không đổi schema/mã nghiệp vụ, không thay `.env.local` đang chọn database cũ và không dừng server 5247. Chạy bộ mới bằng `verification/Start-Sprint2Demo.ps1` (đọc latest mới). S2-08 chỉ chuẩn bị lập hợp đồng; S3-01 chưa triển khai.
+
 ## Giao diện trang chủ NhàTốt khi chưa đăng nhập và đồng bộ điều hướng (05/10/2026)
 
 - Thiết kế trang chủ theo nhận diện NhàTốt khi chưa đăng nhập: Logo NhàTốt - SỐNG ĐÚNG NƠI, thanh điều hướng (Trang Chủ, Tìm Phòng, Tin Đăng Cho Thuê, Giới Thiệu, Đăng nhập, Đăng ký), hero banner tràn viền với ảnh phòng khách hiện đại và slogan "Tìm chốn ở phù hợp, bắt đầu cuộc sống mới."

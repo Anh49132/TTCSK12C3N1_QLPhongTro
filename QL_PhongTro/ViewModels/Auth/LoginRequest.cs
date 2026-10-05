@@ -12,4 +12,5 @@ public class LoginRequest
     public string? MatKhau { get; set; }
 
     public string? ReturnUrl { get; set; }
+    public bool RememberMe { get; set; } = true;
 }

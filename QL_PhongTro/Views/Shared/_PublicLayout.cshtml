@@ -49,31 +49,68 @@
     {
         <footer class="public-footer nhatot-footer">
             <div class="nhatot-footer-inner">
-                <div class="footer-brand">
-                    <div class="footer-logo">
-                        <span class="footer-badge">⌂</span>
-                        <strong>NhàTốt</strong>
-                        <small>SỐNG ĐÚNG NƠI</small>
-                    </div>
-                    <p>Khám phá nhà trọ, căn hộ và phòng ở minh bạch. Giá thật, ảnh thật, liên hệ trực tiếp.</p>
+                <div class="footer-top">
+                    <section class="footer-brand" aria-label="Thông tin NhàTốt">
+                        <a class="footer-logo" href="/" aria-label="NhàTốt, về trang chủ">
+                            <span class="footer-badge" aria-hidden="true">⌂</span>
+                            <span class="footer-logo-copy">
+                                <strong>NhàTốt</strong>
+                                <small>SỐNG ĐÚNG NƠI</small>
+                            </span>
+                        </a>
+                        <p>Nền tảng kết nối người thuê và chủ nhà bằng trải nghiệm tìm kiếm minh bạch, thuận tiện và đáng tin cậy.</p>
+                        <address class="footer-contact">
+                            <a href="tel:19006888"><span aria-hidden="true">☎</span> 1900 6888 · 08:00–22:00</a>
+                            <a href="mailto:hotro@nhatot.vn"><span aria-hidden="true">✉</span> hotro@nhatot.vn</a>
+                            <span><span aria-hidden="true">⌖</span> 28 Nguyễn Cơ Thạch, An Lợi Đông, TP. Thủ Đức</span>
+                        </address>
+                    </section>
+                    <nav class="footer-links" aria-label="Liên kết cuối trang">
+                        <div class="footer-col">
+                            <h4>Khám phá</h4>
+                            <a href="/TimTin">Tìm phòng</a>
+                            <a href="/TinDang">Căn hộ cho thuê</a>
+                            <a href="/TinDang">Nhà nguyên căn</a>
+                            <a href="/TinDang">Ở ghép</a>
+                            <a href="/TimTin">Khu vực phổ biến</a>
+                        </div>
+                        <div class="footer-col">
+                            <h4>Dành cho chủ nhà</h4>
+                            <a href="/Account/Login">Đăng tin miễn phí</a>
+                            <a href="/Account/Login">Quản lý tin đăng</a>
+                            <a href="/TinDang">Bảng giá dịch vụ</a>
+                            <a href="/Home/GioiThieu">Kinh nghiệm cho thuê</a>
+                            <a href="/Home/GioiThieu">Trung tâm trợ giúp</a>
+                        </div>
+                        <div class="footer-col">
+                            <h4>Về NhàTốt</h4>
+                            <a href="/Home/GioiThieu">Giới thiệu</a>
+                            <a href="/Home/GioiThieu">Cam kết an toàn</a>
+                            <a href="/Home/GioiThieu">Quy chế hoạt động</a>
+                            <a href="/Home/GioiThieu">Điều khoản sử dụng</a>
+                            <a href="/Home/GioiThieu">Chính sách bảo mật</a>
+                        </div>
+                    </nav>
                 </div>
-                <div class="footer-links">
-                    <div class="footer-col">
-                        <h4>Khám phá</h4>
-                        <a href="/">Trang chủ</a>
-                        <a href="/TimTin">Tìm phòng</a>
-                        <a href="/TinDang">Tin đăng cho thuê</a>
+                <div class="footer-newsletter">
+                    <div>
+                        <strong>Nhận tin thuê mới phù hợp mỗi tuần</strong>
+                        <span>Cập nhật gợi ý hữu ích, không làm phiền bạn.</span>
                     </div>
-                    <div class="footer-col">
-                        <h4>Về chúng tôi</h4>
-                        <a href="/Home/GioiThieu">Giới thiệu NhàTốt</a>
-                        <a href="/Account/Login">Dành cho chủ nhà</a>
-                        <a href="/Account/Register">Đăng ký tài khoản</a>
-                    </div>
+                    <a href="mailto:hotro@nhatot.vn?subject=Đăng%20ký%20nhận%20tin" class="footer-newsletter-link">
+                        Liên hệ qua email <span aria-hidden="true">→</span>
+                    </a>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; @DateTime.Now.Year NhàTốt · Nền tảng kết nối phòng trọ &amp; quản lý căn hộ minh bạch.</p>
+                <p>&copy; @DateTime.Now.Year NhàTốt. Bảo lưu mọi quyền.</p>
+                <div class="footer-social" aria-label="Mạng xã hội">
+                    <span aria-label="Facebook">f</span>
+                    <span aria-label="Instagram">◎</span>
+                    <span aria-label="YouTube">▶</span>
+                    <span aria-label="LinkedIn">in</span>
+                </div>
+                <span class="footer-legal">Minh bạch · An toàn · Tin cậy</span>
             </div>
         </footer>
     }
