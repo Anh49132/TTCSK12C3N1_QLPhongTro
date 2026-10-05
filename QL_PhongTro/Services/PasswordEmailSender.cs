@@ -29,10 +29,12 @@ public interface ITemporaryPasswordEmailSender
 
 public interface IRegistrationEmailSender
 {
-    Task<EmailDeliveryMode> SendConfirmationAsync(string email, string name, string code);
+    Task<EmailDeliveryResult> SendConfirmationAsync(string email, string name, string code);
 }
 
 public enum EmailDeliveryMode { Pickup, Smtp }
+
+public sealed record EmailDeliveryResult(EmailDeliveryMode Mode, string? PickupDirectory = null, string? PickupFilePath = null);
 
 public sealed class PasswordEmailSender(IOptions<PasswordResetOptions> options, IWebHostEnvironment environment) : IPasswordEmailSender, ITemporaryPasswordEmailSender, IRegistrationEmailSender
 {
@@ -45,47 +47,112 @@ public sealed class PasswordEmailSender(IOptions<PasswordResetOptions> options, 
         if (!Uri.TryCreate(url, UriKind.Absolute, out var origin) ||
             (origin.Scheme != "https" && !(environment.IsDevelopment() && origin.Scheme == "http" && origin.IsLoopback)) ||
             !string.IsNullOrEmpty(origin.UserInfo) || !string.IsNullOrEmpty(origin.Query) || !string.IsNullOrEmpty(origin.Fragment))
+        {
             throw new InvalidOperationException("Configure a trusted PublicBaseUrl.");
-        return DeliverAsync(email, "Tài khoản Nhà Trọ – yêu cầu đổi mật khẩu lần đầu",
+        }
+
+        return DeliverAsync(email, "Tài khoản Nhà Trọ - yêu cầu đổi mật khẩu lần đầu",
             $"Xin chào {name},\n\nQuản trị viên đã cấp tài khoản Nhà Trọ cho bạn.\nVai trò: {role}\nEmail đăng nhập: {email}\nMật khẩu tạm: {password}\nĐăng nhập: {url.TrimEnd('/')}/Account/Login\n\nBạn bắt buộc đặt mật khẩu mới ngay lần đăng nhập đầu tiên trước khi sử dụng hệ thống. Không chia sẻ mật khẩu này. Nếu bạn không yêu cầu tài khoản, hãy liên hệ quản trị viên.");
     }
 
-    public async Task<EmailDeliveryMode> SendConfirmationAsync(string email, string name, string code)
+    public Task<EmailDeliveryResult> SendConfirmationAsync(string email, string name, string code)
     {
-        await DeliverAsync(email, "Xác nhận tài khoản Nhà Trọ",
+        return DeliverAsync(email, "Xác nhận tài khoản Nhà Trọ",
             $"Xin chào {name},\n\nMã xác nhận tài khoản của bạn là: {code}\n\nMã có hiệu lực trong 15 phút. Nếu bạn không thực hiện đăng ký, hãy bỏ qua email này.");
-        return string.IsNullOrWhiteSpace(options.Value.PickupDirectory) ? EmailDeliveryMode.Smtp : EmailDeliveryMode.Pickup;
     }
 
-    private async Task DeliverAsync(string email, string subject, string body)
+    private async Task<EmailDeliveryResult> DeliverAsync(string email, string subject, string body)
     {
         var settings = options.Value;
-        if (string.IsNullOrWhiteSpace(settings.From)) throw new InvalidOperationException("Missing email sender configuration.");
+        if (string.IsNullOrWhiteSpace(settings.From))
+        {
+            throw new InvalidOperationException("Missing email sender configuration.");
+        }
+
         using var message = new MailMessage(settings.From, email)
         {
             Subject = subject,
             Body = body,
             IsBodyHtml = false
         };
-        using var client = new SmtpClient { Timeout = 15000 };
+
         if (!string.IsNullOrWhiteSpace(settings.PickupDirectory))
         {
-            if (!environment.IsDevelopment()) throw new InvalidOperationException("Email pickup is development-only.");
+            if (!environment.IsDevelopment())
+            {
+                throw new InvalidOperationException("Email pickup is development-only.");
+            }
+
             // Relative pickup paths use this machine's temp directory, outside the repository.
             var pickupDirectory = Path.IsPathFullyQualified(settings.PickupDirectory)
                 ? settings.PickupDirectory
                 : Path.GetFullPath(settings.PickupDirectory, Path.GetTempPath());
             Directory.CreateDirectory(pickupDirectory);
-            client.DeliveryMethod = SmtpDeliveryMethod.SpecifiedPickupDirectory;
-            client.PickupDirectoryLocation = pickupDirectory;
+            var filePath = await WritePickupMessageAsync(pickupDirectory, message);
+            return new EmailDeliveryResult(EmailDeliveryMode.Pickup, pickupDirectory, filePath);
         }
-        else
+
+        if (string.IsNullOrWhiteSpace(settings.Host))
         {
-            if (string.IsNullOrWhiteSpace(settings.Host)) throw new InvalidOperationException("Missing SMTP host.");
-            client.Host = settings.Host; client.Port = settings.Port; client.EnableSsl = settings.EnableSsl;
-            if (!string.IsNullOrWhiteSpace(settings.Username)) client.Credentials = new NetworkCredential(settings.Username, settings.Password);
+            throw new InvalidOperationException("Missing SMTP host.");
         }
+
+        using var client = new SmtpClient { Timeout = 15000 };
+        client.Host = settings.Host;
+        client.Port = settings.Port;
+        client.EnableSsl = settings.EnableSsl;
+        if (!string.IsNullOrWhiteSpace(settings.Username))
+        {
+            client.Credentials = new NetworkCredential(settings.Username, settings.Password);
+        }
+
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         await client.SendMailAsync(message, timeout.Token);
+        return new EmailDeliveryResult(EmailDeliveryMode.Smtp);
+    }
+
+    private static async Task<string> WritePickupMessageAsync(string pickupDirectory, MailMessage message)
+    {
+        var number = NextPickupNumber(pickupDirectory);
+        var subjectPart = Slug(message.Subject, "email");
+        var recipientPart = Slug(message.To.FirstOrDefault()?.Address ?? "nguoi-nhan", "nguoi-nhan");
+        var fileName = $"{number:0000}-{DateTime.Now:yyyyMMdd-HHmmss}-{subjectPart}-{recipientPart}.txt";
+        var filePath = Path.Combine(pickupDirectory, fileName);
+        var content = string.Join(Environment.NewLine, new[]
+        {
+            "Chế độ: PICKUP - email chỉ được lưu thành file local, chưa gửi đến hộp thư.",
+            $"Thời gian local: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
+            $"Từ: {message.From}",
+            $"Đến: {string.Join(", ", message.To.Select(to => to.Address))}",
+            $"Tiêu đề: {message.Subject}",
+            new string('-', 72),
+            message.Body
+        });
+        await File.WriteAllTextAsync(filePath, content);
+        return filePath;
+    }
+
+    private static int NextPickupNumber(string pickupDirectory)
+    {
+        var max = 0;
+        foreach (var file in Directory.EnumerateFiles(pickupDirectory, "*.txt"))
+        {
+            var name = Path.GetFileName(file);
+            if (name.Length >= 4 && int.TryParse(name[..4], out var number) && number > max)
+            {
+                max = number;
+            }
+        }
+
+        return max + 1;
+    }
+
+    private static string Slug(string value, string fallback)
+    {
+        var chars = value.Trim().ToLowerInvariant()
+            .Select(ch => char.IsAsciiLetterOrDigit(ch) ? ch : '-')
+            .ToArray();
+        var slug = string.Join('-', new string(chars).Split('-', StringSplitOptions.RemoveEmptyEntries));
+        return string.IsNullOrWhiteSpace(slug) ? fallback : slug[..Math.Min(slug.Length, 60)];
     }
 }

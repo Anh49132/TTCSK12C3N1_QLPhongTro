@@ -23,6 +23,13 @@ if (args.Contains("--check-email-config"))
 {
     var mail = builder.Configuration.GetSection("PasswordReset").Get<PasswordResetOptions>() ?? new();
     Console.WriteLine("Email mode: " + (string.IsNullOrWhiteSpace(mail.PickupDirectory) ? "SMTP" : "PICKUP (local file only; no inbox delivery)"));
+    if (!string.IsNullOrWhiteSpace(mail.PickupDirectory))
+    {
+        var pickupDirectory = Path.IsPathFullyQualified(mail.PickupDirectory)
+            ? mail.PickupDirectory
+            : Path.GetFullPath(mail.PickupDirectory, Path.GetTempPath());
+        Console.WriteLine("Pickup directory: " + pickupDirectory);
+    }
     Console.WriteLine($"SMTP host: {mail.Host}; port: {mail.Port}; TLS: {mail.EnableSsl}");
     Console.WriteLine($"Username configured: {!string.IsNullOrWhiteSpace(mail.Username)}; password configured: {!string.IsNullOrWhiteSpace(mail.Password)}; sender configured: {!string.IsNullOrWhiteSpace(mail.From)}");
     Console.WriteLine("Configuration check only. No email sent; credentials are not displayed.");

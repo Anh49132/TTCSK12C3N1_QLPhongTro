@@ -1,5 +1,11 @@
 # Tiến độ và bàn giao dự án
 
+## Đồng bộ nhánh dev mới nhất (05/10/2026)
+
+- Trước khi pull đã dừng ứng dụng, xác nhận working tree sạch và sao lưu nguyên fixture local ra `D:\DevSprint2\database-backups\sprint2-demo-before-pull-20261005-ca363ac2`; SHA-256 database nguồn/bản sao khớp nhau.
+- `git pull --ff-only origin dev` thành công, fast-forward từ `66ec95e` lên `66376d2`, không xung đột. `.env.local`, database và kho ảnh local vẫn tồn tại, vẫn được Git ignore; hash database không đổi sau pull.
+- Xác minh sau pull: `run.bat --check-only` PASS, dùng đúng fixture `data/sprint2-demo/20261004-185115-e98174/sprint2.sqlite`; schema sẵn sàng. Còn cảnh báo NU1900/ImageSharp/nullable có sẵn, không có lỗi build hoặc schema. Không chạy updater và không ghi đè database.
+
 ## Thu gọn từ chối và chuẩn hóa giờ hẹn (05/10/2026)
 
 - Đặt nút Từ chối ngay cạnh ô lý do; ghi chú Lý do khác nằm ở hàng dưới và ẩn cả cột khi không cần, bỏ khoảng trống đẩy nút ra xa.
@@ -514,3 +520,10 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 - Giả định PO cần xác nhận: `Mới` và `Đã hẹn lịch` là chưa xử lý; `Đã duyệt`, `Từ chối`, `Đã huỷ` là đã có kết quả. Mốc bắt đầu tính là `ngay_tao`; đúng 24 giờ đã được đánh dấu, tính theo UTC.
 - Controller trả thêm `QuaHanChuaXuLy`; view giữ nguyên toàn bộ thông tin và tô nổi bật dòng, kèm nhãn “Quá 24 giờ, chưa xử lý”. Vì tính trên từng dòng sau truy vấn, dấu hiệu vẫn đúng khi lọc trạng thái hoặc tòa nhà.
 - Chưa có số lượng yêu cầu chưa xử lý trên menu. Build/test thực tế cần thực hiện trước nghiệm thu; database local không bị ghi.
+## Local email pickup file names (05/10/2026)
+
+- Cap nhat che do email pickup local: khi chua dung SMTP, app tu ghi file `.txt` de doc voi tien to danh so `0001-...`, chua gui vao inbox. Noi dung file co thoi gian, nguoi gui, nguoi nhan, tieu de va body co ma xac nhan.
+- Trang `/Account/ConfirmEmail` hien them thu muc pickup va file moi nhat sau khi dang ky/gui lai ma. `--check-email-config` in duong dan pickup tuyet doi; `run.bat` in `Email pickup local=...` khi cau hinh pickup den tu `.env.local`/bien moi truong.
+- File thay doi: `QL_PhongTro/Services/PasswordEmailSender.cs`, `QL_PhongTro/Controllers/AccountController.cs`, `QL_PhongTro/Views/Account/ConfirmEmail.cshtml`, `QL_PhongTro/Program.cs`, `run.bat`.
+- Xac minh thuc te: `dotnet build .\QL_PhongTro\QL_PhongTro.csproj --no-restore` PASS; `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --no-build --launch-profile http -- --check-email-config` PASS va in `Pickup directory: C:\Users\cter4\AppData\Local\Temp\s105-mail-preview`. Con can restart app va gui thu ma tren UI de thay file pickup moi sinh. Khong doi schema/database, khong ghi SMTP secret.
+

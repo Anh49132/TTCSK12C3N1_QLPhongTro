@@ -49,6 +49,7 @@ if not defined DatabasePath (
 )
 
 echo [INFO] DatabasePath=%DatabasePath%
+if defined PasswordReset__PickupDirectory echo [INFO] Email pickup local=%PasswordReset__PickupDirectory%
 echo [1/3] Dang khoi phuc goi phu thuoc...
 dotnet restore "%PROJECT%"
 if errorlevel 1 goto :failed

@@ -288,10 +288,15 @@ public partial class AccountController(AppDbContext db, RegistrationSettings set
         TempData.Remove("RegisterError");
         try
         {
-            var mode = await registrationEmail.SendConfirmationAsync(account.Email, account.HoTen, code);
-            TempData["RegisterMessage"] = mode == EmailDeliveryMode.Pickup
+            var delivery = await registrationEmail.SendConfirmationAsync(account.Email, account.HoTen, code);
+            TempData["RegisterMessage"] = delivery.Mode == EmailDeliveryMode.Pickup
                 ? "Chế độ thử nghiệm: mã chỉ được lưu vào file email trên máy chạy ứng dụng, chưa gửi đến hộp thư. Cần cấu hình SMTP để nhận email thật."
                 : "Máy chủ gửi thư đã nhận email chứa mã. Kiểm tra Hộp thư đến và Spam; trạng thái này chưa xác nhận thư đã tới hộp thư.";
+            if (delivery.Mode == EmailDeliveryMode.Pickup)
+            {
+                TempData["RegisterPickupDirectory"] = delivery.PickupDirectory;
+                TempData["RegisterPickupFile"] = delivery.PickupFilePath;
+            }
         }
         catch (Exception ex) when (ex is System.Net.Mail.SmtpException or InvalidOperationException or FormatException or IOException or UnauthorizedAccessException or OperationCanceledException)
         {

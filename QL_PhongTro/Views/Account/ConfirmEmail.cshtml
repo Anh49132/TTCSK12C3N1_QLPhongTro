@@ -3,6 +3,13 @@
 <section class="auth-card"><h1>Xác nhận email</h1>
 <p>Nhập mã 6 số khi nhận được email. Mã có hiệu lực 15 phút.</p>
 @if (TempData["RegisterMessage"] is string message) { <div class="alert alert-info">@message</div> }
+@if (TempData.ContainsKey("RegisterPickupDirectory") || TempData.ContainsKey("RegisterPickupFile"))
+{
+    <div class="alert alert-info">
+        @if (TempData["RegisterPickupDirectory"] is string directory) { <div><strong>Thu muc email local:</strong> <code>@directory</code></div> }
+        @if (TempData["RegisterPickupFile"] is string file) { <div><strong>File moi nhat:</strong> <code>@file</code></div> }
+    </div>
+}
 @if (TempData["RegisterError"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
 <form asp-action="ConfirmEmail" method="post"><div asp-validation-summary="All" class="text-danger"></div>
 <label asp-for="Email" class="form-label">Email</label><input asp-for="Email" type="email" class="form-control" autocomplete="email" placeholder="ban@example.com" />
