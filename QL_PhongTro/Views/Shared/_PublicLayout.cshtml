@@ -42,7 +42,7 @@
             </div>
         </div>
     </header>
-    <main class="public-main @(isHome ? "public-main-home" : "")">
+    <main class="public-main @(isHome ? "public-main-home" : "") @(isTimTin ? "public-main-timtin" : "")">
         @RenderBody()
     </main>
     @if (!isHome)

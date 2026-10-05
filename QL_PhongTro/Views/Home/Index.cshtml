@@ -66,6 +66,38 @@ else
                 </p>
             </div>
         </section>
-
+        <section class="home-room-search-section" aria-label="Tìm phòng">
+            <form asp-controller="TimTin" asp-action="Index" method="get" class="home-room-search-form">
+                <div class="listing-search-grid timtin-search-grid home-room-search-grid">
+                    <input type="hidden" name="GiaToiDa" value="" />
+                    <div class="timtin-location-field">
+                        <svg class="timtin-location-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
+                            <circle cx="12" cy="10" r="2.5" />
+                        </svg>
+                        <label for="home-room-district">Khu vực</label>
+                        <select id="home-room-district" name="QuanHuyen" class="form-select" aria-label="Chọn khu vực">
+                            <option value="">Chọn khu vực</option>
+                            @foreach (var district in Model.QuanHuyens)
+                            {
+                                <option value="@district">@district</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="timtin-keyword-field">
+                        <label for="home-room-keyword" class="visually-hidden">Từ khóa tìm kiếm</label>
+                        <input id="home-room-keyword" name="TuKhoa" class="form-control" maxlength="200"
+                               placeholder="Nhập tên đường, phường, dự án hoặc từ khóa..." />
+                    </div>
+                    <button type="submit" class="listing-search-submit btn-nhatot-search">
+                        <svg class="timtin-search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <circle cx="10.8" cy="10.8" r="6.3" />
+                            <path d="m15.5 15.5 4.2 4.2" />
+                        </svg>
+                        <span>Tìm phòng</span>
+                    </button>
+                </div>
+            </form>
+        </section>
     </div>
 }
