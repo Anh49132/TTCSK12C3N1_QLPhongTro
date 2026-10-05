@@ -3,11 +3,17 @@
 ## Giao diện trang chủ NhàTốt khi chưa đăng nhập và đồng bộ điều hướng (05/10/2026)
 
 - Thiết kế trang chủ theo nhận diện NhàTốt khi chưa đăng nhập: Logo NhàTốt - SỐNG ĐÚNG NƠI, thanh điều hướng (Trang Chủ, Tìm Phòng, Tin Đăng Cho Thuê, Giới Thiệu, Đăng nhập, Đăng ký), hero banner tràn viền với ảnh phòng khách hiện đại và slogan "Tìm chốn ở phù hợp, bắt đầu cuộc sống mới."
-- Tích hợp thanh tìm kiếm nhanh ngay tại trang chủ kết nối trực tiếp sang `/TimTin` (theo từ khóa, quận/huyện, khoảng giá).
-- Bổ sung danh sách Tin đăng cho thuê mới nhất từ CSDL hiển thị trực tiếp trên trang chủ kèm giá thuê, diện tích, sức chứa và ảnh đại diện, liên kết xem chi tiết phòng.
+- Trang chủ hiện chỉ hiển thị hero banner; form tìm nhanh tại trang chủ chưa có trong phiên bản hiện tại.
+- Controller chuẩn bị danh sách tin mới nhất, nhưng view trang chủ hiện chưa hiển thị danh sách này.
 - Thêm trang Giới thiệu tại `/Home/GioiThieu` với 3 cam kết cốt lõi (Giá thật minh bạch, Ảnh thật xác thực, Liên hệ trực tiếp) và quy trình 4 bước thuê phòng.
 - Khi đã đăng nhập, người dùng tiếp tục sử dụng không gian quản lý bình thường; layout công khai `_PublicLayout.cshtml` được đồng bộ cho cả `/`, `/TimTin`, `/TinDang` và `/Home/GioiThieu`.
-- Build PASS; toàn bộ 263/263 kiểm thử tự động PASS (bao gồm 2 ca kiểm thử tích hợp mới cho trang chủ NhàTốt và trang Giới thiệu). Không đổi schema CSDL.
+- Kiểm thử ngày 05/10/2026 trước khi hợp nhất bản sửa email: Build PASS; 262/263 ca đạt, 1 ca trang chủ thất bại vì thiếu form tìm nhanh. Test còn kỳ vọng tin nổi bật và cam kết trên trang chủ. Không đổi schema CSDL.
+
+## Đồng bộ nhánh dev mới nhất (05/10/2026)
+
+- Trước khi pull đã dừng ứng dụng, xác nhận working tree sạch và sao lưu nguyên fixture local ra `D:\DevSprint2\database-backups\sprint2-demo-before-pull-20261005-ca363ac2`; SHA-256 database nguồn/bản sao khớp nhau.
+- `git pull --ff-only origin dev` thành công, fast-forward từ `66ec95e` lên `66376d2`, không xung đột. `.env.local`, database và kho ảnh local vẫn tồn tại, vẫn được Git ignore; hash database không đổi sau pull.
+- Xác minh sau pull: `run.bat --check-only` PASS, dùng đúng fixture `data/sprint2-demo/20261004-185115-e98174/sprint2.sqlite`; schema sẵn sàng. Còn cảnh báo NU1900/ImageSharp/nullable có sẵn, không có lỗi build hoặc schema. Không chạy updater và không ghi đè database.
 
 ## Thu gọn từ chối và chuẩn hóa giờ hẹn (05/10/2026)
 
@@ -523,3 +529,9 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 - Giả định PO cần xác nhận: `Mới` và `Đã hẹn lịch` là chưa xử lý; `Đã duyệt`, `Từ chối`, `Đã huỷ` là đã có kết quả. Mốc bắt đầu tính là `ngay_tao`; đúng 24 giờ đã được đánh dấu, tính theo UTC.
 - Controller trả thêm `QuaHanChuaXuLy`; view giữ nguyên toàn bộ thông tin và tô nổi bật dòng, kèm nhãn “Quá 24 giờ, chưa xử lý”. Vì tính trên từng dòng sau truy vấn, dấu hiệu vẫn đúng khi lọc trạng thái hoặc tòa nhà.
 - Chưa có số lượng yêu cầu chưa xử lý trên menu. Build/test thực tế cần thực hiện trước nghiệm thu; database local không bị ghi.
+## Local email pickup file names (05/10/2026)
+
+- Cap nhat che do email pickup local: khi chua dung SMTP, app tu ghi file `.txt` de doc voi tien to danh so `0001-...`, chua gui vao inbox. Noi dung file co thoi gian, nguoi gui, nguoi nhan, tieu de va body co ma xac nhan.
+- Trang `/Account/ConfirmEmail` hien them thu muc pickup va file moi nhat sau khi dang ky/gui lai ma. `--check-email-config` in duong dan pickup tuyet doi; `run.bat` in `Email pickup local=...` khi cau hinh pickup den tu `.env.local`/bien moi truong.
+- File thay doi: `QL_PhongTro/Services/PasswordEmailSender.cs`, `QL_PhongTro/Controllers/AccountController.cs`, `QL_PhongTro/Views/Account/ConfirmEmail.cshtml`, `QL_PhongTro/Program.cs`, `run.bat`.
+- Xac minh thuc te: `dotnet build .\QL_PhongTro\QL_PhongTro.csproj --no-restore` PASS; `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --no-build --launch-profile http -- --check-email-config` PASS va in `Pickup directory: C:\Users\cter4\AppData\Local\Temp\s105-mail-preview`. Con can restart app va gui thu ma tren UI de thay file pickup moi sinh. Khong doi schema/database, khong ghi SMTP secret.
