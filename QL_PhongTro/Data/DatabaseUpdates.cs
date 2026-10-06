@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 13;
+    private const int CurrentVersion = 15;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -68,6 +68,7 @@ public static class DatabaseUpdates
         foreach (var entity in db.Model.GetEntityTypes())
         {
             var table = entity.GetTableName()!;
+            if (table == "hop_dong_chi_so_dau_ky" && schemaVersion < 15) continue;
             if (!requireRoomServices && table is "dich_vu_toa_nha" or "dich_vu_phong" or "ngung_dich_vu_phong") continue;
             if (table == "nhat_ky_hoat_dong" && !requireAudit) continue;
             if (!requirePublicListings && (table is "tin_dang" or "anh_phong") && !HasTable(c, table)) continue;
@@ -78,10 +79,15 @@ public static class DatabaseUpdates
             var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
             var columns = entity.GetProperties().Select(p => p.GetColumnName(store)!)
                 .Where(column => requireAccountSecurity || table != "tai_khoan" || column is not ("email_confirmed" or "is_deleted"));
+            if (schemaVersion < 14 && table == "hop_dong")
+                columns = columns.Where(column => column is not ("yeu_cau_thue_id" or "khach_dung_ten_id" or "tien_coc_thoa_thuan" or "ngay_chot_hang_thang" or "nguoi_lap_id" or "ngay_tao"));
+            if (schemaVersion < 14 && table == "ky_hop_dong")
+                columns = columns.Where(column => column is not ("so_thu_tu" or "so_thang" or "nguoi_lap_id" or "ngay_tao"));
             if (table == "anh_phong" && schemaVersion < 12)
                 columns = columns.Where(column => column is not ("dang_cho_xoa" or "loi_xoa_gan_nhat" or "lan_thu_xoa_gan_nhat"));
             Probe(table, columns);
         }
+        if (schemaVersion >= 15) Probe("hop_dong_so_ma", ["nam", "so_cuoi"]);
         Probe("password_reset_token", ["token_hash", "account_id", "expires_at", "used_at"]);
         Probe("password_reset_request", ["id", "email_key", "requested_at"]);
         Probe("account_session_version", ["account_id", "version"]);
@@ -360,6 +366,8 @@ public static class DatabaseUpdates
             command.ExecuteNonQuery();
             tx.Commit();
         }
+        if (version < 14) ContractSchema.Upgrade(c);
+        if (version < 15) ContractCompletionSchema.Upgrade(c);
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }

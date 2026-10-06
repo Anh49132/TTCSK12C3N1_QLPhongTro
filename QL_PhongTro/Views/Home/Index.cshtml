@@ -1,5 +1,4 @@
 @model QL_PhongTro.ViewModels.HomeViewModel
-@inject QL_PhongTro.Authorization.PermissionService Permissions
 @{
     var signedIn = User.Identity?.IsAuthenticated == true;
     if (!signedIn)
@@ -7,54 +6,11 @@
         Layout = "~/Views/Shared/_PublicLayout.cshtml";
     }
     ViewData["Title"] = "Trang chủ";
-    var modules = await Permissions.MenuAsync();
-    var isTenant = User.IsInRole("KHACH_THUE");
 }
 
 @if (signedIn)
 {
-    @* Giao diện khi người dùng đã đăng nhập (bên trong hệ thống quản lý) *@
-    <section class="hero">
-        <div class="hero-copy">
-            <p class="eyebrow">● &nbsp; @(isTenant ? "TÌM PHÒNG VÀ THEO DÕI YÊU CẦU" : "GỌN GÀNG HƠN MỖI NGÀY")</p>
-            <h1>@(isTenant ? "Chỗ ở phù hợp." : "Quản lý nhà trọ.")<br /><span>@(isTenant ? "Mọi yêu cầu rõ ràng." : "Thảnh thơi hơn.")</span></h1>
-            <p class="hero-description">@(isTenant ? "Tìm phòng, gửi yêu cầu xem phòng và theo dõi lịch hẹn của bạn trong một nơi." : "Từ phòng ở đến hợp đồng, từ điện nước đến thu chi. Sắp xếp mọi việc trong một không gian quản lý đơn giản, rõ ràng.")</p>
-            <div class="hero-actions">
-                @if (isTenant)
-                {
-                    <a class="btn btn-primary btn-lg" asp-controller="TimTin" asp-action="Index">Tìm phòng trọ →</a>
-                    <a class="btn btn-outline-secondary" asp-controller="YeuCau" asp-action="Index">Yêu cầu của tôi</a>
-                }
-                else if (modules.Count > 0)
-                {
-                    <a class="btn btn-primary btn-lg" href="@QL_PhongTro.Authorization.PermissionService.Url(modules[0].Code)">Vào không gian quản lý ↗</a>
-                }
-                else
-                {
-                    <p class="text-muted">Tài khoản của bạn chưa được cấp quyền. Vui lòng liên hệ người quản trị.</p>
-                }
-                @if (!isTenant) { <a class="btn btn-outline-secondary" href="/TinDang">Xem trang tin đăng công khai ↗</a> }
-            </div>
-            <div class="hero-note">✓ &nbsp; Dễ theo dõi &nbsp;&nbsp;&nbsp; ✓ &nbsp; @(isTenant ? "Lịch hẹn minh bạch" : "Phân quyền rõ ràng")</div>
-        </div>
-        <div class="hero-art" role="img" aria-label="Minh họa tòa nhà trọ với những ô cửa và cây xanh">
-            <div class="art-grid"></div><div class="art-orbit"></div>
-            <div class="art-label">MỖI CĂN PHÒNG, MỘT TỔ ẤM.</div>
-            <div class="building"><div class="building-roof">NHÀ TRỌ</div><div class="windows">@for (var i = 0; i < 6; i++) { <span class="window"></span> }</div><div class="building-door"></div></div>
-            <div class="small-building"><span></span><span></span><span></span></div>
-            <div class="art-tree"><span></span></div><div class="art-ground"></div>
-            <div class="art-card"><span class="art-card-icon" aria-hidden="true">⌂</span><div><strong>Không gian ngăn nắp</strong><small>Quản lý tập trung, dễ theo dõi</small></div></div>
-            <div class="art-caption">● &nbsp; AN TÂM QUẢN LÝ · TRỌN VẸN CUỘC SỐNG</div>
-        </div>
-    </section>
-    <section class="features" aria-labelledby="features-title">
-        <div class="section-heading"><div><p class="eyebrow">MỌI VIỆC TRONG TẦM TAY</p><h2 id="features-title">Một nơi cho mọi công việc.</h2></div><p>Thông tin rõ ràng, vận hành nhẹ nhàng.</p></div>
-        <div class="feature-grid">
-            <article class="feature-card"><span class="feature-number">01 / KHÔNG GIAN</span><h3>Phòng &amp; tòa nhà</h3><p>Sắp xếp thông tin phòng, giá thuê và trạng thái theo từng tòa nhà.</p><span class="feature-symbol" aria-hidden="true">⌂</span></article>
-            <article class="feature-card"><span class="feature-number">02 / KẾT NỐI</span><h3>Người thuê &amp; hợp đồng</h3><p>Tập trung thông tin thuê trọ, hợp đồng và các yêu cầu trong quá trình ở.</p><span class="feature-symbol" aria-hidden="true">◇</span></article>
-            <article class="feature-card"><span class="feature-number">03 / VẬN HÀNH</span><h3>Điện nước &amp; thu chi</h3><p>Theo dõi các khoản chi phí và công việc hằng tháng theo quyền được cấp.</p><span class="feature-symbol" aria-hidden="true">≋</span></article>
-        </div>
-    </section>
+    <partial name="_RoleHome" model="Model" />
 }
 else
 {

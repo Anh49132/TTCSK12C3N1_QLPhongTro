@@ -14,6 +14,7 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
     public DbSet<CauHinhDichVu> CauHinhDichVus => Set<CauHinhDichVu>();
     public DbSet<KhoiTaoDichVu> KhoiTaoDichVus => Set<KhoiTaoDichVu>();
     public DbSet<HopDongThamChieu> HopDongs => Set<HopDongThamChieu>();
+    public DbSet<HopDongChiSoDauKy> HopDongChiSoDauKys => Set<HopDongChiSoDauKy>();
     public DbSet<KyHopDongThamChieu> KyHopDongs => Set<KyHopDongThamChieu>();
     public DbSet<HopDongDichVu> HopDongDichVus => Set<HopDongDichVu>();
     public DbSet<HoaDon> HoaDons => Set<HoaDon>();
@@ -31,6 +32,8 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<HopDongChiSoDauKy>().HasOne<HopDongThamChieu>().WithMany().HasForeignKey(x => x.HopDongId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<HopDongChiSoDauKy>().HasIndex(x => x.HopDongId).IsUnique();
         modelBuilder.Entity<TinDang>().HasOne<PhongTro>().WithMany().HasForeignKey(x => x.PhongId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<TinDang>().HasOne<TaiKhoan>().WithMany().HasForeignKey(x => x.NguoiDangId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<TinDang>().HasOne<TinDang>().WithMany().HasForeignKey(x => x.TinGocId).OnDelete(DeleteBehavior.Restrict);

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Data;
@@ -96,6 +97,69 @@ public class HomeController(
                         DiaChi = x.DiaChi,
                         AnhDaiDien = imageMap.GetValueOrDefault(x.PhongId)
                     }).ToList();
+
+                    if (User.Identity?.IsAuthenticated == true &&
+                        int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId))
+                    {
+                        var role = User.FindFirstValue(ClaimTypes.Role);
+                        var visibleRooms = db.PhongTros.AsNoTracking().Where(room => db.ToaNhas.Any(building =>
+                            building.Id == room.ToaNhaId && (role == "ADMIN" ||
+                            (role == "CHU_NHA" && building.ChuNhaId == accountId) ||
+                            (role == "QUAN_LY" && building.QuanLyId == accountId))));
+                        model.Dashboard.Rooms = await (from room in visibleRooms
+                            join building in db.ToaNhas on room.ToaNhaId equals building.Id
+                            orderby room.MaPhong
+                            select new HomeRoomItem(room.Id, room.MaPhong, building.TenToaNha, room.TrangThai, room.GiaThue)).Take(6).ToListAsync();
+                        model.Dashboard.Requests = await (from request in db.YeuCauThues.AsNoTracking()
+                            join tenant in db.KhachThues on request.KhachThueId equals tenant.Id
+                            join listing in db.TinDangs on request.TinDangId equals listing.Id
+                            join room in db.PhongTros on listing.PhongId equals room.Id
+                            where role == "KHACH_THUE" ? tenant.TaiKhoanId == accountId : visibleRooms.Any(x => x.Id == room.Id)
+                            orderby request.NgayTao descending
+                            select new HomeRequestItem(request.Id, request.MaYeuCau, room.MaPhong, tenant.HoTen, request.TrangThai, request.NgayTao)).Take(5).ToListAsync();
+                        if (role == "ADMIN")
+                        {
+                            var roleCounts = await db.TaiKhoans.Where(x => !x.IsDeleted).GroupBy(x => x.VaiTro)
+                                .Select(x => new { Role = x.Key, Count = x.Count() }).ToListAsync();
+                            model.Dashboard.Roles = roleCounts.Select(x => new HomeRoleItem(x.Role switch {
+                                "KHACH_THUE" => "Khách thuê", "CHU_NHA" => "Chủ nhà", "QUAN_LY" => "Quản lý", _ => "Admin" }, x.Count)).ToList();
+                            model.Dashboard.Activities = await db.NhatKyHoatDongs.AsNoTracking().OrderByDescending(x => x.ThoiDiem).Take(6).ToListAsync();
+                            model.Dashboard.TongTaiKhoan = await db.TaiKhoans.CountAsync(x => x.DangHoatDong && !x.IsDeleted);
+                            model.Dashboard.TongChuNha = await db.TaiKhoans.CountAsync(x => x.DangHoatDong && !x.IsDeleted && x.VaiTro == "CHU_NHA");
+                            model.Dashboard.TongToaNha = await db.ToaNhas.CountAsync(x => x.DangHoatDong);
+                            model.Dashboard.TongPhong = await db.PhongTros.CountAsync();
+                            model.Dashboard.YeuCauChoXuLy = await db.YeuCauThues.CountAsync(x =>
+                                x.TrangThai == TrangThaiYeuCau.Moi || x.TrangThai == TrangThaiYeuCau.DaHenLich);
+                        }
+                        else if (role is "CHU_NHA" or "QUAN_LY")
+                        {
+                            var buildingIds = await db.ToaNhas.AsNoTracking()
+                                .Where(x => x.DangHoatDong && (role == "CHU_NHA" ? x.ChuNhaId == accountId : x.QuanLyId == accountId))
+                                .Select(x => x.Id).ToListAsync();
+                            var rooms = db.PhongTros.AsNoTracking().Where(x => buildingIds.Contains(x.ToaNhaId));
+                            model.Dashboard.TongToaNha = buildingIds.Count;
+                            model.Dashboard.TongPhong = await rooms.CountAsync();
+                            model.Dashboard.PhongTrong = await rooms.CountAsync(x => x.TrangThai == "TRONG");
+                            model.Dashboard.PhongDangThue = await rooms.CountAsync(x => x.TrangThai == "DANG_THUE");
+                            model.Dashboard.YeuCauChoXuLy = await (from request in db.YeuCauThues.AsNoTracking()
+                                join listing in db.TinDangs.AsNoTracking() on request.TinDangId equals listing.Id
+                                join room in rooms on listing.PhongId equals room.Id
+                                where request.TrangThai == TrangThaiYeuCau.Moi || request.TrangThai == TrangThaiYeuCau.DaHenLich
+                                select request.Id).CountAsync();
+                        }
+                        else if (role == "KHACH_THUE")
+                        {
+                            model.Dashboard.YeuCauCuaToi = await (from request in db.YeuCauThues.AsNoTracking()
+                                join tenant in db.KhachThues.AsNoTracking() on request.KhachThueId equals tenant.Id
+                                where tenant.TaiKhoanId == accountId
+                                select request.Id).CountAsync();
+                            model.Dashboard.YeuCauChoXuLy = await (from request in db.YeuCauThues.AsNoTracking()
+                                join tenant in db.KhachThues.AsNoTracking() on request.KhachThueId equals tenant.Id
+                                where tenant.TaiKhoanId == accountId &&
+                                    (request.TrangThai == TrangThaiYeuCau.Moi || request.TrangThai == TrangThaiYeuCau.DaHenLich)
+                                select request.Id).CountAsync();
+                        }
+                    }
                 }
             }
             catch

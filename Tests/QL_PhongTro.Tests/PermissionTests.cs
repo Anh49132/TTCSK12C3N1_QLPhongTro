@@ -159,12 +159,12 @@ public sealed partial class PermissionTests : IDisposable
     [Fact]
     public void UpdateV13_ChoQuanLyQuyenDangTinNhungKhongMoLaiQuyenDaThuHoi()
     {
-        Execute("DELETE FROM app_schema_version WHERE version=13");
+        Execute("DELETE FROM app_schema_version WHERE version>=13");
         Execute("UPDATE role_permission SET AccessLevel='READ' WHERE RoleCode='QUAN_LY' AND ModuleCode='TIN_DANG'");
 
         DatabaseUpdates.Update(database, Path.Combine(appPath, "Data", "permissions.seed.json"));
 
-        Assert.Equal(13L, Scalar("SELECT MAX(version) FROM app_schema_version"));
+        Assert.Equal(15L, Scalar("SELECT MAX(version) FROM app_schema_version"));
         Assert.Equal("WRITE", Scalar("SELECT AccessLevel FROM role_permission WHERE RoleCode='QUAN_LY' AND ModuleCode='TIN_DANG'"));
 
         Execute("UPDATE role_permission SET AccessLevel='NONE' WHERE RoleCode='QUAN_LY' AND ModuleCode='TIN_DANG'");
@@ -201,7 +201,7 @@ public sealed partial class PermissionTests : IDisposable
             {
                 var marker = "data-menu-module=\"" + modules[m] + "\"";
                 var allowed = levels[m][r] != "NONE";
-                var showMenu = allowed && !(roles[r] == "KHACH_THUE" && modules[m] == "PHONG_TRO");
+                var showMenu = allowed && roles[r] != "KHACH_THUE";
                 Assert.Equal(showMenu,home.Contains(marker));
                 var api = await client.GetAsync("/api/modules/" + modules[m]);
                 Assert.Equal(allowed ? HttpStatusCode.OK : HttpStatusCode.Forbidden,api.StatusCode);
@@ -212,6 +212,15 @@ public sealed partial class PermissionTests : IDisposable
                     Assert.Equal("FORBIDDEN", JsonDocument.Parse(await api.Content.ReadAsStringAsync()).RootElement.GetProperty("code").GetString());
                 }
                 else Assert.True(page.StatusCode is HttpStatusCode.OK or HttpStatusCode.Redirect);
+            }
+            if (roles[r] == "KHACH_THUE")
+            {
+                Assert.Contains("class=\"tenant-header\"", home);
+                Assert.DoesNotContain("id=\"app-sidebar\"", home);
+            }
+            else
+            {
+                Assert.Contains("id=\"app-sidebar\"", home);
             }
         }
     }

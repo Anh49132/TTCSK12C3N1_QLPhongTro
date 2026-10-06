@@ -1,6 +1,9 @@
 @{
     var isPropertyPage = ViewContext.RouteData.Values["controller"]?.ToString() == "PhongTro";
+    var isListingPage = ViewContext.RouteData.Values["controller"]?.ToString() is "TinDang" or "TimTin";
     var useHomepageTheme = User.IsInRole("KHACH_THUE") || User.IsInRole("CHU_NHA") || User.IsInRole("QUAN_LY") || User.IsInRole("ADMIN");
+    var isTenant = User.IsInRole("KHACH_THUE");
+    var roleClass = User.IsInRole("ADMIN") ? "role-admin" : User.IsInRole("CHU_NHA") ? "role-owner" : User.IsInRole("QUAN_LY") ? "role-manager" : isTenant ? "role-tenant" : "";
 }
 <!DOCTYPE html>
 <html lang="vi">
@@ -11,26 +14,43 @@
 <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/components.css" asp-append-version="true" />
+@if (isListingPage) { <link rel="stylesheet" href="~/css/public-listing.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/listing-theme.css" asp-append-version="true" /> }
 @if (useHomepageTheme) { <link rel="stylesheet" href="~/css/homepage-dashboard-theme.css" asp-append-version="true" /> }
+@if (useHomepageTheme) { <link rel="stylesheet" href="~/css/latte-dashboard.css" asp-append-version="true" /> }
 @if (isPropertyPage) { <link rel="stylesheet" href="~/css/room-images.css" asp-append-version="true" /> }
+@await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="@(useHomepageTheme ? "homepage-dashboard-theme" : "")">
+<body class="@(useHomepageTheme ? "homepage-dashboard-theme" : "") @roleClass">
 <a class="skip-link" href="#main-content">Đến nội dung chính</a>
+@if (isTenant)
+{
+<partial name="_TenantHeader" />
+<div class="dashboard-main tenant-main" id="dashboard-main">
+<main id="main-content" class="app-content @(isPropertyPage ? "property-management" : "")" tabindex="-1">
+@if (isPropertyPage) { <partial name="_PropertyNotifications" /> }
+@RenderBody()
+</main>
+</div>
+}
+else
+{
 <aside id="app-sidebar" class="dashboard-sidebar" aria-label="Điều hướng ứng dụng">
 <partial name="_Sidebar" />
-<partial name="_AccountMenu" />
 </aside>
 <button type="button" class="sidebar-backdrop" id="sidebar-backdrop" aria-label="Đóng thanh điều hướng" hidden></button>
 <div class="dashboard-main" id="dashboard-main">
 <header class="dashboard-header">
 <button type="button" id="sidebar-toggle" class="icon-button" aria-label="Thu gọn thanh điều hướng" aria-controls="app-sidebar" aria-expanded="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>
 <span class="page-title">@ViewData["Title"]</span>
+<form class="latte-header-search" action="/TimTin" method="get"><input name="TuKhoa" aria-label="Tìm kiếm phòng, tin đăng" placeholder="Tìm kiếm phòng, tòa nhà, tin đăng..." /><button aria-label="Tìm kiếm" type="submit">⌕</button></form>
+<div class="latte-header-user"><partial name="_AccountMenu" /></div>
 </header>
 <main id="main-content" class="app-content @(isPropertyPage ? "property-management" : "")" tabindex="-1">
 @if (isPropertyPage) { <partial name="_PropertyNotifications" /> }
 @RenderBody()
 </main>
 </div>
+}
 <partial name="_Toast" />
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

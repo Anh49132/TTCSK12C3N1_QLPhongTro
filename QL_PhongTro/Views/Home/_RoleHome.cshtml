@@ -1,0 +1,86 @@
+@model QL_PhongTro.ViewModels.HomeViewModel
+@using System.Globalization
+@{
+    var name = User.Identity?.Name ?? "bạn";
+    var isAdmin = User.IsInRole("ADMIN");
+    var isTenant = User.IsInRole("KHACH_THUE");
+    var isOwner = User.IsInRole("CHU_NHA");
+    var dashboard = Model.Dashboard;
+}
+
+<div class="role-home">
+    <header class="role-home-heading">
+        <div>
+            <p class="role-kicker">@(isAdmin ? "QUẢN TRỊ HỆ THỐNG" : isTenant ? "KHÔNG GIAN KHÁCH THUÊ" : "TỔNG QUAN VẬN HÀNH")</p>
+            <h1>@(isAdmin ? "Tổng quan hệ thống" : $"Chào mừng trở lại, {name}!")</h1>
+            <p>@(isAdmin ? "Theo dõi dữ liệu và hoạt động chính của nền tảng NhàTốt." : isTenant ? "Tìm phòng và quản lý các yêu cầu thuê của bạn tại một nơi." : "Theo dõi tòa nhà, phòng và yêu cầu thuê trong ngày hôm nay.")</p>
+        </div>
+        @if (isAdmin || isOwner)
+        {
+            <a class="btn btn-primary" asp-controller="PhongTro" asp-action="Create">＋ Thêm phòng</a>
+        }
+    </header>
+
+    @if (isAdmin)
+    {
+        <section class="dashboard-stat-grid dashboard-stat-grid-admin" aria-label="Số liệu hệ thống">
+            <a asp-controller="ManagedAccounts" asp-action="Index" class="dashboard-stat"><span class="stat-icon">◎</span><small>Tài khoản hoạt động</small><strong>@dashboard.TongTaiKhoan</strong><span>Xem danh sách →</span></a>
+            <a asp-controller="ManagedAccounts" asp-action="Index" class="dashboard-stat"><span class="stat-icon">♙</span><small>Chủ nhà</small><strong>@dashboard.TongChuNha</strong><span>Quản lý tài khoản →</span></a>
+            <a asp-controller="PhongTro" asp-action="ToaNha" class="dashboard-stat"><span class="stat-icon">▥</span><small>Tòa nhà</small><strong>@dashboard.TongToaNha</strong><span>Xem toàn hệ thống →</span></a>
+            <a asp-controller="PhongTro" asp-action="Index" class="dashboard-stat"><span class="stat-icon">▣</span><small>Phòng đang quản lý</small><strong>@dashboard.TongPhong</strong><span>Xem danh sách →</span></a>
+            <a asp-controller="YeuCau" asp-action="Index" class="dashboard-stat"><span class="stat-icon">◷</span><small>Yêu cầu chờ xử lý</small><strong>@dashboard.YeuCauChoXuLy</strong><span>Xử lý yêu cầu →</span></a>
+        </section>
+        <section class="latte-admin-grid">
+            <article class="dashboard-panel"><div class="panel-heading"><h2>Phân bổ vai trò người dùng</h2></div><div class="role-donut"><strong>@dashboard.Roles.Sum(x => x.Count)<small>tài khoản</small></strong></div><div class="role-distribution">@foreach (var role in dashboard.Roles) { <p><span>● @role.Name</span><strong>@role.Count</strong></p> }</div></article>
+            <article class="dashboard-panel"><div class="panel-heading"><h2>Hoạt động hệ thống gần đây</h2><a href="/NhatKy">Xem tất cả →</a></div><div class="latte-table-scroll"><table class="latte-table"><thead><tr><th>Người dùng</th><th>Hành động</th><th>Thời gian</th></tr></thead><tbody>@foreach (var activity in dashboard.Activities) { <tr><td>@(activity.TenNguoiThucHien ?? "Hệ thống")</td><td>@activity.HanhDong</td><td>@activity.ThoiDiem.AddHours(7).ToString("HH:mm dd/MM")</td></tr> }@if (dashboard.Activities.Count == 0) { <tr><td colspan="3" class="latte-empty">Chưa có hoạt động được ghi nhận.</td></tr> }</tbody></table></div></article>
+            <article class="dashboard-panel"><div class="panel-heading"><h2>Trạng thái hệ thống</h2></div><div class="system-status"><p><span class="status-dot"></span><strong>Ứng dụng</strong><small>Đang hoạt động</small></p><p><span class="status-dot"></span><strong>Database</strong><small>Dữ liệu đang được tải</small></p><p><strong>Sao lưu dữ liệu gần nhất</strong><small>Chưa có thông tin sao lưu</small></p></div></article>
+        </section>
+        <section class="dashboard-panel-grid latte-bottom-grid"><article class="dashboard-panel"><partial name="_DashboardRequests" model="dashboard" /></article><article class="dashboard-panel"><partial name="_DashboardRooms" model="dashboard" /></article></section>
+        <section class="dashboard-panel-grid latte-shortcuts">
+            <article class="dashboard-panel dashboard-panel-wide"><div class="panel-heading"><div><h2>Quản trị nhanh</h2><p>Các khu vực quản trị toàn hệ thống</p></div></div><div class="quick-link-grid"><a asp-controller="Permissions" asp-action="Index">⚙<strong>Tài khoản &amp; phân quyền</strong><span>Thiết lập quyền truy cập</span></a><a asp-controller="NhatKy" asp-action="Index">◷<strong>Nhật ký hoạt động</strong><span>Theo dõi thay đổi hệ thống</span></a><a asp-controller="TinDang" asp-action="QuanLy">▤<strong>Tin đăng cho thuê</strong><span>Kiểm tra toàn bộ tin đăng</span></a></div></article>
+            <article class="dashboard-panel"><div class="panel-heading"><div><h2>Trạng thái hệ thống</h2><p>Dữ liệu được lấy trực tiếp từ hệ thống</p></div></div><div class="system-status"><p><span class="status-dot"></span><strong>Ứng dụng</strong><small>Đang hoạt động</small></p><p><span class="status-dot"></span><strong>Cơ sở dữ liệu</strong><small>Đã kết nối</small></p></div></article>
+        </section>
+    }
+    else if (isTenant)
+    {
+        <section class="tenant-welcome-card latte-tenant-room">
+            <div><span class="stat-icon">⌂</span><p>Phòng của tôi</p><h2>Chưa có thông tin phòng đang thuê</h2><span>Bạn có thể tìm phòng và theo dõi lịch xem phòng ngay tại đây.</span></div>
+            <a class="btn btn-primary" asp-controller="TimTin" asp-action="Index">Tìm phòng ngay →</a>
+        </section>
+        <section class="dashboard-stat-grid tenant-stat-grid" aria-label="Tổng quan yêu cầu">
+            <div class="dashboard-stat"><span class="stat-icon">▧</span><small>Hóa đơn cần thanh toán</small><strong>—</strong><span>Chưa có thông tin hóa đơn</span></div>
+            <div class="dashboard-stat"><span class="stat-icon">＄</span><small>Tổng cần trả</small><strong>—</strong><span>Chưa có thông tin thanh toán</span></div>
+            <a asp-controller="YeuCau" asp-action="Index" class="dashboard-stat"><span class="stat-icon">▧</span><small>Yêu cầu của tôi</small><strong>@dashboard.YeuCauCuaToi</strong><span>Xem tất cả →</span></a>
+            <div class="dashboard-stat"><span class="stat-icon">⚒</span><small>Báo hỏng</small><strong>—</strong><span>Chưa có thông tin báo hỏng</span></div>
+        </section>
+        <section class="dashboard-panel-grid latte-bottom-grid"><article class="dashboard-panel"><div class="panel-heading"><h2>Hóa đơn mới nhất</h2></div><div class="latte-empty-state"><span class="stat-icon">▧</span><h3>Chưa có hóa đơn</h3><p>Hóa đơn của bạn sẽ xuất hiện khi có thông tin thuê phòng.</p></div></article><article class="dashboard-panel"><partial name="_DashboardRequests" model="dashboard" /></article></section>
+        <section class="dashboard-panel">
+            <div class="panel-heading"><div><h2>Phòng trọ gợi ý cho bạn</h2><p>Các tin đăng mới nhất đang còn hiển thị</p></div><a asp-controller="TimTin" asp-action="Index">Xem tất cả →</a></div>
+            <div class="tenant-listing-grid">
+                @foreach (var item in Model.TinMoiNhat.Take(3))
+                {
+                    <a asp-controller="TinDang" asp-action="ChiTiet" asp-route-id="@item.Id" class="tenant-listing-card">
+                        @if (!string.IsNullOrWhiteSpace(item.AnhDaiDien)) { <img src="@item.AnhDaiDien" alt="" /> } else { <span class="listing-placeholder">⌂</span> }
+                        <strong>@item.GiaThue.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"))đ/tháng</strong><h3>@item.TieuDe</h3><p>@(item.QuanHuyen ?? item.DiaChi ?? item.TenToaNha)</p><span>@item.DienTich.ToString("0.#") m² · @item.SoNguoiToiDa người</span>
+                    </a>
+                }
+                @if (Model.TinMoiNhat.Count == 0) { <p class="dashboard-empty">Chưa có tin đăng phù hợp để gợi ý.</p> }
+            </div>
+        </section>
+    }
+    else
+    {
+        <section class="dashboard-stat-grid" aria-label="Số liệu vận hành">
+            <a asp-controller="PhongTro" asp-action="Index" class="dashboard-stat"><span class="stat-icon">▥</span><small>Tổng số phòng</small><strong>@dashboard.TongPhong</strong><span>@dashboard.TongToaNha tòa nhà →</span></a>
+            <a asp-controller="PhongTro" asp-action="Index" asp-route-trangThaiFilter="DANG_THUE" class="dashboard-stat"><span class="stat-icon">♙</span><small>Đang cho thuê</small><strong>@dashboard.PhongDangThue</strong><span>Xem phòng →</span></a>
+            <a asp-controller="PhongTro" asp-action="Index" asp-route-trangThaiFilter="TRONG" class="dashboard-stat"><span class="stat-icon">▣</span><small>Phòng trống</small><strong>@dashboard.PhongTrong</strong><span>Cần đăng tin →</span></a>
+            <a asp-controller="YeuCau" asp-action="Index" class="dashboard-stat"><span class="stat-icon">◷</span><small>Yêu cầu chờ xử lý</small><strong>@dashboard.YeuCauChoXuLy</strong><span>Xử lý ngay →</span></a>
+        </section>
+        <section class="dashboard-panel-grid latte-bottom-grid"><article class="dashboard-panel"><div class="panel-heading"><h2>Doanh thu &amp; tiền đã thu</h2><span class="room-legend">● Đã phát hành　● Đã thu</span></div><div class="latte-chart-empty"><div class="chart-grid-lines"></div><span>Chưa có dữ liệu doanh thu để hiển thị</span><div class="chart-months"><span>T5</span><span>T6</span><span>T7</span><span>T8</span><span>T9</span><span>T10</span></div></div></article><article class="dashboard-panel"><div class="panel-heading"><h2>Việc cần xử lý</h2></div><div class="latte-task"><span class="stat-icon">♙</span><div><strong>@dashboard.YeuCauChoXuLy yêu cầu thuê chờ xử lý</strong><p>Khách hàng đang chờ phản hồi của bạn</p><span class="latte-badge">Chờ xử lý</span></div><a href="/YeuCau">Xem tất cả →</a></div><div class="latte-task"><span class="stat-icon">⌂</span><div><strong>@dashboard.PhongTrong phòng trống</strong><p>Kiểm tra phòng và cập nhật tin đăng</p></div><a href="/TinDang/QuanLy">Xem chi tiết →</a></div></article></section>
+        <article class="dashboard-panel latte-bottom-grid"><partial name="_DashboardRooms" model="dashboard" /></article>
+        <section class="dashboard-panel-grid latte-shortcuts">
+            <article class="dashboard-panel dashboard-panel-wide"><div class="panel-heading"><div><h2>Tình trạng vận hành</h2><p>Tổng hợp nhanh danh mục cần theo dõi</p></div></div><div class="quick-link-grid"><a asp-controller="PhongTro" asp-action="Index">▥<strong>Tòa nhà &amp; phòng</strong><span>Quản lý phòng đang cho thuê</span></a>@if (isOwner) { <a asp-controller="DichVu" asp-action="Index">≡<strong>Bảng giá &amp; dịch vụ</strong><span>Cấu hình chi phí theo tòa</span></a> }<a asp-controller="YeuCau" asp-action="Index">▧<strong>Yêu cầu thuê</strong><span>@dashboard.YeuCauChoXuLy yêu cầu cần theo dõi</span></a></div></article>
+            <article class="dashboard-panel"><div class="panel-heading"><div><h2>Thao tác nhanh</h2><p>Công việc thường dùng</p></div></div><div class="action-list">@if (isOwner) { <a asp-controller="PhongTro" asp-action="Create">＋ Thêm phòng mới</a> }<a asp-controller="TinDang" asp-action="QuanLy">▤ Quản lý tin đăng</a>@if (isOwner) { <a asp-controller="HoSo" asp-action="DanhSach">○ Hồ sơ khách thuê</a> }</div></article>
+        </section>
+    }
+</div>

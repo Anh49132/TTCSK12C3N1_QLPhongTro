@@ -6,6 +6,12 @@ namespace QL_PhongTro.Models;
 [Table("hop_dong")]
 public class HopDongThamChieu
 {
+    [Column("yeu_cau_thue_id")] public int? YeuCauThueId { get; set; }
+    [Column("khach_dung_ten_id")] public int? KhachDungTenId { get; set; }
+    [Column("tien_coc_thoa_thuan")] public long TienCoc { get; set; }
+    [Column("ngay_chot_hang_thang")] public int NgayChot { get; set; } = 1;
+    [Column("nguoi_lap_id")] public int? NguoiLapId { get; set; }
+    [Column("ngay_tao")] public DateTime NgayTao { get; set; }
     [Column("id")] public int Id { get; set; }
     [Column("ma_hop_dong")] public string MaHopDong { get; set; } = "";
     [Column("phong_id")] public int PhongId { get; set; }
@@ -15,6 +21,10 @@ public class HopDongThamChieu
 [Table("ky_hop_dong")]
 public class KyHopDongThamChieu
 {
+    [Column("so_thu_tu")] public int SoThuTu { get; set; } = 1;
+    [Column("so_thang")] public int SoThang { get; set; }
+    [Column("nguoi_lap_id")] public int? NguoiLapId { get; set; }
+    [Column("ngay_tao")] public DateTime NgayTao { get; set; }
     [Column("id")] public int Id { get; set; }
     [Column("hop_dong_id")] public int HopDongId { get; set; }
     [Column("ngay_bat_dau")] public DateOnly NgayBatDau { get; set; }

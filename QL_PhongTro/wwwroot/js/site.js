@@ -73,3 +73,39 @@
         });
     });
 })();
+
+(() => {
+    const dropdowns = [...document.querySelectorAll('.tenant-header details')];
+    if (!dropdowns.length) return;
+    document.addEventListener('click', event => {
+        dropdowns.forEach(item => {
+            if (item.open && !item.contains(event.target)) item.open = false;
+        });
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        dropdowns.forEach(item => item.open = false);
+    });
+    dropdowns.forEach(item => item.addEventListener('toggle', () => {
+        if (!item.open) return;
+        dropdowns.filter(other => other !== item).forEach(other => other.open = false);
+    }));
+})();
+
+(() => {
+    const donut = document.querySelector('.role-donut');
+    const rows = [...document.querySelectorAll('.role-distribution p')];
+    if (!donut || !rows.length) return;
+    const counts = rows.map(row => Number(row.querySelector('strong')?.textContent) || 0);
+    const total = counts.reduce((sum, count) => sum + count, 0);
+    const colors = ['#3E2718', '#785135', '#DECBB6', '#EFE4D6'];
+    let offset = 0;
+    const segments = counts.map((count, index) => {
+        const end = offset + (total ? count / total * 360 : 0);
+        const segment = `${colors[index % colors.length]} ${offset}deg ${end}deg`;
+        rows[index].style.color = colors[index % colors.length];
+        offset = end;
+        return segment;
+    });
+    donut.style.background = total ? `conic-gradient(${segments.join(',')})` : '#EFE4D6';
+})();

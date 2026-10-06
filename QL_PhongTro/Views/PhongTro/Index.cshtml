@@ -6,6 +6,10 @@
     ViewData["Title"] = "Quản lý phòng";
     var canWrite = await Permissions.AllowsAsync("PHONG_TRO", write: true);
 }
+<nav class="d-flex gap-2 mb-3" aria-label="Quản lý tòa nhà và phòng">
+    <a class="btn btn-primary" asp-action="Index">Danh sách phòng</a>
+    <a class="btn btn-outline-primary" asp-action="ToaNha">Danh sách tòa nhà</a>
+</nav>
 
 @if (TempData["RoomWarning"] is string warning)
 {

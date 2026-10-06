@@ -5,7 +5,28 @@ public sealed class HomeViewModel
     public bool RegistrationEnabled { get; set; }
     public List<string> QuanHuyens { get; set; } = [];
     public List<HomeTinDangItemViewModel> TinMoiNhat { get; set; } = [];
+    public HomeDashboardViewModel Dashboard { get; set; } = new();
 }
+
+public sealed class HomeDashboardViewModel
+{
+    public List<HomeRoomItem> Rooms { get; set; } = [];
+    public List<HomeRequestItem> Requests { get; set; } = [];
+    public List<HomeRoleItem> Roles { get; set; } = [];
+    public List<QL_PhongTro.Models.NhatKyHoatDong> Activities { get; set; } = [];
+    public int TongTaiKhoan { get; set; }
+    public int TongChuNha { get; set; }
+    public int TongToaNha { get; set; }
+    public int TongPhong { get; set; }
+    public int PhongTrong { get; set; }
+    public int PhongDangThue { get; set; }
+    public int YeuCauChoXuLy { get; set; }
+    public int YeuCauCuaToi { get; set; }
+}
+
+public sealed record HomeRoomItem(int Id, string Code, string Building, string Status, long Rent);
+public sealed record HomeRequestItem(int Id, string Code, string Room, string Name, string Status, DateTime Created);
+public sealed record HomeRoleItem(string Name, int Count);
 
 public sealed class HomeTinDangItemViewModel
 {

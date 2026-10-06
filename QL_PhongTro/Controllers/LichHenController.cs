@@ -62,8 +62,7 @@ public class LichHenController(
                 && yeuCau.LoaiYeuCau == LichHenTrangThai.LoaiThueNgay
                 && yeuCau.TrangThai is LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich,
             HienThiNutLapHopDong = laChuNha
-                && yeuCau.TrangThai == LichHenTrangThai.DaDuyet
-                && yeuCau.TrangThaiPhong == LichHenTrangThai.PhongDaDatCoc,
+                && yeuCau.TrangThai == LichHenTrangThai.DaDuyet,
             HienThiNutHuy = yeuCau.TrangThai is LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich,
             LichSu = lichSu
         };
@@ -71,31 +70,20 @@ public class LichHenController(
     }
 
     /// <summary>
-    /// Entry point of AC4 "mở nút lập hợp đồng". Drafting the contract is S3-01 and its screen is
-    /// not on dev, so this page only states that the request is ready and shows the request code.
-    /// The conditions are still enforced here rather than trusted from the button: a landlord,
-    /// an approved request, a room already held. When S3-01 publishes a route, change
-    /// LichHenChiTietViewModel.DuongDanLapHopDong and redirect there instead of rendering this.
+    /// Compatibility entry point from appointment details to the S3-01 contract form.
+    /// Ownership and approved status are checked here and again when saving the contract.
     /// </summary>
     [HttpGet("/LichHen/LapHopDong"), ModuleAccess("HOP_DONG", write: true)]
     public async Task<IActionResult> LapHopDong(int id, CancellationToken ct)
     {
         if (await service.DocAsync(id, ct) is not { } yeuCau) return NotFound();
         if (!await service.ChuNhaCuaYeuCauAsync(AccountId, id, ct)) return Forbid();
-        if (yeuCau.TrangThai != LichHenTrangThai.DaDuyet
-            || yeuCau.TrangThaiPhong != LichHenTrangThai.PhongDaDatCoc)
+        if (yeuCau.TrangThai != LichHenTrangThai.DaDuyet)
         {
-            TempData["LichHenError"] = "Chỉ yêu cầu đã duyệt và phòng đã đặt cọc mới lập được hợp đồng.";
+            TempData["LichHenError"] = "Chỉ yêu cầu đã duyệt mới lập được hợp đồng.";
             return RedirectToAction(nameof(ChiTiet), new { id });
         }
-        return View(new LichHenLapHopDongViewModel
-        {
-            YeuCauId = yeuCau.Id,
-            MaYeuCau = yeuCau.MaYeuCau,
-            TenPhong = yeuCau.MaPhong,
-            TenToaNha = yeuCau.TenToaNha,
-            TenKhach = yeuCau.TenKhach
-        });
+        return RedirectToAction("Create", "HopDong", new { yeuCauId = id });
     }
 
     /// <summary>

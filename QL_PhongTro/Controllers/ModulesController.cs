@@ -11,10 +11,17 @@ namespace QL_PhongTro.Controllers;
 public class ModulesController(AppDbContext db) : Controller
 {
     [HttpGet("/Modules/{code}")]
-    public async Task<IActionResult> Index(string code)
+    public async Task<IActionResult> Index(string code, string? section)
     {
         var module = await db.AppModules.AsNoTracking().SingleOrDefaultAsync(m => m.Code == code);
         if (module is null) return NotFound();
+        ViewData["SectionTitle"] = (code, section) switch
+        {
+            ("TAI_CHINH", "cong-no") => "Công nợ",
+            ("YEU_CAU_THUE", "thong-bao") => "Thông báo",
+            _ => null
+        };
+        if (code == "HOP_DONG") return RedirectToAction("Index", "HopDong");
         if (code is "PHONG_TRO" or "TAI_KHOAN" or "TIN_DANG") return Redirect(PermissionService.Url(code));
         return View(module);
     }

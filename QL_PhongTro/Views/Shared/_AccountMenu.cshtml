@@ -8,14 +8,8 @@
 @if (User.Identity?.IsAuthenticated == true) {
 <div class="account-popover" id="account-popover" hidden>
 <nav aria-label="Tài khoản cá nhân">
-@if (User.IsInRole("ADMIN")) {
-<a href="@Url.Action("Index", "ManagedAccounts")" aria-current="@(controller == "ManagedAccounts" ? "page" : null)">Quản lý tài khoản</a>
-}
 <a href="@Url.Action("Xem", "HoSo")" aria-current="@(controller == "HoSo" && action == "Xem" ? "page" : null)">Xem hồ sơ</a>
 <a href="@Url.Action("ChangePassword", "Account")" aria-current="@(controller == "Account" && action == "ChangePassword" ? "page" : null)">Đổi mật khẩu</a>
-@if (User.IsInRole("ADMIN")) {
-<a href="@Url.Action("Index", "NhatKy")" aria-current="@(controller == "NhatKy" ? "page" : null)">Nhật ký hoạt động</a>
-}
 </nav><hr />
 <form asp-controller="Account" asp-action="Logout" method="post" id="logoutForm"><button type="submit" id="logoutBtn">Đăng xuất</button></form>
 </div>

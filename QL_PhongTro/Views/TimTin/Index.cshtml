@@ -2,7 +2,7 @@
 @using System.Globalization
 @{
     ViewData["Title"] = "Tìm phòng trọ";
-    Layout = "~/Views/Shared/_PublicLayout.cshtml";
+    Layout = User.Identity?.IsAuthenticated == true ? "~/Views/Shared/_Layout.cshtml" : "~/Views/Shared/_PublicLayout.cshtml";
     var culture = CultureInfo.GetCultureInfo("vi-VN");
     var hasFilters = !string.IsNullOrWhiteSpace(Model.TuKhoa) || !string.IsNullOrWhiteSpace(Model.QuanHuyen)
         || !string.IsNullOrWhiteSpace(Model.PhuongXa) || Model.GiaToiThieu.HasValue || Model.GiaToiDa.HasValue

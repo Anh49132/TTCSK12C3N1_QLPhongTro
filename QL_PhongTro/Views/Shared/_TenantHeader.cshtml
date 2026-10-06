@@ -1,0 +1,35 @@
+@{
+    var name = User.Identity?.Name ?? "Khách thuê";
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    string Active(string value) => controller == value ? "is-active" : "";
+}
+<header class="tenant-header">
+    <details class="tenant-menu">
+        <summary aria-label="Mở menu"><span aria-hidden="true">☰</span></summary>
+        <nav class="tenant-menu-panel" aria-label="Menu khách thuê">
+            <a class="@Active("Home")" asp-controller="Home" asp-action="Index">⌂ <span>Tổng quan</span></a>
+            <a class="@Active("TimTin")" asp-controller="TimTin" asp-action="Index">⌕ <span>Tìm phòng</span></a>
+            <a class="@Active("TinDang")" asp-controller="TinDang" asp-action="Index">▤ <span>Tin đăng cho thuê</span></a>
+            <a class="@Active("YeuCau")" asp-controller="YeuCau" asp-action="Index">▧ <span>Yêu cầu thuê</span></a>
+            <a class="@Active("HoSo")" asp-controller="HoSo" asp-action="Index">○ <span>Hồ sơ cá nhân</span></a>
+        </nav>
+    </details>
+    <a class="tenant-brand" asp-controller="Home" asp-action="Index">
+        <span class="tenant-brand-mark" aria-hidden="true">⌂</span>
+        <span><strong>NhàTốt</strong><small>Sống đúng nơi</small></span>
+    </a>
+    <nav class="tenant-primary-nav" aria-label="Điều hướng chính">
+        <a class="@Active("Home")" asp-controller="Home" asp-action="Index">Trang chủ</a>
+        <a class="@Active("TimTin")" asp-controller="TimTin" asp-action="Index">Tìm phòng</a>
+        <a class="@Active("TinDang")" asp-controller="TinDang" asp-action="Index">Tin đăng cho thuê</a>
+        <a asp-controller="Home" asp-action="GioiThieu">Giới thiệu</a>
+    </nav>
+    <details class="tenant-account">
+        <summary><span class="tenant-avatar" aria-hidden="true">@(string.IsNullOrWhiteSpace(name) ? "K" : System.Globalization.StringInfo.GetNextTextElement(name).ToUpperInvariant())</span><span class="tenant-account-name">@name</span><span aria-hidden="true">⌄</span></summary>
+        <div class="tenant-account-panel">
+            <a asp-controller="HoSo" asp-action="Xem">Xem hồ sơ</a>
+            <a asp-controller="Account" asp-action="ChangePassword">Đổi mật khẩu</a>
+            <form asp-controller="Account" asp-action="Logout" method="post"><button type="submit">Đăng xuất</button></form>
+        </div>
+    </details>
+</header>

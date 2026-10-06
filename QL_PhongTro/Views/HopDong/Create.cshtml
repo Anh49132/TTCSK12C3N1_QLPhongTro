@@ -1,0 +1,39 @@
+@model QL_PhongTro.ViewModels.HopDongCreateViewModel
+@{ ViewData["Title"] = "Lập hợp đồng thuê"; var y = Model.DaChon; }
+@section Styles { <link rel="stylesheet" href="~/css/contracts.css" asp-append-version="true" /> }
+<div class="contract-page">
+<nav class="contract-breadcrumb"><a href="/">Trang chủ</a> › <a asp-action="Index">Hợp đồng & người ở ghép</a> › Lập hợp đồng thuê</nav>
+<div class="contract-heading"><div><h1>Lập hợp đồng thuê</h1><p>Tạo hợp đồng từ yêu cầu thuê đã duyệt, lưu tiền cọc, thời gian thuê và chỉ số đầu kỳ.</p></div></div>
+<section class="contract-card contract-request">
+<div class="contract-card-title"><span class="contract-icon">▤</span><h2>Thông tin từ yêu cầu đã duyệt</h2><span class="contract-badge">Yêu cầu đã duyệt</span></div>
+<form method="get" class="contract-selector"><label for="request">Chọn yêu cầu thuê</label><select id="request" name="yeuCauId" onchange="this.form.submit()"><option value="">Chọn yêu cầu đã duyệt…</option>@foreach(var item in Model.YeuCaus) { <option value="@item.Id" selected="@(item.Id == Model.YeuCauId)">@item.Ma — @item.Khach — @item.Phong (@item.ToaNha)</option> }</select><noscript><button>Chọn</button></noscript></form>
+@if(y is not null) { <div class="contract-request-grid"><div><small>Mã yêu cầu</small><strong>@y.Ma</strong></div><div><small>Khách thuê</small><strong>@y.Khach</strong></div><div><small>Số điện thoại</small><strong>@(y.DienThoai ?? "Chưa cập nhật")</strong></div><div><small>Phòng thuê</small><strong>@y.Phong</strong></div><div><small>Tòa nhà</small><strong>@y.ToaNha</strong></div><div><small>Ngày dự kiến chuyển vào</small><strong>@y.NgayMongMuon.ToString("dd/MM/yyyy")</strong></div></div> }
+else { <p class="contract-note">Chỉ hiển thị yêu cầu đã duyệt thuộc quyền quản lý và chưa hoàn tất hợp đồng, kể cả bản đang nháp.</p> }
+</section>
+<form asp-action="Create" method="post" id="contract-form">
+<input asp-for="YeuCauId" type="hidden" />
+<input asp-for="PhienBanPhong" type="hidden" />
+<div asp-validation-summary="All" class="text-danger"></div>
+<div class="contract-columns"><section class="contract-card">
+<div class="contract-card-title"><span class="contract-icon">▤</span><h2>Thông tin hợp đồng</h2></div>
+<div class="contract-field"><label>Khách thuê <em>*</em></label><input value="@y?.Khach" readonly aria-label="Khách thuê" /></div>
+<div class="contract-field"><label for="customer-phone">Số điện thoại khách thuê</label><input id="customer-phone" type="tel" value="@y?.DienThoai" placeholder="Chưa cập nhật" readonly /></div>
+<div class="contract-field"><label>Phòng thuê <em>*</em></label><input value="@(y is null ? "" : $"{y.Phong} — {y.ToaNha}")" readonly aria-label="Phòng thuê" /></div>
+<div class="contract-field"><label for="GiaThue">Giá thuê phòng (đ/tháng)</label><div><input id="GiaThue" value="@Model.GiaThue" type="number" readonly /><small>Lấy theo giá hiện tại của phòng, không chỉnh sửa tại đây.</small></div></div>
+<div class="contract-field"><label asp-for="SoThangCoc">Tiền cọc (tháng) <em>*</em></label><div><select asp-for="SoThangCoc" required><option value="">Chọn số tháng cọc</option>@for(var month=0;month<=3;month++){<option value="@month">@month tháng</option>}</select><span asp-validation-for="SoThangCoc" class="text-danger"></span><small>Mặc định 1 tháng. Tiền cọc = giá thuê phòng × số tháng (0–3).</small></div></div>
+<div class="contract-field"><label for="TienCoc">Tiền cọc quy đổi (đ)</label><input id="TienCoc" type="number" value="@Model.TienCoc" readonly aria-live="polite" /></div>
+<div class="contract-field"><label asp-for="NgayBatDau">Ngày bắt đầu <em>*</em></label><div><input asp-for="NgayBatDau" type="date" asp-format="{0:yyyy-MM-dd}" min="@Model.HomNay.ToString("yyyy-MM-dd")" required /><span asp-validation-for="NgayBatDau" class="text-danger"></span><small>Không được chọn ngày trước hôm nay.</small></div></div>
+<div class="contract-field"><label asp-for="SoThang">Kỳ hạn (tháng) <em>*</em></label><input asp-for="SoThang" type="number" min="1" max="120" required /></div>
+<div class="contract-field"><label for="end-date">Ngày kết thúc</label><div><input id="end-date" type="date" value="@Model.NgayKetThuc?.ToString("yyyy-MM-dd")" readonly /><small>Tự tính từ ngày bắt đầu + kỳ hạn − 1 ngày. Không cho sửa tay.</small></div></div>
+<div class="contract-field"><label asp-for="NgayChot">Ngày chốt hóa đơn hằng tháng <em>*</em></label><div><select asp-for="NgayChot" required><option value="">Chọn ngày</option>@for(var day=1;day<=31;day++){<option value="@day">@day.ToString("00")</option>}</select><small>Ngày chốt trong tháng được lưu cùng hợp đồng.</small></div></div>
+</section><aside class="contract-side">
+<section class="contract-card"><div class="contract-card-title"><span class="contract-icon">♧</span><h2>Chỉ số điện nước đầu kỳ</h2></div><div class="contract-meters"><div><label asp-for="ChiSoDien">Chỉ số điện đầu kỳ (kWh) <em>*</em></label><input asp-for="ChiSoDien" type="number" min="0" step="0.001" required /><span asp-validation-for="ChiSoDien" class="text-danger"></span></div><div><label asp-for="ChiSoNuoc">Chỉ số nước đầu kỳ (m³) <em>*</em></label><input asp-for="ChiSoNuoc" type="number" min="0" step="0.001" required /><span asp-validation-for="ChiSoNuoc" class="text-danger"></span></div></div><p class="contract-note">Nhập cả hai chỉ số thực tế tại ngày bắt đầu thuê, không âm. Đây là chỉ số bàn giao, không phải mức tiêu thụ.</p></section>
+<section class="contract-card"><div class="contract-card-title"><span class="contract-icon">◇</span><h2>Kiểm tra hiệu lực hợp đồng</h2></div><div id="overlap-status" class="contract-overlap @(Model.ChongLans.Count > 0 ? "has-conflict" : "")" role="status" aria-live="polite">
+@if (Model.ChongLans.Count > 0) { <strong>Không thể lưu — có hợp đồng chồng lấn:</strong><ul>@foreach(var conflict in Model.ChongLans){<li>@conflict.Ma: @conflict.NgayBatDau.ToString("dd/MM/yyyy") – @conflict.NgayKetThuc.ToString("dd/MM/yyyy")</li>}</ul> }
+else { <span>@(y is null ? "Chọn yêu cầu và nhập khoảng thuê để kiểm tra." : "Không có hợp đồng hiệu lực chồng lấn trong khoảng thời gian đã chọn.")</span> }
+</div><p class="contract-note">Hai khoảng chung ngày được tính là chồng lấn. Hệ thống kiểm tra lại khi lưu.</p><div class="contract-summary"><small>Ngày bắt đầu</small><strong id="start-preview">@(Model.NgayBatDau?.ToString("dd/MM/yyyy") ?? "—")</strong><small>Ngày kết thúc</small><strong id="end-preview">@(Model.NgayKetThuc?.ToString("dd/MM/yyyy") ?? "—")</strong></div></section>
+<section class="contract-card"><div class="contract-card-title"><span class="contract-icon">▤</span><h2>Thông tin sinh tự động khi lưu</h2></div><div class="contract-generated"><span>Mã hợp đồng</span><strong>HD-yyyy-xxxx</strong><span class="contract-badge">Sinh khi lưu thành công</span></div><div class="contract-generated"><span>Trạng thái phòng sau khi lưu</span><span class="contract-badge">Đang thuê</span></div></section>
+</aside></div>
+<footer class="contract-actions"><div><span class="contract-icon">✓</span><div><strong>Sau khi lưu thành công</strong><small>Sinh mã hợp đồng, chuyển phòng sang Đang thuê, ghi nhận chỉ số điện nước đầu kỳ.</small></div></div><a class="btn btn-outline-primary" asp-action="Index">Hủy</a><button id="save-contract" class="btn btn-primary" type="submit" disabled="@(y is null)">▤ &nbsp; Lưu hợp đồng</button></footer>
+</form></div>
+@section Scripts { <script src="~/js/contracts.js" asp-append-version="true"></script> }

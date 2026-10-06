@@ -1,5 +1,9 @@
 # Đồng bộ cấu trúc SQLite trong team
 
+**S3-01 (07/10/2026): phiên bản hiện tại v15.** V14 bổ sung thông tin hợp đồng/kỳ thuê; v15 bổ sung bảng snapshot chỉ số bàn giao `hop_dong_chi_so_dau_ky` và bộ cấp số mã `hop_dong_so_ma`. Không thay các hợp đồng/dữ liệu đã có. Dừng app, đặt `DatabasePath` đúng file đang dùng rồi chạy `dotnet run --project QL_PhongTro -- --update-database` và `--check-database`. Updater tạo backup trước nâng cấp. `run.bat` không tự cập nhật DB đã tồn tại; chỉ chạy lại sau khi cập nhật thành công.
+
+Kiểm chứng bảo toàn dữ liệu trên **bản sao mới** (nguồn phải ở v14): `python verification/s301_copy_upgrade.py --source <DB-v14> --copy <file-moi.sqlite> --runtime <QL_PhongTro.dll-da-build> --app QL_PhongTro`. Công cụ từ chối ghi đè bản sao, sao lưu nguồn qua SQLite backup read-only, cập nhật bản sao hai lần, so sánh mọi dòng của các bảng cũ và kiểm tra integrity/FK. Không chạy vào nguồn.
+
 Mỗi người giữ dữ liệu SQLite riêng. Pull mã nguồn không cập nhật file SQLite của máy khác. Không chép đè CSDL của đồng đội và không dùng EnsureDeleted/EnsureCreated để nâng cấp dữ liệu cũ.
 
 Trước lần pull bỏ theo dõi `QL_PhongTro/Data/local-dev.sqlite`, dừng app và sao lưu DB ra ngoài repository vì Git có thể xóa file trước đây được theo dõi. Máy mới chưa có DB dùng `--initialize-database` (từ chối ghi đè), cấu hình ADMIN riêng; xem README.

@@ -203,7 +203,6 @@ public class LichHenLapHopDongTests : IDisposable
     [InlineData(LichHenTrangThai.DaHenLich, LichHenTrangThai.PhongTrong)]
     [InlineData(LichHenTrangThai.TuChoi, LichHenTrangThai.PhongDaDatCoc)]
     [InlineData(LichHenTrangThai.DaHuy, LichHenTrangThai.PhongDaDatCoc)]
-    [InlineData(LichHenTrangThai.DaDuyet, LichHenTrangThai.PhongTrong)]
     public async Task NutLapHopDong_AnO_moi_truong_thai_khac(string trangThai, string trangThaiPhong)
     {
         var id = TaoYeuCau(trangThai);
@@ -235,15 +234,15 @@ public class LichHenLapHopDongTests : IDisposable
         var controller = ControllerCho(_chuNhaId);
         var view = await controller.LapHopDong(id, default);
 
-        var model = Assert.IsType<LichHenLapHopDongViewModel>(Assert.IsType<ViewResult>(view).Model);
-        Assert.Equal(id, model.YeuCauId);
-        Assert.StartsWith("YC", model.MaYeuCau);
+        var redirect = Assert.IsType<RedirectToActionResult>(view);
+        Assert.Equal("Create", redirect.ActionName);
+        Assert.Equal("HopDong", redirect.ControllerName);
+        Assert.Equal(id, redirect.RouteValues!["yeuCauId"]);
     }
 
     [Theory]
     [InlineData(LichHenTrangThai.Moi, LichHenTrangThai.PhongDaDatCoc)]
     [InlineData(LichHenTrangThai.DaHenLich, LichHenTrangThai.PhongDaDatCoc)]
-    [InlineData(LichHenTrangThai.DaDuyet, LichHenTrangThai.PhongTrong)]
     public async Task TrangTam_QuayLaiYeuCauKhiChuaDuyetHoacPhongChuaDatCoc(string trangThai, string trangThaiPhong)
     {
         // Server là nơi quyết định, không tin điều kiện do nút gửi lên.
@@ -255,7 +254,7 @@ public class LichHenLapHopDongTests : IDisposable
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("ChiTiet", redirect.ActionName);
-        Assert.Equal("Chỉ yêu cầu đã duyệt và phòng đã đặt cọc mới lập được hợp đồng.",
+        Assert.Equal("Chỉ yêu cầu đã duyệt mới lập được hợp đồng.",
             (string?)controller.TempData["LichHenError"]);
     }
 

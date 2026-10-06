@@ -1,7 +1,7 @@
 @model IReadOnlyList<QL_PhongTro.ViewModels.TinDangDanhSachViewModel>
 @{
     ViewData["Title"] = "Tin đăng cho thuê";
-    Layout = "~/Views/Shared/_PublicLayout.cshtml";
+    Layout = User.Identity?.IsAuthenticated == true ? "~/Views/Shared/_Layout.cshtml" : "~/Views/Shared/_PublicLayout.cshtml";
     var sapXep = ViewData["SapXep"] as string ?? "moi-nhat";
     var trang = (int)(ViewData["Trang"] ?? 1);
     var tongTrang = (int)(ViewData["TongTrang"] ?? 1);
