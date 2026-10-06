@@ -1,5 +1,10 @@
 # Tiến độ và bàn giao dự án
 
+## Đồng bộ màu giao diện khách thuê (06/10/2026)
+
+- Dashboard KHACH_THUE dùng xanh #008060, hover #006e52, nền trắng/xám nhạt và viền xám theo trang chủ công khai. Đồng bộ menu, nút, biểu mẫu, trạng thái thành công và phân trang qua tenant-theme.css, chỉ nạp cho vai trò khách thuê.
+- Build thành công; HTTP trang Yêu cầu thuê và Hồ sơ cá nhân 200, có theme khách thuê; trang chủ công khai và giao diện chủ nhà không nạp theme này. Đã chạy lại tại localhost:5247, kiểm tra đăng nhập 7 tài khoản demo đạt. Không chụp ảnh.
+
 ## Đồng bộ giao diện xác nhận email (06/10/2026)
 
 - ConfirmEmail dùng layout/CSS đăng nhập, hai cột ảnh nội thất và form nền kem, logo NhàTốt, nút xác nhận xanh và gửi lại mã dạng viền. Giữ Email/Code, CSRF, validation, thông báo lỗi/trạng thái, đường dẫn email local và formnovalidate của Gửi lại mã; mã có inputmode numeric/one-time-code và giới hạn 6 số. Có liên kết về đăng nhập.

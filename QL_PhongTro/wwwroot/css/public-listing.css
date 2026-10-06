@@ -1256,7 +1256,7 @@
 .timtin-top > h1 {
     margin: 0 0 14px;
     color: #34413d;
-    font-size: 26px;
+    font-size: 32px;
     font-weight: 650;
     letter-spacing: -0.02em;
 }
@@ -1302,19 +1302,19 @@
     flex: none;
     margin: 0;
     color: #67736e;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .timtin-location-field select,
 .timtin-keyword-field input {
     min-width: 0;
-    height: 32px;
-    padding: 4px 6px;
+    height: 40px;
+    padding: 6px 8px;
     border: 0;
     background-color: transparent;
     box-shadow: none;
     color: #34413d;
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .timtin-location-field select {
@@ -1326,12 +1326,12 @@
 }
 
 .timtin-search-grid .listing-search-submit {
-    min-height: 34px;
-    height: 34px;
+    min-height: 40px;
+    height: 40px;
     margin: 5px;
-    padding: 0 16px;
+    padding: 0 18px;
     border-radius: 8px;
-    font-size: 12px;
+    font-size: 15px;
 }
 
 .timtin-search-form > .text-danger {
@@ -1351,13 +1351,13 @@
 .timtin-quick-select .form-select,
 .timtin-quick-label,
 .timtin-advanced-toggle {
-    min-height: 28px;
-    padding: 4px 10px;
+    min-height: 34px;
+    padding: 6px 12px;
     border: 1px solid #dce7e2;
     border-radius: 999px;
     background-color: #fff;
     color: #56645e;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.5;
 }
 
@@ -1385,7 +1385,7 @@
     gap: 6px;
     margin-top: 12px;
     color: #78837e;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .timtin-filter-chip {
@@ -1428,12 +1428,12 @@
     padding-bottom: 12px;
     border-bottom: 1px solid #edf1ef;
     color: #394741;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .timtin-sidebar-title a {
     color: #008060;
-    font-size: 10px;
+    font-size: 12px;
     text-decoration: none;
 }
 
@@ -1447,7 +1447,7 @@
     justify-content: space-between;
     margin: 0 0 9px;
     color: #404c47;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
 }
 
@@ -1469,7 +1469,7 @@
     border-color: #e1e8e5;
     border-radius: 7px;
     color: #52605a;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .timtin-filter-group .text-danger {
@@ -1485,7 +1485,7 @@
     border-radius: 8px;
     background: #008060;
     color: #fff;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
 }
 
@@ -1508,7 +1508,7 @@
 }
 
 .timtin-results-count {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 400;
 }
 
@@ -1521,7 +1521,7 @@
     align-items: center;
     gap: 7px;
     color: #78837e;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .timtin-sort .form-select {
@@ -1531,7 +1531,7 @@
     border-color: #e0e9e5;
     border-radius: 7px;
     color: #53625b;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .timtin-result-grid {
@@ -1558,7 +1558,7 @@
     border-radius: 999px;
     background: rgba(255, 255, 255, .94);
     color: #168267;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
 }
 
@@ -1577,42 +1577,42 @@
 }
 
 .timtin-listing-card .card-content {
-    gap: 7px;
-    padding: 10px 11px 9px;
+    gap: 10px;
+    padding: 12px 14px 12px;
 }
 
 .timtin-card-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 5px;
+    gap: 6px;
 }
 
 .timtin-card-type {
     color: #168267;
-    font-size: 8px;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
 }
 
 .timtin-card-price {
     color: #e36e64;
-    font-size: 11px;
+    font-size: 18px;
     font-weight: 700;
     white-space: nowrap;
 }
 
 .timtin-card-price small {
-    font-size: 8px;
+    font-size: 11px;
     font-weight: 500;
 }
 
 .timtin-listing-card .card-title {
     display: -webkit-box;
     overflow: hidden;
-    min-height: 31px;
-    font-size: 10px;
-    line-height: 1.5;
+    min-height: 38px;
+    font-size: 16px;
+    line-height: 1.45;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
 }
@@ -1620,28 +1620,28 @@
 .timtin-listing-card .card-location {
     overflow: hidden;
     color: #7c8781;
-    font-size: 8px;
+    font-size: 13px;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .timtin-listing-card .card-meta {
     gap: 9px;
-    padding-top: 6px;
+    padding-top: 8px;
     border-top: 0;
     color: #68756e;
-    font-size: 8px;
+    font-size: 13px;
 }
 
 .timtin-card-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: 3px;
-    padding-top: 7px;
+    margin-top: 6px;
+    padding-top: 9px;
     border-top: 1px solid #edf1ef;
     color: #78837e;
-    font-size: 8px;
+    font-size: 12px;
 }
 
 .timtin-card-footer span {
@@ -1659,7 +1659,7 @@
 
 .timtin-card-footer small {
     color: #9ba49f;
-    font-size: 8px;
+    font-size: 11px;
 }
 
 .timtin-pagination {
@@ -1786,22 +1786,22 @@
 }
 
 .timtin-top > h1 {
-    font-size: clamp(30px, 3vw, 40px);
-    line-height: 1.3;
+    font-size: clamp(34px, 3.2vw, 46px);
+    line-height: 1.25;
 }
 
 .timtin-top .listing-breadcrumb {
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.5;
 }
 
 .timtin-location-field label {
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .timtin-location-field select,
 .timtin-keyword-field input {
-    font-size: 14px;
+    font-size: 16px;
 }
 
 .timtin-search-grid {
@@ -1860,22 +1860,22 @@
     grid-row: 2;
     width: 100%;
     max-width: 100%;
-    min-height: 24px;
-    height: 24px;
+    min-height: 28px;
+    height: 28px;
     margin: 0;
     padding: 0 20px 0 0;
     border: 0;
     background-position: right 2px center;
     background-size: 12px 9px;
     color: #34413d;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 650;
     line-height: 1.3;
     box-shadow: none;
 }
 
 .timtin-keyword-field input {
-    height: 40px;
+    height: 42px;
 }
 
 .timtin-keyword-field {
@@ -1884,7 +1884,7 @@
 
 .timtin-keyword-field input {
     width: 100%;
-    font-size: 14px;
+    font-size: 16px;
 }
 
 .timtin-keyword-field input:focus {
@@ -2023,8 +2023,8 @@
 
 .timtin-listing-card .card-content {
     min-height: 210px;
-    gap: 9px;
-    padding: 13px;
+    gap: 12px;
+    padding: 16px;
 }
 
 .timtin-card-heading {
@@ -2034,23 +2034,23 @@
 }
 
 .timtin-card-type {
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.4;
 }
 
 .timtin-card-price {
-    font-size: 14px;
+    font-size: 18px;
     line-height: 1.35;
     text-align: right;
 }
 
 .timtin-card-price small {
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .timtin-listing-card .card-title {
-    min-height: 40px;
-    font-size: 13px;
+    min-height: 44px;
+    font-size: 16px;
     line-height: 1.5;
 }
 
@@ -2060,10 +2060,10 @@
 
 .timtin-listing-card .card-location {
     display: -webkit-box;
-    min-height: 30px;
+    min-height: 34px;
     margin-bottom: 0;
     overflow: hidden;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.4;
     white-space: normal;
     -webkit-box-orient: vertical;
@@ -2075,7 +2075,7 @@
     align-items: center;
     gap: 12px;
     padding: 5px 0;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.4;
 }
 
@@ -2083,11 +2083,11 @@
     min-height: 28px;
     margin-top: auto;
     padding-top: 8px;
-    font-size: 10px;
+    font-size: 12px;
 }
 
 .timtin-card-footer small {
-    font-size: 10px;
+    font-size: 11px;
 }
 
 .timtin-pagination .page-link {
@@ -2119,12 +2119,12 @@
     }
 
     .timtin-listing-card .card-title {
-        font-size: 12px;
+        font-size: 15px;
     }
 
     .timtin-listing-card .card-location,
     .timtin-listing-card .card-meta {
-        font-size: 10px;
+        font-size: 12px;
     }
 
     .timtin-results-header {
@@ -2163,41 +2163,41 @@
 
 .home-room-search-grid {
     grid-template-columns: 205px minmax(0, 1fr) 128px;
-    min-height: 68px;
+    min-height: 76px;
     margin: 0;
 }
 
 .home-room-search-grid .timtin-location-field {
-    min-height: 66px;
-    padding-top: 10px;
-    padding-bottom: 10px;
+    min-height: 74px;
+    padding-top: 12px;
+    padding-bottom: 12px;
 }
 
 .home-room-search-grid .timtin-keyword-field {
-    min-height: 66px;
-    padding-top: 10px;
-    padding-bottom: 10px;
+    min-height: 74px;
+    padding-top: 12px;
+    padding-bottom: 12px;
 }
 
 .home-room-search-grid .timtin-keyword-field input {
-    height: 44px;
-    font-size: 15px;
+    height: 48px;
+    font-size: 18px;
 }
 
 .home-room-search-grid .timtin-location-field label {
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .home-room-search-grid .timtin-location-field select {
-    font-size: 14px;
+    font-size: 16px;
 }
 
 .home-room-search-grid .listing-search-submit {
-    min-height: 44px;
-    height: 44px;
-    margin-top: 12px;
-    margin-bottom: 12px;
-    font-size: 14px;
+    min-height: 48px;
+    height: 48px;
+    margin-top: 14px;
+    margin-bottom: 14px;
+    font-size: 16px;
 }
 
 @media (max-width: 640px) {
@@ -2228,16 +2228,24 @@
     }
 
     .home-room-search-grid .timtin-keyword-field input {
-        height: 40px;
-        font-size: 14px;
+        height: 44px;
+        font-size: 16px;
+    }
+
+    .home-room-search-grid .timtin-location-field label {
+        font-size: 13px;
+    }
+
+    .home-room-search-grid .timtin-location-field select {
+        font-size: 15px;
     }
 
     .home-room-search-grid .listing-search-submit {
-        min-height: 40px;
-        height: 40px;
-        margin-top: 9px;
-        margin-bottom: 9px;
-        font-size: 13px;
+        min-height: 44px;
+        height: 44px;
+        margin-top: 8px;
+        margin-bottom: 8px;
+        font-size: 15px;
     }
 }
 
