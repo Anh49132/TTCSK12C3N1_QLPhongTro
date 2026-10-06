@@ -192,6 +192,63 @@ a:focus-visible, button:focus-visible, summary:focus-visible {
 .login-photo .login-stats span, .login-photo .login-story > p { color: #E9EAEC; }
 ::selection { background: #BFA77A; color: #25282D; }
 
+/* Authentication pages share the homepage brand and control styling. */
+html:has(.login-page), body:has(.login-page),
+.login-page, .login-page .login-panel {
+    scrollbar-width: none;
+}
+html:has(.login-page)::-webkit-scrollbar,
+body:has(.login-page)::-webkit-scrollbar,
+.login-page::-webkit-scrollbar,
+.login-page .login-panel::-webkit-scrollbar { display: none; }
+.login-page { background: #F5F5F4; color: #25282D; }
+.login-page .login-panel { background: #F5F5F4; }
+.login-page .login-brand img {
+    content: url('../images/nhatot-logo-champagne.svg'); height: 52px;
+}
+.login-page .login-photo {
+    background-color: #30343B;
+    background-image: url('../images/hero-clean.jpg');
+}
+.login-page .login-photo::before {
+    background: linear-gradient(180deg, #30343B59 0%, #30343B26 35%, #25282DE6 100%);
+}
+.login-page .login-photo .login-brand img {
+    content: url('../images/nhatot-logo-champagne-light.svg'); filter: none;
+}
+.login-page .login-proof { background: #BFA77A33; color: #FFFFFF; }
+.login-page .login-story h2 { color: #FFFFFF; font-weight: 600; }
+.login-page .login-story p, .login-page .login-stats span { color: #E9EAEC; }
+.login-page .login-stats strong { color: #BFA77A; }
+.login-page .login-card h1 { color: #25282D; font-weight: 600; }
+.login-page .login-description, .login-page .login-bottom { color: #25282DB3; font-size: 14px; }
+.login-page .form-label { color: #25282D; font-size: 14px; }
+.login-page .form-control {
+    background: #FFFFFF; border: 1px solid #E9EAEC; border-radius: 9px;
+    color: #25282D; font-size: 14px; min-height: 48px;
+}
+.login-page .form-control::placeholder { color: #25282D80; }
+.login-page .form-control:focus { border-color: #BFA77A; box-shadow: 0 0 0 3px #BFA77A33; }
+.login-page .field-icon, .login-page .toggle-password { color: #30343B; }
+.login-page .login-submit {
+    background: #30343B; border-color: #30343B; color: #FFFFFF;
+    border-radius: 999px; font-size: 16px; font-weight: 600; padding: 12px 20px;
+}
+.login-page .login-submit:hover, .login-page .login-submit:active {
+    background: #25282D; border-color: #25282D; color: #FFFFFF;
+}
+.login-page .confirmation-resend {
+    background: #FFFFFF; border: 1px solid #E9EAEC; border-radius: 999px;
+    color: #30343B; font-size: 14px;
+}
+.login-page .confirmation-resend:hover { background: #F5F5F4; border-color: #BFA77A; }
+.login-page a { color: #30343B; }
+.login-page a:hover { text-decoration-color: #BFA77A; }
+.login-page .login-options { font-size: 13px; }
+@media (max-width: 760px) {
+    .login-page .login-brand img { height: 44px; }
+}
+
 /* Public homepage follows the supplied reference. */
 .public-home {
     height: 100vh; height: 100dvh;
