@@ -10,6 +10,15 @@ public static class TrangThaiYeuCau
     // are approved, rejected or cancelled.
     public static bool ChuaXuLy(string trangThai) => trangThai is Moi or DaHenLich;
 
+    public static string BadgeClass(string trangThai) => trangThai switch
+    {
+        Moi => "text-bg-success",
+        DaHenLich => "text-bg-primary",
+        DaDuyet => "text-bg-info",
+        TuChoi or DaHuy => "text-bg-danger",
+        _ => "text-bg-secondary"
+    };
+
     public static string LoaiLabel(string loaiYeuCau) => loaiYeuCau switch
     {
         LichHenTrangThai.LoaiXemPhong => "Xem phòng",

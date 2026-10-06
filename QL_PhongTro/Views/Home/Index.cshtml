@@ -8,6 +8,7 @@
     }
     ViewData["Title"] = "Trang chủ";
     var modules = await Permissions.MenuAsync();
+    var isTenant = User.IsInRole("KHACH_THUE");
 }
 
 @if (signedIn)
@@ -15,11 +16,16 @@
     @* Giao diện khi người dùng đã đăng nhập (bên trong hệ thống quản lý) *@
     <section class="hero">
         <div class="hero-copy">
-            <p class="eyebrow">● &nbsp; GỌN GÀNG HƠN MỖI NGÀY</p>
-            <h1>Quản lý nhà trọ.<br /><span>Thảnh thơi hơn.</span></h1>
-            <p class="hero-description">Từ phòng ở đến hợp đồng, từ điện nước đến thu chi. Sắp xếp mọi việc trong một không gian quản lý đơn giản, rõ ràng.</p>
+            <p class="eyebrow">● &nbsp; @(isTenant ? "TÌM PHÒNG VÀ THEO DÕI YÊU CẦU" : "GỌN GÀNG HƠN MỖI NGÀY")</p>
+            <h1>@(isTenant ? "Chỗ ở phù hợp." : "Quản lý nhà trọ.")<br /><span>@(isTenant ? "Mọi yêu cầu rõ ràng." : "Thảnh thơi hơn.")</span></h1>
+            <p class="hero-description">@(isTenant ? "Tìm phòng, gửi yêu cầu xem phòng và theo dõi lịch hẹn của bạn trong một nơi." : "Từ phòng ở đến hợp đồng, từ điện nước đến thu chi. Sắp xếp mọi việc trong một không gian quản lý đơn giản, rõ ràng.")</p>
             <div class="hero-actions">
-                @if (modules.Count > 0)
+                @if (isTenant)
+                {
+                    <a class="btn btn-primary btn-lg" asp-controller="TimTin" asp-action="Index">Tìm phòng trọ →</a>
+                    <a class="btn btn-outline-secondary" asp-controller="YeuCau" asp-action="Index">Yêu cầu của tôi</a>
+                }
+                else if (modules.Count > 0)
                 {
                     <a class="btn btn-primary btn-lg" href="@QL_PhongTro.Authorization.PermissionService.Url(modules[0].Code)">Vào không gian quản lý ↗</a>
                 }
@@ -27,9 +33,9 @@
                 {
                     <p class="text-muted">Tài khoản của bạn chưa được cấp quyền. Vui lòng liên hệ người quản trị.</p>
                 }
-                <a class="btn btn-outline-secondary" href="/TinDang">Xem trang tin đăng công khai ↗</a>
+                @if (!isTenant) { <a class="btn btn-outline-secondary" href="/TinDang">Xem trang tin đăng công khai ↗</a> }
             </div>
-            <div class="hero-note">✓ &nbsp; Dễ theo dõi &nbsp;&nbsp;&nbsp; ✓ &nbsp; Phân quyền rõ ràng</div>
+            <div class="hero-note">✓ &nbsp; Dễ theo dõi &nbsp;&nbsp;&nbsp; ✓ &nbsp; @(isTenant ? "Lịch hẹn minh bạch" : "Phân quyền rõ ràng")</div>
         </div>
         <div class="hero-art" role="img" aria-label="Minh họa tòa nhà trọ với những ô cửa và cây xanh">
             <div class="art-grid"></div><div class="art-orbit"></div>

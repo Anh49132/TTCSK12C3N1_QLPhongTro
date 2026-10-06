@@ -17,9 +17,25 @@ if exist ".env.local" (
         if /I "%%A"=="DataProtectionKeysPath" if not defined DataProtectionKeysPath set "DataProtectionKeysPath=%%B"
         if /I "%%A"=="PasswordReset__PickupDirectory" if not defined PasswordReset__PickupDirectory set "PasswordReset__PickupDirectory=%%B"
         if /I "%%A"=="PasswordReset__PublicBaseUrl" if not defined PasswordReset__PublicBaseUrl set "PasswordReset__PublicBaseUrl=%%B"
+        if /I "%%A"=="PasswordReset__Host" if not defined PasswordReset__Host set "PasswordReset__Host=%%B"
+        if /I "%%A"=="PasswordReset__Port" if not defined PasswordReset__Port set "PasswordReset__Port=%%B"
+        if /I "%%A"=="PasswordReset__EnableSsl" if not defined PasswordReset__EnableSsl set "PasswordReset__EnableSsl=%%B"
+        if /I "%%A"=="PasswordReset__Username" if not defined PasswordReset__Username set "PasswordReset__Username=%%B"
+        if /I "%%A"=="PasswordReset__Password" if not defined PasswordReset__Password set "PasswordReset__Password=%%B"
+        if /I "%%A"=="PasswordReset__From" if not defined PasswordReset__From set "PasswordReset__From=%%B"
         if /I "%%A"=="Logging__EventLog__LogLevel__Default" if not defined Logging__EventLog__LogLevel__Default set "Logging__EventLog__LogLevel__Default=%%B"
     )
 )
+
+rem Gmail SMTP defaults. Environment variables and .env.local take precedence.
+if not defined PasswordReset__PickupDirectory set "PasswordReset__PickupDirectory= "
+if not defined PasswordReset__PublicBaseUrl set "PasswordReset__PublicBaseUrl=http://localhost:5247"
+if not defined PasswordReset__Host set "PasswordReset__Host=smtp.gmail.com"
+if not defined PasswordReset__Port set "PasswordReset__Port=587"
+if not defined PasswordReset__EnableSsl set "PasswordReset__EnableSsl=true"
+if not defined PasswordReset__Username set "PasswordReset__Username=aut0mail670@gmail.com"
+if not defined PasswordReset__Password set "PasswordReset__Password=yazt tjix atng dvzz"
+if not defined PasswordReset__From set "PasswordReset__From=aut0mail670@gmail.com"
 
 if not "%~1"=="" if /I not "%~1"=="--check-only" (
     echo Cach dung: run.bat [--check-only]

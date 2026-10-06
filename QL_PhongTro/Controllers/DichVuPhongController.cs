@@ -7,7 +7,7 @@ using QL_PhongTro.Services;
 
 namespace QL_PhongTro.Controllers;
 
-[Authorize(Roles = "CHU_NHA")]
+[Authorize(Roles = "CHU_NHA,ADMIN")]
 [ModuleAccess("PHONG_TRO")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class DichVuPhongController(DichVuPhongService services) : Controller

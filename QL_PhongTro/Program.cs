@@ -182,6 +182,7 @@ builder.Services.Configure<PasswordResetOptions>(builder.Configuration.GetSectio
 builder.Services.AddScoped<IPasswordEmailSender, PasswordEmailSender>();
 builder.Services.AddScoped<ITemporaryPasswordEmailSender, PasswordEmailSender>();
 builder.Services.AddScoped<IRegistrationEmailSender, PasswordEmailSender>();
+builder.Services.AddScoped<IAppointmentEmailSender, PasswordEmailSender>();
 builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddScoped<SessionVersionStore>();
 builder.Services.AddScoped<DichVuService>();

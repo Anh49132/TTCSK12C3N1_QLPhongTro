@@ -44,6 +44,15 @@ public static class LichHenTrangThai
     public static string LabelHienThi(string trangThai, bool daDoiLich) =>
         daDoiLich && trangThai == DaHenLich ? "Đã đổi lịch hẹn" : Label(trangThai);
 
+    public static string BadgeClass(string trangThai) => trangThai switch
+    {
+        Moi => "text-bg-success",
+        DaHenLich => "text-bg-primary",
+        DaDuyet => "text-bg-info",
+        TuChoi or DaHuy => "text-bg-danger",
+        _ => "text-bg-secondary"
+    };
+
     public static string LoaiLabel(string loai) => loai switch
     {
         LoaiXemPhong => "Xem phòng",

@@ -31,11 +31,14 @@ else
 {
     <div class="table-responsive">
         <table class="table table-hover align-middle">
-            <thead class="table-light"><tr><th>Tòa nhà</th><th>Người quản lý</th><th>Phòng</th><th>Đang trống</th><th>Trạng thái</th><th></th></tr></thead>
+            <thead class="table-light"><tr><th>STT</th><th>Tòa nhà</th><th>Người quản lý</th><th>Phòng</th><th>Đang trống</th><th>Trạng thái</th><th></th></tr></thead>
             <tbody>
+            @{ var buildingStt = 0; }
             @foreach (var building in Model.ToaNhas)
             {
+                buildingStt++;
                 <tr>
+                    <td>@buildingStt</td>
                     <th scope="row"><a asp-action="Index" asp-route-toaNhaId="@building.Id">@building.TenToaNha</a><div class="small text-secondary">@building.DiaChi</div></th>
                     <td>@(building.QuanLy ?? "Chưa phân công")</td>
                     <td>@building.SoPhong</td>
@@ -47,7 +50,7 @@ else
                             <a asp-action="SuaToaNha" asp-route-id="@building.Id" class="btn btn-sm btn-outline-secondary">Sửa</a>
                             @if (building.DangHoatDong)
                             {
-                                @if (User.IsInRole("CHU_NHA"))
+                                @if (User.IsInRole("CHU_NHA") || User.IsInRole("ADMIN"))
                                 {
                                     <a asp-controller="DichVu" asp-action="DienNuoc" asp-route-toaNhaId="@building.Id" class="btn btn-sm btn-outline-primary">Cấu hình điện nước</a>
                                 }

@@ -190,8 +190,26 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
     }
 
     /// <summary>Owner check walks request to listing to room to building, never yeu_cau_thue.phong_id.</summary>
+    private Task<bool> LaAdminAsync(int accountId, CancellationToken ct) =>
+        db.TaiKhoans.AsNoTracking().AnyAsync(x => x.Id == accountId && x.DangHoatDong && !x.IsDeleted && x.VaiTro == "ADMIN", ct);
+
+    private async Task<bool> CoQuyenXuLyAsync(int accountId, LichHenYeuCau row, CancellationToken ct) =>
+        row.ChuNhaId == accountId || await LaAdminAsync(accountId, ct);
+
     public async Task<bool> ChuNhaCuaYeuCauAsync(int accountId, int yeuCauId, CancellationToken ct) =>
-        await LoadAsync(yeuCauId, ct) is { } row && row.ChuNhaId == accountId;
+        await LoadAsync(yeuCauId, ct) is { } row && await CoQuyenXuLyAsync(accountId, row, ct);
+
+    public async Task<bool> CoQuyenDocYeuCauAsync(int accountId, int yeuCauId, CancellationToken ct)
+    {
+        if (await LoadAsync(yeuCauId, ct) is not { } row) return false;
+        if (row.TaiKhoanKhachId == accountId || await CoQuyenXuLyAsync(accountId, row, ct)) return true;
+        return await (from request in db.YeuCauThues.AsNoTracking()
+                      join listing in db.TinDangs.AsNoTracking() on request.TinDangId equals listing.Id
+                      join room in db.PhongTros.AsNoTracking() on listing.PhongId equals room.Id
+                      join building in db.ToaNhas.AsNoTracking() on room.ToaNhaId equals building.Id
+                      where request.Id == yeuCauId && building.QuanLyId == accountId
+                      select request.Id).AnyAsync(ct);
+    }
 
     /// <summary>A tenant only reaches a request linked to their own profile.</summary>
     public async Task<bool> KhachChuYeuCauAsync(int accountId, int yeuCauId, CancellationToken ct) =>
@@ -263,7 +281,7 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
     public async Task XacNhanLichAsync(int yeuCauId, int accountId, DateTime lichHenUtc, CancellationToken ct)
     {
         var yeuCau = await LoadAsync(yeuCauId, ct) ?? throw new KeyNotFoundException("Yêu cầu không tồn tại.");
-        if (yeuCau.ChuNhaId != accountId)
+        if (!await CoQuyenXuLyAsync(accountId, yeuCau, ct))
             throw new UnauthorizedAccessException("Chỉ chủ nhà của phòng này mới xác nhận được lịch hẹn.");
         if (yeuCau.TrangThai != LichHenTrangThai.Moi)
             throw new InvalidOperationException("Yêu cầu này không còn ở trạng thái chờ xác nhận.");
@@ -311,7 +329,7 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
     public async Task DoiLichAsync(int yeuCauId, int accountId, DateTime lichHenMoiUtc, CancellationToken ct)
     {
         var yeuCau = await LoadAsync(yeuCauId, ct) ?? throw new KeyNotFoundException("Yêu cầu không tồn tại.");
-        if (yeuCau.ChuNhaId != accountId)
+        if (!await CoQuyenXuLyAsync(accountId, yeuCau, ct))
             throw new UnauthorizedAccessException("Chỉ chủ nhà của phòng này mới đổi được lịch hẹn.");
         if (yeuCau.TrangThai != LichHenTrangThai.DaHenLich || yeuCau.LichHen is not { } lichHenCu)
             throw new InvalidOperationException("Chỉ yêu cầu đã có lịch hẹn mới đổi lịch được.");
@@ -362,7 +380,7 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
     public async Task DuyetThueNgayAsync(int yeuCauId, int accountId, CancellationToken ct)
     {
         var yeuCau = await LoadAsync(yeuCauId, ct) ?? throw new KeyNotFoundException("Yêu cầu không tồn tại.");
-        if (yeuCau.ChuNhaId != accountId)
+        if (!await CoQuyenXuLyAsync(accountId, yeuCau, ct))
             throw new UnauthorizedAccessException("Chỉ chủ nhà của phòng này mới duyệt được yêu cầu.");
         if (yeuCau.LoaiYeuCau != LichHenTrangThai.LoaiThueNgay)
             throw new InvalidOperationException("Chỉ yêu cầu loại Thuê ngay mới duyệt theo cách này.");
@@ -429,7 +447,7 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
         ValidateLyDoTuChoi(lyDo, note);
 
         var yeuCau = await LoadAsync(yeuCauId, ct) ?? throw new KeyNotFoundException("Yêu cầu không tồn tại.");
-        if (yeuCau.ChuNhaId != accountId)
+        if (!await CoQuyenXuLyAsync(accountId, yeuCau, ct))
             throw new UnauthorizedAccessException("Chỉ chủ nhà của phòng này mới từ chối được yêu cầu.");
         if (yeuCau.TrangThai is not (LichHenTrangThai.Moi or LichHenTrangThai.DaHenLich))
             throw new InvalidOperationException("Yêu cầu này không còn ở trạng thái cho phép từ chối.");
@@ -495,7 +513,7 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
     public async Task HuyAsync(int yeuCauId, int accountId, CancellationToken ct)
     {
         var yeuCau = await LoadAsync(yeuCauId, ct) ?? throw new KeyNotFoundException("Yêu cầu không tồn tại.");
-        var laChuNha = yeuCau.ChuNhaId == accountId;
+        var laChuNha = await CoQuyenXuLyAsync(accountId, yeuCau, ct);
         var laKhach = yeuCau.TaiKhoanKhachId == accountId;
         if (!laChuNha && !laKhach)
             throw new UnauthorizedAccessException("Bạn không có quyền hủy yêu cầu này.");
@@ -545,7 +563,7 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
     public async Task<List<LichHenLichSuMuc>> LichSuAsync(int accountId, int yeuCauId, CancellationToken ct)
     {
         var yeuCau = await LoadAsync(yeuCauId, ct) ?? throw new KeyNotFoundException("Yêu cầu không tồn tại.");
-        if (yeuCau.TaiKhoanKhachId != accountId && yeuCau.ChuNhaId != accountId)
+        if (!await CoQuyenDocYeuCauAsync(accountId, yeuCauId, ct))
             throw new UnauthorizedAccessException("Bạn không có quyền xem lịch sử yêu cầu này.");
 
         await db.Database.OpenConnectionAsync();

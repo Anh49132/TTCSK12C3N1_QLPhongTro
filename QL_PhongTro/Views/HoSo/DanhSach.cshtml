@@ -10,11 +10,13 @@ else
 {
     <div class="table-responsive">
         <table class="table">
-            <thead><tr><th>Họ tên</th><th>Số điện thoại</th><th>Thao tác</th></tr></thead>
+            <thead><tr><th>STT</th><th>Họ tên</th><th>Số điện thoại</th><th>Thao tác</th></tr></thead>
             <tbody>
+            @{ var profileStt = 0; }
             @foreach (var profile in Model)
             {
-                <tr><td>@profile.HoTen</td><td>@profile.SoDienThoai</td><td><a asp-action="Xem" asp-route-id="@profile.Id">Xem hồ sơ</a></td></tr>
+                profileStt++;
+                <tr><td>@profileStt</td><td>@profile.HoTen</td><td>@profile.SoDienThoai</td><td><a asp-action="Xem" asp-route-id="@profile.Id">Xem hồ sơ</a></td></tr>
             }
             </tbody>
         </table>

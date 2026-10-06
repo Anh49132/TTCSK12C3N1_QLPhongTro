@@ -20,6 +20,7 @@ public sealed class PermissionService(AppDbContext db, IHttpContextAccessor acce
     }
     public async Task<bool> AllowsAsync(string module, bool write = false)
     {
+        if (RoleCode == "ADMIN") return true;
         var permission = (await CurrentAsync()).SingleOrDefault(p => p.ModuleCode == module);
         return permission is not null && (write
             ? permission.AccessLevel is "WRITE" or "FULL"
@@ -27,6 +28,8 @@ public sealed class PermissionService(AppDbContext db, IHttpContextAccessor acce
     }
     public async Task<List<AppModule>> MenuAsync()
     {
+        if (RoleCode == "ADMIN")
+            return await db.AppModules.AsNoTracking().OrderBy(m => m.SortOrder).ToListAsync();
         var allowed = (await CurrentAsync()).Where(p => p.AccessLevel is "READ" or "WRITE" or "FULL")
             // PHONG_TRO currently links to staff management, not a tenant room page.
             .Where(p => RoleCode != "KHACH_THUE" || p.ModuleCode != "PHONG_TRO")

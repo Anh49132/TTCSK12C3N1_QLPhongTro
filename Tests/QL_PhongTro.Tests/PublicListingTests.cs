@@ -59,7 +59,7 @@ public sealed partial class PermissionTests
         Assert.Contains("2 người", html);
         Assert.Contains("1.000.000 đ", html);
         Assert.Contains("data-testid=\"first-month-total\">2.500.000 đ", html);
-        Assert.Contains("Chưa bao gồm tiền điện và nước theo mức sử dụng thực tế.", html);
+        Assert.Contains("chưa gồm điện, nước theo sử dụng thực tế", html);
         Assert.Contains("Phòng sáng, thoáng và có chỗ để xe.", html);
         Assert.Contains("data-gallery-main src=\"/images/room-a.jpg\"", html);
         Assert.Contains("Chưa có đơn giá dịch vụ theo mức sử dụng.", html);
@@ -117,7 +117,7 @@ public sealed partial class PermissionTests
         Assert.Contains("Internet", html);
         Assert.Contains("150.000", html);
         Assert.Contains("data-testid=\"first-month-total\">2.750.000 đ", html);
-        Assert.Contains("Chưa bao gồm tiền điện và nước theo mức sử dụng thực tế.", html);
+        Assert.Contains("chưa gồm điện, nước theo sử dụng thực tế", html);
 
         using var response = await guest.GetAsync($"/api/tin-dang/{listingId}");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -229,7 +229,7 @@ public sealed partial class PermissionTests
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         var html = WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
         Assert.Contains("Phòng gần trung tâm, có cửa sổ", html);
-        Assert.Contains("Ước tính tổng chi phí tháng đầu", html);
+        Assert.Contains("Chi phí cố định ước tính mỗi tháng", html);
         Assert.Contains("Tin này chưa có khoản phí cố định hàng tháng.", html);
 
         using var response = await guest.GetAsync($"/api/tin-dang/{listingId}");

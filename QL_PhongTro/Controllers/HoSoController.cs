@@ -168,8 +168,10 @@ public class HoSoController(AppDbContext db, GiayToImageStore images, HoSoAccess
     public async Task<IActionResult> DanhSach()
     {
         var viewer = await CurrentViewerAsync();
-        if (viewer?.VaiTro != "CHU_NHA") return Forbid();
-        var ids = await access.RelatedProfileIdsAsync(viewer.Id);
+        if (viewer?.VaiTro is not ("CHU_NHA" or "ADMIN")) return Forbid();
+        var ids = viewer.VaiTro == "ADMIN"
+            ? await db.KhachThues.AsNoTracking().Select(x => x.Id).ToListAsync()
+            : await access.RelatedProfileIdsAsync(viewer.Id);
         return View(await db.KhachThues.AsNoTracking().Where(x => ids.Contains(x.Id))
             .OrderBy(x => x.HoTen).ThenBy(x => x.Id).ToListAsync());
     }

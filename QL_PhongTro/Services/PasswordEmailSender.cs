@@ -32,11 +32,16 @@ public interface IRegistrationEmailSender
     Task<EmailDeliveryResult> SendConfirmationAsync(string email, string name, string code);
 }
 
+public interface IAppointmentEmailSender
+{
+    Task SendConfirmedAsync(string email, string name, string requestCode, DateTime appointmentLocal, int requestId);
+}
+
 public enum EmailDeliveryMode { Pickup, Smtp }
 
 public sealed record EmailDeliveryResult(EmailDeliveryMode Mode, string? PickupDirectory = null, string? PickupFilePath = null);
 
-public sealed class PasswordEmailSender(IOptions<PasswordResetOptions> options, IWebHostEnvironment environment) : IPasswordEmailSender, ITemporaryPasswordEmailSender, IRegistrationEmailSender
+public sealed class PasswordEmailSender(IOptions<PasswordResetOptions> options, IWebHostEnvironment environment) : IPasswordEmailSender, ITemporaryPasswordEmailSender, IRegistrationEmailSender, IAppointmentEmailSender
 {
     public Task SendAsync(string email, string resetUrl) => DeliverAsync(email, "Đặt lại mật khẩu Nhà Trọ",
         "Bạn đã yêu cầu đặt lại mật khẩu Nhà Trọ. Mở liên kết sau trong vòng 30 phút; liên kết chỉ dùng được một lần:\n\n" + resetUrl + "\n\nNếu bạn không yêu cầu, hãy bỏ qua email này.");
@@ -59,6 +64,21 @@ public sealed class PasswordEmailSender(IOptions<PasswordResetOptions> options, 
     {
         return DeliverAsync(email, "Xác nhận tài khoản Nhà Trọ",
             $"Xin chào {name},\n\nMã xác nhận tài khoản của bạn là: {code}\n\nMã có hiệu lực trong 15 phút. Nếu bạn không thực hiện đăng ký, hãy bỏ qua email này.");
+    }
+
+    public Task SendConfirmedAsync(string email, string name, string requestCode, DateTime appointmentLocal, int requestId)
+    {
+        var baseUrl = options.Value.PublicBaseUrl;
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var origin) ||
+            (origin.Scheme != "https" && !(environment.IsDevelopment() && origin.Scheme == "http" && origin.IsLoopback)) ||
+            !string.IsNullOrEmpty(origin.UserInfo) || !string.IsNullOrEmpty(origin.Query) || !string.IsNullOrEmpty(origin.Fragment))
+            throw new InvalidOperationException("Configure a trusted PublicBaseUrl.");
+
+        var detailUrl = $"{baseUrl.TrimEnd('/')}/LichHen/ChiTiet/{requestId}";
+        return DeliverAsync(email, $"Lịch hẹn xem phòng đã được xác nhận - {requestCode}",
+            $"Xin chào {name},\n\nLịch hẹn của yêu cầu {requestCode} đã được chủ nhà xác nhận.\n" +
+            $"Thời gian: {appointmentLocal:dd/MM/yyyy HH:mm}\n" +
+            $"Xem chi tiết yêu cầu: {detailUrl}\n\nNếu cần thay đổi, vui lòng liên hệ chủ nhà qua thông tin trong yêu cầu.");
     }
 
     private async Task<EmailDeliveryResult> DeliverAsync(string email, string subject, string body)

@@ -12,7 +12,7 @@ using QL_PhongTro.ViewModels;
 
 namespace QL_PhongTro.Controllers;
 
-[Authorize(Roles = "CHU_NHA")]
+[Authorize(Roles = "CHU_NHA,ADMIN")]
 [ModuleAccess("PHONG_TRO")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class DichVuController(AppDbContext db, DichVuService services, DichVuPhongService roomServices) : Controller
@@ -86,7 +86,7 @@ public class DichVuController(AppDbContext db, DichVuService services, DichVuPho
         }
     }
     private Task<List<SelectListItem>> ToaNhasAsync() => db.ToaNhas.AsNoTracking()
-        .Where(x => x.ChuNhaId == AccountId && x.DangHoatDong).OrderBy(x => x.TenToaNha)
+        .Where(x => (x.ChuNhaId == AccountId || User.IsInRole("ADMIN")) && x.DangHoatDong).OrderBy(x => x.TenToaNha)
         .Select(x => new SelectListItem(x.TenToaNha, x.Id.ToString())).ToListAsync();
 
     [HttpGet]

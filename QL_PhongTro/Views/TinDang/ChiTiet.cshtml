@@ -82,59 +82,47 @@
     <section class="listing-services" aria-labelledby="services-title">
         <p class="listing-eyebrow">DỊCH VỤ VÀ CÁCH TÍNH</p>
         <h2 id="services-title">Chi phí dịch vụ</h2>
-        <div class="service-columns">
-            <section class="service-group" aria-labelledby="usage-services-title">
-                <h3 id="usage-services-title">Theo mức sử dụng</h3>
-                @if (Model.PublicDetail.DichVuTheoSuDung.Count == 0)
-                {
-                    <p class="listing-empty" data-testid="no-usage-services">Chưa có đơn giá dịch vụ theo mức sử dụng.</p>
-                }
-                else
-                {
-                    <div class="service-list">
+        @if (Model.PublicDetail.DichVuTheoSuDung.Count == 0 && Model.PublicDetail.KhoanCoDinh.Count == 0)
+        {
+            <p class="listing-empty" data-testid="no-services">Tin này chưa có bảng giá dịch vụ.</p>
+            <span class="visually-hidden" data-testid="no-usage-services">Chưa có đơn giá dịch vụ theo mức sử dụng.</span>
+            <span class="visually-hidden" data-testid="no-fixed-services">Tin này chưa có khoản phí cố định hàng tháng.</span>
+        }
+        else
+        {
+            <div class="service-table-wrap">
+                <table class="service-table">
+                    <caption class="visually-hidden">Bảng giá dịch vụ của phòng</caption>
+                    <thead>
+                        <tr><th scope="col">Dịch vụ</th><th scope="col">Cách tính</th><th scope="col">Đơn giá</th></tr>
+                    </thead>
+                    <tbody>
                         @foreach (var service in Model.PublicDetail.DichVuTheoSuDung)
                         {
-                            <article class="service-row" data-testid="usage-service">
-                                <div class="service-description">
-                                    <h4>@service.TenDichVu</h4>
-                                    <p>@QL_PhongTro.Models.CachTinhDichVu.Ten(service.CachTinh) <span>· @service.DonViTinh</span></p>
-                                </div>
-                                <p class="service-price">@service.DonGia.ToString("N0", culture)<span>đ / @service.DonViTinh</span></p>
-                            </article>
+                            <tr data-testid="usage-service">
+                                <th scope="row">@service.TenDichVu</th>
+                                <td>@QL_PhongTro.Models.CachTinhDichVu.Ten(service.CachTinh) · @service.DonViTinh</td>
+                                <td class="service-table-price">@service.DonGia.ToString("N0", culture) đ</td>
+                            </tr>
                         }
-                    </div>
-                }
-            </section>
-
-            <section class="service-group" aria-labelledby="fixed-services-title">
-                <h3 id="fixed-services-title">Khoản cố định hàng tháng</h3>
-                @if (Model.PublicDetail.KhoanCoDinh.Count == 0)
-                {
-                    <p class="listing-empty" data-testid="no-fixed-services">Tin này chưa có khoản phí cố định hàng tháng.</p>
-                }
-                else
-                {
-                    <div class="service-list">
                         @foreach (var service in Model.PublicDetail.KhoanCoDinh)
                         {
-                            <article class="service-row" data-testid="fixed-service">
-                                <div class="service-description">
-                                    <h4>@service.TenDichVu</h4>
-                                    <p>@service.DonViTinh</p>
-                                </div>
-                                <p class="service-price">@service.DonGia.ToString("N0", culture)<span>đ / tháng</span></p>
-                            </article>
+                            <tr data-testid="fixed-service">
+                                <th scope="row">@service.TenDichVu</th>
+                                <td>@QL_PhongTro.Models.CachTinhDichVu.Ten(service.CachTinh) · @service.DonViTinh</td>
+                                <td class="service-table-price">@service.DonGia.ToString("N0", culture) đ</td>
+                            </tr>
                         }
-                    </div>
-                }
-            </section>
-        </div>
-        <aside class="first-month-estimate" aria-label="Ước tính chi phí tháng đầu" data-testid="first-month-estimate">
+                    </tbody>
+                </table>
+            </div>
+        }
+        <aside class="first-month-estimate" aria-label="Ước tính chi phí cố định hàng tháng" data-testid="first-month-estimate">
             <div class="estimate-heading">
-                <h3>Ước tính tổng chi phí tháng đầu</h3>
+                <h3>Chi phí cố định ước tính mỗi tháng</h3>
                 <strong data-testid="first-month-total">@Model.PublicDetail.TongChiPhiThangDau.ToString("N0", culture) đ</strong>
             </div>
-            <p>Chưa bao gồm tiền điện và nước theo mức sử dụng thực tế.</p>
+            <p>Gồm tiền thuê và các khoản cố định; chưa gồm điện, nước theo sử dụng thực tế. Tiền cọc dự kiến @Model.PublicDetail.TienCocDuKien.ToString("N0", culture) đ được thu riêng khi ký hợp đồng.</p>
         </aside>
     </section>
 </article>

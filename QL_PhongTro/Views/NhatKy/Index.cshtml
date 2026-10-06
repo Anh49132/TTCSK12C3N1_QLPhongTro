@@ -18,10 +18,13 @@
     <div><button class="btn btn-primary" type="submit">Lọc nhật ký</button> <a asp-action="Index" class="btn btn-outline-secondary">Xóa bộ lọc</a></div>
 </form>
 <p>@Model.Total hoạt động · Trang @Model.Page/@Model.Pages</p>
-<div class="table-responsive"><table class="table align-top"><thead><tr><th>Thời điểm</th><th>Người thực hiện</th><th>Vai trò</th><th>Thao tác</th><th>Thông tin liên quan</th><th>Nội dung thay đổi</th></tr></thead><tbody>
+<div class="table-responsive"><table class="table align-top"><thead><tr><th>STT</th><th>Thời điểm</th><th>Người thực hiện</th><th>Vai trò</th><th>Thao tác</th><th>Thông tin liên quan</th><th>Nội dung thay đổi</th></tr></thead><tbody>
+@{ var auditStt = (Model.Page - 1) * 50; }
 @foreach (var row in Model.Rows) {
+auditStt++;
 var display = AuditDisplay.Describe(row);
 <tr data-audit-id="@row.Id">
+<td>@auditStt</td>
 <td>@row.ThoiDiem.AddHours(7).ToString("dd/MM/yyyy HH:mm")</td>
 <td>@(row.TenNguoiThucHien ?? "Chưa ghi nhận tên") @if (row.NguoiThucHienId is not null) { <small class="d-block text-muted">Mã tài khoản: @row.NguoiThucHienId</small> }</td>
 <td>@AuditDisplay.Role(row.VaiTroLucThucHien)</td><td>@NhatKyViewModel.ActionName(row.HanhDong)</td>
@@ -45,7 +48,7 @@ var display = AuditDisplay.Describe(row);
 @if (row.HanhDong == "GUI_LAI_MAT_KHAU_TAM") { <p>Đã cấp mật khẩu tạm mới và đăng xuất các phiên đăng nhập cũ. Mật khẩu không hiển thị trong lịch sử.</p> }
 </details></td></tr>
 }
-@if (Model.Rows.Count == 0) { <tr><td colspan="6">Không có nhật ký phù hợp.</td></tr> }
+@if (Model.Rows.Count == 0) { <tr><td colspan="7">Không có nhật ký phù hợp.</td></tr> }
 </tbody></table></div>
 <nav aria-label="Phân trang nhật ký">
 @foreach (var pageNumber in new[] { Model.Page - 1, Model.Page + 1 }.Where(p => p >= 1 && p <= Model.Pages)) {

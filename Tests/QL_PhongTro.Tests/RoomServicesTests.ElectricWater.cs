@@ -122,7 +122,7 @@ public sealed partial class RoomServicesTests
 
     [Theory]
     [InlineData(CachTinhDichVu.TheoNguoi, 4200L, 90000L)]
-    public async Task ChangingUtilityMethodPreservesRoomRateAndCurrentPeriod(string method, long ownRate, long buildingRate)
+    public async Task ChangingUtilityMethodPreservesEntirePrivateRoomConfiguration(string method, long ownRate, long buildingRate)
     {
         using var db = Context();
         await SeedUtilitiesAsync(db, priced: true);
@@ -140,10 +140,12 @@ public sealed partial class RoomServicesTests
         var november = await rooms.LayGiaHoaDonAsync(1, room.Id, catalog.DichVuId, new(2026, 11, 1));
         Assert.Equal(CachTinhDichVu.TheoChiSo, october!.CachTinh);
         Assert.Equal(ownRate, october.DonGia);
-        Assert.Equal(method, november!.CachTinh);
-        Assert.Equal("người/tháng", november.DonViTinh);
+        Assert.Equal(CachTinhDichVu.TheoChiSo, november!.CachTinh);
+        Assert.Equal("kWh", november.DonViTinh);
         Assert.Equal(ownRate, november.DonGia);
         Assert.Equal(buildingRate, (await service.LayDonGiaAsync(1, 1, catalog.DichVuId, new(2026, 11, 1)))!.DonGia);
+        Assert.Contains(await db.CauHinhDichVus.AsNoTracking().ToListAsync(), x =>
+            x.PhongId == room.Id && x.DichVuId == catalog.DichVuId && x.TuNgay == new DateOnly(2026, 11, 1));
     }
 
     [Theory]

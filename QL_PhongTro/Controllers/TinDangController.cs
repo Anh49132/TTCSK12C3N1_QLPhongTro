@@ -69,16 +69,17 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
         return model is null ? NotFound() : View(model);
     }
 
-    [Authorize(Roles = "CHU_NHA,QUAN_LY"), ModuleAccess("TIN_DANG", write: true), HttpGet]
+    [Authorize(Roles = "CHU_NHA,QUAN_LY,ADMIN"), ModuleAccess("TIN_DANG", write: true), HttpGet]
     public async Task<IActionResult> QuanLy()
     {
         if (AccountId == 0) return Forbid();
         await expiration.ExpireAsync();
         var now = DateTime.UtcNow;
         var isManager = User.IsInRole("QUAN_LY");
+        var isAdmin = User.IsInRole("ADMIN");
         var rooms = await (from room in db.PhongTros.AsNoTracking()
                            join building in db.ToaNhas.AsNoTracking() on room.ToaNhaId equals building.Id
-                           where (building.ChuNhaId == AccountId || (isManager && building.QuanLyId == AccountId))
+                           where (isAdmin || building.ChuNhaId == AccountId || (isManager && building.QuanLyId == AccountId))
                                && building.DangHoatDong
                            orderby building.TenToaNha, room.MaPhong
                            select new { Room = room, BuildingName = building.TenToaNha }).ToListAsync();
@@ -107,14 +108,14 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
         });
     }
 
-    [Authorize(Roles = "CHU_NHA,QUAN_LY"), ModuleAccess("TIN_DANG", write: true), HttpGet]
+    [Authorize(Roles = "CHU_NHA,QUAN_LY,ADMIN"), ModuleAccess("TIN_DANG", write: true), HttpGet]
     public async Task<IActionResult> Tao(int phongId)
     {
         var model = await TaoModelAsync(phongId);
         return model is null ? NotFound() : View(model);
     }
 
-    [Authorize(Roles = "CHU_NHA,QUAN_LY"), ModuleAccess("TIN_DANG", write: true), HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = "CHU_NHA,QUAN_LY,ADMIN"), ModuleAccess("TIN_DANG", write: true), HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Tao(TaoTinDangViewModel form, string? intent)
     {
         var source = await TaoModelAsync(form.PhongId);
@@ -174,14 +175,15 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
         return isDraft ? RedirectToAction(nameof(QuanLy)) : RedirectToAction(nameof(ChiTiet), new { id = listing.Id });
     }
 
-    [Authorize(Roles = "CHU_NHA,QUAN_LY"), ModuleAccess("TIN_DANG", write: true), HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = "CHU_NHA,QUAN_LY,ADMIN"), ModuleAccess("TIN_DANG", write: true), HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Go(int id)
     {
         var isManager = User.IsInRole("QUAN_LY");
+        var isAdmin = User.IsInRole("ADMIN");
         var listing = await db.TinDangs.SingleOrDefaultAsync(post => post.Id == id
             && db.PhongTros.Any(room => room.Id == post.PhongId
                 && db.ToaNhas.Any(building => building.Id == room.ToaNhaId
-                    && (building.ChuNhaId == AccountId || (isManager && building.QuanLyId == AccountId)))));
+                    && (isAdmin || building.ChuNhaId == AccountId || (isManager && building.QuanLyId == AccountId)))));
         if (listing is null) return NotFound();
         if (listing.TrangThai == "DANG_HIEN_THI")
         {
@@ -195,10 +197,11 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
     private async Task<TaoTinDangViewModel?> TaoModelAsync(int roomId)
     {
         var isManager = User.IsInRole("QUAN_LY");
+        var isAdmin = User.IsInRole("ADMIN");
         var source = await (from room in db.PhongTros.AsNoTracking()
                             join building in db.ToaNhas.AsNoTracking() on room.ToaNhaId equals building.Id
                             where room.Id == roomId
-                                && (building.ChuNhaId == AccountId || (isManager && building.QuanLyId == AccountId))
+                                && (isAdmin || building.ChuNhaId == AccountId || (isManager && building.QuanLyId == AccountId))
                                 && building.DangHoatDong
                             select new { Room = room, Building = building }).SingleOrDefaultAsync();
         if (source is null)

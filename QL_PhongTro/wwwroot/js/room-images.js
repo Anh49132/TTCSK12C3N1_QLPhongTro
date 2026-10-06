@@ -273,10 +273,24 @@
         const label = document.createElement('span');
         label.textContent = file.name;
         const message = document.createElement('p');
-        message.setAttribute('role', 'status');
+        message.setAttribute('role', 'alert');
         card.append(preview, progress, label, message);
         queue.append(card);
         return { card, preview, progressBar, label, message };
+    }
+
+    function showUploadError(view, message) {
+        view.card.classList.add('is-failed');
+        view.progressBar.style.width = '100%';
+        view.message.textContent = message;
+        sortStatus.textContent = message;
+        sortStatus.classList.add('is-error');
+        const dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.className = 'room-image-error-dismiss';
+        dismiss.textContent = 'Bỏ thông báo';
+        dismiss.addEventListener('click', () => view.card.remove(), { once: true });
+        view.card.append(dismiss);
     }
 
     function upload(file, view) {
@@ -310,20 +324,18 @@
                     updateCount();
                     updateOrderPresentation();
                 } else {
-                    view.card.classList.add('is-failed');
-                    view.progressBar.style.width = '100%';
-                    view.message.textContent = response.message || 'Không tải được ảnh. Vui lòng kiểm tra kết nối mạng và thử lại.';
+                    showUploadError(view, response.message || (request.status === 413
+                        ? 'Ảnh vượt quá dung lượng máy chủ cho phép. Mỗi ảnh tối đa 5 MB.'
+                        : 'Không tải được ảnh. Vui lòng kiểm tra tệp và thử lại.'));
                 }
                 resolve();
             };
             request.onerror = () => {
-                view.card.classList.add('is-failed');
-                view.message.textContent = 'Mất kết nối khi tải ảnh. Ảnh chưa được lưu; vui lòng thử lại.';
+                showUploadError(view, 'Mất kết nối khi tải ảnh. Ảnh chưa được lưu; vui lòng thử lại.');
                 resolve();
             };
             request.onabort = () => {
-                view.card.classList.add('is-failed');
-                view.message.textContent = 'Đã hủy tải ảnh. Ảnh chưa được lưu.';
+                showUploadError(view, 'Đã hủy tải ảnh. Ảnh chưa được lưu.');
                 resolve();
             };
             request.send(body);
@@ -335,6 +347,18 @@
         input.value = '';
         for (const file of files) {
             const view = makeCard(file);
+            if (count >= 8) {
+                showUploadError(view, 'Phòng đã đủ 8 ảnh. Hãy xóa một ảnh trước khi tải thêm.');
+                continue;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                showUploadError(view, `${file.name}: ảnh vượt quá giới hạn 5 MB.`);
+                continue;
+            }
+            if (!/\.(jpe?g|png)$/i.test(file.name) || !['image/jpeg', 'image/png'].includes(file.type)) {
+                showUploadError(view, `${file.name}: chỉ chấp nhận ảnh JPG hoặc PNG.`);
+                continue;
+            }
             await upload(file, view);
         }
     });

@@ -90,8 +90,9 @@ public sealed partial class DichVuService
             if (current is { DangApDung: false } || (current is not null && !current.DichVu.DangHoatDong) ||
                 pending is { DangApDung: false } || (pending is not null && !pending.DichVu.DangHoatDong))
                 throw new InvalidOperationException("Dịch vụ đang ngừng áp dụng. Cần kiểm tra lịch dịch vụ trước khi lưu.");
-            // Room-specific rates remain authoritative. The next-period method and unit
-            // apply to them too; the form explains this before the owner saves.
+            // Snapshot every room override before changing the shared utility method/unit/price.
+            // Those rooms continue using their own complete configuration.
+            if (current is not null) await BaoToanCauHinhRiengAsync(current, next, accountId);
             if (pending is not null && await DaThamChieuAsync(pending.Id))
                 throw new InvalidOperationException("Cấu hình chờ đã được chứng từ hoặc hợp đồng tham chiếu. Chưa chốt nghiệp vụ sửa cấu hình này.");
             var row = pending;

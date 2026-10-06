@@ -81,9 +81,6 @@ public sealed class HoaDonDichVuService(AppDbContext db, DichVuService services)
                 ?? throw new InvalidOperationException("Dịch vụ đã ngừng áp dụng cho phòng trong kỳ này hoặc chưa có giá. Hãy tải lại danh sách theo hợp đồng và kỳ hóa đơn.");
             if (price.CauHinhId != item.CauHinhId || price.DonGia != item.DonGiaDaXem)
                 throw new InvalidOperationException("Đơn giá đã thay đổi từ lúc mở form. Hãy tải lại bảng giá trước khi phát hành.");
-            // Room overrides belong to another story; never silently apply the building price over them.
-            if (await db.CauHinhDichVus.AnyAsync(x => x.PhongId == contract.Phong.Id && x.DichVuId == item.DichVuId && x.TuNgay <= date && (x.DenNgay == null || x.DenNgay >= date)))
-                throw new InvalidOperationException("Phòng có cấu hình dịch vụ riêng; cần luồng hóa đơn hỗ trợ cấu hình riêng.");
             decimal quantity;
             if (price.CachTinh == CachTinhDichVu.TheoChiSo)
             {

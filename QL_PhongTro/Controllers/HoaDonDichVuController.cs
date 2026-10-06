@@ -11,7 +11,7 @@ using QL_PhongTro.ViewModels;
 
 namespace QL_PhongTro.Controllers;
 
-[Authorize(Roles = "CHU_NHA"), ModuleAccess("TAI_CHINH")]
+[Authorize(Roles = "CHU_NHA,ADMIN"), ModuleAccess("TAI_CHINH")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class HoaDonDichVuController(AppDbContext db, DichVuService services, HoaDonDichVuService invoices) : Controller
 {
@@ -42,7 +42,7 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
                                   join h in db.HopDongs on hd.HopDongId equals h.Id
                                   join p in db.PhongTros on h.PhongId equals p.Id
                                   join t in db.ToaNhas on p.ToaNhaId equals t.Id
-                                  where p.ToaNhaId == model.ToaNhaId && t.ChuNhaId == AccountId
+                                  where p.ToaNhaId == model.ToaNhaId && (t.ChuNhaId == AccountId || User.IsInRole("ADMIN"))
                                   orderby hd.Id descending
                                   select new HoaDonGanDayViewModel
                                   {

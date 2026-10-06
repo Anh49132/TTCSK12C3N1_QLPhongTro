@@ -80,6 +80,7 @@ public class YeuCauController(AppDbContext db, ITimeProvider clock, YeuCauThueSe
                         LoaiYeuCau = request.LoaiYeuCau,
                         NgayMongMuon = request.NgayMongMuon,
                         TrangThai = request.TrangThai,
+                        LoiNhan = request.LoiNhan,
                         NgayTao = request.NgayTao
                     };
         var items = await query.ToListAsync();

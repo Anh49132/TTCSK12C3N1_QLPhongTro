@@ -47,8 +47,9 @@ else
         </form>
     }
     <h2 class="h4 mt-4">Hóa đơn gần đây</h2>
-    <div class="table-responsive"><table class="table"><thead><tr><th>Mã hóa đơn</th><th>Mã phòng</th><th>Tòa nhà</th><th>Kỳ</th><th>Ngày áp dụng giá</th><th>Tổng tiền</th></tr></thead><tbody>
-    @foreach (var invoice in Model.DaPhatHanh) { <tr><td><a asp-action="Details" asp-route-id="@invoice.Id">@invoice.MaHoaDon</a></td><td>@invoice.MaPhong</td><td>@invoice.TenToaNha</td><td>@invoice.Thang/@invoice.Nam</td><td>@invoice.NgayChot.ToString("dd/MM/yyyy")</td><td class="text-nowrap">@invoice.TongTien.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) đ</td></tr> }
-    @if (Model.DaPhatHanh.Count == 0) { <tr><td colspan="6" class="text-secondary">Chưa có hóa đơn trong tòa nhà này.</td></tr> }
+    <div class="table-responsive"><table class="table"><thead><tr><th>STT</th><th>Mã hóa đơn</th><th>Mã phòng</th><th>Tòa nhà</th><th>Kỳ</th><th>Ngày áp dụng giá</th><th>Tổng tiền</th></tr></thead><tbody>
+    @{ var invoiceStt = 0; }
+    @foreach (var invoice in Model.DaPhatHanh) { invoiceStt++; <tr><td>@invoiceStt</td><td><a asp-action="Details" asp-route-id="@invoice.Id">@invoice.MaHoaDon</a></td><td>@invoice.MaPhong</td><td>@invoice.TenToaNha</td><td>@invoice.Thang/@invoice.Nam</td><td>@invoice.NgayChot.ToString("dd/MM/yyyy")</td><td class="text-nowrap">@invoice.TongTien.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) đ</td></tr> }
+    @if (Model.DaPhatHanh.Count == 0) { <tr><td colspan="7" class="text-secondary">Chưa có hóa đơn trong tòa nhà này.</td></tr> }
     </tbody></table></div>
 }

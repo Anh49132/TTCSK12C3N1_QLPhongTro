@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Authorization;
+using QL_PhongTro.Data;
 using QL_PhongTro.Models;
 using QL_PhongTro.Services;
 using QL_PhongTro.ViewModels;
@@ -16,7 +18,10 @@ namespace QL_PhongTro.Controllers;
 [Authorize]
 [ModuleAccess("YEU_CAU_THUE")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class LichHenController(LichHenService service) : Controller
+public class LichHenController(
+    LichHenService service,
+    AppDbContext? db = null,
+    IAppointmentEmailSender? email = null) : Controller
 {
     private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
 
@@ -35,7 +40,7 @@ public class LichHenController(LichHenService service) : Controller
         if (!await service.CoBangYeuCauAsync(ct)) return View("ChuaCoDuLieu");
         if (await service.DocAsync(id, ct) is not { } yeuCau) return NotFound();
         var laChuNha = await service.ChuNhaCuaYeuCauAsync(AccountId, id, ct);
-        if (!laChuNha && !await service.KhachChuYeuCauAsync(AccountId, id, ct)) return Forbid();
+        if (!laChuNha && !await service.CoQuyenDocYeuCauAsync(AccountId, id, ct)) return Forbid();
 
         List<LichHenLichSuMuc> lichSu;
         try
@@ -121,6 +126,20 @@ public class LichHenController(LichHenService service) : Controller
             if (LichHenNhap is not { } nhap) throw new InvalidOperationException("Hãy chọn ngày giờ hẹn.");
             await service.XacNhanLichAsync(id, AccountId, ChuyenNhapSangUtc(nhap)!.Value, ct);
             TempData["LichHenOk"] = "Đã xác nhận lịch hẹn.";
+            try
+            {
+                var recipient = db is null || email is null ? null : await (from request in db.YeuCauThues.AsNoTracking()
+                                       join tenant in db.KhachThues.AsNoTracking() on request.KhachThueId equals tenant.Id
+                                       join account in db.TaiKhoans.AsNoTracking() on tenant.TaiKhoanId equals account.Id
+                                       where request.Id == id && account.DangHoatDong && !account.IsDeleted
+                                       select new { account.Email, tenant.HoTen, request.MaYeuCau }).SingleOrDefaultAsync(ct);
+                if (recipient is not null && email is not null)
+                    await email.SendConfirmedAsync(recipient.Email, recipient.HoTen, recipient.MaYeuCau, nhap, id);
+            }
+            catch (Exception)
+            {
+                TempData["LichHenWarning"] = "Lịch hẹn đã được xác nhận nhưng chưa gửi được email cho khách. Hãy kiểm tra cấu hình SMTP.";
+            }
         }
         catch (KeyNotFoundException) { return NotFound(); }
         catch (UnauthorizedAccessException) { return Forbid(); }

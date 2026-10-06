@@ -7,7 +7,7 @@
 <h1 class="h2">Cấu hình điện nước</h1>
 <p class="lead">Tòa nhà: <strong>@Model.TenToaNha</strong></p>
 <p class="text-secondary">Kỳ hiện tại: @Model.KyHienTai.ToString("MM/yyyy") · Kỳ kế tiếp: @Model.KyKeTiep.ToString("MM/yyyy")</p>
-<div class="alert alert-info">Thay đổi áp dụng từ kỳ @Model.KyKeTiep.ToString("MM/yyyy"). Nếu phòng có đơn giá riêng, số tiền riêng được giữ nguyên và tính theo cách tính, đơn vị mới từ kỳ này. Hãy kiểm tra giá riêng của các phòng trước khi lưu. Hóa đơn đã phát hành không thay đổi.</div>
+<div class="alert alert-info">Thay đổi áp dụng từ kỳ @Model.KyKeTiep.ToString("MM/yyyy"). Phòng đang dùng cấu hình riêng sẽ giữ nguyên cả cách tính, đơn vị và đơn giá; các phòng dùng cấu hình chung sẽ nhận thiết lập mới. Hóa đơn đã phát hành không thay đổi.</div>
 <form asp-action="DienNuoc" method="post">
     <input asp-for="ToaNhaId" type="hidden" />
     <input asp-for="KyDaXem" type="hidden" />

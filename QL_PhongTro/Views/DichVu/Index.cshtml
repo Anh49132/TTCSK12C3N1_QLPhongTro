@@ -46,11 +46,13 @@ else
         <div class="table-responsive">
         <table class="table align-middle">
             <caption>@Model.DichVus.Select(x => x.DichVuId).Distinct().Count() dịch vụ đã khai báo</caption>
-            <thead><tr><th scope="col">Tên dịch vụ</th><th scope="col">Cách tính tiền</th><th scope="col">Đơn vị tính</th><th scope="col" class="text-end">Đơn giá (VND)</th><th scope="col">Trạng thái</th><th scope="col">Áp dụng mặc định</th>@if (write) { <th scope="col">Thao tác</th> }</tr></thead>
-            <tbody>@foreach (var versions in Model.DichVus.GroupBy(x => x.DichVuId))
+            <thead><tr><th scope="col">STT</th><th scope="col">Tên dịch vụ</th><th scope="col">Cách tính tiền</th><th scope="col">Đơn vị tính</th><th scope="col" class="text-end">Đơn giá (VND)</th><th scope="col">Trạng thái</th><th scope="col">Áp dụng mặc định</th>@if (write) { <th scope="col">Thao tác</th> }</tr></thead>
+            <tbody>@{ var serviceStt = 0; } @foreach (var versions in Model.DichVus.GroupBy(x => x.DichVuId))
             {
+                serviceStt++;
                 var item = versions.Where(x => x.TuNgay <= DichVuService.HomNay()).OrderBy(x => x.TuNgay).LastOrDefault() ?? versions.OrderBy(x => x.TuNgay).First();
-                <tr><td><a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@item.DichVuId">@item.DichVu.TenDichVu</a>@if (DichVuMacDinhOptions.LaMacDinh(item.DichVu.MaDichVu)) { <span class="badge text-bg-light ms-1">Danh mục gợi ý</span> }@if (versions.Any(x => x.TuNgay > DichVuService.HomNay())) { <small class="d-block text-secondary">Có thay đổi đã lên lịch</small> }</td><td>@CachTinhDichVu.Ten(item.CachTinh)</td><td>@item.DonViTinh</td><td class="text-end text-nowrap">@(item.DaChotGia ? item.DonGia.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) : "Chưa thiết lập")</td><td>@(!item.DaChotGia ? "Chờ đơn giá" : item.DangApDung && item.DichVu.DangHoatDong ? "Đang áp dụng" : "Ngừng áp dụng")</td>
+                var serviceStatusClass = !item.DaChotGia ? "text-bg-warning" : item.DangApDung && item.DichVu.DangHoatDong ? "text-bg-success" : "text-bg-danger";
+                <tr><td>@serviceStt</td><td><a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@item.DichVuId">@item.DichVu.TenDichVu</a>@if (DichVuMacDinhOptions.LaMacDinh(item.DichVu.MaDichVu)) { <span class="badge text-bg-light ms-1">Danh mục gợi ý</span> }@if (versions.Any(x => x.TuNgay > DichVuService.HomNay())) { <small class="d-block text-secondary">Có thay đổi đã lên lịch</small> }</td><td>@CachTinhDichVu.Ten(item.CachTinh)</td><td>@item.DonViTinh</td><td class="text-end text-nowrap">@(item.DaChotGia ? item.DonGia.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) : "Chưa thiết lập")</td><td><span class="badge @serviceStatusClass">@(!item.DaChotGia ? "Chờ đơn giá" : item.DangApDung && item.DichVu.DangHoatDong ? "Đang áp dụng" : "Ngừng áp dụng")</span></td>
                 <td>
                     @if (write)
                     {

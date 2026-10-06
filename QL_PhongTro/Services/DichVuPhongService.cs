@@ -121,6 +121,13 @@ public sealed class DichVuPhongService(AppDbContext db, DichVuService prices, IT
         if (selection is null) return null;
         if (selection is not null && await db.NgungDichVuPhongs.AnyAsync(x => x.DichVuPhongId == selection.Id && x.NgungTuKy <= month &&
             (x.ApDungLaiTuKy == null || x.ApDungLaiTuKy > month))) return null;
+        var roomPrice = await db.CauHinhDichVus.AsNoTracking().Include(x => x.DichVu)
+            .SingleOrDefaultAsync(x => x.PhongId == roomId && x.DichVuId == serviceId && x.TuNgay <= date
+                && (x.DenNgay == null || x.DenNgay >= date));
+        if (roomPrice is not null)
+            return roomPrice.DangApDung && roomPrice.DaChotGia && roomPrice.DichVu.DangHoatDong
+                ? new(roomPrice.Id, roomPrice.DichVuId, roomPrice.DichVu.TenDichVu, roomPrice.CachTinh, roomPrice.DonViTinh, roomPrice.DonGia)
+                : null;
         var price = await prices.LayDonGiaAsync(accountId, room.ToaNhaId, serviceId, date);
         // Building prices apply only to services explicitly assigned to this room.
         return price is not null && selection?.DonGiaRieng is { } ownPrice ? price with { DonGia = ownPrice } : price;

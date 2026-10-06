@@ -16,9 +16,10 @@ public sealed partial class DichVuService(AppDbContext db, IOptions<DichVuMacDin
 
     public Task<bool> SoHuuToaNhaAsync(int accountId, int buildingId) =>
         (from building in db.ToaNhas
-         join account in db.TaiKhoans on building.ChuNhaId equals account.Id
-         where building.Id == buildingId && building.ChuNhaId == accountId && building.DangHoatDong
-               && account.DangHoatDong && account.VaiTro == "CHU_NHA"
+         from account in db.TaiKhoans
+         where account.Id == accountId && building.Id == buildingId && building.DangHoatDong
+               && account.DangHoatDong && !account.IsDeleted
+               && ((building.ChuNhaId == accountId && account.VaiTro == "CHU_NHA") || account.VaiTro == "ADMIN")
          select building.Id).AnyAsync();
 
     public async Task<bool> SanSangAsync()

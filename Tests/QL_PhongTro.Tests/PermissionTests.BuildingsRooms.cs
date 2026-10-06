@@ -39,8 +39,7 @@ public sealed partial class PermissionTests
         using var client = await Login("CHU_NHA");
         var buildingId = await CreateTestBuilding(client);
         var emptyPage = WebUtility.HtmlDecode(await client.GetStringAsync("/PhongTro"));
-        Assert.Contains("Vui lòng chọn tòa nhà", emptyPage);
-        Assert.Contains("value=\"\">Chọn tòa nhà", emptyPage);
+        Assert.Contains("value=\"\">Tất cả tòa nhà", emptyPage);
         var createPage = await client.GetStringAsync("/PhongTro/Create");
         Assert.DoesNotContain($"selected=\"selected\" value=\"{buildingId}\"", createPage);
 

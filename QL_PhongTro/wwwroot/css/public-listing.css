@@ -430,54 +430,52 @@
     font-size: 21px;
 }
 
-.service-columns {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 32px;
+.service-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #dfe3df;
+    border-radius: 8px;
+    background: #fff;
 }
 
-.service-group h3 {
-    margin: 0 0 12px;
-    font-size: 15px;
-}
-
-.service-list {
-    border-top: 1px solid #e4e2d8;
-}
-
-.service-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    padding: 13px 0;
-    border-bottom: 1px solid #e4e2d8;
-}
-
-.service-description h4,
-.service-description p,
-.service-price {
-    margin: 0;
-}
-
-.service-description h4 {
+.service-table {
+    width: 100%;
+    min-width: 560px;
+    border-collapse: collapse;
+    color: #292f2b;
     font-size: 14px;
-    font-weight: 650;
 }
 
-.service-description p,
-.service-price span {
-    display: block;
-    margin-top: 4px;
-    color: #70766f;
-    font-size: 12px;
-    line-height: 1.45;
-    overflow-wrap: anywhere;
+.service-table th,
+.service-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #e4e7e4;
+    text-align: left;
+    vertical-align: middle;
 }
 
-.service-price {
-    text-align: right;
-    font-size: 14px;
+.service-table thead th {
+    background: #f3f6f3;
+    color: #354139;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.service-table tbody th {
+    width: 24%;
+    font-weight: 700;
+}
+
+.service-table tbody tr:last-child > * {
+    border-bottom: 0;
+}
+
+.service-table tbody tr:hover {
+    background: #f7faf8;
+}
+
+.service-table-price {
+    width: 18%;
     font-weight: 700;
     white-space: nowrap;
 }
@@ -672,19 +670,9 @@
         padding-top: 20px;
     }
 
-    .service-columns {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 22px;
-    }
-
-    .service-row {
-        gap: 8px;
-    }
-
-    .service-price {
-        max-width: 135px;
-        white-space: normal;
-        overflow-wrap: anywhere;
+    .service-table th,
+    .service-table td {
+        padding: 10px 12px;
     }
 
     .first-month-estimate {

@@ -15,10 +15,12 @@
 </form>
 <p id="account-count">Tổng số tài khoản: @Model.Total · Tổng số trang: @Model.Pages · Trang @Model.Page</p>
 <div class="table-responsive"><table class="table table-striped align-middle">
-<thead><tr><th>Họ tên</th><th>Email</th><th>Số điện thoại</th><th>Vai trò</th><th>Trạng thái</th><th>Mật khẩu</th><th>Thao tác</th></tr></thead>
+<thead><tr><th>STT</th><th>Họ tên</th><th>Email</th><th>Số điện thoại</th><th>Vai trò</th><th>Trạng thái</th><th>Mật khẩu</th><th>Thao tác</th></tr></thead>
 <tbody>
+@{ var accountStt = (Model.Page - 1) * 20; }
 @foreach (var account in Model.Accounts) {
-<tr data-account-id="@account.Id"><td>@account.HoTen</td><td>@account.Email</td><td>@account.SoDienThoai</td><td>@ManagedAccountsViewModel.RoleName(account.VaiTro)</td><td>@(account.DangHoatDong ? "Đang hoạt động" : "Đã khoá")</td><td>@(account.MustChangePassword ? "Chờ đổi mật khẩu" : "Đã thiết lập")</td><td>
+accountStt++;
+<tr data-account-id="@account.Id"><td>@accountStt</td><td>@account.HoTen</td><td>@account.Email</td><td>@account.SoDienThoai</td><td>@ManagedAccountsViewModel.RoleName(account.VaiTro)</td><td><span class="badge @(account.DangHoatDong ? "text-bg-success" : "text-bg-danger")">@(account.DangHoatDong ? "Đang hoạt động" : "Đã khoá")</span></td><td>@(account.MustChangePassword ? "Chờ đổi mật khẩu" : "Đã thiết lập")</td><td>
 @if (account.VaiTro is "CHU_NHA" or "QUAN_LY") {
 <form asp-action="SetActive" method="post" class="mb-2" onsubmit="return confirm('@(account.DangHoatDong ? "Khoá tài khoản và chấm dứt mọi phiên đăng nhập?" : "Mở khoá tài khoản này?")');">
 <input type="hidden" name="id" value="@account.Id" /><input type="hidden" name="active" value="@(!account.DangHoatDong ? "true" : "false")" /><input type="hidden" name="confirmed" value="true" />
@@ -33,7 +35,7 @@
 }
 </td></tr>
 }
-@if (Model.Total == 0) { <tr><td colspan="7">Không có tài khoản phù hợp.</td></tr> }
+@if (Model.Total == 0) { <tr><td colspan="8">Không có tài khoản phù hợp.</td></tr> }
 </tbody></table></div>
 <nav aria-label="Phân trang tài khoản" class="d-flex gap-3 align-items-center">
 @if (Model.Page > 1) { <a asp-action="Index" asp-route-role="@Model.Role" asp-route-status="@Model.Status" asp-route-page="1">Đầu</a><a asp-action="Index" asp-route-role="@Model.Role" asp-route-status="@Model.Status" asp-route-page="@(Model.Page - 1)">Trước</a> }

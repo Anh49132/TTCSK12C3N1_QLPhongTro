@@ -123,7 +123,7 @@
     {
       "roleCode": "ADMIN",
       "moduleCode": "PHONG_TRO",
-      "accessLevel": "READ",
+      "accessLevel": "FULL",
       "ownDataOnly": false
     },
     {
@@ -147,7 +147,7 @@
     {
       "roleCode": "ADMIN",
       "moduleCode": "TIN_DANG",
-      "accessLevel": "READ",
+      "accessLevel": "FULL",
       "ownDataOnly": false
     },
     {
@@ -171,7 +171,7 @@
     {
       "roleCode": "ADMIN",
       "moduleCode": "YEU_CAU_THUE",
-      "accessLevel": "READ",
+      "accessLevel": "FULL",
       "ownDataOnly": false
     },
     {
@@ -195,7 +195,7 @@
     {
       "roleCode": "ADMIN",
       "moduleCode": "HOP_DONG",
-      "accessLevel": "READ",
+      "accessLevel": "FULL",
       "ownDataOnly": false
     },
     {
@@ -219,7 +219,7 @@
     {
       "roleCode": "ADMIN",
       "moduleCode": "DIEN_NUOC",
-      "accessLevel": "READ",
+      "accessLevel": "FULL",
       "ownDataOnly": false
     },
     {
@@ -243,7 +243,7 @@
     {
       "roleCode": "ADMIN",
       "moduleCode": "TAI_CHINH",
-      "accessLevel": "READ",
+      "accessLevel": "FULL",
       "ownDataOnly": false
     },
     {
@@ -267,7 +267,7 @@
     {
       "roleCode": "ADMIN",
       "moduleCode": "BAO_HONG",
-      "accessLevel": "READ",
+      "accessLevel": "FULL",
       "ownDataOnly": false
     },
     {
@@ -291,7 +291,7 @@
     {
       "roleCode": "ADMIN",
       "moduleCode": "BAO_CAO",
-      "accessLevel": "READ",
+      "accessLevel": "FULL",
       "ownDataOnly": false
     }
   ]

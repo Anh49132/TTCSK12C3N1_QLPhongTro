@@ -82,6 +82,7 @@ public sealed partial class DichVuService
         ValidatePrice(initial, price);
         var reason = await new DichVuThamChieu(db).LyDoKhongDuocXoaAsync(buildingId, serviceId);
         if (reason is not null) throw new InvalidOperationException(reason);
+        await BaoToanCauHinhRiengAsync(initial, HomNay(), accountId);
         initial.DonGia = price; initial.DaChotGia = true;
         await db.SaveChangesAsync(); await tx.CommitAsync();
     }
@@ -99,6 +100,7 @@ public sealed partial class DichVuService
             throw new InvalidOperationException("Ngày hiệu lực phải từ hôm nay và sau phiên bản mới nhất.");
         if (!previous.DaChotGia) throw new InvalidOperationException("Hãy thiết lập đơn giá ban đầu trước.");
         ValidatePrice(previous, price);
+        await BaoToanCauHinhRiengAsync(previous, effectiveDate, accountId);
         await AppendVersionAsync(previous, price, previous.DangApDung, effectiveDate, accountId);
         await tx.CommitAsync();
     }
@@ -128,6 +130,30 @@ public sealed partial class DichVuService
             DonViTinh = previous.DonViTinh, DonGia = price, TuNgay = date, DangApDung = active,
             DaChotGia = previous.DaChotGia, NguoiTaoId = accountId, NgayTao = DateTime.UtcNow
         });
+        await db.SaveChangesAsync();
+    }
+
+    private async Task BaoToanCauHinhRiengAsync(CauHinhDichVu common, DateOnly effectiveDate, int accountId)
+    {
+        var catalogId = await db.DichVuToaNhas.Where(x => x.ToaNhaId == common.ToaNhaId && x.DichVuId == common.DichVuId)
+            .Select(x => (int?)x.Id).SingleOrDefaultAsync();
+        if (catalogId is null) return;
+        var overrides = await db.DichVuPhongs.AsNoTracking()
+            .Where(x => x.DichVuToaNhaId == catalogId && x.DonGiaRieng != null)
+            .Select(x => new { x.PhongId, DonGia = x.DonGiaRieng!.Value }).ToListAsync();
+        foreach (var item in overrides)
+        {
+            var alreadyProtected = await db.CauHinhDichVus.AnyAsync(x => x.PhongId == item.PhongId && x.DichVuId == common.DichVuId
+                && x.TuNgay <= effectiveDate && (x.DenNgay == null || x.DenNgay >= effectiveDate));
+            if (alreadyProtected) continue;
+            db.CauHinhDichVus.Add(new CauHinhDichVu
+            {
+                ToaNhaId = common.ToaNhaId, PhongId = item.PhongId, DichVuId = common.DichVuId,
+                CachTinh = common.CachTinh, DonViTinh = common.DonViTinh, DonGia = item.DonGia,
+                TuNgay = effectiveDate, DangApDung = common.DangApDung, DaChotGia = true,
+                NguoiTaoId = accountId, NgayTao = DateTime.UtcNow
+            });
+        }
         await db.SaveChangesAsync();
     }
 

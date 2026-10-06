@@ -26,7 +26,7 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         if (ownerId is null)
             return Forbid();
 
-        var query = db.ToaNhas.AsNoTracking().Where(building => building.ChuNhaId == ownerId);
+        var query = VisibleBuildings(ownerId.Value, activeOnly: false);
         if (!string.IsNullOrWhiteSpace(tuKhoa))
         {
             var keyword = tuKhoa.Trim();
@@ -48,14 +48,20 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         return View(new DanhSachToaNhaViewModel { TuKhoa = tuKhoa, ToaNhas = buildings });
     }
 
-    public async Task<IActionResult> Index(int? toaNhaId, TrangThaiPhong? trangThaiFilter, string? tuKhoa)
+    public async Task<IActionResult> Index(int? toaNhaId, int? quanLyId, TrangThaiPhong? trangThaiFilter, string? tuKhoa)
     {
         var ownerId = CurrentAccountId();
         if (ownerId is null)
             return Forbid();
 
-        var buildings = await db.ToaNhas.AsNoTracking()
-            .Where(building => building.ChuNhaId == ownerId && building.DangHoatDong)
+        var buildingQuery = VisibleBuildings(ownerId.Value, activeOnly: true);
+        var managerOptions = await GetManagerOptions();
+        if (quanLyId.HasValue && managerOptions.Any(x => x.Value == quanLyId.Value.ToString()))
+            buildingQuery = buildingQuery.Where(building => building.QuanLyId == quanLyId);
+        else
+            quanLyId = null;
+
+        var buildings = await buildingQuery
             .OrderBy(building => building.TenToaNha)
             .Select(building => new SelectListItem(building.TenToaNha, building.Id.ToString()))
             .ToListAsync();
@@ -64,20 +70,19 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
             ? toaNhaId
             : null;
 
-        var roomQuery = selectedId is null ? null : GetRoomQuery(selectedId.Value, trangThaiFilter);
+        var visibleBuildingIds = buildings.Select(building => int.Parse(building.Value)).ToArray();
+        var roomQuery = GetRoomQuery(visibleBuildingIds, selectedId, trangThaiFilter);
         tuKhoa = tuKhoa?.Trim();
-        if (roomQuery is not null && !string.IsNullOrWhiteSpace(tuKhoa))
+        if (!string.IsNullOrWhiteSpace(tuKhoa))
             roomQuery = roomQuery.Where(room => room.MaPhong.Contains(tuKhoa));
-        var rooms = roomQuery is null
-            ? []
-            : await roomQuery.OrderBy(room => room.Tang).ThenBy(room => room.MaPhong).ToListAsync();
+        var rooms = await roomQuery.OrderBy(room => room.ToaNhaId).ThenBy(room => room.Tang).ThenBy(room => room.MaPhong).ToListAsync();
 
         var statusCounts = Enum.GetValues<TrangThaiPhong>()
             .ToDictionary(status => status.ToString(), _ => 0);
-        if (selectedId is not null)
+        if (visibleBuildingIds.Length > 0)
         {
             var counts = await db.PhongTros.AsNoTracking()
-                .Where(room => room.ToaNhaId == selectedId)
+                .Where(room => visibleBuildingIds.Contains(room.ToaNhaId) && (!selectedId.HasValue || room.ToaNhaId == selectedId))
                 .GroupBy(room => room.TrangThai)
                 .Select(group => new { Status = group.Key, Count = group.Count() })
                 .ToListAsync();
@@ -88,9 +93,11 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         return View(new DanhSachPhongViewModel
         {
             ToaNhaId = selectedId,
+            QuanLyId = quanLyId,
             TuKhoa = tuKhoa,
             TrangThaiFilter = trangThaiFilter,
             ToaNhaOptions = buildings,
+            QuanLyOptions = managerOptions,
             TrangThaiOptions = GetStatusOptions(),
             SoLuongTheoTrangThai = statusCounts,
             PhongTros = rooms
@@ -165,7 +172,7 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         var building = model.ToaNhaId is null
             ? null
             : await db.ToaNhas.SingleOrDefaultAsync(item =>
-                item.Id == model.ToaNhaId && item.ChuNhaId == ownerId && item.DangHoatDong);
+                item.Id == model.ToaNhaId && (item.ChuNhaId == ownerId || IsAdmin) && item.DangHoatDong);
 
         if (building is null)
             ModelState.AddModelError(nameof(model.ToaNhaId), "Tòa nhà không hợp lệ.");
@@ -227,7 +234,7 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         var building = model.ToaNhaId is null
             ? null
             : await db.ToaNhas.SingleOrDefaultAsync(item =>
-                item.Id == model.ToaNhaId && item.ChuNhaId == ownerId && item.DangHoatDong);
+                item.Id == model.ToaNhaId && (item.ChuNhaId == ownerId || IsAdmin) && item.DangHoatDong);
 
         if (building is null)
             ModelState.AddModelError(nameof(model.ToaNhaId), "Tòa nhà không hợp lệ.");
@@ -518,7 +525,7 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         {
             var roomIsOwned = await db.PhongTros.AsNoTracking().AnyAsync(room => room.Id == id
                 && db.ToaNhas.Any(building => building.Id == room.ToaNhaId
-                    && building.ChuNhaId == ownerId && building.DangHoatDong), cancellationToken);
+                    && (building.ChuNhaId == ownerId || IsAdmin) && building.DangHoatDong), cancellationToken);
             if (!roomIsOwned)
                 return NotFound();
 
@@ -578,7 +585,7 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
 
         var roomIsOwned = await db.PhongTros.AsNoTracking().AnyAsync(room => room.Id == id
             && db.ToaNhas.Any(building => building.Id == room.ToaNhaId
-                && building.ChuNhaId == ownerId && building.DangHoatDong), cancellationToken);
+                && (building.ChuNhaId == ownerId || IsAdmin) && building.DangHoatDong), cancellationToken);
         if (!roomIsOwned)
             return NotFound();
 
@@ -669,7 +676,7 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
 
     private Task<PhongTro?> GetOwnedRoom(int id) => db.PhongTros.SingleOrDefaultAsync(room =>
         room.Id == id && db.ToaNhas.Any(building => building.Id == room.ToaNhaId &&
-            building.ChuNhaId == CurrentAccountId() && building.DangHoatDong));
+            (building.ChuNhaId == CurrentAccountId() || IsAdmin) && building.DangHoatDong));
 
     private Task<List<AnhPhongQuanLyViewModel>> GetRoomImagesAsync(int roomId) => db.AnhPhongs.AsNoTracking()
         .Where(image => image.PhongId == roomId)
@@ -682,9 +689,10 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
             ThuTu = image.ThuTu
         }).ToListAsync();
 
-    private IQueryable<PhongTro> GetRoomQuery(int buildingId, TrangThaiPhong? status)
+    private IQueryable<PhongTro> GetRoomQuery(int[] buildingIds, int? buildingId, TrangThaiPhong? status)
     {
-        var query = db.PhongTros.AsNoTracking().Where(room => room.ToaNhaId == buildingId);
+        var query = db.PhongTros.AsNoTracking().Where(room => buildingIds.Contains(room.ToaNhaId)
+            && (!buildingId.HasValue || room.ToaNhaId == buildingId));
         if (status is not null && Enum.IsDefined(status.Value))
             query = query.Where(room => room.TrangThai == status.Value.ToString());
 
@@ -740,14 +748,24 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         _ => status.ToString()
     };
 
-    private Task<List<SelectListItem>> GetBuildingOptions(int ownerId) => db.ToaNhas.AsNoTracking()
-        .Where(building => building.ChuNhaId == ownerId && building.DangHoatDong)
+    private Task<List<SelectListItem>> GetBuildingOptions(int ownerId) => VisibleBuildings(ownerId, activeOnly: true)
         .OrderBy(building => building.TenToaNha)
         .Select(building => new SelectListItem(building.TenToaNha, building.Id.ToString()))
         .ToListAsync();
 
     private Task<ToaNha?> GetOwnedBuilding(int id) => db.ToaNhas
-        .SingleOrDefaultAsync(building => building.Id == id && building.ChuNhaId == CurrentAccountId());
+        .SingleOrDefaultAsync(building => building.Id == id && (building.ChuNhaId == CurrentAccountId() || IsAdmin));
+
+    private bool IsAdmin => User.IsInRole("ADMIN");
+
+    private IQueryable<ToaNha> VisibleBuildings(int accountId, bool activeOnly)
+    {
+        var query = db.ToaNhas.AsNoTracking();
+        if (activeOnly) query = query.Where(building => building.DangHoatDong);
+        if (User.IsInRole("ADMIN")) return query;
+        if (User.IsInRole("QUAN_LY")) return query.Where(building => building.QuanLyId == accountId);
+        return query.Where(building => building.ChuNhaId == accountId);
+    }
 
     private Task<List<SelectListItem>> GetManagerOptions() => db.TaiKhoans.AsNoTracking()
         .Where(account => account.VaiTro == "QUAN_LY" && account.DangHoatDong)

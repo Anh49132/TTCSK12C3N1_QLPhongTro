@@ -46,9 +46,18 @@ else
         <div class="col-sm-6 col-md-3">
             <label for="toaNhaId" class="form-label">Tòa nhà</label>
             <select asp-for="ToaNhaId" id="toaNhaId" asp-items="Model.ToaNhaOptions" class="form-select">
-                <option value="">Chọn tòa nhà</option>
+                <option value="">Tất cả tòa nhà</option>
             </select>
         </div>
+        @if (!User.IsInRole("QUAN_LY"))
+        {
+        <div class="col-sm-6 col-md-3">
+            <label asp-for="QuanLyId" class="form-label">Người quản lý</label>
+            <select asp-for="QuanLyId" asp-items="Model.QuanLyOptions" class="form-select">
+                <option value="">Tất cả người quản lý</option>
+            </select>
+        </div>
+        }
         <div class="col-sm-6 col-md-3">
             <label asp-for="TrangThaiFilter" class="form-label">Trạng thái</label>
             <select asp-for="TrangThaiFilter" asp-items="Model.TrangThaiOptions" class="form-select">
@@ -71,14 +80,7 @@ else
         }
     </div>
 
-    @if (Model.ToaNhaId is null)
-    {
-        <div class="border-top border-bottom py-4">
-            <h2 class="h5">Chọn tòa nhà</h2>
-            <p class="text-secondary">Vui lòng chọn tòa nhà và bấm Lọc danh sách để xem phòng.</p>
-        </div>
-    }
-    else if (Model.PhongTros.Count == 0)
+    @if (Model.PhongTros.Count == 0)
     {
         <div class="border-top border-bottom py-4">
             <h2 class="h5">@(string.IsNullOrWhiteSpace(Model.TuKhoa) ? "Tòa nhà chưa có phòng" : "Không tìm thấy phòng")</h2>
@@ -91,6 +93,8 @@ else
             <table class="table table-hover align-middle">
                 <thead class="table-light">
                     <tr>
+                        <th scope="col">STT</th>
+                        <th scope="col">Tòa nhà</th>
                         <th scope="col">Mã phòng</th>
                         <th scope="col">Tầng</th>
                         <th scope="col">Diện tích</th>
@@ -101,8 +105,10 @@ else
                     </tr>
                 </thead>
                 <tbody>
+                    @{ var roomStt = 0; }
                     @foreach (var room in Model.PhongTros)
                     {
+                        roomStt++;
                         var statusLabel = room.TrangThai switch
                         {
                             "TRONG" => "Trống",
@@ -119,8 +125,10 @@ else
                             _ => "text-bg-secondary"
                         };
                         <tr>
+                            <td>@roomStt</td>
+                            <td>@(Model.ToaNhaOptions.FirstOrDefault(x => x.Value == room.ToaNhaId.ToString())?.Text ?? "—")</td>
                             <th scope="row">@room.MaPhong
-                                @if (User.IsInRole("CHU_NHA")) { <a class="d-block small" asp-controller="DichVuPhong" asp-action="Index" asp-route-phongId="@room.Id">Dịch vụ</a> }
+                                @if (User.IsInRole("CHU_NHA") || User.IsInRole("ADMIN")) { <a class="d-block small" asp-controller="DichVuPhong" asp-action="Index" asp-route-phongId="@room.Id">Dịch vụ</a> }
                             </th>
                             <td>@room.Tang</td>
                             <td>@room.DienTich.ToString("N2", CultureInfo.GetCultureInfo("vi-VN")) m²</td>
@@ -132,7 +140,7 @@ else
                                 <td>
                                     <div class="d-flex flex-wrap gap-2">
                                         <a asp-action="Edit" asp-route-id="@room.Id" class="btn btn-sm btn-outline-secondary">Sửa</a>
-                                        @if (User.IsInRole("CHU_NHA"))
+                                        @if (User.IsInRole("CHU_NHA") || User.IsInRole("ADMIN"))
                                         {
                                             @if (room.TrangThai == "TRONG")
                                             {

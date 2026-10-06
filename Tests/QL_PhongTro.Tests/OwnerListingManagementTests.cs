@@ -61,13 +61,13 @@ public sealed partial class PermissionTests
     }
 
     [Fact]
-    public async Task KhachThueVaAdmin_KhongDuocMoQuanLyTinDang()
+    public async Task KhachThueBiChanNhungAdminDuocMoQuanLyTinDang()
     {
         using var tenant = await Login("KHACH_THUE");
         using var admin = await Login("ADMIN");
 
         Assert.Equal(HttpStatusCode.Forbidden, (await tenant.GetAsync("/TinDang/QuanLy")).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await admin.GetAsync("/TinDang/QuanLy")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/TinDang/QuanLy")).StatusCode);
     }
 
     [Fact]

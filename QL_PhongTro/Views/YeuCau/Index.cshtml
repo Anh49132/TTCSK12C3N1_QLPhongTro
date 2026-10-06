@@ -19,16 +19,19 @@
     else
     {
         <div class="table-responsive"><table class="table table-hover align-middle">
-            <thead class="table-light"><tr><th>Mã yêu cầu</th><th>Phòng</th><th>Ngày gửi</th><th>Trạng thái</th><th>Lịch hẹn</th><th>Lý do từ chối</th><th>Tin đăng</th><th>Thao tác</th></tr></thead>
+            <thead class="table-light"><tr><th>STT</th><th>Mã yêu cầu</th><th>Phòng</th><th>Ngày gửi</th><th>Trạng thái</th><th>Lịch hẹn</th><th>Lý do từ chối</th><th>Tin đăng</th><th>Thao tác</th></tr></thead>
             <tbody>
+            @{ var tenantStt = 0; }
             @foreach (var item in Model.YeuCausCuaKhach)
             {
+                tenantStt++;
                 var openListingUrl = Url.Action("MoTinDang", "YeuCau", new { id = item.Id });
                 <tr data-request-status="@item.TrangThai" data-open-listing-url="@(openListingUrl ?? string.Empty)">
+                    <td>@tenantStt</td>
                     <th scope="row">@item.MaYeuCau</th>
                     <td>@item.MaPhong</td>
                     <td>@LichHenService.HienThoiGio(item.NgayTao)</td>
-                    <td>@item.TrangThaiHienThi</td>
+                    <td><span class="badge @TrangThaiYeuCau.BadgeClass(item.TrangThai)">@item.TrangThaiHienThi</span></td>
                     <td>@(item.LichHen is { } appointment ? LichHenService.HienThoiGio(appointment) : "Chưa có lịch hẹn")</td>
                     <td>@(item.LyDoTuChoi ?? "—")</td>
                     <td>
@@ -65,7 +68,28 @@
 else
 {
     @if (Model.YeuCaus.Count == 0) { <div class="border-top border-bottom py-4"><h2 class="h5">Không có yêu cầu phù hợp</h2><p class="text-secondary mb-0">Thử bỏ một hoặc cả hai bộ lọc.</p></div> }
-    else { <div class="table-responsive"><table class="table table-hover align-middle"><thead class="table-light"><tr><th>Mã yêu cầu</th><th>Khách</th><th>Số điện thoại</th><th>Phòng</th><th>Loại yêu cầu</th><th>Ngày mong muốn</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr></thead><tbody>@foreach (var item in Model.YeuCaus) { <tr class="@(item.QuaHanChuaXuLy ? "table-warning" : null)"><th>@item.MaYeuCau</th><td>@item.TenKhach</td><td>@item.SoDienThoai</td><td>@item.MaPhong</td><td>@TrangThaiYeuCau.LoaiLabel(item.LoaiYeuCau)</td><td>@(item.NgayMongMuon?.ToString("dd/MM/yyyy") ?? "—")</td><td>@TrangThaiYeuCau.Labels.GetValueOrDefault(item.TrangThai, item.TrangThai) @if (item.QuaHanChuaXuLy) { <span class="badge text-bg-warning d-block mt-1">Quá 24 giờ, chưa xử lý</span> }</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-controller="LichHen" asp-action="ChiTiet" asp-route-id="@item.Id">Chi tiết</a></td></tr> }</tbody></table></div> }
+    else
+    {
+        <div class="table-responsive"><table class="table table-hover align-middle">
+            <thead class="table-light"><tr><th>STT</th><th>Mã yêu cầu</th><th>Khách</th><th>Phòng</th><th>Loại yêu cầu</th><th>Ngày mong muốn</th><th>Lời nhắn</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr></thead>
+            <tbody>
+            @{ var ownerStt = 0; }
+            @foreach (var item in Model.YeuCaus)
+            {
+                ownerStt++;
+                <tr class="@(item.QuaHanChuaXuLy ? "table-warning" : null)">
+                    <td>@ownerStt</td><th>@item.MaYeuCau</th>
+                    <td><strong>@item.TenKhach</strong><small class="d-block text-secondary">@item.SoDienThoai</small></td>
+                    <td>@item.MaPhong</td><td>@TrangThaiYeuCau.LoaiLabel(item.LoaiYeuCau)</td>
+                    <td>@(item.NgayMongMuon?.ToString("dd/MM/yyyy") ?? "—")</td>
+                    <td class="request-message">@(string.IsNullOrWhiteSpace(item.LoiNhan) ? "—" : item.LoiNhan)</td>
+                    <td><span class="badge @TrangThaiYeuCau.BadgeClass(item.TrangThai)">@TrangThaiYeuCau.Labels.GetValueOrDefault(item.TrangThai, item.TrangThai)</span>@if (item.QuaHanChuaXuLy) { <span class="badge text-bg-warning d-block mt-1">Quá 24 giờ, chưa xử lý</span> }</td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" asp-controller="LichHen" asp-action="ChiTiet" asp-route-id="@item.Id">Chi tiết</a></td>
+                </tr>
+            }
+            </tbody>
+        </table></div>
+    }
 }
 
 @section Scripts {

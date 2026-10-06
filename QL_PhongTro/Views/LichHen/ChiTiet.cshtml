@@ -7,6 +7,7 @@
     ViewData["Title"] = "Chi tiết yêu cầu " + Model.YeuCau.MaYeuCau;
     var ok = TempData["LichHenOk"] as string;
     var err = TempData["LichHenError"] as string;
+    var warning = TempData["LichHenWarning"] as string;
     var yeuCau = Model.YeuCau;
     var ngayHenNhap = Model.LichHenNhap?.ToString("yyyy-MM-dd");
     var gioHenNhap = Model.LichHenNhap?.ToString("HH':'mm", CultureInfo.InvariantCulture);
@@ -20,13 +21,14 @@
 </p>
 
 @if (ok is not null) { <p class="text-success">@ok</p> }
+@if (warning is not null) { <div class="alert alert-warning" role="alert">@warning</div> }
 @if (err is not null) { <p class="text-danger">@err</p> }
 
 <div class="table-responsive mb-4">
 <table class="table align-top">
     <tbody>
     <tr><th>Loại yêu cầu</th><td>@LichHenTrangThai.LoaiLabel(yeuCau.LoaiYeuCau)</td></tr>
-    <tr><th>Trạng thái</th><td>@LichHenTrangThai.LabelHienThi(yeuCau.TrangThai, yeuCau.DaDoiLich)</td></tr>
+    <tr><th>Trạng thái</th><td><span class="badge @LichHenTrangThai.BadgeClass(yeuCau.TrangThai)">@LichHenTrangThai.LabelHienThi(yeuCau.TrangThai, yeuCau.DaDoiLich)</span></td></tr>
     <tr><th>Khách</th><td>@yeuCau.TenKhach @if (!string.IsNullOrWhiteSpace(yeuCau.SoDienThoaiKhach)) { <text>· @yeuCau.SoDienThoaiKhach</text> }</td></tr>
     @if (!Model.LaChuNha) { <tr><th>Chủ nhà</th><td>@yeuCau.TenChuNha</td></tr> }
     <tr><th>Ngày mong muốn</th><td>@yeuCau.NgayMongMuon</td></tr>
