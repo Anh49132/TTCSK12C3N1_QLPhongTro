@@ -110,7 +110,8 @@ for _ in range(5):
     status, page = guest.get("/TimTin?SapXep=gia-tang")
     elapsed = round((time.perf_counter() - start) * 1000, 3)
     assert status == 200 and elapsed < 2000
-    assert len(re.findall(r'<article class="card h-100">', page)) == 12
+    # Current TimTinViewModel uses six listings per page.
+    assert len(re.findall(r'<article class="nhatot-listing-card timtin-listing-card">', page)) == 6
     assert "/TinDang/ChiTiet/" in page
     report["search_ms"].append(elapsed)
 report["passed"] = True

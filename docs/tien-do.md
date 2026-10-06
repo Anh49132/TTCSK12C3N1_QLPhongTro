@@ -1,3 +1,20 @@
+## 07/10/2026 — Tạo bộ demo theo huong-dan-test-sprint2
+
+- Tạo bộ mới `data/sprint2-demo/20261007-064359-979c32`, build riêng; 7 tài khoản, 4 tòa, 45 phòng, 41 tin (35 công khai), 8 yêu cầu và 5 ảnh upload qua HTTP. DB cá nhân không bị ghi đè. Server demo chạy tại `http://localhost:5247`.
+- Smoke test xác minh 7 đăng nhập, trang nghiệp vụ, quyền sở hữu, ảnh, integrity/FK PASS; tìm kiếm 5 lượt 16–30 ms. `verification.json` ghi kết quả và `latest.txt` đã chọn bản mới sau khi xác minh đạt.
+- Sửa selector của `verification/verify_sprint2_demo.py` từ class card cũ sang class giao diện hiện tại, kỳ vọng 6 tin/trang theo `TimTinViewModel.KichThuocTrang`; ghi rõ lệch với hướng dẫn cũ 12 tin/trang. Không thay đổi chức năng phân trang.
+
+## 07/10/2026 — S3-02, lát 1: người đứng tên và thêm người ở ghép (AC 1–3)
+
+- Chủ nhà mở liên kết mã hợp đồng tại `/HopDong`, xem người đứng tên duy nhất, trách nhiệm thanh toán/nhận lại cọc, người ở ghép hiện tại và tổng số người theo ngày Việt Nam. Chỉ chủ nhà sở hữu tòa được xem màn này/thêm người; POST kiểm quyền module, quyền sở hữu và CSRF ở backend.
+- PO đã chốt trong phiên: bắt buộc họ tên (2–100 ký tự), SĐT 10 chữ số bắt đầu 0, căn cước 9/12 chữ số và ngày vào trong kỳ hợp đồng. Căn cước trùng người đứng tên hoặc người ở ghép có khoảng ở chồng lấn trong cùng hợp đồng bị chặn. Ngày ra lưu NULL; không tự gắn/sửa hồ sơ thuộc tài khoản khác.
+- `BEGIN IMMEDIATE` khóa ghi trước khi kiểm tra sức chứa; đếm người đứng tên + người ở ghép tại ngày vào và mọi mốc vào tương lai. Kiểm phiên bản phòng, tăng phiên bản sau khi thêm. Hồ sơ, người ở ghép và nhật ký cùng transaction; nhật ký chỉ ghi ID/ngày, không ghi SĐT/căn cước. Dữ liệu nhạy cảm hiển thị đủ chỉ khi hợp đồng đang hiệu lực và hôm nay nằm trong kỳ; trường hợp còn lại che chỉ giữ 4 số cuối.
+- Schema **v16** thêm `nguoi_o_ghep`, FK RESTRICT, unique hợp đồng/khách/ngày vào, trigger yêu cầu người đứng tên khi chốt và khóa người đứng tên sau khi chốt; cấm người đứng tên xuất hiện ở bảng ở ghép. Nguồn thực tế v15 chưa có bảng này, khác bản đồ AGENTS.md. Giữ nguyên bước nâng cấp v1–v15; mở kiểm tra AccountReuseSchema tới v16. Không nâng cấp DB local đang dùng; đã chạy updater trên bản sao mới trong `data/s302-verification`, có backup tự động, đối chiếu tất cả dòng bảng cũ, integrity/FK và chạy lặp.
+- Không triển khai tính khoản khoán theo số người, ghi nhận chuyển đi, tra cứu lịch sử khoảng thời gian hay thanh toán/hoàn cọc mới. Trách nhiệm tài chính tiếp tục gắn với `hop_dong.khach_dung_ten_id`, không có trường người đứng tên thứ hai hoặc lựa chọn chuyển trách nhiệm sang người ở ghép.
+- Kiểm chứng: build C#/Razor đạt; 71/71 test hợp đồng/người ở ghép đạt, gồm dữ liệu sai/thiếu, giới hạn, mốc vào tương lai, trùng căn cước, đồng thời, quyền chủ nhà khác, rollback nhật ký và nâng cấp lặp. Test HTTP demo đạt: hiển thị 1/2 → 2/2 người, vượt giới hạn có thông báo cụ thể, thiếu CSRF trả 400 và chủ nhà khác nhận 403 cho cả GET/POST. Chưa kiểm trực quan Chrome/Safari 360px, thiết bị thật, review/hợp nhất nhánh. Cảnh báo cũ ImageSharp license, CS8601 và NU1900 còn tồn tại.
+- Lệnh test: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --no-restore --filter FullyQualifiedName~ContractCreationTests`.
+- Chạy demo: dừng app; đặt đúng `DatabasePath`; chạy `dotnet run --project QL_PhongTro -- --update-database` (backup tự động), rồi `--check-database`, khởi động app. Mở `/HopDong`, nhấn mã hợp đồng của chủ nhà, thêm đủ thông tin trong kỳ; thử thêm đến giới hạn rồi vượt giới hạn. Ngày vào tương lai được lưu nhưng chỉ xuất hiện trong danh sách hiện tại từ ngày đó.
+
 # Tiến độ và bàn giao dự án
 
 - 07/10/2026: thêm ô Số điện thoại khách thuê ngay dưới tên khách trong thẻ Thông tin hợp đồng của màn lập hợp đồng. Lấy từ hồ sơ khách thuộc yêu cầu đã chọn, readonly, không gửi lên để sửa hồ sơ; thiếu số hiển thị Chưa cập nhật. Không đổi schema/database. Build Razor/C# và test HTTP render/lưu hợp đồng PASS (xác nhận số điện thoại đúng, readonly và không có name). Chưa kiểm tra trực quan trên trình duyệt.

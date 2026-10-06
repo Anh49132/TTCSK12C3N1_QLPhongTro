@@ -1,0 +1,27 @@
+using System.ComponentModel.DataAnnotations;
+using QL_PhongTro.Models;
+namespace QL_PhongTro.ViewModels;
+public class NguoiOGhepInput
+{
+    [Required(ErrorMessage = "Nhập họ tên."), StringLength(100, MinimumLength = 2, ErrorMessage = "Họ tên từ 2 đến 100 ký tự.")]
+    public string HoTen { get; set; } = "";
+    [Required(ErrorMessage = "Nhập số điện thoại."), RegularExpression(@"^0[0-9]{9}$", ErrorMessage = "Số điện thoại gồm 10 chữ số, bắt đầu bằng 0.")]
+    public string SoDienThoai { get; set; } = "";
+    [Required(ErrorMessage = "Nhập số căn cước."), RegularExpression(@"^([0-9]{9}|[0-9]{12})$", ErrorMessage = "Căn cước gồm 9 hoặc 12 chữ số.")]
+    public string SoGiayTo { get; set; } = "";
+    [Required(ErrorMessage = "Chọn ngày bắt đầu ở cùng.")]
+    public DateOnly? NgayVao { get; set; }
+    public int PhienBanPhong { get; set; }
+}
+public record NguoiOGhepRow(string HoTen, string? SoDienThoai, string? SoGiayTo, DateOnly NgayVao);
+public class HopDongDetailsViewModel
+{
+    public HopDongThamChieu HopDong { get; set; } = null!;
+    public KhachThue? DungTen { get; set; }
+    public string Phong { get; set; } = "";
+    public int GioiHan { get; set; }
+    public DateOnly HomNay { get; set; }
+    public List<NguoiOGhepRow> Nguois { get; set; } = [];
+    public NguoiOGhepInput Input { get; set; } = new();
+    public bool ChoThem { get; set; }
+}
