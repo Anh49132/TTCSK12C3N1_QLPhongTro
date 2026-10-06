@@ -630,3 +630,39 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 - Giao diện S3-01 dùng Latte/Warm Brown theo mẫu: breadcrumb, thẻ yêu cầu đã duyệt, form trái, thẻ thời gian/thông tin tự động bên phải, thanh lưu cuối trang và responsive. Không giả lập kiểm tra chồng lấn, chỉ số đầu kỳ, mã HD hay trạng thái phòng: các phần này ngoài phạm vi AC1–AC2; chỉ lưu nháp với tham chiếu nội bộ NHAP. Đã kiểm tra render HTTP/form readonly và POST giả ngày kết thúc; chưa nghiệm thu trực quan/pixel trên trình duyệt.
 - Schema v14 bổ sung cột hợp đồng/kỳ thuê bằng ALTER additive, không thay dữ liệu cũ; updater hiện có tạo backup trước nâng cấp. Kiểm thử trên SQLite tạm: bảo toàn hợp đồng legacy, cập nhật lặp không đổi dữ liệu, integrity_check và foreign_key_check đạt. Không chạy updater trên database người dùng. Trước demo: dừng app, dùng đúng DatabasePath, chạy `dotnet run --project QL_PhongTro -- --update-database`, rồi mở `/HopDong/Create`. Bộ test mở rộng có các assertion giao diện cũ không khớp (sidebar/menu, bảng giá tin đăng, lớp password-field); không coi toàn suite PASS.
 - 07/10/2026 — điều chỉnh form S3-01 theo yêu cầu mới: giá thuê readonly theo giá hiện tại của phòng; chọn cọc nguyên 0–3 tháng (mặc định 1), tự tính tiền cọc bằng giá phòng × số tháng. Máy chủ bỏ qua giá thuê/tiền cọc gửi giả và tính lại trong transaction. Ngày bắt đầu tối thiểu là hôm nay theo múi giờ Việt Nam từ ITimeProvider, kiểm tra ở form, POST và endpoint kiểm tra chồng lấn; yêu cầu/nháp có ngày cũ mở form sẽ mặc định hôm nay. Không thay dữ liệu hợp đồng đã lưu, không đổi schema. Build C#/Razor cách ly PASS, 67 kiểm thử mục tiêu PASS, gồm cọc 0/1/2/3 và ngoài giới hạn, ngày quá khứ/hôm nay, mốc nửa đêm Việt Nam, POST giả giá/cọc, readonly và min trên HTML. Chưa nghiệm thu trực quan trình duyệt.
+
+
+## 07/10/2026 — Đồng bộ màu giao diện
+
+- Theo yêu cầu người dùng: graphite/champagne cho trang công khai, đăng nhập/đăng ký và tất cả vai trò. Bảng màu chung trong `champagne-theme.css`, nạp cuối ở ba layout; cập nhật CSS từng trang và hai logo SVG.
+- Màu phụ: chữ xám `#656A73`, hover `#25282D`, focus champagne có độ trong suốt; giữ đỏ cho lỗi/xóa. Không đổi bố cục hoặc nghiệp vụ.
+- Không chụp ảnh theo yêu cầu. Kiểm chứng build và HTTP; chưa nghiệm thu trực quan trên trình duyệt/thiết bị 360px.
+- Xác minh: build thành công (0 lỗi; cảnh báo ImageSharp/CS8601 có sẵn); 8 trang công khai và 20 trang theo 4 vai trò trả HTTP 200, đều nạp CSS mới. Website chạy lại tại http://localhost:5247 với bộ demo hiện tại.
+- Phối lại trang chủ: overlay graphite cho banner, vạch champagne ở tiêu đề, tìm kiếm trắng/viền champagne và nút graphite; trang chủ theo vai trò dùng thẻ trắng với viền nhấn champagne. CSS giới hạn trong `.public-main-home` và `.role-home`; HTTP trang chủ/CSS 200, không chụp ảnh.
+- Tinh chỉnh trang chủ công khai theo bảng 6 màu: tiêu đề lớn/nét vừa, overlay graphite, champagne chỉ dùng vạch nhấn và viền trên khung tìm kiếm; thẻ trắng bo 16px, nền khu vực xám nhạt. Dưới 640px tìm kiếm xếp dọc, nút đủ chiều rộng. HTTP trang chủ/CSS 200; chưa kiểm chứng trực quan, không chụp ảnh.
+- Theo ảnh mẫu người dùng: trang chủ có menu trắng/logo champagne/nút đăng ký graphite, banner toàn màn hình và tiêu đề góc trên trái. Khung tìm kiếm chuyển ngay dưới banner. CSS giới hạn `.public-home`/`.public-main-home`; build 0 lỗi, HTTP trang chủ/logo 200; không chụp ảnh, chưa xác minh trực quan.
+- Theo yêu cầu tiếp theo: trang chủ cao 100dvh, menu lấy chiều cao thực và banner chiếm phần còn lại; thanh tìm kiếm absolute đè trên nền gần đáy. Mobile dùng 2 hàng tìm kiếm; màn hình thấp thu gọn tiêu đề/khoảng cách. Trang chủ/CSS HTTP 200; không chụp ảnh.
+- Tăng chữ header trang chủ: menu, đăng nhập/đăng ký và thông tin tài khoản 16px; mobile <=640px dùng 14px. CSS HTTP 200, không chụp ảnh.
+- Tăng toàn bộ cụm thương hiệu SVG ở header trang chủ từ cao 38px lên 52px (logo, tên NhàTốt và slogan cùng tăng theo tỷ lệ); mobile 44px. CSS HTTP 200.
+- Bo tròn dạng viên thuốc cho Đăng nhập và Đăng ký ở header trang chủ; Đăng nhập có viền xám nhạt và hover champagne. CSS HTTP 200.
+- Đồng bộ Tìm phòng với trang chủ: header trắng/logo champagne/nút bo tròn; ô tìm kiếm, bộ lọc, thẻ tin trắng; giá chữ graphite, nhãn champagne, biểu tượng xám; phân trang và focus đồng bộ. Kiểm tra HTTP trang mặc định/lọc/sắp xếp/trang 2/không kết quả và trang chủ đều 200; không chụp ảnh.
+- Thêm icon ngôi nhà SVG trước Trang chủ trong breadcrumb Tìm phòng, dùng currentColor graphite. Build thành công, HTTP 200 và HTML chứa icon; không chụp ảnh.
+- Thêm icon ngôi nhà trước Trang Chủ trong header công khai, dùng currentColor để theo màu active/hover. Build 0 lỗi; trang chủ và Tìm phòng HTTP 200, đều chứa icon header.
+- Bỏ viền trên champagne của thanh tìm kiếm Tìm phòng; giữ viền xám nhạt giống trang chủ. CSS HTTP 200.
+
+## 07/10/2026 — Giao diện chủ nhà theo ảnh mẫu
+
+- Thêm `_OwnerDashboard.cshtml` và `owner-dashboard.css`: sidebar graphite, header trắng, nền #F5F5F4; 4 thẻ thống kê; bố cục 2 cột với tình hình thu tiền/tình trạng phòng và yêu cầu gần đây/việc cần xử lý; danh sách cơ sở với thanh lấp đầy.
+- Dùng số liệu phòng, đặt cọc, yêu cầu và cơ sở thực tế. Tổng hợp cơ sở chỉ từ tòa đang hoạt động thuộc chủ nhà đăng nhập. Không đổi schema, không thay dữ liệu nghiệp vụ.
+- Phần thu tiền hiển thị chưa có dữ liệu; thay bảng hóa đơn cần thu bằng yêu cầu thuê hiện có. Chưa có dữ liệu thanh toán/báo hỏng để mô phỏng toàn bộ ảnh mẫu. Không tạo số liệu minh họa.
+- Build thành công; HTTP xác minh 2 chủ nhà thấy đúng cơ sở riêng, các link phòng/yêu cầu/hợp đồng/dịch vụ mở được. Admin/khách/quản lý vẫn dùng dashboard hiện tại. Không chụp ảnh; chưa kiểm chứng trực quan hoặc thiết bị 360px.
+- Test `OwnerDashboardAggregatesOnlyActiveOwnedBuildings`: PASS, kiểm tra cách ly cơ sở chủ nhà/ngừng hoạt động và tỷ lệ lấp đầy từ dữ liệu thực.
+- Chuyển Thông báo từ sidebar lên icon chuông giữa tìm kiếm và avatar. Hiển thị theo quyền YEU_CAU_THUE; giữ liên kết module thông báo hiện có (chưa triển khai thông báo/badge chưa đọc). Build 0 lỗi; HTTP/HTML vị trí và liên kết đạt.
+- Sidebar chủ nhà rộng 248px (trước 224px), giảm khoảng cách menu và ẩn thanh cuộn; màn hình thấp vẫn cuộn được để truy cập đủ mục. CSS HTTP 200.
+- Header chủ nhà: thay biểu tượng ba sọc bằng link icon nhà / Tổng quan. Mobile giữ nút chữ Menu để truy cập sidebar và menu tài khoản. Build 0 lỗi; HTTP/HTML đúng breadcrumb.
+- Tăng chữ Tổng quan và dấu / trên header chủ nhà lên 16px, icon ngôi nhà lên 21px. CSS HTTP 200.
+- Header tìm kiếm: thay ký tự kính lúp bằng SVG giống trang chủ, đặt nút kính lúp trước ô nhập để đứng trước placeholder. Giữ form GET /TimTin và nút submit có aria-label.
+- Tình hình thu tiền: thêm select 6 tháng gần nhất (3/6/12 tháng), nhãn trục tháng đổi theo lựa chọn; chú giải Đã thu graphite/Phải thu champagne giống ảnh. Dữ liệu thu tiền vẫn chưa có; build 0 lỗi, HTTP 200 và HTML chứa bộ chọn/chú giải.
+- Cụm tài khoản chủ nhà theo ảnh: avatar champagne nhạt 36px/chữ cái hai từ cuối tên, tên 12px, nhãn Chủ nhà 10px và mũi tên xuống, viền phân cách trái. Giữ tên thực và liên kết menu tài khoản. Build 0 lỗi; HTTP/HTML đạt.
+- Tăng nhẹ chữ sidebar chủ nhà: mục menu 12→13px, tiêu đề nhóm 9→10px. CSS HTTP 200.
+- Tăng chữ thanh tìm kiếm header chủ nhà từ 11px lên 13px; CSS HTTP 200.

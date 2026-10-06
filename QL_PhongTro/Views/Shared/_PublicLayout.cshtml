@@ -10,8 +10,9 @@
     @if (ViewContext.RouteData.Values["controller"]?.ToString() == "TinDang") {
         <link rel="stylesheet" href="~/css/listing-theme.css" asp-append-version="true" />
     }
+<link rel="stylesheet" href="~/css/champagne-theme.css" asp-append-version="true" />
 </head>
-<body class="public-site">
+<body class="public-site @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "public-home" : "")">
     @{
         var path = Context.Request.Path.Value?.ToLowerInvariant() ?? "";
         var isHome = path == "" || path == "/" || path == "/home" || path == "/home/index";
@@ -25,7 +26,7 @@
                 <img src="~/images/nhatot-logo.svg" alt="NhàTốt - SỐNG ĐÚNG NƠI" height="38" />
             </a>
             <nav class="public-nav nhatot-nav" aria-label="Điều hướng chính">
-                <a href="/" class="@(isHome ? "active" : "")">Trang Chủ</a>
+                <a href="/" class="header-home-link @(isHome ? "active" : "")"><svg class="header-home-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5 12 3l9 7.5M5.5 9v12h13V9M9.5 21v-7h5v7" /></svg>Trang Chủ</a>
                 <a href="/TimTin" class="@(isTimTin ? "active" : "")">Tìm Phòng</a>
                 <a href="/TinDang" class="@(isTinDang ? "active" : "")">Tin Đăng Cho Thuê</a>
                 <a href="/Home/GioiThieu" class="@(isGioiThieu ? "active" : "")">Giới Thiệu</a>

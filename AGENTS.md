@@ -122,7 +122,7 @@ Không còn hiệu lực: Spring Boot, React, MinIO bắt buộc, Docker Compose
 - Toàn bộ giao diện **tiếng Việt**.
 - Tiền: dấu chấm ngăn nghìn (ví dụ `2.000.000 đ`). Ngày giờ: `dd/MM/yyyy HH:mm`, giờ 24h.
 - Responsive từ **360px**; khách thuê dùng được toàn bộ luồng trên điện thoại, không tràn ngang.
-- Theme: xanh `#008060`, hover `#006e52`, nền trắng/xám nhạt, viền xám; thương hiệu **NhàTốt – SỐNG ĐÚNG NƠI**. CSS theo vai trò (`homepage-dashboard-theme.css` cho chủ nhà/quản lý/khách/admin, `tenant-theme.css`, `listing-theme.css` cho `TinDang`) chỉ nạp đúng phạm vi.
+- Theme theo yêu cầu 07/10/2026: menu/nút `#30343B`, điểm nhấn `#BFA77A`, nền trang `#F5F5F4`, thẻ `#FFFFFF`, nền biểu tượng `#E9EAEC`, chữ `#25282D`; thương hiệu **NhàTốt – SỐNG ĐÚNG NƠI**. CSS theo vai trò (`homepage-dashboard-theme.css` cho chủ nhà/quản lý/khách/admin, `tenant-theme.css`, `listing-theme.css` cho `TinDang`) chỉ nạp đúng phạm vi.
 
 ---
 

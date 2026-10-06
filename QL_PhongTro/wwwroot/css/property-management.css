@@ -8,10 +8,10 @@
     max-width: 960px;
     margin: 0;
     padding: 12px 16px 28px;
-    background: #fff;
+    background: #FFFFFF;
     border: 1px solid var(--line);
     border-radius: 16px;
-    box-shadow: 0 6px 24px #203f3608;
+    box-shadow: 0 6px 24px #25282D08;
 }
 .property-management .form-label { font-size: .95rem; font-weight: 600; margin-bottom: 8px; }
 .property-management input, .property-management select, .property-management textarea, #property-confirm button { font-family: inherit; font-size: 1rem; }
@@ -21,8 +21,8 @@
 .property-management .table th { font-weight: 600; }
 .property-management .table td, .property-management .table th { padding: 16px 12px; }
 .property-management .btn-sm { padding: 7px 12px; }
-#property-confirm { width: min(480px, calc(100% - 32px)); border: 1px solid var(--line); border-radius: 16px; padding: 28px; color: var(--ink); box-shadow: 0 20px 60px #0003; }
-#property-confirm::backdrop { background: #203f3680; }
+#property-confirm { width: min(480px, calc(100% - 32px)); border: 1px solid var(--line); border-radius: 16px; padding: 28px; color: var(--ink); box-shadow: 0 20px 60px #25282D33; }
+#property-confirm::backdrop { background: #25282D80; }
 #property-confirm h2 { font-size: 1.35rem; font-weight: 700; margin-bottom: 12px; }
 #property-confirm p { overflow-wrap: anywhere; margin-bottom: 24px; }
 @media (max-width: 600px) { .property-management .property-form { padding: 4px 4px 20px; } }
