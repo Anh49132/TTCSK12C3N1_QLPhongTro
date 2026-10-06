@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/public-listing.css" asp-append-version="true" />
+    @if (ViewContext.RouteData.Values["controller"]?.ToString() == "TinDang") {
+        <link rel="stylesheet" href="~/css/listing-theme.css" asp-append-version="true" />
+    }
 </head>
 <body class="public-site">
     @{

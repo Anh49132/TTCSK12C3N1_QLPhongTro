@@ -1,5 +1,10 @@
 # Tiến độ và bàn giao dự án
 
+## Đồng bộ màu Tin đăng cho thuê (06/10/2026)
+
+- Trang TinDang dùng listing-theme.css theo bảng màu trang chủ: xanh #008060, hover #006e52, nền trắng/xám nhạt, viền xám; cập nhật nút tìm/lọc, biểu mẫu, liên kết, phân trang, giá thuê và chi phí tháng đầu ở chi tiết công khai. Chỉ nạp CSS cho controller TinDang trong public layout.
+- Build thành công; HTTP danh sách/chi tiết/CSS và phạm vi trang chủ đạt. Quản lý tin của chủ nhà tiếp tục dùng theme dashboard chung. Đã chạy lại localhost:5247 và kiểm tra đăng nhập 7 tài khoản demo đạt; không chụp ảnh.
+
 ## Đồng bộ màu giao diện Admin (06/10/2026)
 
 - ADMIN dùng homepage-dashboard-theme.css cùng chủ nhà, quản lý và khách thuê: xanh #008060, nền trắng/xám nhạt, đồng bộ menu, nút, biểu mẫu với trang chủ công khai.
