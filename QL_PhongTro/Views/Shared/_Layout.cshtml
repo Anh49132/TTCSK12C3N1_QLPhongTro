@@ -1,4 +1,7 @@
-@{ var isPropertyPage = ViewContext.RouteData.Values["controller"]?.ToString() == "PhongTro"; }
+@{
+    var isPropertyPage = ViewContext.RouteData.Values["controller"]?.ToString() == "PhongTro";
+    var useHomepageTheme = User.IsInRole("KHACH_THUE") || User.IsInRole("CHU_NHA") || User.IsInRole("QUAN_LY") || User.IsInRole("ADMIN");
+}
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -8,10 +11,10 @@
 <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/components.css" asp-append-version="true" />
-@if (User.IsInRole("KHACH_THUE")) { <link rel="stylesheet" href="~/css/tenant-theme.css" asp-append-version="true" /> }
+@if (useHomepageTheme) { <link rel="stylesheet" href="~/css/homepage-dashboard-theme.css" asp-append-version="true" /> }
 @if (isPropertyPage) { <link rel="stylesheet" href="~/css/room-images.css" asp-append-version="true" /> }
 </head>
-<body class="@(User.IsInRole("KHACH_THUE") ? "tenant-theme" : "")">
+<body class="@(useHomepageTheme ? "homepage-dashboard-theme" : "")">
 <a class="skip-link" href="#main-content">Đến nội dung chính</a>
 <aside id="app-sidebar" class="dashboard-sidebar" aria-label="Điều hướng ứng dụng">
 <partial name="_Sidebar" />

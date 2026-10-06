@@ -1,5 +1,20 @@
 # Tiến độ và bàn giao dự án
 
+## Đồng bộ màu giao diện Admin (06/10/2026)
+
+- ADMIN dùng homepage-dashboard-theme.css cùng chủ nhà, quản lý và khách thuê: xanh #008060, nền trắng/xám nhạt, đồng bộ menu, nút, biểu mẫu với trang chủ công khai.
+- Build thành công; đăng nhập AJAX và phiên Admin đạt; trang phân quyền, phòng trọ, tòa nhà, yêu cầu thuê HTTP 200 và nạp đúng theme. Trang chủ công khai kiểm tra đạt. Đã chạy lại localhost:5247, 7 tài khoản demo đăng nhập đạt; không chụp ảnh.
+
+## Đồng bộ màu giao diện quản lý (06/10/2026)
+
+- Vai trò QUAN_LY dùng chung homepage-dashboard-theme.css với chủ nhà và khách thuê: xanh #008060, nền trắng/xám nhạt, menu/nút/biểu mẫu theo trang chủ công khai.
+- Build thành công; đăng nhập AJAX và phiên quản lý đạt; các trang phòng trọ, tòa nhà, quản lý tin, yêu cầu thuê HTTP 200 và nạp đúng theme. Kiểm tra phạm vi theme chủ nhà/khách thuê/admin đạt. Đã chạy lại localhost:5247, 7 tài khoản demo đăng nhập đạt; không chụp ảnh.
+
+## Đồng bộ màu giao diện chủ nhà (06/10/2026)
+
+- Chủ nhà và khách thuê dùng chung homepage-dashboard-theme.css: xanh #008060, nền trắng/xám nhạt, viền xám; đồng bộ menu, nút, biểu mẫu và nhãn ảnh chính. Trạng thái giữ chỗ dùng vàng nhạt, lỗi dùng đỏ để phân biệt rõ. Các vai trò khác giữ theme hiện có.
+- Build thành công; kiểm tra HTTP 200 và theme trên các trang phòng trọ, tòa nhà, dịch vụ, yêu cầu thuê, quản lý tin của chủ nhà và hồ sơ/yêu cầu của khách thuê. Trang công khai/admin không nạp theme mới. Server localhost:5247 đã chạy lại và 7 tài khoản demo đăng nhập đạt; không chụp ảnh.
+
 ## Đồng bộ màu giao diện khách thuê (06/10/2026)
 
 - Dashboard KHACH_THUE dùng xanh #008060, hover #006e52, nền trắng/xám nhạt và viền xám theo trang chủ công khai. Đồng bộ menu, nút, biểu mẫu, trạng thái thành công và phân trang qua tenant-theme.css, chỉ nạp cho vai trò khách thuê.
