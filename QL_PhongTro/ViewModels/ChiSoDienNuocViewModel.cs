@@ -12,6 +12,10 @@ public sealed record PhongGhiChiSo(int PhongId, int HopDongId, string MaPhong, i
 public sealed record MeterServiceRow(int Id, string Ma, ChiSoThamChieu Truoc, decimal? Moi, int PhienBan, bool DaKhoa);
 public sealed class LuuChiSoInput
 {
+    public bool XacNhanBatThuong { get; set; }
+    public string? MaXacNhan { get; set; }
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public List<MeterUsageWarning> CanhBaos { get; set; } = [];
     public int ToaNhaId { get; set; }
     public int PhongId { get; set; }
     public int HopDongId { get; set; }
@@ -37,3 +41,5 @@ public sealed class ChiSoDienNuocViewModel
     public Dictionary<string,string[]> Loi { get; set; } = [];
     public LuuChiSoInput? Input { get; set; }
 }
+
+public sealed record MeterUsageWarning(string Ma, decimal ChiSoTruoc, decimal ChiSoMoi, decimal TieuThu, decimal TrungBinh, decimal Nguong, decimal TieuThuKyTruoc);

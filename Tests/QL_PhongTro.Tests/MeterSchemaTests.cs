@@ -15,14 +15,14 @@ public sealed partial class MeterReadingListTests
         {
             cmd.CommandText="SELECT * FROM \""+table+"\" ORDER BY rowid";using var reader=cmd.ExecuteReader();
             while(reader.Read()) {var values=new object[reader.FieldCount];reader.GetValues(values);
-                if(excludeNew && table=="app_schema_version" && Convert.ToInt32(values[0])==17)continue;
+                if(excludeNew && table=="app_schema_version" && Convert.ToInt32(values[0])>=17)continue;
                 result.Add(table+JsonSerializer.Serialize(values));}
         }
         return string.Join("\n",result);
     }
     [Fact] public void UpgradeV16PreservesRowsAndIsIdempotent()
     {
-        Execute("DROP TABLE chi_so_dien_nuoc;DELETE FROM app_schema_version WHERE version=17;");
+        Execute("DROP TABLE chi_so_dien_nuoc;DELETE FROM app_schema_version WHERE version>=17;");
         var before=DatabaseSnapshot(true);
         DatabaseUpdates.Update(path,Path.Combine(app,"Data","permissions.seed.json"));
         Assert.Equal(before,DatabaseSnapshot(true));Assert.Equal(0,Count("chi_so_dien_nuoc"));
@@ -34,14 +34,14 @@ public sealed partial class MeterReadingListTests
     }
     [Fact] public void UpgradeRefusesUnexpectedTableWithoutChangingData()
     {
-        Execute("DROP TABLE chi_so_dien_nuoc;DELETE FROM app_schema_version WHERE version=17;CREATE TABLE chi_so_dien_nuoc(id INTEGER);");
+        Execute("DROP TABLE chi_so_dien_nuoc;DELETE FROM app_schema_version WHERE version>=17;CREATE TABLE chi_so_dien_nuoc(id INTEGER);");
         var before=DatabaseSnapshot();Assert.Throws<InvalidOperationException>(()=>DatabaseUpdates.Update(path,Path.Combine(app,"Data","permissions.seed.json")));Assert.Equal(before,DatabaseSnapshot());
     }
     [Fact] public void UpgradeRecognizesExactCompletedStepButRejectsMissingProtections()
     {
-        Execute("DELETE FROM app_schema_version WHERE version=17;");var before=DatabaseSnapshot(true);
+        Execute("ALTER TABLE chi_so_dien_nuoc DROP COLUMN da_xac_nhan_bat_thuong;DELETE FROM app_schema_version WHERE version>=17;");var before=DatabaseSnapshot(true);
         DatabaseUpdates.Update(path,Path.Combine(app,"Data","permissions.seed.json"));Assert.Equal(before,DatabaseSnapshot(true));
-        Execute("DELETE FROM app_schema_version WHERE version=17;DROP TRIGGER meter_locked_update;");
+        Execute("ALTER TABLE chi_so_dien_nuoc DROP COLUMN da_xac_nhan_bat_thuong;DELETE FROM app_schema_version WHERE version>=17;DROP TRIGGER meter_locked_update;");
         Assert.Throws<InvalidOperationException>(()=>DatabaseUpdates.Update(path,Path.Combine(app,"Data","permissions.seed.json")));
     }
     [Theory][InlineData("abc")][InlineData("1.2345")][InlineData("-1")][InlineData("100000000000")]

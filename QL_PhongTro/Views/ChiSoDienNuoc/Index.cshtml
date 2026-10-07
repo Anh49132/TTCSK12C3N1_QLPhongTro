@@ -81,6 +81,28 @@
                                         <span id="@(id+"-error")" class="text-danger d-block" data-meter-error>@error</span>
                                     }
                                     @if(Model.Input?.PhongId==room.PhongId && Model.Loi.TryGetValue("Phong",out var roomErrors)){<p class="text-danger">@string.Join(" ",roomErrors)</p>}
+                                    @if (Model.Input?.PhongId == room.PhongId && Model.Input.CanhBaos.Count > 0)
+                                    {
+                                        <div class="alert alert-warning" role="alert" data-usage-warning>
+                                            <strong>Mức tiêu thụ bất thường — phòng @room.MaPhong</strong>
+                                            @foreach (var warning in Model.Input.CanhBaos)
+                                            {
+                                                <p>
+                                                    <strong>@(warning.Ma == "DIEN" ? "Điện" : "Nước"):</strong>
+                                                    Chỉ số trước @warning.ChiSoTruoc.ToString("0.###", CultureInfo.GetCultureInfo("vi-VN")),
+                                                    chỉ số mới @warning.ChiSoMoi.ToString("0.###", CultureInfo.GetCultureInfo("vi-VN")).
+                                                    Tiêu thụ kỳ này @warning.TieuThu.ToString("0.###", CultureInfo.GetCultureInfo("vi-VN"));
+                                                    kỳ lịch sử gần nhất @warning.TieuThuKyTruoc.ToString("0.###", CultureInfo.GetCultureInfo("vi-VN"));
+                                                    trung bình 3 kỳ @warning.TrungBinh.ToString("0.######", CultureInfo.GetCultureInfo("vi-VN"));
+                                                    ngưỡng 200% @warning.Nguong.ToString("0.######", CultureInfo.GetCultureInfo("vi-VN")).
+                                                    @if (warning.TrungBinh == 0) { <span>Ba kỳ lịch sử không có tiêu thụ; kỳ này có tiêu thụ dương.</span> }
+                                                </p>
+                                            }
+                                            <p>Chưa lưu chỉ số. Bạn có thể sửa ô nhập rồi bấm Lưu phòng để kiểm tra lại, hoặc xác nhận các số hiện tại.</p>
+                                            <input type="hidden" name="MaXacNhan" value="@Model.Input.MaXacNhan" />
+                                            <button type="submit" class="btn btn-warning" name="XacNhanBatThuong" value="true">Xác nhận vẫn muốn lưu</button>
+                                        </div>
+                                    }
                                     <button class="btn btn-primary mt-2" type="submit" disabled="@(room.DichVu.Any(x=>x.Truoc.GiaTri==null || x.DaKhoa))">Lưu phòng @room.MaPhong</button>
                                 </form>
                             }

@@ -47,7 +47,12 @@ public static class MeterReadingSchema
         {
             // Reruns may encounter a completed additive step whose version marker
             // was not retained. Adopt only the exact known table and protections.
-            if(Normalize(existing)!=Normalize(schema[..schema.IndexOf(';')]))
+            // A later additive v18 step may remain when an earlier version marker
+            // is missing. Strip only its exact known column; still verify v17
+            // table constraints and every protection below before adoption.
+            var original = Regex.Replace(existing,
+                @",\s*da_xac_nhan_bat_thuong INTEGER NOT NULL DEFAULT 0 CHECK\(da_xac_nhan_bat_thuong IN \(0,1\)\)", "");
+            if(Normalize(original)!=Normalize(schema[..schema.IndexOf(';')]))
                 throw new InvalidOperationException("Schema chi_so_dien_nuoc không khớp v17; không thay đổi bảng hiện có.");
             foreach(Match match in Regex.Matches(schema,@"CREATE TRIGGER\s+(\w+).*?END;",RegexOptions.Singleline))
             {

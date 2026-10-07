@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace QL_PhongTro.Services;
 
-public sealed class ChiSoDienNuocService(AppDbContext db, ITimeProvider clock)
+public sealed partial class ChiSoDienNuocService(AppDbContext db, ITimeProvider clock, Microsoft.AspNetCore.DataProtection.IDataProtectionProvider protection)
 {
     private sealed record Reading(int HopDongId, int Id, DateOnly TuNgay, DateOnly DenNgay,
         string MaDichVu, decimal? ChiSoCuoi, int LineId);
@@ -129,6 +129,7 @@ public sealed class ChiSoDienNuocService(AppDbContext db, ITimeProvider clock)
 
     public async Task<Dictionary<string,string[]>> LuuAsync(int actor,LuuChiSoInput input,CancellationToken ct=default)
     {
+        input.CanhBaos.Clear();
         await db.Database.OpenConnectionAsync(ct);
         await using var sqlite=((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred:false);
         await using var tx=await db.Database.UseTransactionAsync(sqlite,ct);
@@ -152,6 +153,8 @@ public sealed class ChiSoDienNuocService(AppDbContext db, ITimeProvider clock)
             else if(value<service.Truoc.GiaTri) Error(field,"Chỉ số mới không được nhỏ hơn chỉ số kỳ trước.");
         }
         if(errors.Count>0) return errors;
+        var abnormal = await CheckUsageAsync(actor, input, room, model.DauKy, ct);
+        if (input.CanhBaos.Count > 0) { Error("Anomaly", "Cần xác nhận mức tiêu thụ bất thường trước khi lưu."); return errors; }
         foreach(var service in room.DichVu)
         {
             var record=await db.ChiSoDienNuocs.SingleOrDefaultAsync(x=>x.HopDongId==room.HopDongId && x.DichVuId==service.Id && x.TuNgay==model.DauKy,ct);
@@ -159,6 +162,7 @@ public sealed class ChiSoDienNuocService(AppDbContext db, ITimeProvider clock)
             else record.PhienBan++;
             record.ChiSoDau=service.Truoc.GiaTri!.Value;
             record.ChiSoCuoi=(service.Ma=="DIEN"?input.DienMoi:input.NuocMoi)!.Value;
+            record.DaXacNhanBatThuong = abnormal.Contains(service.Ma);
             record.NguoiNhapId=actor;record.NgayNhap=clock.UtcNow;
         }
         await db.SaveChangesAsync(ct);await sqlite.CommitAsync(ct);return errors;

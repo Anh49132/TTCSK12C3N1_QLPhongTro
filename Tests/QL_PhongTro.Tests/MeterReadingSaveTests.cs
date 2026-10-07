@@ -25,7 +25,7 @@ public sealed partial class MeterReadingListTests
     {
         using var db=new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite($"Data Source={path};Foreign Keys=True;Pooling=False").Options,
             new HttpContextAccessor{HttpContext=new DefaultHttpContext{User=new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier,actor.ToString()),new Claim(ClaimTypes.Role,"QUAN_LY")],"test"))}});
-        return await new ChiSoDienNuocService(db,clock).LuuAsync(actor,input);
+        return await new ChiSoDienNuocService(db,clock,meterProtection).LuuAsync(actor,input);
     }
     private long Count(string table){using var c=Open();using var cmd=c.CreateCommand();cmd.CommandText="SELECT count(*) FROM "+table;return Convert.ToInt64(cmd.ExecuteScalar());}
     [Theory][InlineData(0,12.345)][InlineData(1,13)]

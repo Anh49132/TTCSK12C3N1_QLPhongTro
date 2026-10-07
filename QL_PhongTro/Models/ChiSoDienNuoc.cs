@@ -13,6 +13,7 @@ public sealed class ChiSoDienNuoc
     [Column("chi_so_cuoi")] public decimal ChiSoCuoi { get; set; }
     [Column("nguoi_nhap_id")] public int NguoiNhapId { get; set; }
     [Column("ngay_nhap")] public DateTime NgayNhap { get; set; }
+    [Column("da_xac_nhan_bat_thuong")] public bool DaXacNhanBatThuong { get; set; }
     [Column("da_khoa")] public bool DaKhoa { get; set; }
     [Column("phien_ban")] public int PhienBan { get; set; }
 }

@@ -17,6 +17,7 @@ public sealed partial class MeterReadingListTests : IDisposable
         public DateTime UtcNow { get; set; } = new(2026, 10, 7, 0, 0, 0, DateTimeKind.Utc);
     }
     private readonly Clock clock = new();
+    private readonly Microsoft.AspNetCore.DataProtection.IDataProtectionProvider meterProtection = new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider();
 
     public MeterReadingListTests()
     {
@@ -61,7 +62,7 @@ public sealed partial class MeterReadingListTests : IDisposable
     private async Task<ChiSoDienNuocViewModel> List(int actor = 2, int? building = 1)
     {
         using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite($"Data Source={path};Pooling=False").Options);
-        return await new ChiSoDienNuocService(db, clock).DanhSachAsync(actor, building);
+        return await new ChiSoDienNuocService(db, clock, meterProtection).DanhSachAsync(actor, building);
     }
     private void Handover(int contract = 1) => Execute($"INSERT INTO hop_dong_chi_so_dau_ky(hop_dong_id,ngay_ban_giao,chi_so_dien,chi_so_nuoc,nguoi_nhap_id,ngay_nhap) VALUES({contract},'2026-08-01','0','12.345',1,'2026-08-01')");
     private void Invoice(int id, int contract, int month, string status = "DA_PHAT_HANH", decimal? electricity = 100, decimal? water = 20, string type = "THEO_CHI_SO")
@@ -136,7 +137,7 @@ public sealed partial class MeterReadingListTests : IDisposable
                 INSERT INTO ky_hop_dong(hop_dong_id,ngay_bat_dau,ngay_ket_thuc,gia_thue) VALUES(1,'2026-01-01','2026-12-31',1000000);
                 INSERT INTO hop_dong_chi_so_dau_ky(hop_dong_id,ngay_ban_giao,chi_so_dien,chi_so_nuoc,nguoi_nhap_id,ngay_nhap) VALUES(1,'2026-01-01','0','7',1,'2026-01-01');
                 """);
-            var row = Assert.Single((await new ChiSoDienNuocService(db,clock).DanhSachAsync(2,1)).Phongs);
+            var row = Assert.Single((await new ChiSoDienNuocService(db,clock,meterProtection).DanhSachAsync(2,1)).Phongs);
             Assert.Equal(0,row.Dien.GiaTri);Assert.True(row.Dien.LaBanGiao);Assert.False(row.DaChot);
         }
         finally { SqliteConnection.ClearAllPools();File.Delete(optionalPath); }
