@@ -22,6 +22,7 @@ public class ModulesController(AppDbContext db) : Controller
             _ => null
         };
         if (code == "HOP_DONG") return RedirectToAction("Index", "HopDong");
+        if (code == "DIEN_NUOC" && User.IsInRole("QUAN_LY")) return RedirectToAction("Index", "ChiSoDienNuoc");
         if (code is "PHONG_TRO" or "TAI_KHOAN" or "TIN_DANG") return Redirect(PermissionService.Url(code));
         return View(module);
     }
