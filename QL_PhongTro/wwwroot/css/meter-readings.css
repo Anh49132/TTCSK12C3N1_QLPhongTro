@@ -1,38 +1,209 @@
-.meter-page { min-width: 0; color: #25282D; overflow-wrap: anywhere; }
-.meter-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
-.meter-building select { min-width: 0; max-width: 100%; flex: 1 1 220px; }
-.meter-page .btn, .meter-page .form-select, .meter-page .form-control { min-height: 48px; }
-.meter-page .form-control { font-size: 16px; }
-.meter-progress { background: #E9EAEC; padding: 12px 16px; border-radius: 8px; font-weight: 600; }
-.meter-table { width: 100%; table-layout: fixed; }
-.meter-table th, .meter-table td { overflow-wrap: anywhere; }
-.meter-table th:last-child { width: 42%; }
-.meter-room-label { display: none; }
-.meter-status-badge { display: inline-block; padding: 6px 10px; border-radius: 8px; font-weight: 600; }
-.meter-status-badge.is-complete { background: #e2f0e6; color: #225537; }
-.meter-status-badge.is-pending { background: #E9EAEC; color: #30343B; }
-.meter-service { margin-bottom: 16px; }
-.meter-service .form-label { font-weight: 600; margin-bottom: 4px; }
-.meter-previous { margin-bottom: 6px; }
-.meter-page [data-meter-room], .meter-page [data-usage-warning], .meter-page [data-room-error], .meter-page [data-meter-input] { scroll-margin-block: 100px 24px; }
-.meter-page [data-usage-warning] p { margin-top: 12px; }
-.meter-page .meter-save { background: #30343B; border-color: #30343B; }
-.meter-page .meter-confirm { background: #BFA77A; border-color: #BFA77A; color: #25282D; white-space: normal; }
-.meter-page :focus-visible { outline: 3px solid #BFA77A; outline-offset: 3px; }
-@media (max-width: 767px) {
-    .meter-heading { display: block; }
-    .meter-building .btn { width: 100%; }
-    .meter-table, .meter-table tbody { display: block; }
-    .meter-table thead { display: none; }
-    .meter-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; margin-bottom: 16px; padding: 16px; background: #FFFFFF; border: 1px solid #E9EAEC; border-radius: 12px; }
-    .meter-table tr > th, .meter-table tr > td { border: 0; padding: 0; background: transparent; box-shadow: none; min-width: 0; }
-    .meter-table tr > th { align-self: center; font-size: 18px; }
-    .meter-table .meter-floor-number, .meter-table .meter-reference-column { display: none; }
-    .meter-room-label { display: inline; }
-    .meter-table .meter-action { grid-column: 1 / -1; margin-top: 16px; }
-    .meter-page .meter-save, .meter-page .meter-confirm { width: 100%; }
-    .meter-page [data-meter-error] { margin-top: 4px; }
+/* One room/form, with a compact desktop row and touch-friendly mobile card. */
+.meter-page { --meter-ink:#30343B; --meter-gold:#BFA77A; --meter-line:#E9EAEC; --meter-columns:minmax(95px,1.05fr) minmax(90px,1fr) minmax(90px,1fr) minmax(90px,1fr) minmax(70px,.85fr) 90px 68px; min-width:0; color:#25282D; font-size:14px; line-height:1.45; padding-bottom:20px; overflow-wrap:anywhere; }
+.meter-page *, .meter-page *::before, .meter-page *::after { box-sizing:border-box; }
+.meter-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:16px; }
+.meter-heading h1 { font-size:26px; font-weight:750; letter-spacing:-.6px; margin:0 0 4px; }
+.meter-heading p { color:#747A82; margin:0; font-size:14px; }
+.meter-heading-controls { display:flex; align-items:stretch; gap:10px; min-width:0; }
+.meter-building { display:flex; align-items:center; border:1px solid var(--meter-line); border-radius:8px; background:#fff; min-width:0; max-width:300px; }
+.meter-control-icon, .meter-period>span { font-size:24px; padding:0 10px; }
+.meter-building .form-select { border:0; min-width:0; width:160px; flex:1; padding-left:0; background-color:transparent; }
+.meter-building-submit { border:0; border-left:1px solid var(--meter-line); border-radius:0 7px 7px 0; padding:6px 10px; font-size:12px; }
+.meter-period { display:flex; align-items:center; gap:4px; background:#fff; border:1px solid var(--meter-line); border-radius:8px; padding-right:12px; white-space:nowrap; font-size:13px; }
+.meter-page button { font:inherit; cursor:pointer; }
+.meter-page button:disabled { cursor:not-allowed; opacity:.5; }
+.meter-page button, .meter-page .form-select, .meter-page .form-control, .meter-search input { min-height:36px; }
+.meter-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-bottom:10px; }
+.meter-stat { display:flex; gap:10px; padding:12px; border:1px solid var(--meter-line); background:#fff; border-radius:10px; }
+.meter-stat-icon { display:grid; place-items:center; flex:0 0 36px; height:36px; font-size:24px; border-radius:7px; background:#F1F2F3; }
+.meter-stat-icon.is-green { color:#28764D; background:#EAF5EE; }
+.meter-stat-icon.is-gold { color:#92703C; background:#FCF5E7; }
+.meter-stat strong, .meter-stat small { display:block; }
+.meter-stat strong { font-size:24px; line-height:1.2; margin:3px 0; }
+.meter-stat small { color:#7A8088; font-size:12px; }
+.meter-stat>div>span { font-size:13px; }
+.meter-workspace { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:16px; align-items:start; }
+.meter-list-panel, .meter-side-card { min-width:0; background:#fff; border:1px solid var(--meter-line); border-radius:10px; padding:12px; }
+.meter-list-heading { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.meter-list-heading h2 { font-size:18px; font-weight:700; margin:0; }
+.meter-list-heading>span { color:#8C713F; background:#FBF4E6; border-radius:5px; padding:3px 9px; font-size:12px; }
+.meter-filter-tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.meter-filter-tabs button { border:0; padding:4px 12px; border-radius:24px; background:#F1F1F2; color:#525860; font-size:12px; }
+.meter-filter-tabs .is-active { background:var(--meter-gold); color:#fff; }
+.meter-list-tools { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.meter-search { display:flex; align-items:center; gap:8px; flex:1 1 180px; min-width:0; border:1px solid #D5D7DB; border-radius:6px; padding:0 10px; margin:0; }
+.meter-search>span { font-size:25px; }
+.meter-search input { border:0; width:100%; min-width:0; background:transparent; font-size:13px; outline:0; }
+.meter-floor-filter { flex:0 1 140px; min-width:0; margin:0; }
+.meter-floor-filter select { font-size:12px; }
+.meter-sort-note { color:#777D85; font-size:12px; }
+.meter-list-note { margin:8px 0 10px; font-size:12px; color:#7A8088; }
+.meter-column-head, .meter-room { display:grid; grid-template-columns:var(--meter-columns); gap:10px; }
+.meter-column-head { padding:8px; background:#F3F3F5; border-radius:5px; color:#626973; font-weight:600; font-size:12px; }
+.meter-floor h3 { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0; padding:0 8px; font-size:12px; font-weight:700; text-transform:uppercase; background:#F8F8F9; }
+.meter-floor h3 button { border:0; background:transparent; font-size:12px; color:#7B818A; padding:4px; font-weight:400; text-transform:none; }
+.meter-floor h3 button span { display:inline-block; margin-left:6px; }
+.meter-floor h3 button[aria-expanded=false] span { transform:rotate(180deg); }
+.meter-room { padding:8px; border-bottom:1px solid var(--meter-line); min-width:0; align-items:center; }
+.meter-room-heading { grid-column:1; min-width:0; }
+.meter-room-heading h4 { font-size:15px; font-weight:750; margin:0 0 4px; }
+.meter-occupancy { font-size:12px; border-radius:14px; background:#F1F2F3; color:#737B85; padding:2px 7px; }
+.meter-form { display:contents; }
+.meter-form>input[type=hidden] { display:none; }
+.meter-references { grid-column:2; min-width:0; }
+.meter-previous { font-size:12px; color:#7B828B; margin:0; line-height:1.5; }
+.meter-previous strong { color:#30343B; font-size:14px; margin-left:4px; }
+.meter-previous small { display:block; }
+.meter-service { min-width:0; }
+.meter-electric { grid-column:3; }
+.meter-water { grid-column:4; }
+.meter-service .form-label { font-size:12px; color:#6E7680; margin:0 0 3px; }
+.meter-page .form-control { font-size:14px; border-color:#D5D7DB; border-radius:6px; padding:4px 8px; }
+.meter-service [data-meter-error] { font-size:12px; margin-top:4px; }
+.meter-service [data-meter-error]:empty { display:none !important; }
+.meter-saved-reading { display:none; background:#F5F5F6; border-radius:6px; padding:6px 8px; }
+.meter-saved-reading small { display:none; }
+.meter-saved-reading strong { font-size:14px; }
+.is-viewing .meter-saved-reading { display:block; }
+.is-viewing .meter-service :is(input,.form-label,[data-meter-error]) { display:none !important; }
+.meter-consumption { grid-column:5; display:flex; flex-direction:column; gap:3px; color:#397D58; font-size:12px; min-width:0; }
+.meter-consumption i { font-style:normal; font-size:16px; }
+.meter-cell-label { display:none; }
+.meter-unsaved-usage { color:#8A9199; }
+.meter-row-status { grid-column:6; min-width:0; }
+.meter-status-badge { display:inline-block; border-radius:6px; padding:5px 7px; font-size:12px; font-weight:600; }
+.meter-status-badge.is-complete { background:#E7F4EB; color:#2E754A; }
+.meter-status-badge.is-complete::before { content:'✓ '; }
+.meter-status-badge.is-pending { background:#FCF3DF; color:#967138; }
+.meter-status-badge.is-pending::before { content:'◷ '; }
+.meter-status-badge.is-warning { background:#FFF0D2; color:#95671F; }
+.meter-row-actions { grid-column:7; }
+.meter-page .meter-save, .meter-page .meter-confirm { background:var(--meter-ink); border:1px solid var(--meter-ink); color:#fff; border-radius:6px; }
+.meter-page .meter-save { width:100%; padding:4px 6px; font-size:13px; }
+.meter-page .meter-edit { width:100%; border:1px solid #92979F; background:#fff; color:var(--meter-ink); border-radius:6px; padding:4px 6px; font-size:13px; white-space:nowrap; }
+.meter-edit, .meter-save-mobile { display:none; }
+.is-viewing .meter-edit { display:block; }
+.is-viewing .meter-save { display:none; }
+.meter-warning-summary, .meter-room-error { grid-column:2 / -1; margin:0; }
+.meter-warning-summary { display:flex; align-items:center; gap:8px; border-radius:6px; background:#FFF5DF; color:#89612B; padding:4px 10px; font-size:12px; }
+.meter-warning-open { margin-left:auto; border:0; color:#655031; background:transparent; text-decoration:underline; font-size:12px !important; padding:4px; }
+.meter-no-services { grid-column:2 / -1; color:#777D85; font-size:12px; }
+.meter-no-services>div { display:inline-flex; gap:4px; margin-right:10px; }
+.meter-list-foot { color:#7B818A; font-size:12px; margin:12px 0 0; }
+.meter-side-panel { display:grid; gap:14px; }
+.meter-side-card h2 { font-size:16px; font-weight:700; margin:0 0 10px; }
+.meter-side-card h3 { font-size:12px; margin:14px 0 10px; }
+.meter-progress-number { display:flex; align-items:baseline; justify-content:space-between; gap:6px; margin-bottom:10px; }
+.meter-progress-number strong { font-size:22px; }
+.meter-progress-number span { font-size:12px; color:#777D85; white-space:nowrap; }
+.meter-page progress { appearance:none; width:100%; height:10px; border:0; border-radius:20px; overflow:hidden; background:#E9EAEC; accent-color:var(--meter-gold); }
+.meter-page progress::-webkit-progress-bar { background:#E9EAEC; border-radius:20px; }
+.meter-page progress::-webkit-progress-value { background:var(--meter-gold); border-radius:20px; }
+.meter-page progress::-moz-progress-bar { background:var(--meter-gold); border-radius:20px; }
+.meter-progress { background:#FCF5E7; color:#8A6937; font-size:12px; border-radius:6px; margin:10px 0 0; padding:10px; }
+.meter-floor-progress { display:grid; grid-template-columns:1fr auto 40%; align-items:center; gap:10px; margin:8px 0; font-size:12px; }
+.meter-side-card>p:not(.meter-progress) { color:#777D85; font-size:12px; }
+.meter-mobile-progress, .meter-mobile-actions { display:none; }
+.meter-page :focus-visible { outline:3px solid var(--meter-gold); outline-offset:3px; }
+.meter-page [data-meter-room], .meter-page [data-room-error], .meter-page [data-open-warning], .meter-page [data-meter-input] { scroll-margin-block:100px; }
+.meter-confirm-dialog { grid-column:1 / -1; width:min(620px,calc(100vw - 32px)); max-height:calc(100dvh - 48px); overflow-y:auto; padding:24px; border:0; border-radius:16px; color:#25282D; background:#fff; box-shadow:0 20px 70px #0003; }
+.meter-confirm-dialog:not([open]):not([data-sheet-ready]) { display:block; position:static; width:100%; box-shadow:none; border:1px solid var(--meter-line); }
+.meter-confirm-dialog::backdrop { background:#25282D80; }
+body:has(.meter-confirm-dialog[open]) { overflow:hidden; }
+.meter-sheet-heading { display:flex; align-items:flex-start; gap:12px; margin-bottom:18px; }
+.meter-sheet-heading>div { min-width:0; }
+.meter-sheet-heading h2 { font-size:23px; font-weight:750; margin:0 0 4px; }
+.meter-sheet-heading p { font-size:13px; color:#747A82; margin:0; }
+.meter-warning-icon { display:grid; place-items:center; flex:0 0 40px; height:40px; font-size:28px; font-weight:800; border-radius:8px; color:#A36D21; background:#FFF3D8; }
+.meter-dialog-close { flex:0 0 48px; min-height:48px !important; margin-left:auto; border:0; border-radius:50%; background:#F3F3F2; font-size:24px !important; }
+.meter-confirm-dialog .alert { border:0; background:transparent; color:inherit; padding:0; margin:0; }
+.meter-confirm-dialog .alert>strong { font-size:12px; color:#8C6832; }
+.meter-warning-service { background:#FCF6EA; border-radius:9px; padding:14px; margin:12px 0; }
+.meter-warning-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:12px 0; }
+.meter-warning-metrics dt { font-size:12px; font-weight:400; color:#77705F; }
+.meter-warning-metrics dd { font-size:18px; font-weight:750; margin:5px 0 0; }
+.meter-warning-service p { font-size:12px; color:#8C754F; margin:8px 0 0; }
+.meter-confirm-dialog .alert>p { font-size:13px; line-height:1.8; margin:16px 0; }
+.meter-dialog-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.meter-dialog-actions button { min-height:48px; white-space:normal; }
+.meter-back { background:#fff; color:var(--meter-ink); border:1px solid var(--meter-ink); }
+@media (min-width:768px) and (max-width:1350px) {
+ .meter-workspace { grid-template-columns:minmax(0,1fr); }
+ .meter-side-panel { grid-template-columns:1fr 1fr; }
+ .meter-heading { flex-wrap:wrap; }
 }
-@media (prefers-reduced-motion: reduce) {
-    .meter-page { scroll-behavior: auto; }
+@media (max-width:767px) {
+ body:has(.meter-page) .dashboard-main, body:has(.meter-page) .app-content { width:100%; max-width:100%; min-width:0; box-sizing:border-box; }
+ body:has(.meter-page) .dashboard-header { gap:8px; min-width:0; }
+ body:has(.meter-page) .dashboard-header .page-title { flex:1; min-width:0; }
+ body:has(.meter-page) .latte-header-user { min-width:0; flex:0 1 96px; }
+ body:has(.meter-page) .latte-header-user .sidebar-account { min-width:0; }
+ body:has(.meter-page) .dashboard-header :is(.icon-button,.header-notification-bell,.account-trigger) { min-height:48px; }
+ body:has(.meter-page) .dashboard-header :is(.icon-button,.header-notification-bell) { min-width:48px; flex-shrink:0; }
+ .meter-page { padding-bottom:90px; width:100%; max-width:100%; }
+ .meter-heading { display:block; margin-bottom:14px; }
+ .meter-heading h1 { font-size:20px; margin-bottom:12px; }
+ .meter-heading p { display:none; }
+ .meter-heading-controls { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; }
+ .meter-building { max-width:none; }
+ .meter-building .form-select { width:100%; }
+ .meter-period { min-height:48px; }
+ .meter-page button, .meter-page .form-select, .meter-page .form-control, .meter-search input { min-height:48px; }
+ .meter-page button { min-width:48px; }
+ .meter-page .form-control, .meter-search input { font-size:16px; }
+ .meter-stats, .meter-side-panel, .meter-column-head, .meter-list-heading, .meter-list-note, .meter-sort-note { display:none; }
+ .meter-workspace { display:block; }
+ .meter-list-panel { padding:0; background:transparent; border:0; }
+ .meter-mobile-progress { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; padding:12px; border-radius:9px; background:#fff; border:1px solid var(--meter-line); margin-bottom:14px; font-size:12px; }
+ .meter-mobile-progress>div, .meter-mobile-progress>p { min-width:0; }
+ .meter-progress-track { display:flex; align-items:center; gap:8px; margin-top:10px; }
+ .meter-progress-track progress { min-width:0; width:auto; flex:1; }
+ .meter-progress-track>span { white-space:nowrap; }
+ .meter-mobile-progress>p { display:flex; flex-wrap:wrap; gap:4px 8px; background:#FCF5E7; color:#8A6937; padding:8px; margin:0; border-radius:6px; }
+ .meter-filter-tabs { gap:5px; }
+ .meter-filter-tabs button { font-size:12px; padding:6px 10px; }
+ .meter-filter-tabs [data-state-filter=warning] { display:none; }
+ .meter-list-tools { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; }
+ .meter-search, .meter-floor-filter, .meter-floor-filter select { width:100%; max-width:100%; min-width:0; }
+ .meter-floor-filter select { font-size:13px; }
+ .meter-floor { margin-top:12px; width:100%; min-width:0; }
+ .meter-floor h3 { background:transparent; padding:0 2px; flex-wrap:wrap; font-size:13px; }
+ .meter-floor h3 button { flex:0 0 auto; max-width:100%; margin-left:auto; font-size:12px; }
+ .meter-floor-rooms { display:grid; gap:10px; min-width:0; }
+ .meter-room { display:block; width:100%; min-width:0; padding:12px; border:1px solid var(--meter-line); border-radius:10px; background:#fff; }
+ .meter-room-heading { margin-bottom:10px; }
+ .meter-room-heading h4 { font-size:16px; }
+ .meter-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; align-items:start; }
+ .meter-references { grid-column:1 / -1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+ .meter-previous { font-size:12px; }
+ .meter-previous strong { display:block; font-size:15px; margin:2px 0 0; }
+ .meter-electric { grid-column:1; }
+ .meter-water { grid-column:2; }
+ .meter-service .form-label { font-size:12px; margin-bottom:4px; }
+ .meter-saved-reading { padding:8px; }
+ .meter-saved-reading small { display:block; font-size:12px; color:#747B85; }
+ .meter-saved-reading strong { font-size:16px; }
+ .meter-consumption { grid-column:1 / -1; flex-direction:row; flex-wrap:wrap; background:#EAF5EC; padding:7px 9px; border-radius:5px; gap:6px 12px; font-size:12px; }
+ .meter-consumption:not(:has(strong)) { display:none; }
+ .meter-row-status { grid-column:1; grid-row:1; align-self:center; }
+ .meter-status-badge { font-size:12px; border-radius:18px; }
+ .meter-row-actions { grid-column:1 / -1; }
+ .is-viewing .meter-row-actions { grid-column:2; grid-row:1; justify-self:end; }
+ .meter-page .meter-edit { width:64px; }
+ .meter-page .meter-save { width:100%; font-size:13px; }
+ .meter-save-desktop { display:none; }
+ .meter-save-mobile { display:inline; }
+ .meter-warning-summary, .meter-room-error { grid-column:1 / -1; }
+ .meter-warning-summary { flex-wrap:wrap; font-size:12px; padding:8px; }
+ .meter-warning-open { width:100%; text-align:left; margin:0; font-size:12px !important; }
+ .meter-no-services { font-size:12px; }
+ .meter-mobile-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; position:fixed; bottom:12px; left:12px; right:12px; z-index:1025; padding:6px 8px; background:#fff; border:1px solid var(--meter-line); box-shadow:0 4px 24px #30343B14; border-radius:10px; font-size:12px; }
+ .meter-mobile-actions button { max-width:100%; border:0; background:var(--meter-ink); color:#fff; padding:8px 12px; border-radius:6px; }
+ .meter-confirm-dialog { inset:auto 0 0; margin:0; width:100%; max-width:none; max-height:calc(100dvh - 24px); padding:20px 16px calc(20px + env(safe-area-inset-bottom)); border-radius:18px 18px 0 0; }
+ .meter-confirm-dialog::before { content:''; display:block; width:42px; height:5px; border-radius:9px; background:#CDD0D5; margin:-8px auto 18px; }
+ .meter-sheet-heading { gap:10px; }
+ .meter-sheet-heading h2 { font-size:20px; }
+ .meter-warning-icon { flex-basis:32px; height:32px; font-size:25px; }
+ .meter-warning-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .meter-dialog-actions { grid-template-columns:1fr; }
 }

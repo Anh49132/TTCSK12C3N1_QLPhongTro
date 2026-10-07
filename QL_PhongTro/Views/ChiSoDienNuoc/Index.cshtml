@@ -1,68 +1,98 @@
 @model QL_PhongTro.ViewModels.ChiSoDienNuocViewModel
 @using System.Globalization
-@{ ViewData["Title"] = "Chốt chỉ số điện nước"; }
+@{
+    ViewData["Title"] = "Chốt chỉ số điện nước";
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    var warningRooms = Model.Input?.CanhBaos.Count > 0 ? 1 : 0;
+    var percent = Model.TongPhongCanChot == 0 ? 0 : (int)Math.Round(100m * Model.SoPhongDaChot / Model.TongPhongCanChot);
+}
 <section aria-labelledby="meter-title" class="meter-page">
-    <header class="meter-heading"><h1 id="meter-title" class="h3">Chốt chỉ số điện nước</h1>
-    <p>Kỳ hiện tại: <strong>@Model.DauKy.ToString("MM/yyyy")</strong></p></header>
-    @if(TempData["MeterSuccess"] is {} success){<div class="alert alert-success">@success</div>}
-    @if (Model.ToaNhas.Count == 0)
-    {
-        <div class="alert alert-info">Bạn chưa được phân công tòa nhà đang hoạt động.</div>
-    }
-    else
-    {
-        <form method="get" asp-controller="ChiSoDienNuoc" asp-action="Index" class="meter-building mb-4">
-            <label for="toaNhaId" class="form-label">Tòa nhà</label>
-            <div class="d-flex gap-2 flex-wrap">
+    <header class="meter-heading">
+        <div><h1 id="meter-title">Chốt chỉ số điện nước</h1><p>Nhập chỉ số cuối kỳ cho các phòng đang thuê.</p></div>
+        <div class="meter-heading-controls">
+        @if (Model.ToaNhas.Count > 0)
+        {
+            <form method="get" asp-controller="ChiSoDienNuoc" asp-action="Index" class="meter-building">
+                <label for="toaNhaId" class="visually-hidden">Tòa nhà</label>
+                <span class="meter-control-icon" aria-hidden="true">▥</span>
                 <select id="toaNhaId" name="toaNhaId" class="form-select">
                     @foreach (var building in Model.ToaNhas)
-                    {
-                        <option value="@building.Id" selected="@(building.Id == Model.ToaNhaId)">@building.Ten</option>
-                    }
+                    { <option value="@building.Id" selected="@(building.Id == Model.ToaNhaId)">@building.Ten</option> }
                 </select>
-                <button type="submit" class="btn btn-primary">Xem danh sách</button>
+                <button type="submit" class="btn meter-building-submit" aria-label="Xem danh sách tòa đã chọn">Xem</button>
+            </form>
+        }
+        <div class="meter-period"><span aria-hidden="true">▦</span> Kỳ tháng <strong>@Model.DauKy.ToString("MM/yyyy")</strong></div>
+        </div>
+    </header>
+    @if(TempData["MeterSuccess"] is {} success){<div class="alert alert-success" role="status">@success</div>}
+    @if (Model.ToaNhas.Count == 0)
+    { <div class="alert alert-info">Bạn chưa được phân công tòa nhà đang hoạt động.</div> }
+    else
+    {
+        <div class="meter-stats">
+            <div class="meter-stat"><span class="meter-stat-icon" aria-hidden="true">▥</span><div><span>Phòng đang thuê</span><strong>@Model.Phongs.Count.ToString("00")</strong><small>Trong danh sách kỳ này</small></div></div>
+            <div class="meter-stat"><span class="meter-stat-icon is-green" aria-hidden="true">✓</span><div><span>Đã chốt</span><strong>@Model.SoPhongDaChot.ToString("00")</strong><small>Đã nhập và lưu chỉ số</small></div></div>
+            <div class="meter-stat"><span class="meter-stat-icon is-gold" aria-hidden="true">◷</span><div><span>Chưa chốt</span><strong>@Model.SoPhongConLai.ToString("00")</strong><small>Phòng còn cần ghi chỉ số</small></div></div>
+            <div class="meter-stat"><span class="meter-stat-icon is-gold" aria-hidden="true">!</span><div><span>Cần xác nhận</span><strong>@warningRooms.ToString("00")</strong><small>Cảnh báo trong lần nhập này</small></div></div>
+        </div>
+        <div class="meter-mobile-progress" role="status">
+            <div>@if(Model.TongPhongCanChot>0){<strong>Đã chốt @Model.SoPhongDaChot / @Model.TongPhongCanChot phòng</strong>}else{<strong>Không có phòng cần ghi chỉ số trong kỳ này.</strong>}<div class="meter-progress-track"><progress value="@Model.SoPhongDaChot" max="@Math.Max(1,Model.TongPhongCanChot)" aria-label="Tiến độ chốt chỉ số"></progress><span>@percent%</span></div></div>
+            <p><strong>Còn @Model.SoPhongConLai phòng</strong><span>chưa chốt</span></p>
+        </div>
+        <div class="meter-workspace">
+        <div class="meter-list-panel">
+            <div class="meter-list-heading"><h2>Danh sách phòng</h2><span>@Model.Phongs.Count phòng</span></div>
+            <div class="meter-filter-tabs" role="group" aria-label="Lọc trạng thái phòng" data-meter-filters hidden>
+                <button type="button" class="is-active" data-state-filter="all" aria-pressed="true">Tất cả (@Model.Phongs.Count)</button>
+                <button type="button" data-state-filter="pending" aria-pressed="false">Chưa chốt (@Model.SoPhongConLai)</button>
+                <button type="button" data-state-filter="complete" aria-pressed="false">Đã chốt (@Model.SoPhongDaChot)</button>
+                <button type="button" data-state-filter="warning" aria-pressed="false">Cần xác nhận (@warningRooms)</button>
             </div>
-        </form>
-        @if (Model.TongPhongCanChot == 0)
-        {
-            <p class="meter-progress" data-meter-progress role="status">Không có phòng cần ghi chỉ số trong kỳ này.</p>
-        }
-        else
-        {
-            <p class="meter-progress" data-meter-progress role="status">Đã chốt: @Model.SoPhongDaChot/@Model.TongPhongCanChot · Còn lại: @Model.SoPhongConLai phòng</p>
-        }
-        @if (Model.Phongs.Count == 0)
-        {
-            <div class="alert alert-info">Không có phòng đang thuê có hợp đồng hiệu lực trong kỳ này.</div>
-        }
-        @foreach (var floor in Model.Phongs.GroupBy(x => x.Tang))
-        {
-            <h2 class="h5">Tầng @floor.Key</h2>
-            <div class="meter-floor mb-4">
-                <table class="table align-middle meter-table">
-                    <caption class="visually-hidden">Chỉ số tham chiếu các phòng tầng @floor.Key</caption>
-                    <thead><tr><th scope="col">Mã phòng</th><th scope="col">Tầng</th><th scope="col">Điện kỳ trước</th><th scope="col">Nước kỳ trước</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead>
-                    <tbody>
+            <div class="meter-list-tools" data-meter-filters hidden>
+                <label class="meter-search"><span aria-hidden="true">⌕</span><input type="search" data-room-search aria-label="Tìm mã phòng" placeholder="Tìm mã phòng…" /></label>
+                <label class="meter-floor-filter"><span class="visually-hidden">Lọc tầng</span><select data-floor-filter class="form-select"><option value="all">Tất cả tầng</option>@foreach(var floor in Model.Phongs.Select(x=>x.Tang).Distinct()){<option value="@floor">Tầng @floor</option>}</select></label>
+                <span class="meter-sort-note">↕ Theo tầng và mã phòng</span>
+            </div>
+            <p class="meter-list-note">ⓘ Mỗi phòng được lưu riêng, phòng chưa nhập vẫn giữ trạng thái Chưa chốt.</p>
+            <p class="meter-empty-filter" data-empty-filter hidden role="status">Không có phòng phù hợp với bộ lọc.</p>
+            @if (Model.Phongs.Count == 0)
+            { <div class="alert alert-info">Không có phòng đang thuê có hợp đồng hiệu lực trong kỳ này.</div> }
+            <div class="meter-column-head" aria-hidden="true"><span>Phòng</span><span>Kỳ trước</span><span>Điện mới</span><span>Nước mới</span><span>Tiêu thụ</span><span>Trạng thái</span><span>Thao tác</span></div>
+            @foreach (var floor in Model.Phongs.GroupBy(x => x.Tang))
+            {
+                <section class="meter-floor" data-floor="@floor.Key">
+                    <h3><span>Tầng @floor.Key</span><button type="button" data-floor-toggle aria-expanded="true" aria-controls="meter-floor-@floor.Key">@floor.Count() phòng <span aria-hidden="true">⌃</span></button></h3>
+                    <div id="meter-floor-@floor.Key" class="meter-floor-rooms">
                     @foreach (var room in floor)
                     {
-                        <tr id="meter-room-@room.PhongId" data-meter-room tabindex="-1" data-meter-active="@(Model.Input?.PhongId == room.PhongId ? "true" : "false")"><th scope="row"><span class="meter-room-label">Phòng</span> @room.MaPhong</th><td class="meter-floor-number">@room.Tang</td>
-                            @foreach (var reading in new[] { room.Dien, room.Nuoc })
+                        var hasWarning = Model.Input?.PhongId == room.PhongId && Model.Input.CanhBaos.Count > 0;
+                        <article id="meter-room-@room.PhongId" data-meter-room tabindex="-1" data-meter-active="@(Model.Input?.PhongId == room.PhongId ? "true" : "false")" data-room-code="@room.MaPhong" data-room-state="@(room.DichVu.Count==0 ? "none" : room.DaChot ? "complete" : "pending")" data-room-warning="@(hasWarning?"true":"false")" class="meter-room @(room.DaChot ? "is-saved" : "")">
+                            <header class="meter-room-heading"><h4>@room.MaPhong</h4><span class="meter-occupancy">Đang thuê</span></header>
+                            @if(room.DichVu.Count==0)
                             {
-                                <td class="meter-reference-column">@if (reading.GiaTri is { } value)
-                                    { <span>@value.ToString("0.###", CultureInfo.GetCultureInfo("vi-VN"))</span>
-                                      @if (reading.LaBanGiao) { <small class="d-block text-muted">Chỉ số bàn giao</small> } }
-                                    else { <span class="text-muted">Chưa có dữ liệu</span> }</td>
+                                <div class="meter-no-services"><p>Không có dịch vụ theo chỉ số cần nhập.</p>
+                                    @foreach(var reading in new[]{room.Dien,room.Nuoc})
+                                    { <div>@if(reading.GiaTri is {} value){<span>@value.ToString("0.###",vi)</span>@if(reading.LaBanGiao){<small>Chỉ số bàn giao</small>}}else{<span>Chưa có dữ liệu</span>}</div> }
+                                </div>
                             }
-                            <td class="meter-status"><span class="meter-status-badge @(room.DaChot ? "is-complete" : "is-pending")">@(room.DaChot ? "Đã chốt" : "Chưa chốt")</span></td>
-                            <td class="meter-action">
-                            @if(room.DichVu.Count==0){<span class="text-muted">Không có dịch vụ theo chỉ số cần nhập.</span>}
-                            else {
+                            else
+                            {
                                 <form asp-action="Save" method="post" class="meter-form" data-meter-form>
                                     <input type="hidden" name="ToaNhaId" value="@Model.ToaNhaId" />
                                     <input type="hidden" name="PhongId" value="@room.PhongId" />
                                     <input type="hidden" name="HopDongId" value="@room.HopDongId" />
                                     <input type="hidden" name="Ky" value="@Model.DauKy.ToString("yyyy-MM-dd")" />
                                     <input type="hidden" name="PhienBanPhong" value="@(Model.Input?.PhongId==room.PhongId?Model.Input.PhienBanPhong:room.PhienBanPhong)" />
+                                    <div class="meter-references">
+                                        @foreach(var service in room.DichVu){
+                                            var id=$"meter-{room.PhongId}-{service.Ma}";
+                                            <p id="@(id+"-previous")" class="meter-previous"><span>@(service.Ma=="DIEN"?"Điện":"Nước") kỳ trước</span>
+                                            @if(service.Truoc.GiaTri is {} previous){<strong>@previous.ToString("0.###",vi)</strong>@if(service.Truoc.LaBanGiao){<small>Bàn giao</small>}}
+                                            else{<strong>Chưa có dữ liệu</strong>}
+                                            </p>
+                                        }
+                                    </div>
                                     @foreach(var service in room.DichVu){
                                         var field=service.Ma=="DIEN"?"DienMoi":"NuocMoi";
                                         var label=service.Ma=="DIEN"?"Điện":"Nước";
@@ -73,12 +103,9 @@
                                         if (service.Truoc.GiaTri == null && error.Length == 0) error = "Chưa có dữ liệu tham chiếu. Không thể chốt chỉ số.";
                                         var version=submitted?(service.Ma=="DIEN"?Model.Input!.DienPhienBan:Model.Input!.NuocPhienBan):service.PhienBan;
                                         <input type="hidden" name="@(service.Ma=="DIEN"?"DienPhienBan":"NuocPhienBan")" value="@version" />
-                                        <div class="meter-service">
+                                        <div class="meter-service @(service.Ma=="DIEN"?"meter-electric":"meter-water")">
                                         <label for="@id" class="form-label">@label mới</label>
-                                        <p id="@(id+"-previous")" class="meter-previous">@label kỳ trước:
-                                            @if (service.Truoc.GiaTri is { } previous) { <strong>@previous.ToString("0.###", CultureInfo.GetCultureInfo("vi-VN"))</strong> @if(service.Truoc.LaBanGiao) { <span>· Bàn giao</span> } }
-                                            else { <span>Chưa có dữ liệu</span> }
-                                        </p>
+                                        <span class="meter-saved-reading"><small>@label đã chốt</small><strong>@service.Moi?.ToString("0.###",vi)</strong></span>
                                         <input id="@id" name="@field" type="number" inputmode="decimal" step="0.001" min="0" max="99999999999.999" required
                                                value="@value?.ToString(CultureInfo.InvariantCulture)" class="form-control @(error.Length>0?"is-invalid":"")"
                                                data-previous="@service.Truoc.GiaTri?.ToString(CultureInfo.InvariantCulture)" data-meter-input
@@ -86,39 +113,72 @@
                                         <span id="@(id+"-error")" class="text-danger d-block" data-meter-error aria-live="polite">@error</span>
                                         </div>
                                     }
+                                    <div class="meter-consumption"><span class="meter-cell-label">Tiêu thụ</span>
+                                        @foreach(var service in room.DichVu.Where(x=>x.Moi.HasValue && x.Truoc.GiaTri.HasValue)){
+                                            <span><i aria-hidden="true">@(service.Ma=="DIEN"?"ϟ":"≈")</i> @(service.Ma=="DIEN"?"Điện":"Nước"): <strong>@((service.Moi!.Value-service.Truoc.GiaTri!.Value).ToString("0.###",vi))</strong></span>
+                                        }
+                                        @if(!room.DaChot){<span class="meter-unsaved-usage" aria-label="Chưa có mức tiêu thụ đã chốt">—</span>}
+                                    </div>
+                                    <div class="meter-row-status"><span class="meter-status-badge @(hasWarning?"is-warning":room.DaChot?"is-complete":"is-pending")">@(hasWarning?"Cần xác nhận":room.DaChot?"Đã chốt":"Chưa chốt")</span></div>
+                                    <div class="meter-row-actions">
+                                        @if(room.DaChot){<button type="button" class="meter-edit" data-edit-room hidden>Sửa</button>}
+                                        <button class="btn btn-primary meter-save" type="submit" aria-label="Lưu phòng @room.MaPhong" disabled="@(room.DichVu.Any(x=>x.Truoc.GiaTri==null || x.DaKhoa))"><span class="meter-save-desktop">Lưu</span><span class="meter-save-mobile">Lưu phòng @room.MaPhong</span></button>
+                                    </div>
                                     @if(Model.Input?.PhongId==room.PhongId && Model.Loi.TryGetValue("Phong",out var roomErrors)){<p class="text-danger meter-room-error" data-room-error tabindex="-1" role="alert">@string.Join(" ",roomErrors)</p>}
                                     @if (Model.Input?.PhongId == room.PhongId && Model.Input.CanhBaos.Count > 0)
                                     {
+                                        <div class="meter-warning-summary"><span aria-hidden="true">⚠</span> Mức tiêu thụ cần kiểm tra
+                                            <button type="button" class="meter-warning-open" data-open-warning>Kiểm tra &amp; xác nhận →</button>
+                                        </div>
+                                        <dialog class="meter-confirm-dialog" data-warning-dialog aria-labelledby="warning-title-@room.PhongId">
+                                        <div class="meter-sheet-heading"><span class="meter-warning-icon" aria-hidden="true">!</span><div><h2 id="warning-title-@room.PhongId">Xác nhận chỉ số bất thường</h2><p>Phòng @room.MaPhong · Tầng @room.Tang</p></div><button type="button" class="meter-dialog-close" data-close-warning aria-label="Đóng xác nhận">×</button></div>
                                         <div class="alert alert-warning" role="alert" tabindex="-1" data-usage-warning>
                                             <strong>Mức tiêu thụ bất thường — phòng @room.MaPhong</strong>
                                             @foreach (var warning in Model.Input.CanhBaos)
                                             {
-                                                <p>
+                                                <div class="meter-warning-service">
                                                     <strong>@(warning.Ma == "DIEN" ? "Điện" : "Nước"):</strong>
-                                                    Chỉ số trước @warning.ChiSoTruoc.ToString("0.###", CultureInfo.GetCultureInfo("vi-VN")),
-                                                    chỉ số mới @warning.ChiSoMoi.ToString("0.###", CultureInfo.GetCultureInfo("vi-VN")).
-                                                    Tiêu thụ kỳ này @warning.TieuThu.ToString("0.###", CultureInfo.GetCultureInfo("vi-VN"));
-                                                    kỳ lịch sử gần nhất @warning.TieuThuKyTruoc.ToString("0.###", CultureInfo.GetCultureInfo("vi-VN"));
-                                                    trung bình 3 kỳ @warning.TrungBinh.ToString("0.######", CultureInfo.GetCultureInfo("vi-VN"));
-                                                    ngưỡng 200% @warning.Nguong.ToString("0.######", CultureInfo.GetCultureInfo("vi-VN")).
-                                                    @if (warning.TrungBinh == 0) { <span>Ba kỳ lịch sử không có tiêu thụ; kỳ này có tiêu thụ dương.</span> }
-                                                </p>
+                                                    <dl class="meter-warning-metrics">
+                                                        <div><dt>Chỉ số kỳ trước</dt><dd>@warning.ChiSoTruoc.ToString("0.###",vi)</dd></div>
+                                                        <div><dt>Chỉ số kỳ này</dt><dd>@warning.ChiSoMoi.ToString("0.###",vi)</dd></div>
+                                                        <div><dt>Tiêu thụ kỳ này</dt><dd>@warning.TieuThu.ToString("0.###",vi)</dd></div>
+                                                        <div><dt>Trung bình 3 kỳ</dt><dd>@warning.TrungBinh.ToString("0.######",vi)</dd></div>
+                                                    </dl>
+                                                    <p>Kỳ lịch sử gần nhất: @warning.TieuThuKyTruoc.ToString("0.###",vi) · Ngưỡng 200%: @warning.Nguong.ToString("0.######",vi).</p>
+                                                    @if (warning.TrungBinh == 0) { <p>Ba kỳ lịch sử không có tiêu thụ; kỳ này có tiêu thụ dương.</p> }
+                                                </div>
                                             }
                                             <p>Chưa lưu chỉ số. Bạn có thể sửa ô nhập rồi bấm Lưu phòng để kiểm tra lại, hoặc xác nhận các số hiện tại.</p>
                                             <input type="hidden" name="MaXacNhan" value="@Model.Input.MaXacNhan" />
-                                            <button type="submit" class="btn btn-warning meter-confirm" name="XacNhanBatThuong" value="true">Xác nhận vẫn muốn lưu</button>
+                                            <div class="meter-dialog-actions"><button type="button" class="btn meter-back" data-close-warning>Quay lại kiểm tra</button>
+                                            <button type="submit" class="btn btn-warning meter-confirm" name="XacNhanBatThuong" value="true">Xác nhận vẫn muốn lưu</button></div>
                                         </div>
+                                        </dialog>
                                     }
-                                    <button class="btn btn-primary mt-2 meter-save" type="submit" disabled="@(room.DichVu.Any(x=>x.Truoc.GiaTri==null || x.DaKhoa))">Lưu phòng @room.MaPhong</button>
                                 </form>
                             }
-                            </td>
-                        </tr>
+                        </article>
                     }
-                    </tbody>
-                </table>
-            </div>
-        }
+                    </div>
+                </section>
+            }
+            <p class="meter-list-foot">@Model.Phongs.Count phòng · Sắp theo tầng và mã phòng</p>
+        </div>
+        <aside class="meter-side-panel" aria-label="Tiến độ chốt chỉ số">
+            <section class="meter-side-card"><h2>Tiến độ kỳ này</h2><div class="meter-progress-number"><strong>@Model.SoPhongDaChot / @Model.TongPhongCanChot phòng</strong><span>@percent%</span></div><progress value="@Model.SoPhongDaChot" max="@Math.Max(1,Model.TongPhongCanChot)" aria-label="Tiến độ kỳ này"></progress>
+                @if(Model.TongPhongCanChot==0){<p class="meter-progress" data-meter-progress role="status">Không có phòng cần ghi chỉ số trong kỳ này.</p>}
+                else{<p class="meter-progress" data-meter-progress role="status">Đã chốt: @Model.SoPhongDaChot/@Model.TongPhongCanChot · Còn lại: @Model.SoPhongConLai phòng</p>}
+                <h3>Tiến độ theo tầng</h3>
+                @foreach(var floor in Model.Phongs.GroupBy(x=>x.Tang)){
+                    var total=floor.Count(x=>x.DichVu.Count>0);
+                    var done=floor.Count(x=>x.DichVu.Count>0 && x.DaChot);
+                    <div class="meter-floor-progress"><span>Tầng @floor.Key</span><strong>@done/@total</strong><progress value="@done" max="@Math.Max(1,total)" aria-label="Tiến độ tầng @floor.Key"></progress></div>
+                }
+            </section>
+            <section class="meter-side-card"><h2>Khi đi ghi chỉ số</h2><p>Đối chiếu chỉ số kỳ trước ngay cạnh ô nhập.</p><p>Kiểm tra lại đồng hồ nếu có cảnh báo bất thường.</p><p>Lưu từng phòng trước khi chuyển sang phòng tiếp theo.</p></section>
+        </aside>
+        </div>
+        <div class="meter-mobile-actions" data-meter-filters hidden><strong>Còn @Model.SoPhongConLai phòng</strong><button type="button" data-next-room>Phòng tiếp theo →</button></div>
     }
 </section>
 @section Styles {<link rel="stylesheet" href="~/css/meter-readings.css" asp-append-version="true" />}
