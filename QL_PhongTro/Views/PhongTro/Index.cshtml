@@ -132,7 +132,11 @@ else
                             <td>@roomStt</td>
                             <td>@(Model.ToaNhaOptions.FirstOrDefault(x => x.Value == room.ToaNhaId.ToString())?.Text ?? "—")</td>
                             <th scope="row">@room.MaPhong
-                                @if (User.IsInRole("CHU_NHA") || User.IsInRole("ADMIN")) { <a class="d-block small" asp-controller="DichVuPhong" asp-action="Index" asp-route-phongId="@room.Id">Dịch vụ</a> }
+                                @if (User.IsInRole("CHU_NHA") || User.IsInRole("ADMIN"))
+                                {
+                                    <a class="d-block small" asp-controller="DichVuPhong" asp-action="Index" asp-route-phongId="@room.Id">Dịch vụ</a>
+                                    <a class="d-block small" asp-action="NhatKyPhong" asp-route-phongId="@room.Id">Nhật ký</a>
+                                }
                             </th>
                             <td>@room.Tang</td>
                             <td>@room.DienTich.ToString("N2", CultureInfo.GetCultureInfo("vi-VN")) m²</td>
