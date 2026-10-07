@@ -42,4 +42,7 @@ public class HopDongDetailsViewModel
     public int? ChuyenDiNguoiId { get; set; }
     public NguoiOGhepInput Input { get; set; } = new();
     public bool ChoThem { get; set; }
+    public string TrangThaiPhong { get; set; } = "";
+    public string TrangThaiTin { get; set; } = "";
+    public bool ChoKichHoat { get; set; }
 }

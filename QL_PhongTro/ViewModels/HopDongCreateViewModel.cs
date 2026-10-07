@@ -28,6 +28,7 @@ public class HopDongCreateViewModel
     public static DateOnly TinhNgayKetThuc(DateOnly start, int months) => start.AddMonths(months).AddDays(-1);
     [BindNever] public List<YeuCauHopDong> YeuCaus { get; set; } = [];
     [BindNever] public YeuCauHopDong? DaChon { get; set; }
+    public string? Intent { get; set; }
 }
 
 public class YeuCauHopDong
