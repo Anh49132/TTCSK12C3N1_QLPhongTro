@@ -1,4 +1,4 @@
-@model QL_PhongTro.ViewModels.ChiTietToaNhaViewModel
+﻿@model QL_PhongTro.ViewModels.ChiTietToaNhaViewModel
 @using System.Globalization
 @inject QL_PhongTro.Authorization.PermissionService Permissions
 @{
@@ -9,8 +9,8 @@
     var finance = await Permissions.AllowsAsync("TAI_CHINH");
 }
 <div class="building-detail">
-<nav class="bd-breadcrumb"><a asp-action="ToaNha">Tòa nhà</a><span>›</span><strong>Chi tiết tòa nhà</strong></nav>
-<header class="bd-heading"><div><a asp-action="ToaNha" class="bd-back">← Danh sách tòa nhà</a><div class="bd-title"><h1>@b.TenToaNha</h1><span class="bd-status">@(b.DangHoatDong ? "Đang vận hành" : "Ngừng hoạt động")</span></div></div>
+
+<header class="bd-heading"><div><div class="bd-title"><h1>@b.TenToaNha</h1><span class="bd-status">@(b.DangHoatDong ? "Đang vận hành" : "Ngừng hoạt động")</span></div></div>
 @if (write) { <div class="bd-actions"><a asp-action="SuaToaNha" asp-route-id="@b.Id" class="bd-button">✎ Chỉnh sửa tòa nhà</a>@if (b.DangHoatDong) { <a asp-action="Create" asp-route-toaNhaId="@b.Id" class="bd-button bd-primary">＋ Thêm phòng</a> }</div> }
 </header>
 <section class="bd-overview"><img src="@(Model.Anh ?? Url.Content("~/room-placeholder.svg"))" alt="Ảnh phòng trong @b.TenToaNha" />
@@ -26,14 +26,29 @@ else { <article><small>Đã đặt cọc <span>▧</span></small><strong>@Model.
 </section>
 <div class="bd-attention"><span>ⓘ Cần chú ý</span><strong>@Model.Trong phòng trống · @Model.DatCoc phòng đã đặt cọc</strong><a asp-controller="YeuCau" asp-action="Index">Xem yêu cầu thuê →</a></div>
 <section class="bd-room-panel"><div class="bd-panel-heading"><h2>Danh sách phòng <small>@Model.TongPhong phòng</small></h2><div class="bd-actions">
-@if (write && b.DangHoatDong) { <a asp-controller="DichVu" asp-action="DienNuoc" asp-route-toaNhaId="@b.Id" class="bd-button">Cấu hình điện nước</a> }
-<a asp-action="Index" asp-route-toaNhaId="@b.Id" class="bd-button">Quản lý phòng ↗</a></div></div>
+@if (write && b.DangHoatDong) { <a asp-action="CreateBulk" asp-route-toaNhaId="@b.Id" class="bd-import-link"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg>Nhập danh sách</a> }
+<div class="bd-view-switch" aria-label="Kiểu hiển thị phòng"><button type="button" data-room-view="list" aria-label="Danh sách" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg></button><button type="button" data-room-view="grid" aria-label="Lưới" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><rect x="14" y="14" width="6" height="6"/></svg></button></div></div></div>
 <div class="bd-tabs"><a class="@(string.IsNullOrEmpty(Model.TrangThai) ? "active" : "")" asp-route-id="@b.Id">Tất cả phòng <small>@Model.TongPhong</small></a><a class="@(Model.TrangThai == "DANG_THUE" ? "active" : "")" asp-route-id="@b.Id" asp-route-trangThai="DANG_THUE">Đang thuê <small>@Model.DangThue</small></a><a class="@(Model.TrangThai == "TRONG" ? "active" : "")" asp-route-id="@b.Id" asp-route-trangThai="TRONG">Còn trống <small>@Model.Trong</small></a></div>
-<form method="get" class="bd-filters" asp-action="ChiTietToaNha" asp-route-id="@b.Id"><input name="tuKhoa" value="@Model.TuKhoa" placeholder="Tìm mã phòng..." aria-label="Tìm mã phòng" /><select name="tang" aria-label="Tầng"><option value="">Tất cả tầng</option>@foreach (var floor in Model.Tangs) { <option value="@floor" selected="@(Model.Tang == floor)">Tầng @floor</option> }</select><select name="trangThai" aria-label="Trạng thái"><option value="">Tất cả trạng thái</option>@foreach (var state in Enum.GetValues<QL_PhongTro.ViewModels.TrangThaiPhong>()) { <option value="@state" selected="@(Model.TrangThai == state.ToString())">@QL_PhongTro.Controllers.PhongTroController.StatusLabel(state)</option> }</select><button class="bd-button" type="submit">Lọc phòng</button><span class="bd-muted">↕ Theo tầng, mã phòng</span></form>
-<div class="bd-table-scroll"><table class="bd-table"><thead><tr><th>Phòng</th><th>Khách thuê</th><th>Trạng thái</th><th>Giá thuê</th><th>Hợp đồng</th><th></th></tr></thead><tbody>
-@foreach (var row in Model.Phongs) { var p = row.Phong; <tr><td><strong>@p.MaPhong</strong><small>Tầng @p.Tang · @(p.LoaiPhong ?? "Phòng trọ") · @p.DienTich.ToString("0.#", vn) m²</small></td><td>@(row.Khach ?? (p.TrangThai == "TRONG" ? "Chưa có khách thuê" : "Chưa ghi nhận"))</td><td><span class="bd-room-status @(p.TrangThai == "DANG_THUE" ? "rented" : p.TrangThai == "TRONG" ? "vacant" : "reserved")">@QL_PhongTro.Controllers.PhongTroController.StatusLabel(Enum.TryParse<QL_PhongTro.ViewModels.TrangThaiPhong>(p.TrangThai, out var roomState) ? roomState : QL_PhongTro.ViewModels.TrangThaiPhong.NGUNG_CHO_THUE)</span></td><td><strong>@p.GiaThue.ToString("N0", vn) đ</strong><small>/ tháng</small></td><td>@if (row.HopDongId.HasValue) { @if (User.IsInRole("CHU_NHA") && await Permissions.AllowsAsync("HOP_DONG")) { <a asp-controller="HopDong" asp-action="Details" asp-route-id="@row.HopDongId">@row.MaHopDong</a> } else { @row.MaHopDong }<small>Đến @row.HanHopDong?.ToString("dd/MM/yyyy")</small> } else { <span class="bd-muted">—</span> }</td><td>@if (write) { <a asp-action="Edit" asp-route-id="@p.Id" aria-label="Sửa phòng @p.MaPhong">Chỉnh sửa</a> }</td></tr> }
-@if (Model.Phongs.Count == 0) { <tr><td colspan="6" class="bd-empty">Không có phòng phù hợp với bộ lọc.</td></tr> }
+<form method="get" class="bd-filters" asp-action="ChiTietToaNha" asp-route-id="@b.Id">
+<input type="hidden" name="trangThai" value="@Model.TrangThai" />
+<label class="bd-room-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg><input name="tuKhoa" value="@Model.TuKhoa" placeholder="Tìm mã phòng, tên khách thuê..." aria-label="Tìm mã phòng, tên khách thuê" /></label>
+<select name="tang" aria-label="Tầng" onchange="this.form.requestSubmit()"><option value="">Tất cả tầng</option>@foreach (var floor in Model.Tangs) { <option value="@floor" selected="@(Model.Tang == floor)">Tầng @floor</option> }</select>
+<select name="loaiPhong" aria-label="Loại phòng" onchange="this.form.requestSubmit()"><option value="">Loại phòng</option>@foreach (var type in Model.LoaiPhongs) { <option value="@type" selected="@(Model.LoaiPhong == type)">@type</option> }</select>
+<select aria-label="Thanh toán chưa có dữ liệu" disabled><option>Thanh toán</option></select>
+<button type="submit" class="visually-hidden">Tìm phòng</button><span class="bd-sort-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16m-3-3 3 3 3-3M11 5h10M11 9h7M11 13h4"/></svg><span>Mã phòng tăng dần</span></span></form>
+<div class="bd-table-scroll"><table class="bd-table"><thead><tr><th>Phòng</th><th>Khách thuê</th><th>Trạng thái</th><th>Giá thuê</th>@if (finance) { <th>Thanh toán tháng</th> }<th>Hợp đồng</th><th></th></tr></thead><tbody>
+@foreach (var row in Model.Phongs) { var p = row.Phong; <tr><td><strong>@p.MaPhong</strong><small>Tầng @p.Tang · @(p.LoaiPhong ?? "Phòng trọ") · @p.DienTich.ToString("0.#", vn) m²</small></td><td>@(row.Khach ?? (p.TrangThai == "TRONG" ? "Chưa có khách thuê" : "Chưa ghi nhận"))</td><td><span class="bd-room-status @(p.TrangThai == "DANG_THUE" ? "rented" : p.TrangThai == "TRONG" ? "vacant" : "reserved")">@QL_PhongTro.Controllers.PhongTroController.StatusLabel(Enum.TryParse<QL_PhongTro.ViewModels.TrangThaiPhong>(p.TrangThai, out var roomState) ? roomState : QL_PhongTro.ViewModels.TrangThaiPhong.NGUNG_CHO_THUE)</span></td><td><strong>@p.GiaThue.ToString("N0", vn) đ</strong><small>/ tháng</small></td>@if (finance) { <td class="bd-payment"><span class="bd-muted">Chưa có dữ liệu</span><small>Chưa ghi nhận thanh toán</small></td> }
+<td>@if (row.HanHopDong.HasValue) { <span>@row.HanHopDong.Value.ToString("dd/MM/yyyy")</span><small>Ngày hết hạn</small> } else { <span class="bd-muted">—</span> }</td>
+<td>@if (write) { <a asp-action="Edit" asp-route-id="@p.Id" class="bd-room-edit" aria-label="Chỉnh sửa phòng @p.MaPhong">⋯</a> }</td></tr> }
+@if (Model.Phongs.Count == 0) { <tr><td colspan="@(finance ? 7 : 6)" class="bd-empty">Không có phòng phù hợp với bộ lọc.</td></tr> }
 </tbody></table></div>
-<footer class="bd-pagination"><span>Hiển thị @Model.Phongs.Count trong @Model.TongKetQua phòng phù hợp</span><nav aria-label="Phân trang phòng">@for (var i = Math.Max(1, Model.Trang - 2); i <= Math.Min(Model.TongTrang, Model.Trang + 2); i++) { <a class="@(i == Model.Trang ? "active" : "")" asp-route-id="@b.Id" asp-route-trang="@i" asp-route-tuKhoa="@Model.TuKhoa" asp-route-tang="@Model.Tang" asp-route-trangThai="@Model.TrangThai">@i</a> }</nav></footer>
+<footer class="bd-pagination"><span>Hiển thị @Model.Phongs.Count trong @Model.TongKetQua phòng phù hợp</span><nav aria-label="Phân trang phòng">@for (var i = Math.Max(1, Model.Trang - 2); i <= Math.Min(Model.TongTrang, Model.Trang + 2); i++) { <a class="@(i == Model.Trang ? "active" : "")" asp-route-id="@b.Id" asp-route-loaiPhong="@Model.LoaiPhong" asp-route-trang="@i" asp-route-tuKhoa="@Model.TuKhoa" asp-route-tang="@Model.Tang" asp-route-trangThai="@Model.TrangThai">@i</a> }</nav></footer>
 </section></div>
 @section Styles { <link rel="stylesheet" href="~/css/building-detail.css" asp-append-version="true" /> }
+
+@section Scripts { <script>
+document.querySelectorAll('[data-room-view]').forEach(button => button.addEventListener('click', () => {
+    document.querySelector('.bd-room-panel').classList.toggle('bd-grid-view', button.dataset.roomView === 'grid');
+    document.querySelectorAll('[data-room-view]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+}));
+</script> }

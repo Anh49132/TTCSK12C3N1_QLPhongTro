@@ -13,6 +13,8 @@ public class ChiTietToaNhaViewModel
     public decimal? DienTichMax { get; set; }
     public List<int> Tangs { get; set; } = [];
     public List<PhongChiTietToaNhaRow> Phongs { get; set; } = [];
+    public List<string> LoaiPhongs { get; set; } = [];
+    public string? LoaiPhong { get; set; }
     public string? TuKhoa { get; set; }
     public int? Tang { get; set; }
     public string? TrangThai { get; set; }

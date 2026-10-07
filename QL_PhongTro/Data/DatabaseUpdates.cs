@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 16;
+    private const int CurrentVersion = 17;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -86,6 +86,8 @@ public static class DatabaseUpdates
                 columns = columns.Where(column => column is not ("so_thu_tu" or "so_thang" or "nguoi_lap_id" or "ngay_tao"));
             if (table == "anh_phong" && schemaVersion < 12)
                 columns = columns.Where(column => column is not ("dang_cho_xoa" or "loi_xoa_gan_nhat" or "lan_thu_xoa_gan_nhat"));
+            if (schemaVersion < 17 && table == "toa_nha")
+                columns = columns.Where(column => column is not ("dien_tich_dat" or "thang_may" or "bai_do_xe" or "camera_an_ninh" or "bao_ve_24h" or "khu_giat_say" or "san_thuong"));
             Probe(table, columns);
         }
         if (schemaVersion >= 15) Probe("hop_dong_so_ma", ["nam", "so_cuoi"]);
@@ -370,6 +372,35 @@ public static class DatabaseUpdates
         if (version < 14) ContractSchema.Upgrade(c);
         if (version < 15) ContractCompletionSchema.Upgrade(c);
         if (version < 16) RoommateSchema.Upgrade(c);
+        if (version < 17)
+        {
+            using var tx = c.BeginTransaction();
+            using var command = c.CreateCommand();
+            command.Transaction = tx;
+            var additions = new Dictionary<string, string>
+            {
+                ["dien_tich_dat"] = "TEXT NULL CHECK(dien_tich_dat IS NULL OR CAST(dien_tich_dat AS REAL) > 0)",
+                ["thang_may"] = "INTEGER NOT NULL DEFAULT 0 CHECK(thang_may IN (0,1))",
+                ["bai_do_xe"] = "INTEGER NOT NULL DEFAULT 0 CHECK(bai_do_xe IN (0,1))",
+                ["camera_an_ninh"] = "INTEGER NOT NULL DEFAULT 0 CHECK(camera_an_ninh IN (0,1))",
+                ["bao_ve_24h"] = "INTEGER NOT NULL DEFAULT 0 CHECK(bao_ve_24h IN (0,1))",
+                ["khu_giat_say"] = "INTEGER NOT NULL DEFAULT 0 CHECK(khu_giat_say IN (0,1))",
+                ["san_thuong"] = "INTEGER NOT NULL DEFAULT 0 CHECK(san_thuong IN (0,1))",
+            };
+            foreach (var addition in additions)
+            {
+                command.CommandText = "SELECT COUNT(*) FROM pragma_table_info('toa_nha') WHERE name=$name";
+                command.Parameters.AddWithValue("$name", addition.Key);
+                var exists = Convert.ToInt64(command.ExecuteScalar()) != 0;
+                command.Parameters.Clear();
+                if (exists) continue;
+                command.CommandText = $"ALTER TABLE toa_nha ADD COLUMN {addition.Key} {addition.Value}";
+                command.ExecuteNonQuery();
+            }
+            command.CommandText = "INSERT INTO app_schema_version(version,applied_at) VALUES(17,strftime('%Y-%m-%dT%H:%M:%fZ','now'))";
+            command.ExecuteNonQuery();
+            tx.Commit();
+        }
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }

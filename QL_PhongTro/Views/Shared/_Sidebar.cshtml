@@ -1,4 +1,4 @@
-@inject QL_PhongTro.Authorization.PermissionService Permissions
+﻿@inject QL_PhongTro.Authorization.PermissionService Permissions
 @{
     var allowed = (await Permissions.MenuAsync()).Select(x => x.Code).ToHashSet();
     var admin = User.IsInRole("ADMIN");
@@ -28,7 +28,7 @@
     } else {
         items.Add(("Vận hành", "Quản lý tòa nhà", "/PhongTro/ToaNha", "PHONG_TRO", "building"));
         items.Add(("Vận hành", "Quản lý phòng", "/PhongTro", "PHONG_TRO", "home"));
-        if (owner) items.Add(("Vận hành", "Bảng giá & dịch vụ", "/DichVu", "PHONG_TRO", "tag"));
+        if (owner) items.Add(("Vận hành", "Dịch vụ & đơn giá", "/DichVu", "PHONG_TRO", "tag"));
         items.AddRange(new[] {
             ("Vận hành", "Tin đăng cho thuê", "/TinDang/QuanLy", "TIN_DANG", "speaker"),
             ("Vận hành", "Yêu cầu thuê & lịch xem", "/YeuCau", "YEU_CAU_THUE", "calendar"),

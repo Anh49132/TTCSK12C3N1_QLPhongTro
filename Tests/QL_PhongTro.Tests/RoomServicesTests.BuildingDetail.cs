@@ -10,7 +10,7 @@ public sealed partial class RoomServicesTests
         await db.Database.ExecuteSqlRawAsync("UPDATE phong_tro SET trang_thai='DANG_THUE' WHERE ma_phong='DEMO-A'");
         using var factory=BillingWeb();using var client=factory.CreateClient(new(){AllowAutoRedirect=false});await Login(client,"owner");
         var html=WebUtility.HtmlDecode(await client.GetStringAsync("/PhongTro/ChiTietToaNha/1"));
-        Assert.Contains("Building A",html);Assert.Contains("building-detail.css",html);Assert.Contains("10 phòng",html);Assert.Contains("Synthetic tenant",html);Assert.Contains("HD-DEMO-A",html);Assert.Contains("Cấu hình điện nước",html);Assert.Contains("Chưa có dữ liệu thu tiền",html);
+        Assert.Contains("Building A",html);Assert.Contains("building-detail.css",html);Assert.Contains("10 phòng",html);Assert.Contains("Synthetic tenant",html);Assert.Contains("Ngày hết hạn",html);Assert.Contains("Nhập danh sách",html);Assert.Contains("Chưa có dữ liệu thu tiền",html);
         var filtered=WebUtility.HtmlDecode(await client.GetStringAsync("/PhongTro/ChiTietToaNha/1?trangThai=TRONG&tuKhoa=Extra-7"));Assert.Contains("Extra-7",filtered);Assert.DoesNotContain("HD-DEMO-A",filtered);
         var empty=WebUtility.HtmlDecode(await client.GetStringAsync("/PhongTro/ChiTietToaNha/1?tuKhoa=not-found"));Assert.Contains("Không có phòng phù hợp",empty);
         var last=WebUtility.HtmlDecode(await client.GetStringAsync("/PhongTro/ChiTietToaNha/1?trang=999"));Assert.Contains("Hiển thị 2 trong 10",last);

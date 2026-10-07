@@ -66,3 +66,47 @@
 @media(max-width:600px) { .building-grid-view tbody { grid-template-columns: minmax(0,1fr); }.building-search { width: 100%; } }
 @media(max-width:1000px) { .building-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }.building-overview-grid { grid-template-columns: minmax(0,1fr); } }
 @media(max-width:600px) { .building-stats { gap: 10px; }.building-stats article,.building-panel { padding: 14px; }.building-stats strong { font-size: 25px; }.building-collection { grid-template-columns: minmax(0,1fr); }.building-collection-summary { border-left: 0; border-top: 1px solid #E9EAEC; padding: 12px 0 0; } }
+
+/* Các chỉ số vận hành trong danh sách tòa nhà. */
+.building-list-panel .table thead th { text-transform: uppercase; font-size: 9px; font-weight: 500; white-space: nowrap; }
+.building-list-panel .table tbody td strong { font-size: 12px; color: #25282D; font-weight: 600; }
+.building-row-note { margin-top: 5px; font-size: 10px; color: #858990; white-space: nowrap; }
+.building-vacant { color: #A18B63; }
+.building-payment-cell { min-width: 145px; }
+.building-task-cell { min-width: 155px; }
+.building-task-badge { display: inline-block; padding: 4px 7px; border-radius: 4px; background: #F6EFE7; color: #967651; font-size: 10px; }
+.building-actions-cell { min-width: 75px; }
+.building-detail-link { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 11px; font-weight: 500; }
+.building-detail-link span { color: #BFA77A; }
+.building-row-actions { margin-top: 7px; font-size: 10px; }
+.building-row-actions summary { cursor: pointer; color: #858990; }
+.building-row-actions[open] .d-flex { margin-top: 8px; max-width: 210px; }
+@media(max-width:600px) { .building-list-panel .table-responsive { max-width: 100%; } }
+
+.building-actions-cell { white-space: nowrap; min-width: 120px; }
+.building-list-panel .building-detail-link { color: #A18B63; font-size: 11px; font-weight: 400; margin-right: 7px; }
+.building-edit-icon { display: inline-flex; align-items: center; justify-content: center; width: 27px; height: 27px; border: 1px solid #E9EAEC; border-radius: 5px; vertical-align: middle; background: #FFF; }
+.building-edit-icon svg { width: 13px; height: 13px; fill: none; stroke: #92969D; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.building-row-actions { display: inline-block; vertical-align: middle; margin: 0 0 0 5px; white-space: normal; }
+.building-row-actions summary { list-style: none; font-size: 20px; line-height: 27px; text-align: center; width: 27px; color: #92969D; }
+.building-row-actions summary::-webkit-details-marker { display: none; }
+.building-row-actions[open] { display: inline-flex; flex-direction: column; align-items: flex-end; }
+.building-row-actions[open] .d-flex { width: 165px; padding: 8px; border: 1px solid #E9EAEC; border-radius: 5px; background: #FFF; }
+
+/* Menu thao tác dạng danh sách dọc, không có khung nút. */
+.building-row-actions[open] .d-flex { flex-direction: column; align-items: stretch; gap: 0 !important; border: 0; padding: 4px 0; }
+.building-row-actions .d-flex form { margin: 0; }
+.building-list-panel .building-row-actions .btn { display: block; width: 100%; padding: 7px 4px; border: 0; border-radius: 0; background: transparent; box-shadow: none; text-align: left; white-space: nowrap; font-size: 11px; }
+.building-list-panel .building-row-actions .btn:hover { background: #F5F5F4; }
+.building-list-panel .building-row-actions .btn-outline-primary { color: #30343B; }
+.building-list-panel .building-row-actions .btn-outline-warning { color: #A18B63; }
+.building-list-panel .building-row-actions .btn-outline-danger { color: #B65B55; }
+
+/* Menu nổi không chiếm chỗ trong hàng của bảng. */
+.building-row-actions, .building-row-actions[open] { position: relative; display: inline-block; }
+.building-row-actions[open] .d-flex { position: absolute; z-index: 20; top: 100%; right: 0; margin-top: 5px; width: 175px; padding: 6px; border: 1px solid #E9EAEC; border-radius: 6px; background: #FFFFFF; box-shadow: 0 6px 20px #25282D1A; }
+.building-list-panel .table-responsive:has(.building-row-actions[open]) { overflow: visible; }
+@media(max-width:600px) {
+    .building-list-panel .table-responsive:has(.building-row-actions[open]) { overflow-x: auto; }
+    .building-row-actions[open] .d-flex { position: fixed; top: auto; right: 16px; bottom: 16px; margin: 0; }
+}

@@ -133,6 +133,14 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         building.Property(e => e.QuanHuyen).HasColumnName("quan_huyen").HasMaxLength(100);
         building.Property(e => e.TinhThanh).HasColumnName("tinh_thanh").HasMaxLength(100);
         building.Property(e => e.SoTang).HasColumnName("so_tang");
+        building.Property(e => e.DienTichDat).HasColumnName("dien_tich_dat");
+        building.Property(e => e.ThangMay).HasColumnName("thang_may");
+        building.Property(e => e.BaiDoXe).HasColumnName("bai_do_xe");
+        building.Property(e => e.CameraAnNinh).HasColumnName("camera_an_ninh");
+        building.Property(e => e.BaoVe24h).HasColumnName("bao_ve_24h");
+        building.Property(e => e.KhuGiatSay).HasColumnName("khu_giat_say");
+        building.Property(e => e.SanThuong).HasColumnName("san_thuong");
+
         building.Property(e => e.NgayChotHangThang).HasColumnName("ngay_chot_hang_thang").HasDefaultValue(1);
         building.Property(e => e.DangHoatDong).HasColumnName("dang_hoat_dong").HasDefaultValue(true);
         building.Property(e => e.GhiChu).HasColumnName("ghi_chu");

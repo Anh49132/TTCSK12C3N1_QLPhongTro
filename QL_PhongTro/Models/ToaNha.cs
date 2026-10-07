@@ -29,4 +29,11 @@ public class ToaNha
     public int NgayChotHangThang { get; set; } = 1;
     public bool DangHoatDong { get; set; } = true;
     public string? GhiChu { get; set; }
+    public decimal? DienTichDat { get; set; }
+    public bool ThangMay { get; set; }
+    public bool BaiDoXe { get; set; }
+    public bool CameraAnNinh { get; set; }
+    public bool BaoVe24h { get; set; }
+    public bool KhuGiatSay { get; set; }
+    public bool SanThuong { get; set; }
 }

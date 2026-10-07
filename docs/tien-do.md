@@ -732,3 +732,52 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 - Tiến độ thu tiền tòa nhà: bộ chọn tháng kiểu ảnh mẫu, icon lịch trái/mũi tên phải, mặc định tháng hiện tại giờ VN và 12 tháng gần nhất. Dữ liệu tài chính vẫn chưa có. Build 0 lỗi; HTTP/HTML đạt; sidebar không đổi.
 - Đầu danh sách tòa nhà theo ảnh: kính lúp/ô tìm tên-địa chỉ, lọc khu vực/tình trạng, nút list-grid và sắp xếp mới nhất theo ID hoặc tên A-Z. Lọc client trên các tòa đã được backend giới hạn quyền. Giữ sidebar. Build 0 lỗi; HTTP HTML/JS đạt; không chụp ảnh.
 - Nút list/grid và Mới nhất dùng SVG nét mảnh theo ảnh, nền nhóm xám/ô active trắng, bo góc 10px. Giữ icon khi đổi sắp xếp. Build 0 lỗi; HTTP đạt, không chụp ảnh.
+
+
+### 07/10/2026 — Bố cục danh sách tòa nhà theo ảnh tham chiếu
+- Thêm cột thu tiền theo tháng, cần xử lý và liên kết Chi tiết; giữ số phòng, công suất và thanh tiến độ. Gom thao tác quản trị vào mục Thao tác, giữ nguyên sidebar.
+- Chưa có nguồn thanh toán/báo hỏng: hiển thị rõ chưa có dữ liệu, không tạo số giả hoặc thay đổi schema.
+- Kiểm chứng: build thành công; đăng nhập chủ nhà và GET /PhongTro/ToaNha trả 200, có các cột và liên kết mới. Chưa kiểm chứng trực quan ở 360px/Safari.
+
+
+### 07/10/2026 — Điều hướng chi tiết tòa nhà
+- Thêm biểu tượng nhà và breadcrumb Không gian quản lý → Tòa nhà → Chi tiết tòa nhà theo ảnh; chỉnh khoảng cách và liên kết quay lại. Sidebar giữ nguyên.
+- Build thành công; HTTP chi tiết trả 200 và có breadcrumb mới. Chưa kiểm chứng trực quan/mobile.
+
+- Điều chỉnh theo yêu cầu: breadcrumb chi tiết tòa nhà đặt trong dashboard-header của layout, bỏ breadcrumb trong nội dung; giới hạn theo route chi tiết. Build và HTTP kiểm tra đạt.
+
+- Đồng bộ breadcrumb dashboard-header với Tổng quan: chữ 16px/600, màu #25282D, biểu tượng nhà 21px, khoảng cách 12px; giữ header và sidebar chung.
+
+- Breadcrumb: trang hiện tại giữ màu #25282D; các liên kết cấp trước giảm độ đậm xuống #25282D80.
+
+- 08/10/2026: Bỏ chữ Tổng quan trong breadcrumb chi tiết tòa nhà, giữ biểu tượng nhà có nhãn truy cập và các mục Tòa nhà / Chi tiết tòa nhà.
+
+- 08/10/2026: Breadcrumb cuối cùng: biểu tượng nhà / Quản lý tòa nhà › Chi tiết tòa nhà; bỏ liên kết Danh sách tòa nhà dưới header theo yêu cầu.
+
+- 08/10/2026: Cột Thao tác danh sách tòa nhà: Chi tiết màu nhấn, nút sửa hình bút và menu ba chấm; giữ các form có xác nhận và CSRF.
+
+- Menu ba chấm: bỏ khung các nút và menu, xếp Cấu hình điện nước / Ngừng hoạt động / Xóa theo cột dọc; giữ nguyên hành vi và xác nhận.
+
+- Menu ba chấm hiển thị nổi bằng position absolute; mở menu không tăng chiều cao hàng. Mobile dùng menu fixed để giữ cuộn ngang bảng.
+
+- 08/10/2026: Thanh lọc phòng chi tiết tòa nhà theo ảnh: tìm mã/tên khách, tầng, loại phòng, mã tăng dần; giữ trạng thái tab và loại phòng khi phân trang. Thanh toán tạm vô hiệu vì chưa có nguồn dữ liệu. Chưa thêm tìm SĐT; build và HTTP ba trường hợp đạt, chưa kiểm chứng trực quan mobile.
+
+- Ô tìm kiếm phòng theo ảnh: kính lúp 19px cùng hàng, cao 44px, bo 11px, viền xám mảnh, chữ 14px; giữ nội dung placeholder đúng chức năng tìm mã/tên hiện có.
+
+- Chi tiết phòng: thêm cột thanh toán tháng theo quyền tài chính (chưa có dữ liệu), hiển thị ngày hết hạn hợp đồng và menu nổi ba chấm. Không giả lập đã trả/quá hạn.
+
+- Thay nút quản lý phòng/cấu hình điện nước bằng Nhập danh sách (dẫn CreateBulk hiện có, chưa nhập tệp) và chuyển danh sách/lưới trong trang.
+
+- Dấu ba chấm của phòng mở trực tiếp trang Edit; bỏ menu nổi chỉnh sửa/xem hợp đồng theo yêu cầu.
+
+- 08/10/2026: Thiết kế lại SuaToaNha theo ảnh: bốn nhóm thông tin, cột tóm tắt bên phải, thanh lưu/hủy bên dưới; CSS riêng, sidebar giữ nguyên. Chỉ trường được backend hỗ trợ, ảnh minh họa thay upload. Build đạt; GET và POST thiếu trường trả form có validation; không chụp màn hình, chưa kiểm chứng trực quan.
+
+- Bổ sung chi tiết chỉnh sửa tòa nhà: breadcrumb theo tòa, ảnh phòng đại diện, tổng phòng/đang thuê/tổng diện tích, trạng thái và SĐT quản lý hiện tại chỉ đọc; nạp lại tóm tắt khi validation lỗi. Chưa có loại hình/tiện ích/upload ảnh tòa riêng; không đổi schema, không chụp ảnh. Build và GET/POST không hợp lệ đạt.
+
+- 08/10/2026: PO đồng ý bổ sung trường lưu diện tích đất và sáu tiện ích chung. Schema v17 additive + backup; EF, form, validation decimal invariant, audit allowlist tích hợp. Kiểm chứng bảo toàn cột cũ/integrity/FK/idempotence trên bản sao, khởi tạo DB rỗng đạt, HTTP lưu/tải lại/chặn âm/chặn sở hữu chéo đạt. Chi tiết tại docs/nang-cap-toa-nha-v17.md. Sidebar giữ nguyên; không chụp ảnh.
+
+- Ba trường Tỉnh/thành phố, Quận/huyện, Phường/xã có dấu sao và validation bắt buộc phía server/client; kiểm tra POST bỏ trống không lưu đạt.
+
+- 08/10/2026: Quản lý phòng theo ảnh: bốn thống kê thực tế, thanh phòng trống, tabs trạng thái, bộ lọc cơ sở/quản lý, tìm mã/tên khách hiện tại, bảng khách/giá/trạng thái, menu giữ thao tác cũ, phân trang client 10/20/50, danh sách/lưới và CSV. Không gán ngừng cho thuê thành bảo trì; sidebar giữ nguyên; không chụp ảnh. Build và HTTP bộ lọc đạt; chưa kiểm chứng trực quan và JS trong trình duyệt.
+
+- 08/10/2026: Thêm phòng theo bố cục ảnh, partial/CSS riêng chỉ nạp Create; giữ Edit và backend cũ. Form có thông tin/giá/trạng thái, sidebar ảnh hướng dẫn thêm sau lưu; chưa hỗ trợ tiện nghi/ghi chú/cọc ở phòng, không tạo trường giả. Build và HTTP form/validation/Edit đạt, không chụp ảnh.

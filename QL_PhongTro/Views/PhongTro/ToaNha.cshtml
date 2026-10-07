@@ -1,4 +1,4 @@
-@model QL_PhongTro.ViewModels.DanhSachToaNhaViewModel
+﻿@model QL_PhongTro.ViewModels.DanhSachToaNhaViewModel
 @inject QL_PhongTro.Authorization.PermissionService Permissions
 @inject QL_PhongTro.Services.ITimeProvider BuildingClock
 
@@ -48,7 +48,7 @@ else
 {
     <div class="table-responsive">
         <table class="table table-hover align-middle">
-            <thead class="table-light"><tr><th>STT</th><th>Tòa nhà</th><th>Người quản lý</th><th>Đã thuê / Tổng</th><th>Công suất</th><th>Trạng thái</th><th></th></tr></thead>
+            <thead class="table-light"><tr><th>STT</th><th>Tòa nhà</th><th>Người quản lý</th><th>Đã thuê / Tổng</th><th>Công suất</th><th>Thu tiền tháng</th><th>Cần xử lý</th><th>Thao tác</th></tr></thead>
             <tbody>
             @{ var buildingStt = 0; }
             @foreach (var building in Model.ToaNhas)
@@ -58,13 +58,16 @@ else
                     <td>@buildingStt</td>
                     <th scope="row"><a asp-action="ChiTietToaNha" asp-route-id="@building.Id">@building.TenToaNha</a><div class="small text-secondary">@building.DiaChi</div></th>
                     <td>@(building.QuanLy ?? "Chưa phân công")</td>
-                    <td><strong>@building.SoPhongDangThue / @building.SoPhong</strong><div class="small text-secondary">@building.SoPhongTrong phòng trống</div></td>
+                    <td><strong>@building.SoPhongDangThue / @building.SoPhong</strong><div class="building-row-note building-vacant">@building.SoPhongTrong phòng trống</div></td>
                     <td><strong>@(building.SoPhong == 0 ? "0" : (100m * building.SoPhongDangThue / building.SoPhong).ToString("0.#"))%</strong><progress value="@building.SoPhongDangThue" max="@(building.SoPhong == 0 ? 1 : building.SoPhong)" aria-label="Công suất @building.TenToaNha"></progress></td>
-                    <td><span class="badge @(building.DangHoatDong ? "text-bg-success" : "text-bg-secondary")">@(building.DangHoatDong ? "Đang hoạt động" : "Ngừng hoạt động")</span></td>
-                    <td>
+                    <td class="building-payment-cell"><strong>—</strong><div class="building-row-note">Chưa có dữ liệu thu tiền</div></td>
+                    <td class="building-task-cell"><span class="building-task-badge">Chưa có dữ liệu quá hạn</span><div class="building-row-note">Chưa có dữ liệu báo hỏng</div></td>
+                    <td class="building-actions-cell">
+                        <a asp-action="ChiTietToaNha" asp-route-id="@building.Id" class="building-detail-link">Chi tiết</a>
                         @if (canWrite) {
+                        <a asp-action="SuaToaNha" asp-route-id="@building.Id" class="building-edit-icon" aria-label="Sửa tòa nhà @building.TenToaNha" title="Sửa tòa nhà"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15v5Z"/></svg></a>
+                        <details class="building-row-actions"><summary aria-label="Thao tác khác với @building.TenToaNha">⋯</summary>
                         <div class="d-flex flex-wrap gap-2">
-                            <a asp-action="SuaToaNha" asp-route-id="@building.Id" class="btn btn-sm btn-outline-secondary">Sửa</a>
                             @if (building.DangHoatDong)
                             {
                                 @if (User.IsInRole("CHU_NHA") || User.IsInRole("ADMIN"))
@@ -75,6 +78,7 @@ else
                             }
                             <form asp-action="XoaToaNha" method="post" data-confirm="Bạn có chắc muốn xóa tòa nhà @building.TenToaNha? Thao tác này không thể hoàn tác. Tòa nhà có phòng hoặc dữ liệu liên quan sẽ không được xóa."><input type="hidden" name="id" value="@building.Id" /><button class="btn btn-sm btn-outline-danger" type="submit">Xóa</button></form>
                         </div>
+                        </details>
                         }
                     </td>
                 </tr>

@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Microsoft.Data.Sqlite;
@@ -20,21 +20,26 @@ namespace QL_PhongTro.Controllers;
 public class PhongTroController(AppDbContext db, DichVuPhongService roomServices, RoomImageStore imageStore, RoomImageDeletionService imageDeletion, ITimeProvider? clock = null) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> ChiTietToaNha(int id, string? tuKhoa, int? tang, string? trangThai, int trang = 1, CancellationToken ct = default)
+    public async Task<IActionResult> ChiTietToaNha(int id, string? tuKhoa, int? tang, string? trangThai, int trang = 1, CancellationToken ct = default, string? loaiPhong = null)
     {
         if (CurrentAccountId() is not { } actor) return Forbid();
         if (!await db.ToaNhas.AnyAsync(x => x.Id == id, ct)) return NotFound();
         var building = await VisibleBuildings(actor, activeOnly: false).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (building == null) return Forbid();
-        var all = await db.PhongTros.AsNoTracking().Where(x => x.ToaNhaId == id).OrderBy(x => x.Tang).ThenBy(x => x.MaPhong).ToListAsync(ct);
+        var all = await db.PhongTros.AsNoTracking().Where(x => x.ToaNhaId == id).OrderBy(x => x.MaPhong).ToListAsync(ct);
         var model = new ChiTietToaNhaViewModel { ToaNha = building, TongPhong = all.Count,
             DangThue = all.Count(x => x.TrangThai == "DANG_THUE"), Trong = all.Count(x => x.TrangThai == "TRONG"), DatCoc = all.Count(x => x.TrangThai == "DA_DAT_COC"),
             Tangs = all.Select(x => x.Tang).Distinct().ToList(), TuKhoa = tuKhoa?.Trim(), Tang = tang, TrangThai = trangThai,
             DienTichMin = all.Count == 0 ? null : all.Min(x => x.DienTich), DienTichMax = all.Count == 0 ? null : all.Max(x => x.DienTich),
             QuanLy = await db.TaiKhoans.Where(x => x.Id == building.QuanLyId).Select(x => x.HoTen).SingleOrDefaultAsync(ct),
             Anh = await (from a in db.AnhPhongs join p in db.PhongTros on a.PhongId equals p.Id where p.ToaNhaId == id && !a.DangChoXoa orderby p.Id, a.ThuTu select a.DuongDanAnhNho).FirstOrDefaultAsync(ct) };
+        model.LoaiPhong = loaiPhong;
+        model.LoaiPhongs = all.Select(x => x.LoaiPhong).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).Distinct().Order().ToList();
+        var matchingRooms = string.IsNullOrWhiteSpace(model.TuKhoa) ? new List<int>() : await (from h in db.HopDongs join k in db.KhachThues on h.KhachDungTenId equals k.Id
+            where h.TrangThai == "DANG_HIEU_LUC" && k.HoTen.Contains(model.TuKhoa) && db.KyHopDongs.Any(p => p.HopDongId == h.Id && p.NgayBatDau <= DateOnly.FromDateTime((clock ?? new SystemTimeProvider()).UtcNow.AddHours(7)) && p.NgayKetThuc >= DateOnly.FromDateTime((clock ?? new SystemTimeProvider()).UtcNow.AddHours(7)))
+            select h.PhongId).ToListAsync(ct);
         var filtered = all.Where(x => (tang == null || x.Tang == tang) && (string.IsNullOrEmpty(trangThai) || x.TrangThai == trangThai)
-            && (string.IsNullOrEmpty(model.TuKhoa) || x.MaPhong.Contains(model.TuKhoa, StringComparison.OrdinalIgnoreCase))).ToList();
+            && (string.IsNullOrEmpty(loaiPhong) || x.LoaiPhong == loaiPhong) && (string.IsNullOrEmpty(model.TuKhoa) || x.MaPhong.Contains(model.TuKhoa, StringComparison.OrdinalIgnoreCase) || matchingRooms.Contains(x.Id))).ToList();
         model.TongKetQua = filtered.Count; model.Trang = Math.Clamp(trang, 1, model.TongTrang);
         var rooms = filtered.Skip((model.Trang - 1) * 8).Take(8).ToList(); var ids = rooms.Select(x => x.Id).ToList();
         var today = DateOnly.FromDateTime((clock ?? new SystemTimeProvider()).UtcNow.AddHours(7));
@@ -106,9 +111,19 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
 
         var visibleBuildingIds = buildings.Select(building => int.Parse(building.Value)).ToArray();
         var roomQuery = GetRoomQuery(visibleBuildingIds, selectedId, trangThaiFilter);
+        var todayForRooms = DateOnly.FromDateTime((clock ?? new SystemTimeProvider()).UtcNow.AddHours(7));
+        var currentTenants = await (from h in db.HopDongs.AsNoTracking() join p in db.PhongTros on h.PhongId equals p.Id
+            join k in db.KhachThues on h.KhachDungTenId equals k.Id
+            where visibleBuildingIds.Contains(p.ToaNhaId) && h.TrangThai == "DANG_HIEU_LUC"
+            && db.KyHopDongs.Any(period => period.HopDongId == h.Id && period.NgayBatDau <= todayForRooms && period.NgayKetThuc >= todayForRooms)
+            select new { h.PhongId, k.HoTen }).ToListAsync();
+        var tenantNames = currentTenants.GroupBy(x => x.PhongId).ToDictionary(x => x.Key, x => x.First().HoTen);
         tuKhoa = tuKhoa?.Trim();
         if (!string.IsNullOrWhiteSpace(tuKhoa))
-            roomQuery = roomQuery.Where(room => room.MaPhong.Contains(tuKhoa));
+        {
+            var matchingTenantRooms = currentTenants.Where(x => x.HoTen.Contains(tuKhoa, StringComparison.OrdinalIgnoreCase)).Select(x => x.PhongId).ToList();
+            roomQuery = roomQuery.Where(room => room.MaPhong.Contains(tuKhoa) || matchingTenantRooms.Contains(room.Id));
+        }
         var rooms = await roomQuery.OrderBy(room => room.ToaNhaId).ThenBy(room => room.Tang).ThenBy(room => room.MaPhong).ToListAsync();
 
         var statusCounts = Enum.GetValues<TrangThaiPhong>()
@@ -124,6 +139,9 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
                 statusCounts[count.Status] = count.Count;
         }
 
+        var vacantPrices = await db.PhongTros.AsNoTracking()
+            .Where(room => visibleBuildingIds.Contains(room.ToaNhaId) && (!selectedId.HasValue || room.ToaNhaId == selectedId) && room.TrangThai == "TRONG")
+            .Select(room => room.GiaThue).ToListAsync();
         return View(new DanhSachPhongViewModel
         {
             ToaNhaId = selectedId,
@@ -134,7 +152,9 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
             QuanLyOptions = managerOptions,
             TrangThaiOptions = GetStatusOptions(),
             SoLuongTheoTrangThai = statusCounts,
-            PhongTros = rooms
+            PhongTros = rooms,
+            DoanhThuPhongTrong = vacantPrices.Sum(price => (decimal)price),
+            KhachTheoPhong = tenantNames
         });
     }
 
@@ -387,7 +407,7 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         if (building is null)
             return NotFound();
 
-        return View(new TaoToaNhaViewModel
+        var model = new TaoToaNhaViewModel
         {
             TenToaNha = building.TenToaNha,
             DiaChi = building.DiaChi,
@@ -395,10 +415,20 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
             QuanHuyen = building.QuanHuyen,
             TinhThanh = building.TinhThanh,
             SoTang = building.SoTang,
+            DienTichDat = building.DienTichDat,
+            ThangMay = building.ThangMay,
+            BaiDoXe = building.BaiDoXe,
+            CameraAnNinh = building.CameraAnNinh,
+            BaoVe24h = building.BaoVe24h,
+            KhuGiatSay = building.KhuGiatSay,
+            SanThuong = building.SanThuong,
+
             QuanLyId = building.QuanLyId,
             GhiChu = building.GhiChu,
             QuanLyOptions = await GetManagerOptions()
-        });
+        };
+        await PopulateBuildingEdit(model, building);
+        return View(model);
     }
 
     [HttpPost]
@@ -413,7 +443,10 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         model.QuanLyOptions = await GetManagerOptions();
         ValidateManager(model);
         if (!ModelState.IsValid)
+        {
+            await PopulateBuildingEdit(model, building);
             return View(model);
+        }
 
         building.TenToaNha = model.TenToaNha.Trim();
         building.DiaChi = model.DiaChi.Trim();
@@ -421,11 +454,34 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         building.QuanHuyen = model.QuanHuyen?.Trim();
         building.TinhThanh = model.TinhThanh?.Trim();
         building.SoTang = model.SoTang;
+        building.DienTichDat = model.DienTichDat;
+        building.ThangMay = model.ThangMay;
+        building.BaiDoXe = model.BaiDoXe;
+        building.CameraAnNinh = model.CameraAnNinh;
+        building.BaoVe24h = model.BaoVe24h;
+        building.KhuGiatSay = model.KhuGiatSay;
+        building.SanThuong = model.SanThuong;
+
         building.QuanLyId = model.QuanLyId;
         building.GhiChu = model.GhiChu?.Trim();
         await db.SaveChangesAsync();
         TempData["Success"] = "Đã cập nhật tòa nhà thành công.";
         return RedirectToAction(nameof(ToaNha));
+    }
+
+    private async Task PopulateBuildingEdit(TaoToaNhaViewModel model, ToaNha building)
+    {
+        var rooms = await db.PhongTros.AsNoTracking().Where(x => x.ToaNhaId == building.Id).ToListAsync();
+        model.DangHoatDongHienTai = building.DangHoatDong;
+        model.TongPhongHienTai = rooms.Count;
+        model.DangThueHienTai = rooms.Count(x => x.TrangThai == "DANG_THUE");
+        model.TongDienTichHienTai = rooms.Sum(x => x.DienTich);
+        model.AnhHienTai = await (from a in db.AnhPhongs join p in db.PhongTros on a.PhongId equals p.Id
+            where p.ToaNhaId == building.Id && !a.DangChoXoa orderby p.Id, a.ThuTu select a.DuongDanAnhNho).FirstOrDefaultAsync();
+        model.PhongAnhHienTaiId = await (from a in db.AnhPhongs join p in db.PhongTros on a.PhongId equals p.Id
+            where p.ToaNhaId == building.Id && !a.DangChoXoa orderby p.Id, a.ThuTu select (int?)p.Id).FirstOrDefaultAsync()
+            ?? rooms.OrderBy(x => x.Id).Select(x => (int?)x.Id).FirstOrDefault();
+        model.DienThoaiQuanLyHienTai = await db.TaiKhoans.Where(x => x.Id == building.QuanLyId).Select(x => x.SoDienThoai).FirstOrDefaultAsync();
     }
 
     [HttpPost]
