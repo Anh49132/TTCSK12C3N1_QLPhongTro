@@ -11,12 +11,20 @@
     <a href="/">Trang chủ</a><span aria-hidden="true">/</span><span>Chi tiết tin thuê</span>
 </nav>
 <article class="listing-page" data-listing-id="@Model.PublicDetail.Id">
-    @if (!Model.TinConCongKhai)
+    @{
+        var isDaChoThue = Model.Tin.TrangThai == "DA_CHO_THUE";
+        var isHistorical = !Model.TinConCongKhai && !isDaChoThue;
+    }
+    @if (isDaChoThue)
+    {
+        <div class="alert alert-warning" role="status">Tin đăng này đã cho thuê, không còn hiển thị công khai.</div>
+    }
+    else if (isHistorical)
     {
         <div class="alert alert-warning" role="status">Tin đăng này không còn hiển thị công khai. Bạn đang xem lại thông tin gắn với yêu cầu đã gửi.</div>
     }
     <header class="listing-heading">
-        <p class="listing-eyebrow">@(Model.TinConCongKhai ? "PHÒNG ĐANG CHO THUÊ" : "THÔNG TIN TIN ĐĂNG ĐÃ GỬI YÊU CẦU")</p>
+        <p class="listing-eyebrow">@(isDaChoThue ? "PHÒNG ĐÃ CHO THUÊ" : (Model.TinConCongKhai ? "PHÒNG ĐANG CHO THUÊ" : "THÔNG TIN TIN ĐĂNG ĐÃ GỬI YÊU CẦU"))</p>
         <h1>@Model.PublicDetail.TieuDe</h1>
         <p class="listing-address">@Model.PublicDetail.DiaChi@if (!string.IsNullOrEmpty(location)) { <span>, @location</span> }</p>
     </header>
@@ -126,7 +134,7 @@
         </aside>
     </section>
 </article>
-@if (Model.TinConCongKhai && Model.RequestModuleInstalled && User.IsInRole("KHACH_THUE"))
+@if (Model.TinConCongKhai && Model.RequestModuleInstalled && User.IsInRole("KHACH_THUE") && !isDaChoThue)
 {
     @if (Model.OpenRequestId is { } existingId)
     {
@@ -162,6 +170,10 @@
             <button class="btn btn-primary" type="submit">Gửi yêu cầu</button>
         </form>
     </section>
+}
+else if (isDaChoThue)
+{
+    <p class="text-muted">Phòng này đã có người thuê. Không thể gửi yêu cầu mới.</p>
 }
 else if (Model.TinConCongKhai && Model.RequestModuleInstalled && User.Identity?.IsAuthenticated != true)
 {
