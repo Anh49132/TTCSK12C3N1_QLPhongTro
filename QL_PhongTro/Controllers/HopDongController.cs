@@ -197,10 +197,15 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
     }
 
     [HttpPost, ValidateAntiForgeryToken, ModuleAccess("HOP_DONG", write: true)]
-    public async Task<IActionResult> KichHoat(int id, CancellationToken ct)
+    public async Task<IActionResult> KichHoat(int id, string? simulateError, CancellationToken ct)
     {
         if (!await db.HopDongs.AnyAsync(h => h.Id == id, ct)) return NotFound();
         if (!await OwnContract(id, ct)) return Forbid();
+
+        // Error simulation for testing (only in Development)
+        var isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
+        var shouldSimulate = isDevelopment && !string.IsNullOrEmpty(simulateError);
+
         try
         {
             // BEGIN IMMEDIATE serializes writers so two owners cannot activate one room at once.
@@ -224,21 +229,43 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
                     ModelState.AddModelError("", $"Phòng {room.MaPhong} đã có hợp đồng hiệu lực khác. Không thể kích hoạt.");
             }
             if (!ModelState.IsValid) return View("Details", await DetailModel(id, null, ct));
-            // Hợp đồng có hiệu lực: phòng chuyển Đang thuê và mọi tin đăng của phòng chuyển
-            // Đã cho thuê trong cùng một giao dịch, không để phòng đã thuê mà tin vẫn hiển thị.
+
+            // Step 1: Activate contract
             hopDong.TrangThai = "DANG_HIEU_LUC";
+            if (shouldSimulate && simulateError == "contract")
+                throw new InvalidOperationException("Giả lập lỗi: không thể cập nhật trạng thái hợp đồng.");
+            await db.SaveChangesAsync(ct);
+
+            // Step 2: Update room status
             room.TrangThai = "DANG_THUE";
             room.PhienBan++;
-            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE tin_dang SET trang_thai='DA_CHO_THUE' WHERE phong_id={room.Id} AND trang_thai<>'DA_CHO_THUE'", ct);
+            if (shouldSimulate && simulateError == "room")
+                throw new InvalidOperationException("Giả lập lỗi: không thể cập nhật trạng thái phòng.");
             await db.SaveChangesAsync(ct);
+
+            // Step 3: Update all listings to DA_CHO_THUE
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE tin_dang SET trang_thai='DA_CHO_THUE' WHERE phong_id={room.Id} AND trang_thai<>'DA_CHO_THUE'", ct);
+            if (shouldSimulate && simulateError == "listing")
+                throw new InvalidOperationException("Giả lập lỗi: không thể cập nhật trạng thái tin đăng.");
+            await db.SaveChangesAsync(ct);
+
             await sqliteTransaction.CommitAsync(ct);
             TempData["ContractSuccess"] = $"Hợp đồng {hopDong.MaHopDong} đã hiệu lực. Phòng {room.MaPhong}: Đang thuê; tin đăng: Đã cho thuê.";
             return RedirectToAction(nameof(Details), new { id });
         }
-        catch (Exception ex) when (ex is DbUpdateException or SqliteException)
+        catch (Exception ex) when (ex is DbUpdateException or SqliteException or InvalidOperationException)
         {
             db.ChangeTracker.Clear();
-            ModelState.AddModelError("", "Không thể kích hoạt hợp đồng. Không có thay đổi nào được lưu. Vui lòng tải lại trang và thử lại.");
+            var message = ex is InvalidOperationException && shouldSimulate
+                ? $"Kích hoạt thất bại (giả lập): {ex.Message}. Trạng thái chưa thay đổi, bạn có thể thử lại."
+                : "Không thể kích hoạt hợp đồng do lỗi cơ sở dữ liệu. Không có thay đổi nào được lưu. Vui lòng tải lại trang và thử lại.";
+            ModelState.AddModelError("", message);
+            return View("Details", await DetailModel(id, null, ct));
+        }
+        catch (Exception)
+        {
+            db.ChangeTracker.Clear();
+            ModelState.AddModelError("", "Không thể kích hoạt hợp đồng do lỗi không mong đợi. Không có thay đổi nào được lưu. Vui lòng tải lại trang và thử lại.");
             return View("Details", await DetailModel(id, null, ct));
         }
     }
