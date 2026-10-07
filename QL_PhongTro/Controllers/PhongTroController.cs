@@ -500,6 +500,49 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         return RedirectToAction(nameof(Index), new { toaNhaId = room.ToaNhaId });
     }
 
+    [HttpGet]
+    public async Task<IActionResult> NhatKyPhong(int phongId, DateOnly? tuNgay, DateOnly? denNgay, int page = 1)
+    {
+        var ownerId = CurrentAccountId();
+        if (ownerId is null) return Forbid();
+        var room = await db.PhongTros.AsNoTracking().FirstOrDefaultAsync(x => x.Id == phongId);
+        if (room is null) return NotFound();
+        var building = await db.ToaNhas.AsNoTracking().FirstOrDefaultAsync(x => x.Id == room.ToaNhaId);
+        if (building is null || (building.ChuNhaId != ownerId.Value && !IsAdmin)) return Forbid();
+        if (tuNgay > denNgay ||
+            tuNgay?.Year < 1900 || tuNgay?.Year > 9998 ||
+            denNgay?.Year < 1900 || denNgay?.Year > 9998)
+            return BadRequest("Bộ lọc không hợp lệ. Ngày từ phải không sau ngày đến (1900–9998).");
+
+        var hopDongIds = await db.HopDongs.AsNoTracking()
+            .Where(hopDong => hopDong.PhongId == phongId)
+            .Select(hopDong => hopDong.Id)
+            .ToListAsync();
+        var query = db.NhatKyHoatDongs.AsNoTracking()
+            .Where(row => (row.LoaiDoiTuong == "phong_tro" && row.DoiTuongId == phongId)
+                || (row.LoaiDoiTuong == "hop_dong" && hopDongIds.Contains(row.DoiTuongId)));
+        if (tuNgay is { } from)
+            query = query.Where(row => row.ThoiDiem >= from.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddHours(-7));
+        if (denNgay is { } to)
+            query = query.Where(row => row.ThoiDiem < to.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddHours(-7));
+
+        var model = new NhatKyPhongViewModel
+        {
+            PhongId = phongId,
+            MaPhong = room.MaPhong,
+            TenToaNha = building.TenToaNha,
+            TrangThaiPhong = Enum.TryParse<TrangThaiPhong>(room.TrangThai, out var trangThai)
+                ? StatusLabel(trangThai) : room.TrangThai,
+            TuNgay = tuNgay,
+            DenNgay = denNgay
+        };
+        model.Total = await query.CountAsync();
+        model.Page = Math.Clamp(page, 1, model.Pages);
+        model.Rows = await query.OrderByDescending(row => row.ThoiDiem).ThenByDescending(row => row.Id)
+            .Skip((model.Page - 1) * 20).Take(20).ToListAsync();
+        return View(model);
+    }
+
     [HttpPost, ValidateAntiForgeryToken, ModuleAccess("PHONG_TRO", write: true)]
     [RequestSizeLimit(6 * 1024 * 1024), RequestFormLimits(MultipartBodyLengthLimit = 6 * 1024 * 1024)]
     public async Task<IActionResult> UploadImage(int id, IFormFile? file, CancellationToken cancellationToken)
