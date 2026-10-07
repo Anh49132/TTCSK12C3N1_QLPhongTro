@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QL_PhongTro.Authorization;
 using QL_PhongTro.Services;
+using QL_PhongTro.ViewModels;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 
 namespace QL_PhongTro.Controllers;
 
@@ -17,5 +20,27 @@ public sealed class ChiSoDienNuocController(ChiSoDienNuocService readings) : Con
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId)) return Forbid();
         try { return View(await readings.DanhSachAsync(accountId, toaNhaId, ct)); }
         catch (UnauthorizedAccessException) { return Forbid(); }
+    }
+
+    [HttpPost,ValidateAntiForgeryToken,ModuleAccess("DIEN_NUOC",write:true)]
+    public async Task<IActionResult> Save(LuuChiSoInput input,CancellationToken ct)
+    {
+        if(!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier),out var actor)) return Forbid();
+        try
+        {
+            var errors=ModelState.Where(x=>x.Value!.Errors.Count>0).ToDictionary(x=>x.Key,x=>new[]{"Giá trị nhập không hợp lệ."});
+            if(errors.Count==0) errors=await readings.LuuAsync(actor,input,ct);
+            if(errors.Count==0) {TempData["MeterSuccess"]="Đã lưu chỉ số phòng vừa chọn.";return RedirectToAction(nameof(Index),new{toaNhaId=input.ToaNhaId});}
+            var model=await readings.DanhSachAsync(actor,input.ToaNhaId,ct);
+            if(!model.Phongs.Any(x=>x.PhongId==input.PhongId && x.HopDongId==input.HopDongId)) return Forbid();
+            model.Loi=errors;model.Input=input;return View("Index",model);
+        }
+        catch(UnauthorizedAccessException){return Forbid();}
+        catch(Exception ex) when(ex is DbUpdateException or SqliteException)
+        {
+            ModelState.Clear();var model=await readings.DanhSachAsync(actor,input.ToaNhaId,ct);
+            model.Input=input;model.Loi=new(){["Phong"]=["Không thể lưu vì dữ liệu đã thay đổi hoặc lỗi ghi dữ liệu. Hãy tải lại trang."]};
+            return View("Index",model);
+        }
     }
 }

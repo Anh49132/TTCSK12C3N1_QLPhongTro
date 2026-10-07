@@ -4,6 +4,7 @@
 <section aria-labelledby="meter-title">
     <h1 id="meter-title" class="h3">Chốt chỉ số điện nước</h1>
     <p>Kỳ hiện tại: <strong>@Model.DauKy.ToString("MM/yyyy")</strong></p>
+    @if(TempData["MeterSuccess"] is {} success){<div class="alert alert-success">@success</div>}
     @if (Model.ToaNhas.Count == 0)
     {
         <div class="alert alert-info">Bạn chưa được phân công tòa nhà đang hoạt động.</div>
@@ -32,7 +33,7 @@
             <div class="table-responsive mb-4">
                 <table class="table table-striped align-middle">
                     <caption class="visually-hidden">Chỉ số tham chiếu các phòng tầng @floor.Key</caption>
-                    <thead><tr><th scope="col">Mã phòng</th><th scope="col">Tầng</th><th scope="col">Điện kỳ trước</th><th scope="col">Nước kỳ trước</th><th scope="col">Trạng thái</th></tr></thead>
+                    <thead><tr><th scope="col">Mã phòng</th><th scope="col">Tầng</th><th scope="col">Điện kỳ trước</th><th scope="col">Nước kỳ trước</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead>
                     <tbody>
                     @foreach (var room in floor)
                     {
@@ -45,6 +46,37 @@
                                     else { <span class="text-muted">Chưa có dữ liệu</span> }</td>
                             }
                             <td>@(room.DaChot ? "Đã chốt" : "Chưa chốt")</td>
+                            <td>
+                            @if(room.DichVu.Count==0){<span class="text-muted">Không có dịch vụ theo chỉ số cần nhập.</span>}
+                            else {
+                                <form asp-action="Save" method="post" class="meter-form" data-meter-form>
+                                    <input type="hidden" name="ToaNhaId" value="@Model.ToaNhaId" />
+                                    <input type="hidden" name="PhongId" value="@room.PhongId" />
+                                    <input type="hidden" name="HopDongId" value="@room.HopDongId" />
+                                    <input type="hidden" name="Ky" value="@Model.DauKy.ToString("yyyy-MM-dd")" />
+                                    <input type="hidden" name="PhienBanPhong" value="@(Model.Input?.PhongId==room.PhongId?Model.Input.PhienBanPhong:room.PhienBanPhong)" />
+                                    @foreach(var service in room.DichVu){
+                                        var field=service.Ma=="DIEN"?"DienMoi":"NuocMoi";
+                                        var label=service.Ma=="DIEN"?"Điện":"Nước";
+                                        var id=$"meter-{room.PhongId}-{service.Ma}";
+                                        var submitted=Model.Input?.PhongId==room.PhongId;
+                                        var value=submitted?(service.Ma=="DIEN"?Model.Input!.DienMoi:Model.Input!.NuocMoi):service.Moi;
+                                        var error=submitted && Model.Loi.TryGetValue(field,out var messages)?string.Join(" ",messages):"";
+                                        if (service.Truoc.GiaTri == null && error.Length == 0) error = "Chưa có dữ liệu tham chiếu. Không thể chốt chỉ số.";
+                                        var version=submitted?(service.Ma=="DIEN"?Model.Input!.DienPhienBan:Model.Input!.NuocPhienBan):service.PhienBan;
+                                        <input type="hidden" name="@(service.Ma=="DIEN"?"DienPhienBan":"NuocPhienBan")" value="@version" />
+                                        <label for="@id" class="form-label">@label mới</label>
+                                        <input id="@id" name="@field" type="number" step="0.001" min="0" max="99999999999.999" required
+                                               value="@value?.ToString(CultureInfo.InvariantCulture)" class="form-control @(error.Length>0?"is-invalid":"")"
+                                               data-previous="@service.Truoc.GiaTri?.ToString(CultureInfo.InvariantCulture)" data-meter-input
+                                               aria-describedby="@(id+"-error")" aria-invalid="@(error.Length>0?"true":"false")" readonly="@(service.DaKhoa)" />
+                                        <span id="@(id+"-error")" class="text-danger d-block" data-meter-error>@error</span>
+                                    }
+                                    @if(Model.Input?.PhongId==room.PhongId && Model.Loi.TryGetValue("Phong",out var roomErrors)){<p class="text-danger">@string.Join(" ",roomErrors)</p>}
+                                    <button class="btn btn-primary mt-2" type="submit" disabled="@(room.DichVu.Any(x=>x.Truoc.GiaTri==null || x.DaKhoa))">Lưu phòng @room.MaPhong</button>
+                                </form>
+                            }
+                            </td>
                         </tr>
                     }
                     </tbody>
@@ -53,3 +85,4 @@
         }
     }
 </section>
+@section Scripts {<script src="~/js/meter-readings.js" asp-append-version="true"></script>}
