@@ -14,6 +14,13 @@ namespace QL_PhongTro.Tests;
 
 public sealed class ContractActivationTests : IDisposable
 {
+    static ContractActivationTests()
+    {
+        // Enable error simulation for rollback tests; nothing else in the solution
+        // reads this variable, so the process-wide setting is safe.
+        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+    }
+
     readonly string path = Path.Combine(Path.GetTempPath(), "s304-" + Guid.NewGuid().ToString("N") + ".sqlite");
     readonly string seed;
     public ContractActivationTests()
@@ -54,7 +61,7 @@ public sealed class ContractActivationTests : IDisposable
     [Fact] public async Task ActivationSyncsContractRoomAndAllListings()
     {
         using var db=Context();
-        Assert.IsType<RedirectToActionResult>(await Controller(db).KichHoat(1, default));
+        Assert.IsType<RedirectToActionResult>(await Controller(db).KichHoat(1, null, default));
         using var check=Context();
         Assert.Equal("DANG_HIEU_LUC",(await check.HopDongs.SingleAsync(h=>h.Id==1)).TrangThai);
         Assert.Equal("DANG_THUE",(await check.PhongTros.SingleAsync(p=>p.Id==1)).TrangThai);
@@ -65,7 +72,7 @@ public sealed class ContractActivationTests : IDisposable
     [Fact] public async Task ActivationWithoutListingOnlyChangesRoom()
     {
         using var db=Context();
-        Assert.IsType<RedirectToActionResult>(await Controller(db).KichHoat(2, default));
+        Assert.IsType<RedirectToActionResult>(await Controller(db).KichHoat(2, null, default));
         using var check=Context();
         Assert.Equal("DANG_HIEU_LUC",(await check.HopDongs.SingleAsync(h=>h.Id==2)).TrangThai);
         Assert.Equal("DANG_THUE",(await check.PhongTros.SingleAsync(p=>p.Id==2)).TrangThai);
@@ -75,10 +82,10 @@ public sealed class ContractActivationTests : IDisposable
     [Fact] public async Task ReactivatingEffectiveContractIsBlocked()
     {
         using var db=Context();
-        await Controller(db).KichHoat(1, default);
+        await Controller(db).KichHoat(1, null, default);
         using var db2=Context();
         var controller=Controller(db2);
-        var result=Assert.IsType<ViewResult>(await controller.KichHoat(1, default));
+        var result=Assert.IsType<ViewResult>(await controller.KichHoat(1, null, default));
         Assert.False(controller.ModelState.IsValid);
         using var check=Context();
         Assert.Equal("DANG_HIEU_LUC",(await check.HopDongs.SingleAsync(h=>h.Id==1)).TrangThai);
@@ -90,7 +97,7 @@ public sealed class ContractActivationTests : IDisposable
     {
         using var db=Context();
         var controller=Controller(db);
-        var result=Assert.IsType<ViewResult>(await controller.KichHoat(4, default));
+        var result=Assert.IsType<ViewResult>(await controller.KichHoat(4, null, default));
         Assert.False(controller.ModelState.IsValid);
         using var check=Context();
         Assert.Equal("NHAP",(await check.HopDongs.SingleAsync(h=>h.Id==4)).TrangThai);
@@ -101,7 +108,7 @@ public sealed class ContractActivationTests : IDisposable
     [Fact] public async Task NonOwnerCannotActivate()
     {
         using var db=Context(2);
-        Assert.IsType<ForbidResult>(await Controller(db,2).KichHoat(1, default));
+        Assert.IsType<ForbidResult>(await Controller(db,2).KichHoat(1, null, default));
         using var check=Context();
         Assert.Equal("NHAP",(await check.HopDongs.SingleAsync(h=>h.Id==1)).TrangThai);
         Assert.Equal("TRONG",(await check.PhongTros.SingleAsync(p=>p.Id==1)).TrangThai);
@@ -118,6 +125,77 @@ public sealed class ContractActivationTests : IDisposable
         Assert.Equal(4,contract.PhongId);
         Assert.Equal("DANG_THUE",(await check.PhongTros.SingleAsync(p=>p.Id==4)).TrangThai);
         Assert.Equal("DA_CHO_THUE",(await check.TinDangs.SingleAsync(t=>t.Id==5)).TrangThai);
+    }
+
+    [Fact] public async Task RollbackWhenContractStepFails()
+    {
+        using var db=Context();
+        var controller=Controller(db);
+        var result=Assert.IsType<ViewResult>(await controller.KichHoat(1, "contract", default));
+        Assert.False(controller.ModelState.IsValid);
+        Assert.Contains(controller.ModelState[""]?.Errors ?? [], e=>e.ErrorMessage.Contains("giả lập"));
+        using var check=Context();
+        Assert.Equal("NHAP",(await check.HopDongs.SingleAsync(h=>h.Id==1)).TrangThai);
+        Assert.Equal("TRONG",(await check.PhongTros.SingleAsync(p=>p.Id==1)).TrangThai);
+        Assert.Equal("DANG_HIEN_THI",(await check.TinDangs.SingleAsync(t=>t.Id==1)).TrangThai);
+        Assert.Equal("NHAP",(await check.TinDangs.SingleAsync(t=>t.Id==2)).TrangThai);
+    }
+
+    [Fact] public async Task RollbackWhenRoomStepFails()
+    {
+        using var db=Context();
+        var controller=Controller(db);
+        var result=Assert.IsType<ViewResult>(await controller.KichHoat(1, "room", default));
+        Assert.False(controller.ModelState.IsValid);
+        using var check=Context();
+        Assert.Equal("NHAP",(await check.HopDongs.SingleAsync(h=>h.Id==1)).TrangThai);
+        Assert.Equal("TRONG",(await check.PhongTros.SingleAsync(p=>p.Id==1)).TrangThai);
+        Assert.Equal(0,(await check.PhongTros.SingleAsync(p=>p.Id==1)).PhienBan);
+        Assert.Equal("DANG_HIEN_THI",(await check.TinDangs.SingleAsync(t=>t.Id==1)).TrangThai);
+    }
+
+    [Fact] public async Task RollbackWhenListingStepFails()
+    {
+        using var db=Context();
+        var controller=Controller(db);
+        var result=Assert.IsType<ViewResult>(await controller.KichHoat(1, "listing", default));
+        Assert.False(controller.ModelState.IsValid);
+        using var check=Context();
+        Assert.Equal("NHAP",(await check.HopDongs.SingleAsync(h=>h.Id==1)).TrangThai);
+        Assert.Equal("TRONG",(await check.PhongTros.SingleAsync(p=>p.Id==1)).TrangThai);
+        Assert.Equal("DANG_HIEN_THI",(await check.TinDangs.SingleAsync(t=>t.Id==1)).TrangThai);
+        Assert.Equal("NHAP",(await check.TinDangs.SingleAsync(t=>t.Id==2)).TrangThai);
+        Assert.Equal("TAM_AN",(await check.TinDangs.SingleAsync(t=>t.Id==3)).TrangThai);
+    }
+
+    [Fact] public async Task RetryAfterSimulatedFailureSucceeds()
+    {
+        using var db=Context();
+        var controller=Controller(db);
+        Assert.IsType<ViewResult>(await controller.KichHoat(1, "listing", default));
+        using var db2=Context();
+        Assert.IsType<RedirectToActionResult>(await Controller(db2).KichHoat(1, null, default));
+        using var check=Context();
+        Assert.Equal("DANG_HIEU_LUC",(await check.HopDongs.SingleAsync(h=>h.Id==1)).TrangThai);
+        Assert.Equal("DANG_THUE",(await check.PhongTros.SingleAsync(p=>p.Id==1)).TrangThai);
+        Assert.Equal(3, await check.TinDangs.CountAsync(t=>t.PhongId==1 && t.TrangThai=="DA_CHO_THUE"));
+    }
+
+    [Fact]
+    public async Task ConcurrentActivationOnlyOneSucceeds()
+    {
+        using var db1=Context();
+        using var db2=Context();
+        var c1=Controller(db1);
+        var c2=Controller(db2);
+        var results=await Task.WhenAll(c1.KichHoat(1, null, default), c2.KichHoat(1, null, default));
+        // Exactly one activation commits; the loser sees the contract already effective.
+        Assert.Equal(1, results.Count(r=>r is RedirectToActionResult));
+        Assert.Equal(1, results.Count(r=>r is ViewResult));
+        using var check=Context();
+        Assert.Equal("DANG_HIEU_LUC",(await check.HopDongs.SingleAsync(h=>h.Id==1)).TrangThai);
+        Assert.Equal("DANG_THUE",(await check.PhongTros.SingleAsync(p=>p.Id==1)).TrangThai);
+        Assert.Equal(3, await check.TinDangs.CountAsync(t=>t.PhongId==1 && t.TrangThai=="DA_CHO_THUE"));
     }
 
     public void Dispose(){SqliteConnection.ClearAllPools();File.Delete(path);foreach(var backup in Directory.EnumerateFiles(Path.GetDirectoryName(path)!,Path.GetFileName(path)+".before-*.bak"))File.Delete(backup);}
