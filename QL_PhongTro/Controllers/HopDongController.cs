@@ -103,6 +103,7 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
     [HttpPost, ValidateAntiForgeryToken, ModuleAccess("HOP_DONG", write: true)]
     public async Task<IActionResult> Create(HopDongCreateViewModel vm, CancellationToken ct)
     {
+        bool luuNhap = vm.Intent == "NHAP";
         // BEGIN IMMEDIATE serializes writers before checking overlaps and allocating a code.
         await db.Database.OpenConnectionAsync(ct);
         await using var sqliteTransaction = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
@@ -156,20 +157,33 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
             db.HopDongs.Add(contract);
         }
         contract.MaHopDong = code; contract.PhongId = y.PhongId; contract.KhachDungTenId = y.KhachId;
-        contract.TienCoc = vm.TienCoc!.Value; contract.NgayChot = vm.NgayChot!.Value; contract.TrangThai = "DANG_HIEU_LUC";
+        contract.TienCoc = vm.TienCoc!.Value; contract.NgayChot = vm.NgayChot!.Value; contract.TrangThai = luuNhap ? "NHAP" : "DANG_HIEU_LUC";
         await db.SaveChangesAsync(ct);
         var period = await db.KyHopDongs.SingleOrDefaultAsync(k => k.HopDongId == contract.Id && k.SoThuTu == 1, ct);
         if (period is null) { period = new KyHopDongThamChieu { HopDongId = contract.Id, NguoiLapId = AccountId, NgayTao = now }; db.KyHopDongs.Add(period); }
         period.NgayBatDau = vm.NgayBatDau!.Value; period.NgayKetThuc = vm.NgayKetThuc!.Value;
         period.GiaThue = vm.GiaThue!.Value; period.SoThang = vm.SoThang!.Value;
-        db.HopDongChiSoDauKys.Add(new HopDongChiSoDauKy { HopDongId = contract.Id, NgayBanGiao = vm.NgayBatDau.Value,
-            ChiSoDien = vm.ChiSoDien!.Value, ChiSoNuoc = vm.ChiSoNuoc!.Value, NguoiNhapId = AccountId, NgayNhap = now });
-        room.TrangThai = "DANG_THUE";
-        room.PhienBan++;
-        // Hợp đồng có hiệu lực: mọi tin đăng của phòng rời khỏi trang công khai cùng lúc với phòng.
-        await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE tin_dang SET trang_thai='DA_CHO_THUE' WHERE phong_id={room.Id} AND trang_thai<>'DA_CHO_THUE'", ct);
+        var meter = await db.HopDongChiSoDauKys.SingleOrDefaultAsync(m => m.HopDongId == contract.Id, ct);
+        if (meter is null) { meter = new HopDongChiSoDauKy { HopDongId = contract.Id }; db.HopDongChiSoDauKys.Add(meter); }
+        meter.NgayBanGiao = vm.NgayBatDau.Value;
+        meter.ChiSoDien = vm.ChiSoDien!.Value;
+        meter.ChiSoNuoc = vm.ChiSoNuoc!.Value;
+        meter.NguoiNhapId = AccountId;
+        meter.NgayNhap = now;
+        if (!luuNhap)
+        {
+            room.TrangThai = "DANG_THUE";
+            room.PhienBan++;
+            // Hợp đồng có hiệu lực: mọi tin đăng của phòng rời khỏi trang công khai cùng lúc với phòng.
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE tin_dang SET trang_thai='DA_CHO_THUE' WHERE phong_id={room.Id} AND trang_thai<>'DA_CHO_THUE'", ct);
+        }
         await db.SaveChangesAsync(ct);
         await sqliteTransaction.CommitAsync(ct);
+        if (luuNhap)
+        {
+            TempData["ContractSuccess"] = $"Đã lưu hợp đồng {code} ở trạng thái nháp. Mở chi tiết hợp đồng và bấm Kích hoạt khi sẵn sàng cho thuê.";
+            return RedirectToAction(nameof(Details), new { id = contract.Id });
+        }
         TempData["ContractSuccess"] = $"Đã tạo hợp đồng {code}, ghi chỉ số điện nước đầu kỳ. Phòng {y.Phong} — {y.ToaNha}: Đang thuê.";
         return RedirectToAction(nameof(Index));
         }
