@@ -1,3 +1,10 @@
+## 08/10/2026 — S3-05:5 hoàn thiện ghi chỉ số trên mobile
+
+- Cùng DOM/form theo phòng: bảng responsive thành thẻ 360px, tham chiếu sát ô, inputmode decimal, input/nút >=48px, status/progress rõ. Validate tức thời và focus/cuộn đúng field/room/warning; redirect success thêm fragment phòng. Chỉ presentation và một dòng redirect, giữ mọi nghiệp vụ lát 1–4, không thêm schema/S3-06/hóa đơn.
+- Build cách ly PASS, 0 lỗi; Meter/schema 98/98 PASS (95 cũ + 3 HTTP mobile mới), bộ cuối kèm ba test nâng schema 101/101 PASS; JS harness 8/8 PASS. Regression cùng bốn nhóm lát 4 306/314 PASS, đúng 8 baseline FAIL, 0 skipped. So tập tên với TRX cuối lát 4 khớp hoàn toàn, không lỗi mới.
+- Browser in-app 360x800 trên DB COPY riêng v18: không overflow cấp trang; lỗi điện/nước đúng ô, sửa/lưu từng phòng, warning điện và cả hai, không confirm vẫn không save, confirm save, progress tới 2/2, focus/vị trí/reload đạt. Desktop 1280x900 giữ bảng và lưu được. THEO_NGUOI không tạo meter nước giả; copy integrity/FK đạt, nguồn copy SHA256 không đổi; app đã dừng.
+- Chưa kiểm thiết bị/bàn phím Android/iPhone thật, Safari/3G/stress. DB demo chính không bị ghi test hoặc nâng schema; demo S3-05 đầy đủ dùng fixture v18. Không stage/commit/push/merge/PR. Chi tiết AC5, test/filter, baseline và bằng chứng: [s3055-mobile-meter-entry.md](s3055-mobile-meter-entry.md).
+
 ## 08/10/2026 — S3-05:3: tiến độ ghi chỉ số theo tòa/kỳ
 
 - PO duyệt mẫu số là các phòng trong danh sách hiện tại có `DichVu.Count > 0`; đếm phòng, không đếm dịch vụ/hợp đồng. ViewModel thêm computed properties `TongPhongCanChot`, `SoPhongDaChot`, `SoPhongConLai`; số đã chốt chỉ đếm `DaChot` trong cùng tập cần meter. Phòng không cần meter giữ nguyên list/status legacy nhưng không góp vào progress. Thiếu reference vẫn nằm trong tổng/còn lại, không giả 0 hay đổi validation.

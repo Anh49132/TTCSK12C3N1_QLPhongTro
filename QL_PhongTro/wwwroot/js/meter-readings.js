@@ -1,3 +1,9 @@
+function revealMeterTarget(target) {
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: target.matches('[data-meter-input]') ? 'center' : 'start', behavior: 'auto' });
+}
+
 document.querySelectorAll('[data-meter-form]').forEach(form => {
     function validate(input) {
         const previous = input.dataset.previous;
@@ -12,9 +18,28 @@ document.querySelectorAll('[data-meter-form]').forEach(form => {
         document.getElementById(input.id + '-error').textContent = error;
         return !error;
     }
-    form.querySelectorAll('[data-meter-input]').forEach(input => input.addEventListener('input', () => validate(input)));
+    form.querySelectorAll('[data-meter-input]').forEach(input => input.addEventListener('input', () => {
+        const wasInvalid = input.getAttribute('aria-invalid') === 'true';
+        if (!validate(input) && !wasInvalid) revealMeterTarget(input);
+    }));
+    // Use our field errors for submit too, instead of native validation hiding
+    // another room's error above the current viewport. Constraints stay intact.
+    form.noValidate = true;
     form.addEventListener('submit', event => {
-        const results = [...form.querySelectorAll('[data-meter-input]')].map(validate);
-        if (results.includes(false)) event.preventDefault();
+        const inputs = [...form.querySelectorAll('[data-meter-input]')];
+        const results = inputs.map(validate);
+        if (results.includes(false)) {
+            event.preventDefault();
+            revealMeterTarget(inputs[results.indexOf(false)]);
+        }
     });
 });
+
+const activeRoom = document.querySelector('[data-meter-room][data-meter-active="true"]');
+if (activeRoom) {
+    revealMeterTarget(activeRoom.querySelector('[data-meter-input][aria-invalid="true"]')
+        || activeRoom.querySelector('[data-room-error]')
+        || activeRoom.querySelector('[data-usage-warning]') || activeRoom);
+} else if (/^#meter-room-\d+$/.test(window.location.hash)) {
+    revealMeterTarget(document.getElementById(window.location.hash.slice(1)));
+}

@@ -1,0 +1,38 @@
+.meter-page { min-width: 0; color: #25282D; overflow-wrap: anywhere; }
+.meter-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+.meter-building select { min-width: 0; max-width: 100%; flex: 1 1 220px; }
+.meter-page .btn, .meter-page .form-select, .meter-page .form-control { min-height: 48px; }
+.meter-page .form-control { font-size: 16px; }
+.meter-progress { background: #E9EAEC; padding: 12px 16px; border-radius: 8px; font-weight: 600; }
+.meter-table { width: 100%; table-layout: fixed; }
+.meter-table th, .meter-table td { overflow-wrap: anywhere; }
+.meter-table th:last-child { width: 42%; }
+.meter-room-label { display: none; }
+.meter-status-badge { display: inline-block; padding: 6px 10px; border-radius: 8px; font-weight: 600; }
+.meter-status-badge.is-complete { background: #e2f0e6; color: #225537; }
+.meter-status-badge.is-pending { background: #E9EAEC; color: #30343B; }
+.meter-service { margin-bottom: 16px; }
+.meter-service .form-label { font-weight: 600; margin-bottom: 4px; }
+.meter-previous { margin-bottom: 6px; }
+.meter-page [data-meter-room], .meter-page [data-usage-warning], .meter-page [data-room-error], .meter-page [data-meter-input] { scroll-margin-block: 100px 24px; }
+.meter-page [data-usage-warning] p { margin-top: 12px; }
+.meter-page .meter-save { background: #30343B; border-color: #30343B; }
+.meter-page .meter-confirm { background: #BFA77A; border-color: #BFA77A; color: #25282D; white-space: normal; }
+.meter-page :focus-visible { outline: 3px solid #BFA77A; outline-offset: 3px; }
+@media (max-width: 767px) {
+    .meter-heading { display: block; }
+    .meter-building .btn { width: 100%; }
+    .meter-table, .meter-table tbody { display: block; }
+    .meter-table thead { display: none; }
+    .meter-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; margin-bottom: 16px; padding: 16px; background: #FFFFFF; border: 1px solid #E9EAEC; border-radius: 12px; }
+    .meter-table tr > th, .meter-table tr > td { border: 0; padding: 0; background: transparent; box-shadow: none; min-width: 0; }
+    .meter-table tr > th { align-self: center; font-size: 18px; }
+    .meter-table .meter-floor-number, .meter-table .meter-reference-column { display: none; }
+    .meter-room-label { display: inline; }
+    .meter-table .meter-action { grid-column: 1 / -1; margin-top: 16px; }
+    .meter-page .meter-save, .meter-page .meter-confirm { width: 100%; }
+    .meter-page [data-meter-error] { margin-top: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .meter-page { scroll-behavior: auto; }
+}

@@ -30,7 +30,7 @@ public sealed class ChiSoDienNuocController(ChiSoDienNuocService readings) : Con
         {
             var errors=ModelState.Where(x=>x.Value!.Errors.Count>0).ToDictionary(x=>x.Key,x=>new[]{"Giá trị nhập không hợp lệ."});
             if(errors.Count==0) errors=await readings.LuuAsync(actor,input,ct);
-            if(errors.Count==0) {TempData["MeterSuccess"]="Đã lưu chỉ số phòng vừa chọn.";return RedirectToAction(nameof(Index),new{toaNhaId=input.ToaNhaId});}
+            if(errors.Count==0) {TempData["MeterSuccess"]="Đã lưu chỉ số phòng vừa chọn.";return RedirectToAction(nameof(Index),null,new{toaNhaId=input.ToaNhaId},$"meter-room-{input.PhongId}");}
             var model=await readings.DanhSachAsync(actor,input.ToaNhaId,ct);
             if(!model.Phongs.Any(x=>x.PhongId==input.PhongId && x.HopDongId==input.HopDongId)) return Forbid();
             model.Loi=errors;model.Input=input;return View("Index",model);
