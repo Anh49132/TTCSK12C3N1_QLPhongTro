@@ -219,6 +219,24 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
     }
 
     [HttpGet]
+    public async Task<IActionResult> LichSuNguoiO(int phongId, DateOnly? tuNgay, DateOnly? denNgay, CancellationToken ct)
+    {
+        if (!await db.PhongTros.AnyAsync(p => p.Id == phongId, ct)) return NotFound();
+        var service = new LichSuNguoiOService(db);
+        var room = await service.PhongAsync(AccountId, phongId, ct);
+        if (room == null) return Forbid();
+        var model = new LichSuNguoiOViewModel { PhongId = phongId, Phong = room.Value.Phong, ToaNha = room.Value.ToaNha,
+            TuNgay = tuNgay ?? new DateOnly(HomNay.Year, HomNay.Month, 1), DenNgay = denNgay ?? HomNay };
+        if (model.DenNgay < model.TuNgay) ModelState.AddModelError(nameof(model.DenNgay), "Đến ngày không được trước từ ngày.");
+        if (ModelState.IsValid)
+        {
+            var history = await service.LayAsync(AccountId, phongId, model.TuNgay.Value, model.DenNgay.Value, HomNay, ct);
+            model.Nguois = history.Rows; model.HopDongThieuDuLieu = history.Missing; model.DaLoc = true;
+        }
+        return View(model);
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Details(int id, CancellationToken ct)
     {
         if (!await db.HopDongs.AnyAsync(x => x.Id == id, ct)) return NotFound();

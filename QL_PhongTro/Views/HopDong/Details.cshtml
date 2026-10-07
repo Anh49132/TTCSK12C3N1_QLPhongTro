@@ -3,6 +3,7 @@
 @{ ViewData["Title"] = "Người ở trong hợp đồng"; }
 <div class="contract-page">
 <a asp-action="Index">← Danh sách hợp đồng</a>
+<a class="btn btn-outline-primary" asp-action="LichSuNguoiO" asp-route-phongId="@Model.HopDong.PhongId">Lịch sử người ở của phòng</a>
 <div class="contract-heading"><h1>@Model.HopDong.MaHopDong — Phòng @Model.Phong</h1></div>
 @if (TempData["ContractSuccess"] is { } message) { <div class="alert alert-success">@message</div> }
 @if (TempData["ContractWarning"] is { } warning) { <div class="alert alert-warning" role="alert">@warning</div> }
