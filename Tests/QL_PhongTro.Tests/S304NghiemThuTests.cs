@@ -277,4 +277,66 @@ public sealed class S304NghiemThuTests : IDisposable
         Assert.Equal("{\"trang_thai\":\"NHAP\"}", hopDongRows[0]["du_lieu_truoc"]);
         Assert.Equal("{\"trang_thai\":\"DANG_HIEU_LUC\"}", hopDongRows[0]["du_lieu_sau"]);
     }
+
+    [Fact]
+    public async Task KichHoat_ThatBai_BuocHopDong_KhongGhiNhatKyVaGiuNguyenTrangThai()
+    {
+        var hopDongId = await TaoHopDongNhapAsync();
+        var truoc = JournalCount();
+
+        using (var db = Context(ChuNhaId))
+        {
+            var controller = HopDongController(db);
+            Assert.IsType<ViewResult>(await controller.KichHoat(hopDongId, "contract", default));
+            Assert.False(controller.ModelState.IsValid);
+        }
+
+        // Thất bại ở bước hợp đồng: không thêm dòng nhật ký nào, mọi trạng thái giữ nguyên.
+        Assert.Equal(truoc, JournalCount());
+        Assert.Equal("NHAP", Scalar("SELECT trang_thai FROM hop_dong WHERE id=$id", ("$id", hopDongId)));
+        Assert.Equal("DA_DAT_COC", Scalar("SELECT trang_thai FROM phong_tro WHERE id=$id", ("$id", PhongId)));
+        Assert.Equal("DA_CHO_THUE", Scalar("SELECT trang_thai FROM tin_dang WHERE id=$id", ("$id", TinDangId)));
+    }
+
+    [Fact]
+    public async Task KichHoat_ThatBai_BuocPhong_KhongGhiNhatKyVaGiuNguyenTrangThai()
+    {
+        var hopDongId = await TaoHopDongNhapAsync();
+        var truoc = JournalCount();
+
+        using (var db = Context(ChuNhaId))
+        {
+            var controller = HopDongController(db);
+            Assert.IsType<ViewResult>(await controller.KichHoat(hopDongId, "room", default));
+            Assert.False(controller.ModelState.IsValid);
+        }
+
+        // Thất bại ở bước phòng: hợp đồng vẫn nháp, phòng vẫn Đã đặt cọc,
+        // phiên bản phòng không tăng và không có dòng nhật ký nào.
+        Assert.Equal(truoc, JournalCount());
+        Assert.Equal("NHAP", Scalar("SELECT trang_thai FROM hop_dong WHERE id=$id", ("$id", hopDongId)));
+        Assert.Equal("DA_DAT_COC", Scalar("SELECT trang_thai FROM phong_tro WHERE id=$id", ("$id", PhongId)));
+        Assert.Equal("1", Scalar("SELECT phien_ban FROM phong_tro WHERE id=$id", ("$id", PhongId)));
+        Assert.Equal("DA_CHO_THUE", Scalar("SELECT trang_thai FROM tin_dang WHERE id=$id", ("$id", TinDangId)));
+    }
+
+    [Fact]
+    public async Task KichHoat_ThatBai_BuocTin_KhongGhiNhatKyVaGiuNguyenTrangThai()
+    {
+        var hopDongId = await TaoHopDongNhapAsync();
+        var truoc = JournalCount();
+
+        using (var db = Context(ChuNhaId))
+        {
+            var controller = HopDongController(db);
+            Assert.IsType<ViewResult>(await controller.KichHoat(hopDongId, "listing", default));
+            Assert.False(controller.ModelState.IsValid);
+        }
+
+        // Thất bại ở bước tin: hợp đồng và phòng hoàn tác về trạng thái trước kích hoạt.
+        Assert.Equal(truoc, JournalCount());
+        Assert.Equal("NHAP", Scalar("SELECT trang_thai FROM hop_dong WHERE id=$id", ("$id", hopDongId)));
+        Assert.Equal("DA_DAT_COC", Scalar("SELECT trang_thai FROM phong_tro WHERE id=$id", ("$id", PhongId)));
+        Assert.Equal("DA_CHO_THUE", Scalar("SELECT trang_thai FROM tin_dang WHERE id=$id", ("$id", TinDangId)));
+    }
 }
