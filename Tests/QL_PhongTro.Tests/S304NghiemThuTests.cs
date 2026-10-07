@@ -248,4 +248,33 @@ public sealed class S304NghiemThuTests : IDisposable
         Assert.Equal("DANG_HIEU_LUC", Scalar("SELECT trang_thai FROM hop_dong WHERE id=$id", ("$id", hopDongId)));
         Assert.Equal("DANG_THUE", Scalar("SELECT trang_thai FROM phong_tro WHERE id=$id", ("$id", PhongId)));
     }
+
+    [Fact]
+    public async Task DuyetThueNgay_RoiKichHoat_GhiChuoiHaiDongNhatKyPhongNoiNhau()
+    {
+        var hopDongId = await TaoHopDongNhapAsync();
+        using (var db = Context(ChuNhaId))
+            Assert.IsType<RedirectToActionResult>(await HopDongController(db).KichHoat(hopDongId, null, default));
+
+        // Hai dòng nhật ký phòng nối nhau: Trống → Đã đặt cọc (duyệt thuê ngay),
+        // rồi Đã đặt cọc → Đang thuê (kích hoạt hợp đồng).
+        var phongRows = JournalRows("loai_doi_tuong='phong_tro' AND doi_tuong_id=$id AND hanh_dong='DOI_TRANG_THAI'", ("$id", PhongId));
+        Assert.Equal(2, phongRows.Count);
+        Assert.Equal("{\"trang_thai\":\"TRONG\"}", phongRows[0]["du_lieu_truoc"]);
+        Assert.Equal("{\"trang_thai\":\"DA_DAT_COC\"}", phongRows[0]["du_lieu_sau"]);
+        Assert.Equal("{\"trang_thai\":\"DA_DAT_COC\"}", phongRows[1]["du_lieu_truoc"]);
+        Assert.Equal("{\"trang_thai\":\"DANG_THUE\"}", phongRows[1]["du_lieu_sau"]);
+        Assert.All(phongRows, row =>
+        {
+            Assert.Equal(ChuNhaId.ToString(), row["nguoi_thuc_hien_id"]);
+            Assert.Equal(ChuNhaHoTen, row["ten_nguoi_thuc_hien"]);
+            Assert.Equal("CHU_NHA", row["vai_tro_luc_thuc_hien"]);
+        });
+
+        // Hợp đồng cũng có dòng nháp → Đang hiệu lực ở bước kích hoạt.
+        var hopDongRows = JournalRows("loai_doi_tuong='hop_dong' AND doi_tuong_id=$id AND hanh_dong='DOI_TRANG_THAI'", ("$id", hopDongId));
+        Assert.Single(hopDongRows);
+        Assert.Equal("{\"trang_thai\":\"NHAP\"}", hopDongRows[0]["du_lieu_truoc"]);
+        Assert.Equal("{\"trang_thai\":\"DANG_HIEU_LUC\"}", hopDongRows[0]["du_lieu_sau"]);
+    }
 }
