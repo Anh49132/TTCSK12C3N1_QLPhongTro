@@ -339,4 +339,80 @@ public sealed class S304NghiemThuTests : IDisposable
         Assert.Equal("DA_DAT_COC", Scalar("SELECT trang_thai FROM phong_tro WHERE id=$id", ("$id", PhongId)));
         Assert.Equal("DA_CHO_THUE", Scalar("SELECT trang_thai FROM tin_dang WHERE id=$id", ("$id", TinDangId)));
     }
+
+    [Fact]
+    public async Task TinDaChoThue_VangKhoiTimTinVaTrangChu_TuBuocDuyetVaConVangSauKichHoat()
+    {
+        // Trước duyệt: 7 tin công khai, trang 1 có 6 tin, trang 2 có 1 tin.
+        using (var db = Context(ChuNhaId))
+        {
+            var controller = new TimTinController(db, new TinDangExpirationService(db, _clock));
+            var view = Assert.IsType<ViewResult>(await controller.Index(new TimTinViewModel(), default));
+            var model = Assert.IsType<TimTinViewModel>(view.Model);
+            Assert.Equal(7, model.TongKetQua);
+            Assert.Equal(2, model.TongTrang);
+            Assert.Equal(6, model.TinDangs.Count);
+            Assert.Contains(model.TinDangs, tin => tin.Id == TinDangId);
+        }
+        using (var db = Context(ChuNhaId))
+        {
+            var home = new HomeController(new RegistrationSettings(), db,
+                new YeuCauThueService(db, _clock), new TinDangExpirationService(db, _clock));
+            var view = Assert.IsType<ViewResult>(await home.Index());
+            var model = Assert.IsType<HomeViewModel>(view.Model);
+            Assert.Equal(6, model.TinMoiNhat.Count);
+            Assert.Contains(model.TinMoiNhat, tin => tin.Id == TinDangId);
+        }
+
+        // Duyệt thuê ngay: phòng Đã đặt cọc, tin Đã cho thuê.
+        await DuyetThueNgayAsync();
+
+        // Sau duyệt: tin vắng mặt khỏi trang công khai và trang chủ,
+        // tổng kết quả giảm còn 6 và chỉ còn một trang.
+        using (var db = Context(ChuNhaId))
+        {
+            var controller = new TimTinController(db, new TinDangExpirationService(db, _clock));
+            var view = Assert.IsType<ViewResult>(await controller.Index(new TimTinViewModel(), default));
+            var model = Assert.IsType<TimTinViewModel>(view.Model);
+            Assert.Equal(6, model.TongKetQua);
+            Assert.Equal(1, model.TongTrang);
+            Assert.Equal(6, model.TinDangs.Count);
+            Assert.DoesNotContain(model.TinDangs, tin => tin.Id == TinDangId);
+        }
+        using (var db = Context(ChuNhaId))
+        {
+            var home = new HomeController(new RegistrationSettings(), db,
+                new YeuCauThueService(db, _clock), new TinDangExpirationService(db, _clock));
+            var view = Assert.IsType<ViewResult>(await home.Index());
+            var model = Assert.IsType<HomeViewModel>(view.Model);
+            Assert.Equal(6, model.TinMoiNhat.Count);
+            Assert.DoesNotContain(model.TinMoiNhat, tin => tin.Id == TinDangId);
+        }
+
+        // Kích hoạt hợp đồng: tin vẫn vắng mặt ở cả hai nơi, số kết quả và
+        // phân trang không đổi.
+        var hopDongId = await TaoHopDongNhapTuYeuCauDaDuyetAsync();
+        using (var db = Context(ChuNhaId))
+            Assert.IsType<RedirectToActionResult>(await HopDongController(db).KichHoat(hopDongId, null, default));
+
+        using (var db = Context(ChuNhaId))
+        {
+            var controller = new TimTinController(db, new TinDangExpirationService(db, _clock));
+            var view = Assert.IsType<ViewResult>(await controller.Index(new TimTinViewModel(), default));
+            var model = Assert.IsType<TimTinViewModel>(view.Model);
+            Assert.Equal(6, model.TongKetQua);
+            Assert.Equal(1, model.TongTrang);
+            Assert.Equal(6, model.TinDangs.Count);
+            Assert.DoesNotContain(model.TinDangs, tin => tin.Id == TinDangId);
+        }
+        using (var db = Context(ChuNhaId))
+        {
+            var home = new HomeController(new RegistrationSettings(), db,
+                new YeuCauThueService(db, _clock), new TinDangExpirationService(db, _clock));
+            var view = Assert.IsType<ViewResult>(await home.Index());
+            var model = Assert.IsType<HomeViewModel>(view.Model);
+            Assert.Equal(6, model.TinMoiNhat.Count);
+            Assert.DoesNotContain(model.TinMoiNhat, tin => tin.Id == TinDangId);
+        }
+    }
 }
