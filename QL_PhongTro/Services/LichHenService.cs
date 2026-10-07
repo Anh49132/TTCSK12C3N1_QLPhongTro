@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Data;
@@ -426,6 +427,8 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
             await listingUpdate.ExecuteNonQueryAsync(ct);
         }
         var (ten, vaiTro) = await DocNguoiThucHienAsync(tx, accountId, ct);
+        await GhiNhatKyPhongAsync(tx, yeuCau.PhongId, LichHenTrangThai.PhongTrong,
+            LichHenTrangThai.PhongDaDatCoc, accountId, ten, vaiTro, now, ct);
         await GhiLichSuAsync(tx, yeuCauId, yeuCau.TrangThai, LichHenTrangThai.DaDuyet,
             HanhDongYeuCau.DuyetThueNgay, accountId, ten, vaiTro, yeuCau.LichHen, yeuCau.LichHen, null, null, now, ct);
         await GhiThongBaoAsync(tx, yeuCau, LoaiThongBaoYeuCau.YeuCauDuyet,
@@ -661,6 +664,35 @@ public class LichHenService(AppDbContext db, ITimeProvider clock)
         cmd.Parameters.AddWithValue("$thoiDiem", SqlUtc(thoiDiem));
         await cmd.ExecuteNonQueryAsync(ct);
     }
+
+    private static async Task GhiNhatKyPhongAsync(SqliteTransaction tx, int phongId, string trangThaiCu,
+        string trangThaiMoi, int nguoiThucHienId, string? ten, string? vaiTro, DateTime thoiDiem, CancellationToken ct)
+    {
+        using var cmd = tx.Connection!.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = """
+            INSERT INTO nhat_ky_hoat_dong
+                (nguoi_thuc_hien_id, ten_nguoi_thuc_hien, vai_tro_luc_thuc_hien, loai_doi_tuong,
+                 doi_tuong_id, hanh_dong, du_lieu_truoc, du_lieu_sau, thoi_diem)
+            VALUES ($nguoi, $ten, $vaiTro, 'phong_tro', $phongId, 'DOI_TRANG_THAI', $truoc, $sau, $thoiDiem);
+            """;
+        cmd.Parameters.AddWithValue("$nguoi", nguoiThucHienId);
+        cmd.Parameters.AddWithValue("$ten", (object?)ten ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$vaiTro", (object?)vaiTro ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$phongId", phongId);
+        cmd.Parameters.AddWithValue("$truoc", Snapshot(new SortedDictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["trang_thai"] = trangThaiCu
+        }));
+        cmd.Parameters.AddWithValue("$sau", Snapshot(new SortedDictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["trang_thai"] = trangThaiMoi
+        }));
+        cmd.Parameters.AddWithValue("$thoiDiem", SqlUtc(thoiDiem));
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    private static string Snapshot(SortedDictionary<string, object?> values) => JsonSerializer.Serialize(values);
 
     // A profile without a linked account means the tenant cannot be reached; the
     // scheduling decision still stands, so the notification is skipped, not fatal.
