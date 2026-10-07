@@ -276,6 +276,53 @@ public class LichHenDuyetThueNgayTests : IDisposable
     }
 
     [Fact]
+    public async Task Duyet_GhiNhatKyHoatDongChuyenPhongSangDaDatCoc()
+    {
+        var id = TaoYeuCau();
+
+        await _service.DuyetThueNgayAsync(id, _chuNhaId, default);
+
+        Assert.Equal("1", Scalar(
+            "SELECT COUNT(*) FROM nhat_ky_hoat_dong WHERE loai_doi_tuong='phong_tro' AND doi_tuong_id=$phong AND hanh_dong='DOI_TRANG_THAI'",
+            ("$phong", _phongId)));
+        Assert.Equal(_chuNhaId.ToString(), Scalar(
+            "SELECT nguoi_thuc_hien_id FROM nhat_ky_hoat_dong WHERE loai_doi_tuong='phong_tro' AND doi_tuong_id=$phong",
+            ("$phong", _phongId)));
+        Assert.Equal(ChuNhaHoTen, Scalar(
+            "SELECT ten_nguoi_thuc_hien FROM nhat_ky_hoat_dong WHERE loai_doi_tuong='phong_tro' AND doi_tuong_id=$phong",
+            ("$phong", _phongId)));
+        Assert.Equal("CHU_NHA", Scalar(
+            "SELECT vai_tro_luc_thuc_hien FROM nhat_ky_hoat_dong WHERE loai_doi_tuong='phong_tro' AND doi_tuong_id=$phong",
+            ("$phong", _phongId)));
+        Assert.Equal("{\"trang_thai\":\"TRONG\"}", Scalar(
+            "SELECT du_lieu_truoc FROM nhat_ky_hoat_dong WHERE loai_doi_tuong='phong_tro' AND doi_tuong_id=$phong",
+            ("$phong", _phongId)));
+        Assert.Equal("{\"trang_thai\":\"DA_DAT_COC\"}", Scalar(
+            "SELECT du_lieu_sau FROM nhat_ky_hoat_dong WHERE loai_doi_tuong='phong_tro' AND doi_tuong_id=$phong",
+            ("$phong", _phongId)));
+        Assert.Equal(Now(), Scalar(
+            "SELECT thoi_diem FROM nhat_ky_hoat_dong WHERE loai_doi_tuong='phong_tro' AND doi_tuong_id=$phong",
+            ("$phong", _phongId)));
+    }
+
+    [Fact]
+    public async Task Duyet_LoiGiuaChung_KhongGhiNhatKyPhong()
+    {
+        Insert("""
+            CREATE TRIGGER chan_ban_ghi_lich_su BEFORE INSERT ON yeu_cau_thue_lich_su
+            BEGIN SELECT RAISE(ABORT, 'lich su hong'); END;
+            """);
+        var id = TaoYeuCau();
+
+        await Assert.ThrowsAnyAsync<Exception>(() => _service.DuyetThueNgayAsync(id, _chuNhaId, default));
+
+        Assert.Equal("0", Scalar(
+            "SELECT COUNT(*) FROM nhat_ky_hoat_dong WHERE loai_doi_tuong='phong_tro' AND doi_tuong_id=$phong",
+            ("$phong", _phongId)));
+        Assert.Equal(LichHenTrangThai.PhongTrong, TrangThaiPhong());
+    }
+
+    [Fact]
     public async Task Duyet_KhongPhaiChuNhaPhong_ThenTuChoi()
     {
         // KHACH_THUE và cả chủ nhà khác đều phải bị chặn.
