@@ -51,6 +51,12 @@
 
 # Tiến độ và bàn giao dự án
 
+- 07/10/2026: dựng lại giao diện Chủ nhà cho danh sách hợp đồng, lập hợp đồng, Tổng quan chi tiết và tab Người ở cùng theo bố cục mẫu graphite/champagne (`#30343B`, `#BFA77A`, `#F5F5F4`, `#FFFFFF`, `#E9EAEC`, `#25282D`). Danh sách có thống kê thật, lọc tìm kiếm/tòa/trạng thái, thời hạn và cảnh báo trong 30 ngày; tiền cọc ghi rõ là mức thỏa thuận. Form có bước hướng dẫn, hai cột thông tin, tóm tắt và cọc cập nhật trực tiếp; giữ mọi ràng buộc server. Chi tiết lấy kỳ thuê/chỉ số bàn giao thật; tab người ở giữ form thêm/chuyển đi, sức chứa và lịch sử, POST thành công quay lại tab people. Không thêm chức năng giả cho PDF/gia hạn/thanh toán/điều khoản chưa lưu. Build Razor/C# cách ly PASS, 100 test hợp đồng/người ở/lịch sử PASS (HTTP kiểm tra tổng quan và tab people, CSRF/sở hữu). Không đổi schema/database; chưa kiểm tra trực quan trình duyệt và mobile 360px.
+
+- 07/10/2026: bổ sung ngẫu nhiên một ảnh mẫu kèm thumbnail vào 33 phòng còn chưa có ảnh (id 13–45), sau khi ứng dụng đã dừng. Tất cả 45/45 phòng hiện có ảnh; giữ nguyên ảnh cũ và toàn bộ bảng khác, gồm hồ sơ CCCD. Có backup trước cập nhật, kiểm tra đối chiếu dữ liệu/tệp/giới hạn 8 ảnh/integrity/FK PASS. Script hỗ trợ `--all-empty-rooms`, chạy lại không thêm ảnh vào phòng đã có; chưa kiểm chứng hiển thị trình duyệt.
+
+- 07/10/2026: theo xác nhận người dùng, bổ sung 10 ảnh phòng mẫu vào 10 phòng đầu tiên chưa có ảnh (id 3–12), mỗi phòng một ảnh và thumbnail; thêm hai mặt CCCD mẫu cho Khách thuê demo 2, 3 trong kho private. Sao lưu SQLite bằng backup API trước khi ghi; không đổi schema, ảnh/hồ sơ hiện có hoặc dữ liệu nghiệp vụ khác. Đối chiếu tất cả bảng với backup PASS, 24 tệp mới tồn tại, integrity/FK PASS. Không đưa ảnh/database/backup vào Git; chưa kiểm tra hiển thị qua trình duyệt. Script import có kiểm tra hồ sơ demo và từ chối nếu mục tiêu không còn trống, không chạy lại để nhân đôi.
+
 - 07/10/2026: thêm ô Số điện thoại khách thuê ngay dưới tên khách trong thẻ Thông tin hợp đồng của màn lập hợp đồng. Lấy từ hồ sơ khách thuộc yêu cầu đã chọn, readonly, không gửi lên để sửa hồ sơ; thiếu số hiển thị Chưa cập nhật. Không đổi schema/database. Build Razor/C# và test HTTP render/lưu hợp đồng PASS (xác nhận số điện thoại đúng, readonly và không có name). Chưa kiểm tra trực quan trên trình duyệt.
 
 ## S3-01 AC3–AC5 — hoàn tất luồng lập hợp đồng (07/10/2026)

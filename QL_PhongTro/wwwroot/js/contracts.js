@@ -24,6 +24,8 @@
     function updateDeposit() {
         deposit.value = /^[0-3]$/.test(depositMonths.value) && /^\d+$/.test(rent.value)
             ? (BigInt(rent.value) * BigInt(depositMonths.value)).toString() : '';
+        const preview = document.getElementById('deposit-preview');
+        if (preview) preview.textContent = deposit.value ? BigInt(deposit.value).toLocaleString('vi-VN') + ' đ' : '—';
     }
     depositMonths.addEventListener('change', updateDeposit);
     updateDeposit();

@@ -49,4 +49,7 @@ public class YeuCauHopDong
 
 public record HopDongChongLan(int Id, string Ma, DateOnly NgayBatDau, DateOnly NgayKetThuc);
 
-public record HopDongDanhSach(QL_PhongTro.Models.HopDongThamChieu HopDong, string Phong, string ToaNha, string? Khach);
+public record HopDongDanhSach(QL_PhongTro.Models.HopDongThamChieu HopDong, string Phong, string ToaNha, string? Khach)
+{
+    public QL_PhongTro.Models.KyHopDongThamChieu? Ky { get; init; }
+}

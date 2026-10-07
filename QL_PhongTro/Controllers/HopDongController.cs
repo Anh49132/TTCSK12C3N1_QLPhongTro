@@ -53,7 +53,10 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
                               || (User.IsInRole("KHACH_THUE") && k != null && k.TaiKhoanId == AccountId)
                           orderby h.Id descending
                           select new HopDongDanhSach(h, p.MaPhong, b.TenToaNha, k == null ? null : k.HoTen)).ToListAsync(ct);
-        return View(rows);
+        var ids = rows.Select(x => x.HopDong.Id).ToList();
+        var periods = await db.KyHopDongs.AsNoTracking().Where(x => ids.Contains(x.HopDongId)).OrderByDescending(x => x.NgayBatDau).ToListAsync(ct);
+        ViewData["HomNay"] = HomNay;
+        return View(rows.Select(x => x with { Ky = periods.FirstOrDefault(k => k.HopDongId == x.HopDong.Id) }).ToList());
     }
 
     [HttpGet, ModuleAccess("HOP_DONG", write: true)]
@@ -203,6 +206,9 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
             HomNay = HomNay, ChoThem = signer != null && h.TrangThai is "CHO_HIEU_LUC" or "DANG_HIEU_LUC",
             Input = input ?? new() { NgayVao = HomNay, PhienBanPhong = p.PhienBan },
             ChuyenDi = new() { NgayRa = HomNay, PhienBanPhong = p.PhienBan } };
+        model.ToaNha = await db.ToaNhas.Where(x => x.Id == p.ToaNhaId).Select(x => x.TenToaNha).SingleAsync(ct);
+        model.Ky = await db.KyHopDongs.AsNoTracking().Where(x => x.HopDongId == id).OrderByDescending(x => x.NgayBatDau).FirstOrDefaultAsync(ct);
+        model.ChiSo = await db.HopDongChiSoDauKys.AsNoTracking().SingleOrDefaultAsync(x => x.HopDongId == id, ct);
         var people = await (from g in db.NguoiOGheps.AsNoTracking() join k in db.KhachThues on g.KhachThueId equals k.Id
             where g.HopDongId == id orderby g.NgayVao, g.Id
             select new NguoiOGhepRow(k.HoTen, k.SoDienThoai, k.SoGiayTo, g.NgayVao) { Id = g.Id, NgayRa = g.NgayRa }).ToListAsync(ct);
@@ -293,7 +299,7 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
             if (issued.Count > 0)
                 TempData["ContractWarning"] = "Hóa đơn các kỳ " + string.Join(", ", issued.Select(x => $"{x.Thang:00}/{x.Nam}"))
                     + " đã lập được giữ nguyên. Số người giảm chỉ áp dụng cho hóa đơn chưa lập; hãy kiểm tra các hóa đơn này.";
-            return RedirectToAction(nameof(Details), new { id });
+            return RedirectToAction(nameof(Details), new { id, tab = "people" });
         }
         catch (Exception ex) when (ex is DbUpdateException or SqliteException)
         {
@@ -354,7 +360,7 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
             await db.SaveChangesAsync(ct);
             await sqlite.CommitAsync(ct);
             TempData["ContractSuccess"] = "Đã thêm người ở ghép. Người đứng tên tiếp tục chịu trách nhiệm thanh toán và nhận lại tiền cọc.";
-            return RedirectToAction(nameof(Details), new { id });
+            return RedirectToAction(nameof(Details), new { id, tab = "people" });
         }
         catch (Exception ex) when (ex is DbUpdateException or SqliteException)
         {
