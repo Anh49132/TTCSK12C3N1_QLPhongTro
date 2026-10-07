@@ -5,6 +5,8 @@
 <a asp-action="Index">← Danh sách hợp đồng</a>
 <div class="contract-heading"><h1>@Model.HopDong.MaHopDong — Phòng @Model.Phong</h1></div>
 @if (TempData["ContractSuccess"] is { } message) { <div class="alert alert-success">@message</div> }
+@if (TempData["ContractWarning"] is { } warning) { <div class="alert alert-warning" role="alert">@warning</div> }
+<div asp-validation-summary="All" class="text-danger" role="alert"></div>
 <section class="contract-card"><h2>Người đứng tên duy nhất</h2>
 @if (Model.DungTen is { } signer) {
 <p><strong>@signer.HoTen</strong></p><p>SĐT: @signer.SoDienThoai · Căn cước: @signer.SoGiayTo</p>
@@ -14,12 +16,22 @@
 <section class="contract-card"><h2>Người ở ghép hiện tại</h2>
 <p>Tổng số người ngày @Model.HomNay.ToString("dd/MM/yyyy"): <strong>@(Model.Nguois.Count + (Model.DungTen == null ? 0 : 1))/@Model.GioiHan người</strong>, gồm người đứng tên.</p>
 @foreach (var person in Model.Nguois) {
-<div class="roommate-person"><strong>@person.HoTen</strong><p>SĐT: @person.SoDienThoai · Căn cước: @person.SoGiayTo</p><p>Bắt đầu ở cùng: @person.NgayVao.ToString("dd/MM/yyyy")</p></div>
+<partial name="_NguoiOGhep" model="new QL_PhongTro.ViewModels.ChuyenDiRowViewModel(Model, person)" />
 }
 @if (Model.Nguois.Count == 0) { <p>Chưa có người ở ghép đang ở hôm nay.</p> }
 </section>
+<p class="contract-note">Ngày chuyển đi vẫn là ngày còn ở. Người đó chuyển sang danh sách đã rời phòng từ ngày kế tiếp; khoản khoán giảm từ tháng sau. Ngày tương lai là lịch chuyển đi đã ghi nhận.</p>
+@if (Model.SapVao.Count > 0) {
+<section class="contract-card"><h2>Người ở ghép sắp vào</h2>
+@foreach (var person in Model.SapVao) { <partial name="_NguoiOGhep" model="new QL_PhongTro.ViewModels.ChuyenDiRowViewModel(Model, person)" /> }
+</section>
+}
+<section class="contract-card"><h2>Người đã rời phòng</h2>
+@foreach (var person in Model.DaChuyenDi) { <partial name="_NguoiOGhep" model="new QL_PhongTro.ViewModels.ChuyenDiRowViewModel(Model, person)" /> }
+@if (Model.DaChuyenDi.Count == 0) { <p>Chưa có người đã rời phòng.</p> }
+</section>
 @if (Model.ChoThem && await Permissions.AllowsAsync("HOP_DONG", true)) {
-<section class="contract-card"><h2>Thêm người ở ghép</h2><p>Giới hạn @Model.GioiHan người, tính cả người đứng tên. Ngày chuyển đi được để trống.</p>
+<section class="contract-card"><h2>Thêm người ở ghép</h2><p>Giới hạn @Model.GioiHan người, tính cả người đứng tên. Ngày chuyển đi được để trống khi thêm mới.</p>
 <form asp-action="ThemNguoi" asp-route-id="@Model.HopDong.Id" method="post">
 <div asp-validation-summary="All" class="text-danger"></div>
 <input asp-for="Input.PhienBanPhong" type="hidden" />

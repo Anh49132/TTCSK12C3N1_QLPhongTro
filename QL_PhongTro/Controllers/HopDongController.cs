@@ -202,15 +202,19 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
         var model = new HopDongDetailsViewModel { HopDong = h, Phong = p.MaPhong, GioiHan = p.SoNguoiToiDa, DungTen = signer,
             HomNay = HomNay, ChoThem = signer != null && h.TrangThai is "CHO_HIEU_LUC" or "DANG_HIEU_LUC",
             Input = input ?? new() { NgayVao = HomNay, PhienBanPhong = p.PhienBan },
-            Nguois = await (from g in db.NguoiOGheps.AsNoTracking() join k in db.KhachThues on g.KhachThueId equals k.Id
-                where g.HopDongId == id && g.NgayVao <= HomNay && (g.NgayRa == null || g.NgayRa >= HomNay)
-                orderby g.NgayVao, g.Id select new NguoiOGhepRow(k.HoTen, k.SoDienThoai, k.SoGiayTo, g.NgayVao)).ToListAsync(ct) };
+            ChuyenDi = new() { NgayRa = HomNay, PhienBanPhong = p.PhienBan } };
+        var people = await (from g in db.NguoiOGheps.AsNoTracking() join k in db.KhachThues on g.KhachThueId equals k.Id
+            where g.HopDongId == id orderby g.NgayVao, g.Id
+            select new NguoiOGhepRow(k.HoTen, k.SoDienThoai, k.SoGiayTo, g.NgayVao) { Id = g.Id, NgayRa = g.NgayRa }).ToListAsync(ct);
         if (h.TrangThai != "DANG_HIEU_LUC" || !await db.KyHopDongs.AnyAsync(k => k.HopDongId == id && k.NgayBatDau <= HomNay && k.NgayKetThuc >= HomNay, ct))
         {
             static string? Mask(string? value) => value == null ? null : new string('*', Math.Max(0, value.Length - 4)) + value[^Math.Min(4, value.Length)..];
             if (signer != null) { signer.SoDienThoai = Mask(signer.SoDienThoai); signer.SoGiayTo = Mask(signer.SoGiayTo); }
-            model.Nguois = model.Nguois.Select(x => x with { SoDienThoai = Mask(x.SoDienThoai), SoGiayTo = Mask(x.SoGiayTo) }).ToList();
+            people = people.Select(x => x with { SoDienThoai = Mask(x.SoDienThoai), SoGiayTo = Mask(x.SoGiayTo) }).ToList();
         }
+        model.Nguois = people.Where(x => x.NgayVao <= HomNay && (x.NgayRa == null || x.NgayRa >= HomNay)).ToList();
+        model.DaChuyenDi = people.Where(x => x.NgayRa < HomNay).OrderByDescending(x => x.NgayRa).ToList();
+        model.SapVao = people.Where(x => x.NgayVao > HomNay).ToList();
         return model;
     }
 
@@ -220,6 +224,65 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
         if (!await db.HopDongs.AnyAsync(x => x.Id == id, ct)) return NotFound();
         if (!await OwnContract(id, ct)) return Forbid();
         return View(await DetailModel(id, null, ct));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("HOP_DONG", write: true)]
+    public async Task<IActionResult> ChuyenDi(int id, int nguoiId, [Bind(Prefix = "ChuyenDi")] ChuyenDiInput input, CancellationToken ct)
+    {
+        if (!await db.HopDongs.AnyAsync(h => h.Id == id, ct)) return NotFound();
+        if (!await OwnContract(id, ct)) return Forbid();
+        if (!await db.NguoiOGheps.AnyAsync(g => g.Id == nguoiId && g.HopDongId == id, ct)) return Forbid();
+        async Task<IActionResult> Invalid()
+        {
+            var model = await DetailModel(id, null, ct);
+            model.ChuyenDi = input; model.ChuyenDiNguoiId = nguoiId;
+            return View("Details", model);
+        }
+        if (input.NgayRa == null) ModelState.AddModelError("ChuyenDi.NgayRa", "Chọn ngày chuyển đi.");
+        if (input.NgayRa?.Year > 9998) ModelState.AddModelError("ChuyenDi.NgayRa", "Ngày chuyển đi ngoài phạm vi hỗ trợ.");
+        if (!ModelState.IsValid) return await Invalid();
+        try
+        {
+            await db.Database.OpenConnectionAsync(ct);
+            await using var sqlite = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+            await using var transaction = await db.Database.UseTransactionAsync(sqlite, ct);
+            if (!await OwnContract(id, ct)) return Forbid();
+            var h = await db.HopDongs.SingleAsync(x => x.Id == id, ct);
+            var room = await db.PhongTros.SingleAsync(x => x.Id == h.PhongId, ct);
+            var stay = await db.NguoiOGheps.SingleOrDefaultAsync(g => g.Id == nguoiId && g.HopDongId == id, ct);
+            if (stay == null) return Forbid();
+            if (h.TrangThai is not ("DANG_HIEU_LUC" or "CHO_HIEU_LUC"))
+                ModelState.AddModelError("", "Chỉ ghi nhận chuyển đi trong hợp đồng đang hoặc chờ hiệu lực.");
+            if (room.PhienBan != input.PhienBanPhong)
+                ModelState.AddModelError("", "Dữ liệu phòng đã thay đổi. Vui lòng tải lại trang trước khi lưu.");
+            if (stay.NgayRa != null) ModelState.AddModelError("", "Người ở ghép đã được ghi ngày chuyển đi. Không thể ghi lại.");
+            if (input.NgayRa < stay.NgayVao) ModelState.AddModelError("ChuyenDi.NgayRa", "Ngày chuyển đi không được trước ngày bắt đầu ở cùng.");
+            if (!ModelState.IsValid) return await Invalid();
+            var day = input.NgayRa!.Value;
+            var next = new DateOnly(day.Year, day.Month, 1).AddMonths(1);
+            using var probe = db.Database.GetDbConnection().CreateCommand();
+            probe.Transaction = sqlite;
+            probe.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='hoa_don'";
+            var invoicesReady = Convert.ToInt32(await probe.ExecuteScalarAsync(ct)) == 1;
+            // Contracts also work on databases where the optional invoice module is absent.
+            var issued = invoicesReady ? await db.HoaDons.AsNoTracking().Where(x => x.HopDongId == id && x.TrangThai != "DA_HUY"
+                && (x.Nam > next.Year || (x.Nam == next.Year && x.Thang >= next.Month)))
+                .OrderBy(x => x.Nam).ThenBy(x => x.Thang).Select(x => new { x.Nam, x.Thang }).ToListAsync(ct) : [];
+            stay.NgayRa = day; room.PhienBan++;
+            await db.SaveChangesAsync(ct);
+            await sqlite.CommitAsync(ct);
+            TempData["ContractSuccess"] = $"Đã ghi ngày chuyển đi {day:dd/MM/yyyy}. Ngày chuyển đi vẫn tính là ngày còn ở; giảm khoản khoán từ kỳ {next:MM/yyyy}.";
+            if (issued.Count > 0)
+                TempData["ContractWarning"] = "Hóa đơn các kỳ " + string.Join(", ", issued.Select(x => $"{x.Thang:00}/{x.Nam}"))
+                    + " đã lập được giữ nguyên. Số người giảm chỉ áp dụng cho hóa đơn chưa lập; hãy kiểm tra các hóa đơn này.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (Exception ex) when (ex is DbUpdateException or SqliteException)
+        {
+            db.ChangeTracker.Clear();
+            ModelState.AddModelError("", "Không thể ghi nhận chuyển đi. Không có thay đổi nào được lưu. Vui lòng tải lại và thử lại.");
+            return await Invalid();
+        }
     }
 
     [HttpPost, ValidateAntiForgeryToken, ModuleAccess("HOP_DONG", write: true)]

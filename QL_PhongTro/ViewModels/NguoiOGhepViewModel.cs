@@ -13,7 +13,18 @@ public class NguoiOGhepInput
     public DateOnly? NgayVao { get; set; }
     public int PhienBanPhong { get; set; }
 }
-public record NguoiOGhepRow(string HoTen, string? SoDienThoai, string? SoGiayTo, DateOnly NgayVao);
+public record NguoiOGhepRow(string HoTen, string? SoDienThoai, string? SoGiayTo, DateOnly NgayVao)
+{
+    public int Id { get; init; }
+    public DateOnly? NgayRa { get; init; }
+}
+public class ChuyenDiInput
+{
+    [Required(ErrorMessage = "Chọn ngày chuyển đi.")]
+    public DateOnly? NgayRa { get; set; }
+    public int PhienBanPhong { get; set; }
+}
+public record ChuyenDiRowViewModel(HopDongDetailsViewModel Contract, NguoiOGhepRow Person);
 public class HopDongDetailsViewModel
 {
     public HopDongThamChieu HopDong { get; set; } = null!;
@@ -22,6 +33,10 @@ public class HopDongDetailsViewModel
     public int GioiHan { get; set; }
     public DateOnly HomNay { get; set; }
     public List<NguoiOGhepRow> Nguois { get; set; } = [];
+    public List<NguoiOGhepRow> DaChuyenDi { get; set; } = [];
+    public List<NguoiOGhepRow> SapVao { get; set; } = [];
+    public ChuyenDiInput ChuyenDi { get; set; } = new();
+    public int? ChuyenDiNguoiId { get; set; }
     public NguoiOGhepInput Input { get; set; } = new();
     public bool ChoThem { get; set; }
 }

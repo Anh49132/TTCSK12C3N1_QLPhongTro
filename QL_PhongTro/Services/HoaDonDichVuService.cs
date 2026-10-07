@@ -41,10 +41,10 @@ public sealed class HoaDonDichVuService(AppDbContext db, DichVuService services,
         var first = new DateOnly(period.Year, period.Month, 1);
         var cutoff = new DateOnly(period.Year, period.Month, Math.Min(context.NgayChot, DateTime.DaysInMonth(period.Year, period.Month)));
         // New arrivals start being billed on the first of the following month, for a full month.
-        // Existing departure dates are inclusive; recording departures remains outside this story.
+        // Departure month is billed in full; the following month removes the person.
         var count = 1 + await db.NguoiOGheps.AsNoTracking().Where(g => g.HopDongId == contractId
             && g.KhachThueId != context.KhachDungTenId && g.NgayVao < first
-            && (g.NgayRa == null || g.NgayRa >= cutoff)).Select(g => g.KhachThueId).Distinct().CountAsync();
+            && (g.NgayRa == null || g.NgayRa >= first)).Select(g => g.KhachThueId).Distinct().CountAsync();
         if (count > context.SoNguoiToiDa) throw new InvalidOperationException($"Số người tính phí vượt sức chứa {context.SoNguoiToiDa} người của phòng.");
         return new(count, cutoff, context.PhienBan);
     }

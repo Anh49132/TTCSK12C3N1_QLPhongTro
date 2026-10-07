@@ -18,7 +18,7 @@ else
         <button class="btn btn-outline-primary">Xem dịch vụ của phòng trong kỳ</button>
     </form>
     <p class="text-secondary">Hóa đơn tháng @Model.NgayApDung?.ToString("MM/yyyy") gồm tiền phòng theo hợp đồng và các dịch vụ được chọn. Chỉ hỗ trợ hợp đồng thuê trọn tháng; chưa hỗ trợ trả phòng hoặc gia hạn giữa tháng.</p>
-    <p>Ngày chốt số người và đơn giá theo hợp đồng: <strong>@Model.NgayChotSoNguoi?.ToString("dd/MM/yyyy")</strong>. Người ở ghép mới tính trọn tháng từ tháng sau ngày vào; gồm người đứng tên và người còn ở tại ngày chốt.</p>
+    <p>Ngày chốt số người và đơn giá theo hợp đồng: <strong>@Model.NgayChotSoNguoi?.ToString("dd/MM/yyyy")</strong>. Người ở ghép mới tính trọn tháng từ tháng sau ngày vào; người chuyển đi vẫn tính đủ tháng rời phòng và giảm từ tháng kế tiếp.</p>
     @if (Model.HopDongs.Count == 0) { <div class="alert alert-info">Chưa có hợp đồng đang hiệu lực trong tòa nhà.</div> }
     else if (write)
     {

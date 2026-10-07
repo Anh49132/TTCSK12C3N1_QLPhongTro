@@ -62,8 +62,8 @@ public sealed partial class RoomServicesTests
         var november=await Issue(db,await OccupantInput(db,f,people,new(2026,11,1)));
         Assert.Equal(1260000,(await db.HoaDons.FindAsync(october))!.TongTien);Assert.Equal(1340000,(await db.HoaDons.FindAsync(november))!.TongTien);
     }
-    [Theory][InlineData("2026-10-04",1)][InlineData("2026-10-05",2)][InlineData("2026-10-06",2)]
-    public async Task OccupantBillingExistingDepartureIntervalInclusive(string end,int expected)
+    [Theory][InlineData("2026-09-30",1)][InlineData("2026-10-01",2)][InlineData("2026-10-04",2)][InlineData("2026-10-05",2)][InlineData("2026-10-06",2)][InlineData("2026-10-31",2)]
+    public async Task OccupantBillingDepartureMonthRemainsFullyBilled(string end,int expected)
     {
         using var db=Context();var(f,_)=await OccupantFixture(db);await AddStay(db,f.A,new(2026,9,1),DateOnly.Parse(end));
         var result=await new HoaDonDichVuService(db,new(db)).LaySoNguoiAsync(1,f.A,1,new(2026,10,1));Assert.Equal(expected,result.SoNguoi);
