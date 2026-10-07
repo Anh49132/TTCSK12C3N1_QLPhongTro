@@ -1,28 +1,45 @@
 @model QL_PhongTro.ViewModels.DanhSachToaNhaViewModel
 @inject QL_PhongTro.Authorization.PermissionService Permissions
+@inject QL_PhongTro.Services.ITimeProvider BuildingClock
 
 @{
     ViewData["Title"] = "Quản lý tòa nhà";
+    var totalRooms = Model.ToaNhas.Sum(x => x.SoPhong);
+    var occupied = Model.ToaNhas.Sum(x => x.SoPhongDangThue);
+    var vacant = Model.ToaNhas.Sum(x => x.SoPhongTrong);
+    var occupancy = totalRooms == 0 ? 0m : occupied * 100m / totalRooms;
     var canWrite = await Permissions.AllowsAsync("PHONG_TRO", write: true);
 }
 
+<div class="building-management">
 <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
     <div>
-        <p class="text-uppercase text-secondary small fw-semibold mb-2">Vận hành nhà cho thuê</p>
+
         <h1 class="h2 mb-1">Quản lý tòa nhà</h1>
-        <p class="text-secondary mb-0">Xem nhanh số phòng và số phòng đang trống của từng tòa.</p>
+        <p class="text-secondary mb-0">Nắm bắt vận hành, quản lý hiệu quả từng tòa nhà của bạn.</p>
     </div>
-    @if (canWrite) { <a asp-action="TaoToaNha" class="btn btn-primary">Khai báo tòa nhà</a> }
+    @if (canWrite) { <a asp-action="TaoToaNha" class="btn btn-primary">＋ Thêm tòa nhà</a> }
 </div>
 
-<form method="get" asp-action="ToaNha" class="row g-2 align-items-end mb-4">
-    <div class="col-12 col-md-7">
-        <label asp-for="TuKhoa" class="form-label">Tìm theo tên hoặc địa chỉ</label>
-        <input asp-for="TuKhoa" class="form-control" placeholder="Ví dụ: Nguyễn Trãi" />
-    </div>
-    <div class="col-auto"><button type="submit" class="btn btn-outline-secondary">Tìm kiếm</button></div>
-</form>
-
+<section class="building-stats" aria-label="Tổng quan tòa nhà">
+<article><span>Tổng số tòa nhà</span><strong>@Model.ToaNhas.Count.ToString("D2") <small>tòa nhà</small></strong><p>@totalRooms phòng đang quản lý</p></article>
+<article><span>Công suất thuê</span><strong>@occupancy.ToString("0.#") <small>%</small></strong><p>@occupied / @totalRooms phòng đang thuê</p><progress value="@occupied" max="@(totalRooms == 0 ? 1 : totalRooms)" aria-label="Công suất thuê"></progress></article>
+<article><span>Phòng trống</span><strong>@vacant.ToString("D2") <small>phòng</small></strong><p>Sẵn sàng đón khách mới</p></article>
+<article><span>Đã thu tháng này</span><strong>— <small>đ</small></strong><p>Chưa có dữ liệu thanh toán</p></article>
+</section>
+<section class="building-overview-grid">
+<article class="building-panel"><div class="building-panel-heading"><h2>Tiến độ thu tiền</h2><label class="building-month-picker"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4m8-4v4M4 10h16"/></svg><span class="visually-hidden">Chọn tháng thu tiền</span><select aria-label="Chọn tháng thu tiền">@for (var offset = 0; offset < 12; offset++) { var period = BuildingClock.UtcNow.AddHours(7).AddMonths(-offset); <option value="@period.ToString("yyyy-MM")">Tháng @period.Month, @period.Year</option> }</select><svg class="building-month-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></label></div><div class="building-collection"><div><div class="building-chart-legend"><span>■ Đã thu</span><span>■ Phải thu</span></div><div class="building-chart-empty">Biểu đồ sẽ hiển thị khi có dữ liệu thanh toán.</div></div><div class="building-collection-summary"><span>Đã thu / Tổng phải thu</span><strong>—</strong><p>Chưa có dữ liệu thu tiền</p></div></div></article>
+<article class="building-panel"><div class="building-panel-heading"><h2>Cần chú ý</h2><span class="building-tag">Vận hành</span></div><a class="building-attention" href="/PhongTro?trangThaiFilter=TRONG"><strong>@vacant phòng đang trống</strong><span>Kiểm tra phòng và cập nhật tin đăng ›</span></a><a class="building-attention" href="/YeuCau"><strong>Yêu cầu thuê và lịch xem</strong><span>Theo dõi và phản hồi khách hàng ›</span></a><a class="building-attention" href="/HopDong"><strong>Theo dõi hợp đồng</strong><span>Kiểm tra các hợp đồng đã lập ›</span></a></article>
+</section>
+<section class="building-panel building-list-panel">
+<div class="building-panel-heading"><h2>Danh sách tòa nhà <span class="building-tag">@Model.ToaNhas.Count tòa nhà</span></h2><div class="building-view-switch" aria-label="Kiểu hiển thị"><button type="button" data-view="list" aria-label="Danh sách" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg></button><button type="button" data-view="grid" aria-label="Lưới" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></button></div></div>
+<div class="building-toolbar">
+<label class="building-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m15.5 15.5 4.2 4.2"/></svg><input id="building-search" value="@Model.TuKhoa" aria-label="Tìm theo tên tòa nhà hoặc địa chỉ" placeholder="Tìm theo tên tòa nhà, địa chỉ..." /></label>
+<select id="building-area" aria-label="Lọc khu vực"><option value="">Tất cả khu vực</option>@foreach (var area in Model.ToaNhas.Select(x => x.KhuVuc).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().OrderBy(x => x)) { <option value="@area">@area</option> }</select>
+<select id="building-status" aria-label="Lọc tình trạng"><option value="">Tất cả tình trạng</option><option value="active">Đang hoạt động</option><option value="inactive">Ngừng hoạt động</option></select>
+<button class="building-sort" type="button" aria-label="Sắp xếp tòa nhà" data-sort="newest"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v15m-3-3 3 3 3-3M12 5h9M12 9h7M12 13h5M12 17h3"/></svg><span>Mới nhất</span></button>
+</div>
+<p class="building-filter-empty" hidden>Không tìm thấy tòa nhà phù hợp.</p>
 @if (Model.ToaNhas.Count == 0)
 {
     <div class="border-top border-bottom py-4 text-secondary">Không tìm thấy tòa nhà phù hợp.</div>
@@ -31,18 +48,18 @@ else
 {
     <div class="table-responsive">
         <table class="table table-hover align-middle">
-            <thead class="table-light"><tr><th>STT</th><th>Tòa nhà</th><th>Người quản lý</th><th>Phòng</th><th>Đang trống</th><th>Trạng thái</th><th></th></tr></thead>
+            <thead class="table-light"><tr><th>STT</th><th>Tòa nhà</th><th>Người quản lý</th><th>Đã thuê / Tổng</th><th>Công suất</th><th>Trạng thái</th><th></th></tr></thead>
             <tbody>
             @{ var buildingStt = 0; }
             @foreach (var building in Model.ToaNhas)
             {
                 buildingStt++;
-                <tr>
+                <tr data-building-id="@building.Id" data-area="@building.KhuVuc" data-status="@(building.DangHoatDong ? "active" : "inactive")" data-search="@building.TenToaNha @building.DiaChi">
                     <td>@buildingStt</td>
                     <th scope="row"><a asp-action="Index" asp-route-toaNhaId="@building.Id">@building.TenToaNha</a><div class="small text-secondary">@building.DiaChi</div></th>
                     <td>@(building.QuanLy ?? "Chưa phân công")</td>
-                    <td>@building.SoPhong</td>
-                    <td><strong class="@(building.SoPhongTrong > 0 ? "text-success" : "text-secondary")">@building.SoPhongTrong</strong></td>
+                    <td><strong>@building.SoPhongDangThue / @building.SoPhong</strong><div class="small text-secondary">@building.SoPhongTrong phòng trống</div></td>
+                    <td><strong>@(building.SoPhong == 0 ? "0" : (100m * building.SoPhongDangThue / building.SoPhong).ToString("0.#"))%</strong><progress value="@building.SoPhongDangThue" max="@(building.SoPhong == 0 ? 1 : building.SoPhong)" aria-label="Công suất @building.TenToaNha"></progress></td>
                     <td><span class="badge @(building.DangHoatDong ? "text-bg-success" : "text-bg-secondary")">@(building.DangHoatDong ? "Đang hoạt động" : "Ngừng hoạt động")</span></td>
                     <td>
                         @if (canWrite) {
@@ -66,3 +83,9 @@ else
         </table>
     </div>
 }
+
+</section>
+</div>
+@section Styles { <link rel="stylesheet" href="~/css/building-management.css" asp-append-version="true" /> }
+
+@section Scripts { <script src="~/js/building-list.js" asp-append-version="true"></script> }

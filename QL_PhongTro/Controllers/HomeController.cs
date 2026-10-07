@@ -141,6 +141,17 @@ public class HomeController(
                             model.Dashboard.TongPhong = await rooms.CountAsync();
                             model.Dashboard.PhongTrong = await rooms.CountAsync(x => x.TrangThai == "TRONG");
                             model.Dashboard.PhongDangThue = await rooms.CountAsync(x => x.TrangThai == "DANG_THUE");
+                            if (role == "CHU_NHA")
+                            {
+                                model.Dashboard.PhongDatCoc = await rooms.CountAsync(x => x.TrangThai == "DA_DAT_COC");
+                                model.Dashboard.Buildings = await db.ToaNhas.AsNoTracking()
+                                    .Where(x => buildingIds.Contains(x.Id))
+                                    .OrderBy(x => x.TenToaNha)
+                                    .Select(x => new HomeBuildingItem(x.Id, x.TenToaNha, x.DiaChi,
+                                        db.PhongTros.Count(r => r.ToaNhaId == x.Id),
+                                        db.PhongTros.Count(r => r.ToaNhaId == x.Id && r.TrangThai == "DANG_THUE")))
+                                    .ToListAsync();
+                            }
                             model.Dashboard.YeuCauChoXuLy = await (from request in db.YeuCauThues.AsNoTracking()
                                 join listing in db.TinDangs.AsNoTracking() on request.TinDangId equals listing.Id
                                 join room in rooms on listing.PhongId equals room.Id

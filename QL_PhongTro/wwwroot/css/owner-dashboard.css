@@ -1,0 +1,145 @@
+/* Owner workspace: graphite navigation, white surfaces, restrained champagne. */
+body.role-owner { --sidebar-width: 248px; background: #F5F5F4; }
+.role-owner .dashboard-sidebar { background: #30343B; border: 0; }
+.role-owner .compact-sidebar {
+    padding: 16px 14px; scrollbar-width: none;
+}
+.role-owner .compact-sidebar::-webkit-scrollbar { display: none; }
+.role-owner .sidebar-brand { padding: 0 8px 14px; border-color: #FFFFFF1A; }
+.role-owner .sidebar-brand strong { font-size: 23px; letter-spacing: -.6px; }
+.role-owner .sidebar-brand small { color: #E9EAEC; font-size: 9px; letter-spacing: 1px; }
+.role-owner .sidebar-brand svg { padding: 7px; border-radius: 10px; background: #BFA77A; color: #FFFFFF; width: 36px; height: 36px; }
+.role-owner .compact-sidebar-profile { border: 1px solid #FFFFFF26; border-radius: 8px; padding: 10px 9px; margin: 12px 0 14px; }
+.role-owner .compact-sidebar-profile strong { font-size: 11px; }
+.role-owner .compact-sidebar-profile small { color: #E9EAEC; font-size: 10px; }
+.role-owner .compact-sidebar section h2 { color: #E9EAEC99; font-size: 10px; letter-spacing: 1px; }
+.role-owner .compact-sidebar section { margin-top: 12px; }
+.role-owner .compact-sidebar section h2 { margin-bottom: 5px; }
+.role-owner .compact-sidebar .sidebar-link { color: #E9EAECB3; font-size: 13px; padding: 8px 10px; min-height: 34px; gap: 10px; margin: 2px 0; }
+.role-owner .compact-sidebar .sidebar-link.is-active { background: #FFFFFF14; color: #FFFFFF; }
+.role-owner .sidebar-link.is-active svg { color: #BFA77A; }
+.role-owner .compact-sidebar .sidebar-link:hover { color: #FFFFFF; background: #FFFFFF0D; }
+.role-owner .dashboard-header { height: 66px; min-height: 66px; padding: 0 28px; background: #FFFFFF; border-bottom: 1px solid #E9EAEC; gap: 12px; }
+.role-owner .dashboard-header .page-title { font-size: 16px; font-weight: 600; color: #25282D; }
+.owner-header-home { display: inline-flex; align-items: center; color: #25282D80; }
+.owner-header-home svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.owner-header-home:hover { color: #30343B; }
+.owner-header-divider { color: #25282D66; font-size: 16px; }
+.owner-mobile-menu { display: none; }
+@media (max-width: 767px) {
+    .owner-mobile-menu { display: inline-flex; background: #E9EAEC; color: #30343B; border: 0; border-radius: 6px; padding: 6px 8px; font-size: 11px; }
+}
+.role-owner .dashboard-header .icon-button { width: 28px; height: 28px; border: 0; background: transparent; }
+.role-owner .latte-header-search { width: min(340px, 30vw); margin-left: auto; background: #F5F5F4; border: 0; border-radius: 7px; }
+.role-owner .latte-header-search input { font-size: 13px; }
+.role-owner .latte-header-search button { font-size: 19px; }
+.role-owner .latte-header-user { margin-left: 4px; padding-left: 18px; border-left: 1px solid #E9EAEC; }
+.role-owner .latte-header-user .account-trigger { gap: 10px; padding: 4px 0; }
+.role-owner .latte-header-user .account-avatar {
+    width: 36px; height: 36px; flex-basis: 36px; border-radius: 50%;
+    background: #BFA77A26; color: #30343B; border: 0; font-size: 11px; font-weight: 600;
+}
+.role-owner .latte-header-user .account-label strong { font-size: 12px; line-height: 1.45; color: #25282D; }
+.role-owner .latte-header-user .account-label small { display: block; margin-top: 2px; font-size: 10px; line-height: 1.3; color: #25282D99; }
+.role-owner .latte-header-user .account-chevron { margin-left: 8px; color: #25282D80; font-size: 15px; }
+.role-owner .latte-header-user .account-trigger:hover { background: transparent; }
+.role-owner .app-content { padding: 28px; max-width: 1600px; margin: 0 auto; }
+
+.owner-overview { color: #25282D; }
+.owner-overview a { text-decoration: none; }
+.owner-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+.owner-heading h1 { margin: 0 0 8px; font-size: clamp(22px, 2vw, 29px); font-weight: 700; letter-spacing: -.6px; }
+.owner-heading p { margin: 0; color: #25282D99; font-size: 12px; }
+.owner-heading-actions { display: flex; gap: 10px; flex-shrink: 0; }
+.owner-button { display: inline-flex; align-items: center; justify-content: center; padding: 10px 15px; border-radius: 7px; background: #30343B; color: #FFFFFF; font-size: 12px; font-weight: 600; border: 1px solid #30343B; }
+.owner-button:hover { background: #25282D; color: #FFFFFF; }
+.owner-button-light { background: #FFFFFF; color: #25282D; border-color: #E9EAEC; }
+.owner-button-light:hover { background: #E9EAEC; color: #25282D; }
+.owner-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+.owner-stat { background: #FFFFFF; border: 1px solid #E9EAEC; border-radius: 10px; padding: 18px; color: #25282D; min-width: 0; }
+a.owner-stat:hover { color: #25282D; border-color: #BFA77A; }
+.owner-stat-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: #25282D99; font-size: 12px; }
+.owner-icon { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 30px; border-radius: 7px; background: #E9EAEC; color: #30343B; }
+.owner-icon svg, .owner-building-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.owner-stat-value { margin-top: 12px; font-size: 30px; font-weight: 700; line-height: 1.3; }
+.owner-stat-value small { font-size: 11px; color: #25282D99; font-weight: 400; }
+.owner-stat p { margin: 10px 0 0; font-size: 10px; color: #25282D99; }
+.owner-main-grid { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(270px, 1fr); gap: 20px; margin-bottom: 24px; }
+.owner-panel { border: 1px solid #E9EAEC; border-radius: 10px; background: #FFFFFF; padding: 20px; min-width: 0; }
+.owner-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.owner-panel-heading h2 { margin: 0; font-size: 15px; font-weight: 650; }
+.owner-panel-heading a { color: #30343B; font-size: 11px; }
+.owner-panel-heading a:hover { text-decoration: underline; text-decoration-color: #BFA77A; }
+.owner-label { border: 1px solid #E9EAEC; border-radius: 5px; padding: 4px 8px; color: #25282D99; font-size: 10px; white-space: nowrap; }
+.owner-period-picker { margin: 0; }
+.owner-period-picker select {
+    border: 1px solid #E9EAEC; border-radius: 6px; background: #FFFFFF;
+    color: #25282D; font-size: 11px; padding: 6px 10px; cursor: pointer;
+}
+.owner-period-picker select:focus-visible { outline: 2px solid #BFA77A; outline-offset: 2px; }
+.owner-revenue-legend { display: flex; justify-content: flex-end; gap: 16px; margin: -4px 0 12px; font-size: 10px; color: #25282D99; }
+.owner-revenue-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.owner-revenue-legend i { width: 7px; height: 7px; border-radius: 1px; }
+.owner-revenue-legend .collected { background: #30343B; }
+.owner-revenue-legend .receivable { background: #BFA77A; }
+.owner-revenue-summary { display: flex; align-items: baseline; gap: 16px; }
+.owner-revenue-summary strong { font-size: 25px; }
+.owner-revenue-summary small { font-size: 14px; font-weight: 400; }
+.owner-revenue-summary > span { font-size: 11px; color: #25282D99; }
+.owner-chart { height: 150px; position: relative; display: grid; place-items: center; margin-top: 20px; border-bottom: 1px solid #E9EAEC; }
+.owner-chart-grid { position: absolute; inset: 0; background: repeating-linear-gradient(to top, transparent 0, transparent 36px, #E9EAEC 37px, transparent 38px); }
+.owner-chart p { position: relative; margin: 0; padding: 8px 12px; background: #FFFFFF; color: #25282D99; font-size: 12px; text-align: center; }
+.owner-chart-months { display: flex; justify-content: space-between; gap: 10px; overflow-x: auto; font-size: 10px; color: #25282D99; margin-top: 10px; }
+.owner-chart-months span { flex-shrink: 0; }
+.owner-occupancy-body { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 24px 0; }
+.owner-donut { width: 130px; height: 130px; flex: 0 0 130px; display: grid; place-items: center; border-radius: 50%; background: conic-gradient(#30343B 0deg var(--occupied-angle), #BFA77A var(--occupied-angle) var(--reserved-angle), #E9EAEC var(--reserved-angle) 360deg); }
+.owner-donut > div { width: 106px; height: 106px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #FFFFFF; }
+.owner-donut strong { font-size: 25px; line-height: 1.4; }
+.owner-donut span { font-size: 11px; color: #25282D99; }
+.owner-room-legend { min-width: 0; flex: 1; margin: 0; }
+.owner-room-legend > div { display: flex; justify-content: space-between; gap: 10px; margin: 12px 0; font-size: 11px; }
+.owner-room-legend dt { color: #25282D99; font-weight: 400; white-space: nowrap; }
+.owner-room-legend dd { margin: 0; font-weight: 600; }
+.owner-room-legend i { display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: #E9EAEC; }
+.owner-room-legend .occupied { background: #30343B; }.owner-room-legend .reserved { background: #BFA77A; }
+.owner-room-legend .other { background: #25282D66; }
+.owner-occupancy-note { display: block; padding: 12px; border-radius: 6px; background: #F5F5F4; color: #25282D; }
+.owner-occupancy-note strong { display: block; font-size: 11px; }.owner-occupancy-note span { display: block; margin-top: 4px; font-size: 10px; color: #25282D99; }
+.owner-requests .panel-heading { border: 0; padding: 0; margin-bottom: 16px; }.owner-requests .panel-heading h2 { font-size: 15px; }
+.owner-requests .panel-heading a { font-size: 11px; color: #30343B; }
+.owner-requests .latte-table { font-size: 11px; }.owner-requests .latte-table th { background: #F5F5F4; font-size: 10px; }
+.owner-requests .latte-table td { padding: 13px 8px; }.owner-requests .latte-badge { font-size: 10px; background: #BFA77A26; color: #30343B; }
+.owner-panel-description { margin: -8px 0 14px; font-size: 11px; color: #25282D99; }
+.owner-task { display: flex; align-items: center; gap: 12px; padding: 15px 0; border-bottom: 1px solid #E9EAEC; color: #25282D; }
+.owner-task:last-child { border-bottom: 0; }.owner-task > div { flex: 1; min-width: 0; }
+.owner-task strong { display: block; font-size: 12px; font-weight: 600; }.owner-task div span { display: block; margin-top: 4px; font-size: 10px; color: #25282D99; }
+.owner-task:hover { color: #25282D; }.owner-task:hover strong { text-decoration: underline; text-decoration-color: #BFA77A; }
+.owner-building-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.owner-building-card { background: #FFFFFF; border: 1px solid #E9EAEC; padding: 14px; border-radius: 9px; color: #25282D; min-width: 0; }
+.owner-building-card:hover { border-color: #BFA77A; color: #25282D; }
+.owner-building-info { display: flex; align-items: center; gap: 10px; }.owner-building-info > div { min-width: 0; flex: 1; }
+.owner-building-info h3 { font-size: 12px; font-weight: 600; margin: 0 0 5px; }.owner-building-info p { font-size: 10px; color: #25282D99; margin: 0; overflow-wrap: anywhere; }
+.owner-building-icon { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 6px; background: #E9EAEC; color: #30343B; }
+.owner-building-count { display: flex; justify-content: space-between; gap: 8px; font-size: 10px; color: #25282D99; margin: 14px 0 7px; }.owner-building-count strong { color: #25282D; }
+.owner-progress { height: 3px; border-radius: 2px; background: #E9EAEC; overflow: hidden; }.owner-progress span { display: block; height: 100%; background: #BFA77A; }
+.owner-footer { display: flex; justify-content: space-between; gap: 16px; padding-top: 22px; font-size: 10px; color: #25282D99; }
+@media (max-width: 1200px) {
+    .owner-main-grid { grid-template-columns: minmax(0, 1.5fr) minmax(270px, 1fr); }
+    .owner-occupancy-body { flex-wrap: wrap; }.owner-room-legend { min-width: 100px; }
+    .owner-stat { padding: 15px; }.owner-stat-value { font-size: 26px; }
+}
+@media (max-width: 1000px) {
+    .owner-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .owner-main-grid { grid-template-columns: minmax(0, 1fr); }
+    .owner-building-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .owner-occupancy-body { justify-content: flex-start; }.owner-room-legend { max-width: 220px; }
+    .owner-heading { align-items: flex-start; flex-direction: column; }
+}
+@media (max-width: 600px) {
+    .role-owner .app-content { padding: 20px 16px; }.role-owner .dashboard-header { padding: 0 16px; }
+    .role-owner .latte-header-search { display: none; }
+    .owner-stats { gap: 10px; }.owner-stat { padding: 12px; }.owner-stat-heading { font-size: 10px; }
+    .owner-stat-value { font-size: 24px; }.owner-icon { width: 26px; height: 26px; flex-basis: 26px; }
+    .owner-panel { padding: 16px; }.owner-building-grid { grid-template-columns: minmax(0, 1fr); }
+    .owner-heading-actions { flex-wrap: wrap; }.owner-footer { flex-direction: column; gap: 6px; }
+}

@@ -160,11 +160,13 @@ public class DanhSachToaNhaViewModel
 
 public class ToaNhaTongHopViewModel
 {
+    public string? KhuVuc { get; set; }
     public int Id { get; set; }
     public string TenToaNha { get; set; } = string.Empty;
     public string DiaChi { get; set; } = string.Empty;
     public string? QuanLy { get; set; }
     public int SoPhong { get; set; }
     public int SoPhongTrong { get; set; }
+    public int SoPhongDangThue { get; set; }
     public bool DangHoatDong { get; set; }
 }

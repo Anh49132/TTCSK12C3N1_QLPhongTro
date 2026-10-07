@@ -1,4 +1,5 @@
 @model QL_PhongTro.ViewModels.TaoPhongViewModel
+@inject QL_PhongTro.Authorization.PermissionService Permissions
 
 @{
     var isEdit = ViewData["RoomId"] is int;
@@ -10,6 +11,7 @@
     <h1 class="h2 mt-2">@ViewData["Title"]</h1>
     <p class="text-secondary">Nhập thông tin phòng. Giá thuê được tính theo tháng, đơn vị VND.</p>
     @if (!isEdit) { <a asp-action="CreateBulk" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-secondary mt-2">Tạo nhanh nhiều phòng</a> }
+    @if (isEdit && User.IsInRole("CHU_NHA") && await Permissions.AllowsAsync("HOP_DONG", false)) { <a asp-controller="HopDong" asp-action="LichSuNguoiO" asp-route-phongId="@ViewData["RoomId"]" class="btn btn-outline-secondary mt-2">Lịch sử người ở</a> }
 </div>
 
 <form asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@ViewData["RoomId"]" method="post" class="row g-3 property-form" novalidate>

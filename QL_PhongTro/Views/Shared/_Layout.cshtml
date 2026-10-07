@@ -1,8 +1,10 @@
+@inject QL_PhongTro.Authorization.PermissionService HeaderPermissions
 @{
     var isPropertyPage = ViewContext.RouteData.Values["controller"]?.ToString() == "PhongTro";
     var isListingPage = ViewContext.RouteData.Values["controller"]?.ToString() is "TinDang" or "TimTin";
     var useHomepageTheme = User.IsInRole("KHACH_THUE") || User.IsInRole("CHU_NHA") || User.IsInRole("QUAN_LY") || User.IsInRole("ADMIN");
     var isTenant = User.IsInRole("KHACH_THUE");
+    var showNotificationBell = !isTenant && (await HeaderPermissions.MenuAsync()).Any(x => x.Code == "YEU_CAU_THUE");
     var roleClass = User.IsInRole("ADMIN") ? "role-admin" : User.IsInRole("CHU_NHA") ? "role-owner" : User.IsInRole("QUAN_LY") ? "role-manager" : isTenant ? "role-tenant" : "";
 }
 <!DOCTYPE html>
@@ -19,6 +21,8 @@
 @if (useHomepageTheme) { <link rel="stylesheet" href="~/css/latte-dashboard.css" asp-append-version="true" /> }
 @if (isPropertyPage) { <link rel="stylesheet" href="~/css/room-images.css" asp-append-version="true" /> }
 @await RenderSectionAsync("Styles", required: false)
+<link rel="stylesheet" href="~/css/champagne-theme.css" asp-append-version="true" />
+@if (User.IsInRole("CHU_NHA")) { <link rel="stylesheet" href="~/css/owner-dashboard.css" asp-append-version="true" /> }
 </head>
 <body class="@(useHomepageTheme ? "homepage-dashboard-theme" : "") @roleClass">
 <a class="skip-link" href="#main-content">Đến nội dung chính</a>
@@ -40,9 +44,23 @@ else
 <button type="button" class="sidebar-backdrop" id="sidebar-backdrop" aria-label="Đóng thanh điều hướng" hidden></button>
 <div class="dashboard-main" id="dashboard-main">
 <header class="dashboard-header">
+@if (User.IsInRole("CHU_NHA"))
+{
+<button type="button" id="sidebar-toggle" class="owner-mobile-menu" aria-label="Mở thanh điều hướng" aria-controls="app-sidebar" aria-expanded="true">Menu</button>
+<a class="owner-header-home" href="/" aria-label="Về tổng quan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v11H3ZM9 21v-8h6v8" /></svg></a>
+<span class="owner-header-divider" aria-hidden="true">/</span>
+<span class="page-title">@(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "Tổng quan" : ViewData["Title"])</span>
+}
+else
+{
 <button type="button" id="sidebar-toggle" class="icon-button" aria-label="Thu gọn thanh điều hướng" aria-controls="app-sidebar" aria-expanded="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>
 <span class="page-title">@ViewData["Title"]</span>
-<form class="latte-header-search" action="/TimTin" method="get"><input name="TuKhoa" aria-label="Tìm kiếm phòng, tin đăng" placeholder="Tìm kiếm phòng, tòa nhà, tin đăng..." /><button aria-label="Tìm kiếm" type="submit">⌕</button></form>
+}
+<form class="latte-header-search" action="/TimTin" method="get"><button aria-label="Tìm kiếm" type="submit"><svg class="header-search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.8" cy="10.8" r="6.3" /><path d="m15.5 15.5 4.2 4.2" /></svg></button><input name="TuKhoa" aria-label="Tìm kiếm phòng, tin đăng" placeholder="Tìm kiếm phòng, tòa nhà, tin đăng..." /></form>
+@if (showNotificationBell)
+{
+<a class="header-notification-bell" href="/Modules/YEU_CAU_THUE?section=thong-bao" aria-label="Thông báo" title="Thông báo"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg></a>
+}
 <div class="latte-header-user"><partial name="_AccountMenu" /></div>
 </header>
 <main id="main-content" class="app-content @(isPropertyPage ? "property-management" : "")" tabindex="-1">

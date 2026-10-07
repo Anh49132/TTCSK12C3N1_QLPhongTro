@@ -8,6 +8,12 @@
     var dashboard = Model.Dashboard;
 }
 
+@if (isOwner)
+{
+    <partial name="_OwnerDashboard" model="dashboard" />
+}
+else
+{
 <div class="role-home">
     <header class="role-home-heading">
         <div>
@@ -84,3 +90,4 @@
         </section>
     }
 </div>
+}

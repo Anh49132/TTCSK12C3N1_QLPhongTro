@@ -3,6 +3,9 @@
     var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
     var controller = ViewContext.RouteData.Values["controller"]?.ToString();
     var action = ViewContext.RouteData.Values["action"]?.ToString();
+    var owner = User.IsInRole("CHU_NHA");
+    var initials = string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).TakeLast(2)
+        .Select(part => System.Globalization.StringInfo.GetNextTextElement(part))).ToUpperInvariant();
 }
 <div class="sidebar-account" id="account-menu">
 @if (User.Identity?.IsAuthenticated == true) {
@@ -14,8 +17,8 @@
 <form asp-controller="Account" asp-action="Logout" method="post" id="logoutForm"><button type="submit" id="logoutBtn">Đăng xuất</button></form>
 </div>
 <button type="button" class="account-trigger" id="account-toggle" aria-controls="account-popover" aria-expanded="false">
-<span class="account-avatar" aria-hidden="true">@(string.IsNullOrWhiteSpace(name) ? "N" : System.Globalization.StringInfo.GetNextTextElement(name).ToUpperInvariant())</span>
-<span class="account-label"><strong>@name</strong><small>@role</small></span><span aria-hidden="true">⌃</span>
+<span class="account-avatar" aria-hidden="true">@(owner ? (string.IsNullOrEmpty(initials) ? "N" : initials) : string.IsNullOrWhiteSpace(name) ? "N" : System.Globalization.StringInfo.GetNextTextElement(name).ToUpperInvariant())</span>
+<span class="account-label"><strong>@name</strong><small>@(owner ? "Chủ nhà" : role)</small></span><span class="account-chevron" aria-hidden="true">@(owner ? "⌄" : "⌃")</span>
 </button>
 } else {
 <a href="@Url.Action("Login", "Account")" id="loginBtn" class="sidebar-link">Đăng nhập</a>

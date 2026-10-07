@@ -1,0 +1,30 @@
+@model QL_PhongTro.ViewModels.LichSuNguoiOViewModel
+@{ ViewData["Title"] = "Lịch sử người ở của phòng"; }
+<div class="contract-page">
+<a asp-controller="PhongTro" asp-action="Edit" asp-route-id="@Model.PhongId">← Thông tin phòng</a>
+<div class="contract-heading"><div><h1>Lịch sử người ở</h1><p>Phòng @Model.Phong — @Model.ToaNha</p></div></div>
+<section class="contract-card">
+<form method="get" asp-action="LichSuNguoiO">
+<input asp-for="PhongId" type="hidden" />
+<div asp-validation-summary="All" class="text-danger" role="alert"></div>
+<div class="contract-meters">
+<div><label asp-for="TuNgay">Từ ngày</label><input asp-for="TuNgay" type="date" required /><span asp-validation-for="TuNgay" class="text-danger"></span></div>
+<div><label asp-for="DenNgay">Đến ngày</label><input asp-for="DenNgay" type="date" required /><span asp-validation-for="DenNgay" class="text-danger"></span></div>
+</div><button class="btn btn-primary mt-3" type="submit">Xem lịch sử</button>
+</form></section>
+@if (Model.HopDongThieuDuLieu > 0) { <div class="alert alert-warning">Có @Model.HopDongThieuDuLieu hợp đồng cũ thiếu người đứng tên hoặc kỳ hợp đồng. Kết quả chỉ phản ánh thông tin đã ghi nhận.</div> }
+@if (Model.DaLoc) {
+<section class="contract-card"><h2>Người ở trong khoảng ngày đã chọn</h2><p>@Model.Nguois.Count khoảng ở giao với @Model.TuNgay?.ToString("dd/MM/yyyy") – @Model.DenNgay?.ToString("dd/MM/yyyy"), tính cả hai đầu.</p>
+@if (Model.Nguois.Count == 0) { <p class="text-secondary" role="status">Không có người ở trong khoảng ngày đã chọn.</p> }
+@foreach (var person in Model.Nguois) {
+<div class="roommate-person"><strong>@person.HoTen</strong> <span class="contract-badge">@person.VaiTro</span>
+<p>Hợp đồng: <a asp-action="Details" asp-route-id="@person.HopDongId">@person.MaHopDong</a></p>
+<p>Từ @person.NgayBatDau.ToString("dd/MM/yyyy") đến @person.NgayKetThuc.ToString("dd/MM/yyyy") @if (person.KetThucTheoHanHopDong) { <small>(theo hạn hợp đồng)</small> }</p>
+@if (person.DangO) { <span class="contract-badge">Đang ở</span> }
+</div>
+}
+<p class="contract-note">Ngày chuyển đi vẫn là ngày còn ở. Nếu chưa ghi ngày chuyển đi hoặc trả phòng, kết thúc khoảng ở lấy theo hạn hợp đồng; đây không phải xác nhận đã rời phòng. Các lần ở riêng biệt được giữ thành từng khoảng, không cắt ngày ở theo bộ lọc.</p>
+</section>
+}
+</div>
+@section Styles { <link rel="stylesheet" href="~/css/contracts.css" asp-append-version="true" /> }

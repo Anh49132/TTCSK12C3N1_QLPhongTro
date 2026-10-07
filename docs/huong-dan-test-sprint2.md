@@ -1,5 +1,8 @@
 # Chạy dự án và kiểm tra từng tiêu chí Sprint 2
 
+> Cập nhật 07/10/2026: mã hiện tại (`TimTinViewModel.KichThuocTrang`) dùng **6 tin/trang**, khác các kỳ vọng 12/12/11 cũ bên dưới. Bộ 35 tin công khai hiện có 6 trang (6/6/6/6/6/5). Script smoke test đã cập nhật class thẻ tin và số lượng theo giao diện hiện tại. Bộ demo `20261007-064359-979c32` đã tạo và xác minh thành công; tài khoản/mật khẩu nằm trong `data/sprint2-demo/.../access.json`, không đưa vào Git.
+
+
 Tài liệu này dùng bộ mẫu do `verification/New-Sprint2Demo.ps1` tạo. Mọi dữ liệu đều giả và nằm trong `data/sprint2-demo/`; database cá nhân `QL_PhongTro/Data/local-dev.sqlite` không được sử dụng. Script nạp 5 ảnh PNG qua HTTP thật và tạo thumbnail 400px.
 
 ## 1. Tài khoản và mật khẩu

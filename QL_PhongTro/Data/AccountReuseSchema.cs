@@ -22,7 +22,7 @@ public static class AccountReuseSchema
         cmd.Transaction = tx;
         cmd.CommandText = "SELECT MAX(version) FROM app_schema_version";
         var version = Convert.ToInt32(cmd.ExecuteScalar());
-        if (version < 4 || version > 15) throw new InvalidOperationException("Account reuse requires schema v4-v15; no changes made.");
+        if (version < 4 || version > 16) throw new InvalidOperationException("Account reuse requires schema v4-v16; no changes made.");
         // Refuse unknown UNIQUE constraints (including SQLite autoindexes) rather than
         // rebuild a referenced table or silently leave a constraint blocking reuse.
         cmd.CommandText = "PRAGMA index_list(tai_khoan)";

@@ -38,10 +38,12 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
             {
                 Id = building.Id,
                 TenToaNha = building.TenToaNha,
+                KhuVuc = building.QuanHuyen,
                 DiaChi = building.DiaChi,
                 QuanLy = db.TaiKhoans.Where(account => account.Id == building.QuanLyId).Select(account => account.HoTen).FirstOrDefault(),
                 SoPhong = db.PhongTros.Count(room => room.ToaNhaId == building.Id),
                 SoPhongTrong = db.PhongTros.Count(room => room.ToaNhaId == building.Id && room.TrangThai == TrangThaiPhong.TRONG.ToString()),
+                SoPhongDangThue = db.PhongTros.Count(room => room.ToaNhaId == building.Id && room.TrangThai == "DANG_THUE"),
                 DangHoatDong = building.DangHoatDong
             }).ToListAsync();
 

@@ -1,0 +1,91 @@
+@model QL_PhongTro.ViewModels.HomeDashboardViewModel
+@using System.Globalization
+@inject QL_PhongTro.Services.ITimeProvider Clock
+@{
+    var today = Clock.UtcNow.AddHours(7);
+    var rate = Model.TongPhong == 0 ? 0m : 100m * Model.PhongDangThue / Model.TongPhong;
+    var occupiedAngle = (rate * 3.6m).ToString("0.##", CultureInfo.InvariantCulture);
+    var reservedAngle = (Model.TongPhong == 0 ? 0m : 360m * (Model.PhongDangThue + Model.PhongDatCoc) / Model.TongPhong).ToString("0.##", CultureInfo.InvariantCulture);
+    var greeting = today.Hour < 12 ? "Chào buổi sáng" : today.Hour < 18 ? "Chào buổi chiều" : "Chào buổi tối";
+    string Icon(string key) => key switch {
+        "home" => "m3 10 9-7 9 7v11H3Z M9 21v-8h6v8",
+        "key" => "M15 14a6 6 0 1 0-5-5L3 16v5h5v-3h3l4-4Z",
+        "clock" => "M12 8v5l3 2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20",
+        "wallet" => "M3 5h18v15H3ZM3 9h18M16 13h3",
+        _ => "M4 21V3h16v18M8 7h2m4 0h2M8 11h2m4 0h2M10 21v-5h4v5"
+    };
+}
+<div class="owner-overview">
+    <header class="owner-heading">
+        <div><h1>@greeting, @(User.Identity?.Name ?? "bạn")</h1><p>Đây là tình hình kinh doanh của bạn hôm nay, @today.ToString("dd/MM/yyyy").</p></div>
+        <div class="owner-heading-actions"><a class="owner-button owner-button-light" href="/PhongTro/ToaNha">Tất cả cơ sở ↗</a><a class="owner-button" href="/PhongTro/Create">＋ Thêm phòng</a></div>
+    </header>
+
+    <section class="owner-stats" aria-label="Số liệu tổng quan">
+        @foreach (var stat in new[] {
+            (Label: "Phòng / căn hộ", Value: Model.TongPhong.ToString(), Unit: "phòng", Note: $"{Model.TongToaNha} cơ sở đang quản lý", Url: "/PhongTro", Icon: "home"),
+            (Label: "Đang cho thuê", Value: Model.PhongDangThue.ToString(), Unit: $"/ {Model.TongPhong} phòng", Note: $"Tỷ lệ lấp đầy {rate.ToString("0.#", CultureInfo.GetCultureInfo("vi-VN"))}%", Url: "/PhongTro?trangThaiFilter=DANG_THUE", Icon: "key"),
+            (Label: "Yêu cầu chờ xử lý", Value: Model.YeuCauChoXuLy.ToString(), Unit: "yêu cầu", Note: "Khách đang chờ phản hồi", Url: "/YeuCau", Icon: "clock") })
+        {
+            <a class="owner-stat" href="@stat.Url"><div class="owner-stat-heading"><span>@stat.Label</span><span class="owner-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="@Icon(stat.Icon)" /></svg></span></div><div class="owner-stat-value">@stat.Value <small>@stat.Unit</small></div><p>@stat.Note</p></a>
+        }
+        <article class="owner-stat"><div class="owner-stat-heading"><span>Đã thu tháng này</span><span class="owner-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="@Icon("wallet")" /></svg></span></div><div class="owner-stat-value">— <small>đ</small></div><p>Chưa có dữ liệu thanh toán</p></article>
+    </section>
+
+    <section class="owner-main-grid" aria-label="Tổng quan vận hành">
+        <article class="owner-panel owner-revenue">
+            <div class="owner-panel-heading"><h2>Tình hình thu tiền</h2><label class="owner-period-picker"><span class="visually-hidden">Khoảng thời gian thu tiền</span><select aria-label="Khoảng thời gian thu tiền"><option value="6">6 tháng gần nhất</option><option value="3">3 tháng gần nhất</option><option value="12">12 tháng gần nhất</option></select></label></div>
+            <div class="owner-revenue-legend" aria-label="Chú giải biểu đồ"><span><i class="collected"></i>Đã thu</span><span><i class="receivable"></i>Phải thu</span></div>
+            <div class="owner-revenue-summary"><strong>— <small>đ</small></strong><span>Chưa có dữ liệu thu tiền</span></div>
+            <div class="owner-chart" aria-label="Chưa có dữ liệu để vẽ biểu đồ thu tiền"><div class="owner-chart-grid"></div><p>Biểu đồ sẽ hiển thị khi có dữ liệu thanh toán.</p></div>
+            <div class="owner-chart-months" data-current-month="@today.ToString("yyyy-MM")">@for (var i = 5; i >= 0; i--) { <span>@today.AddMonths(-i).ToString("MM/yyyy")</span> }</div>
+        </article>
+        <article class="owner-panel owner-occupancy">
+            <div class="owner-panel-heading"><h2>Tình trạng phòng</h2><a href="/PhongTro">Chi tiết ↗</a></div>
+            <div class="owner-occupancy-body">
+                <div class="owner-donut" style="--occupied-angle: @(occupiedAngle)deg; --reserved-angle: @(reservedAngle)deg" role="img" aria-label="Tỷ lệ phòng đang thuê @rate.ToString("0.#") phần trăm"><div><strong>@rate.ToString("0.#", CultureInfo.GetCultureInfo("vi-VN"))%</strong><span>Lấp đầy</span></div></div>
+                <dl class="owner-room-legend"><div><dt><i class="occupied"></i>Đang thuê</dt><dd>@Model.PhongDangThue</dd></div><div><dt><i class="vacant"></i>Còn trống</dt><dd>@Model.PhongTrong</dd></div><div><dt><i class="reserved"></i>Đã đặt cọc</dt><dd>@Model.PhongDatCoc</dd></div><div><dt><i class="other"></i>Khác</dt><dd>@(Model.TongPhong - Model.PhongDangThue - Model.PhongTrong - Model.PhongDatCoc)</dd></div></dl>
+            </div>
+            <a class="owner-occupancy-note" href="/TinDang/QuanLy"><strong>@Model.PhongTrong phòng sẵn sàng đón khách mới</strong><span>Kiểm tra và cập nhật tin đăng ↗</span></a>
+        </article>
+        <article class="owner-panel owner-requests"><partial name="_DashboardRequests" model="Model" /></article>
+        <article class="owner-panel owner-tasks">
+            <div class="owner-panel-heading"><h2>Cần xử lý</h2><span class="owner-label">Vận hành</span></div><p class="owner-panel-description">Những việc cần bạn quan tâm sắp tới.</p>
+            <a class="owner-task" href="/YeuCau"><span class="owner-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="@Icon("clock")" /></svg></span><div><strong>@Model.YeuCauChoXuLy yêu cầu đang chờ</strong><span>Xác nhận lịch xem và phản hồi khách</span></div><span>›</span></a>
+            <a class="owner-task" href="/PhongTro?trangThaiFilter=TRONG"><span class="owner-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="@Icon("home")" /></svg></span><div><strong>@Model.PhongTrong phòng còn trống</strong><span>Chuẩn bị phòng và cập nhật tin đăng</span></div><span>›</span></a>
+            <a class="owner-task" href="/HopDong"><span class="owner-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="@Icon("key")" /></svg></span><div><strong>Theo dõi hợp đồng</strong><span>Xem các hợp đồng đã lập</span></div><span>›</span></a>
+            <a class="owner-task" href="/DichVu"><span class="owner-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="@Icon("wallet")" /></svg></span><div><strong>Bảng giá và dịch vụ</strong><span>Kiểm tra cấu hình theo từng cơ sở</span></div><span>›</span></a>
+        </article>
+    </section>
+
+    <section class="owner-buildings" aria-label="Cơ sở của bạn">
+        <div class="owner-panel-heading"><h2>Cơ sở của bạn</h2><a href="/PhongTro/ToaNha">Quản lý cơ sở ↗</a></div>
+        <div class="owner-building-grid">
+        @foreach (var building in Model.Buildings)
+        {
+            var buildingRate = building.Rooms == 0 ? 0m : 100m * building.Occupied / building.Rooms;
+            <a class="owner-building-card" href="/PhongTro?toaNhaId=@building.Id"><div class="owner-building-info"><span class="owner-building-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="@Icon("building")" /></svg></span><div><h3>@building.Name</h3><p>@building.Address</p></div><span>›</span></div><div class="owner-building-count"><span>@building.Occupied / @building.Rooms phòng đang thuê</span><strong>@buildingRate.ToString("0.#", CultureInfo.GetCultureInfo("vi-VN"))%</strong></div><div class="owner-progress" role="progressbar" aria-label="Tỷ lệ lấp đầy @building.Name" aria-valuenow="@buildingRate.ToString("0.#", CultureInfo.InvariantCulture)" aria-valuemin="0" aria-valuemax="100"><span style="width: @buildingRate.ToString("0.#", CultureInfo.InvariantCulture)%"></span></div></a>
+        }
+        @if (Model.Buildings.Count == 0) { <p class="owner-panel">Chưa có cơ sở. <a href="/PhongTro/ToaNha">Quản lý tòa nhà →</a></p> }
+        </div>
+    </section>
+    <footer class="owner-footer"><span>Dữ liệu cập nhật từ hệ thống · @today.ToString("dd/MM/yyyy HH:mm")</span><span>NhàTốt · Sống đúng nơi</span></footer>
+</div>
+<script>
+(() => {
+    const panel = document.querySelector('.owner-revenue');
+    const period = panel?.querySelector('.owner-period-picker select');
+    const months = panel?.querySelector('.owner-chart-months');
+    if (!period || !months) return;
+    period.addEventListener('change', () => {
+        const [year, month] = months.dataset.currentMonth.split('-').map(Number);
+        months.replaceChildren();
+        for (let i = Number(period.value) - 1; i >= 0; i--) {
+            const date = new Date(Date.UTC(year, month - 1 - i, 1));
+            const label = document.createElement('span');
+            label.textContent = String(date.getUTCMonth() + 1).padStart(2, '0') + '/' + date.getUTCFullYear();
+            months.append(label);
+        }
+    });
+})();
+</script>

@@ -186,4 +186,181 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
             if (amount <= long.MaxValue) vm.TienCoc = (long)amount;
         }
     }
+
+    private async Task<bool> OwnContract(int id, CancellationToken ct) => await
+        (from h in db.HopDongs join p in db.PhongTros on h.PhongId equals p.Id
+         join b in db.ToaNhas on p.ToaNhaId equals b.Id
+         join a in db.TaiKhoans on b.ChuNhaId equals a.Id
+         where h.Id == id && a.Id == AccountId && a.VaiTro == "CHU_NHA" && a.DangHoatDong && !a.IsDeleted
+         select h.Id).AnyAsync(ct);
+
+    private async Task<HopDongDetailsViewModel> DetailModel(int id, NguoiOGhepInput? input, CancellationToken ct)
+    {
+        var h = await db.HopDongs.AsNoTracking().SingleAsync(x => x.Id == id, ct);
+        var p = await db.PhongTros.AsNoTracking().SingleAsync(x => x.Id == h.PhongId, ct);
+        var signer = await db.KhachThues.AsNoTracking().SingleOrDefaultAsync(x => x.Id == h.KhachDungTenId, ct);
+        var model = new HopDongDetailsViewModel { HopDong = h, Phong = p.MaPhong, GioiHan = p.SoNguoiToiDa, DungTen = signer,
+            HomNay = HomNay, ChoThem = signer != null && h.TrangThai is "CHO_HIEU_LUC" or "DANG_HIEU_LUC",
+            Input = input ?? new() { NgayVao = HomNay, PhienBanPhong = p.PhienBan },
+            ChuyenDi = new() { NgayRa = HomNay, PhienBanPhong = p.PhienBan } };
+        var people = await (from g in db.NguoiOGheps.AsNoTracking() join k in db.KhachThues on g.KhachThueId equals k.Id
+            where g.HopDongId == id orderby g.NgayVao, g.Id
+            select new NguoiOGhepRow(k.HoTen, k.SoDienThoai, k.SoGiayTo, g.NgayVao) { Id = g.Id, NgayRa = g.NgayRa }).ToListAsync(ct);
+        if (h.TrangThai != "DANG_HIEU_LUC" || !await db.KyHopDongs.AnyAsync(k => k.HopDongId == id && k.NgayBatDau <= HomNay && k.NgayKetThuc >= HomNay, ct))
+        {
+            static string? Mask(string? value) => value == null ? null : new string('*', Math.Max(0, value.Length - 4)) + value[^Math.Min(4, value.Length)..];
+            if (signer != null) { signer.SoDienThoai = Mask(signer.SoDienThoai); signer.SoGiayTo = Mask(signer.SoGiayTo); }
+            people = people.Select(x => x with { SoDienThoai = Mask(x.SoDienThoai), SoGiayTo = Mask(x.SoGiayTo) }).ToList();
+        }
+        model.Nguois = people.Where(x => x.NgayVao <= HomNay && (x.NgayRa == null || x.NgayRa >= HomNay)).ToList();
+        model.DaChuyenDi = people.Where(x => x.NgayRa < HomNay).OrderByDescending(x => x.NgayRa).ToList();
+        model.SapVao = people.Where(x => x.NgayVao > HomNay).ToList();
+        return model;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> LichSuNguoiO(int phongId, DateOnly? tuNgay, DateOnly? denNgay, CancellationToken ct)
+    {
+        if (!await db.PhongTros.AnyAsync(p => p.Id == phongId, ct)) return NotFound();
+        var service = new LichSuNguoiOService(db);
+        var room = await service.PhongAsync(AccountId, phongId, ct);
+        if (room == null) return Forbid();
+        var model = new LichSuNguoiOViewModel { PhongId = phongId, Phong = room.Value.Phong, ToaNha = room.Value.ToaNha,
+            TuNgay = tuNgay ?? new DateOnly(HomNay.Year, HomNay.Month, 1), DenNgay = denNgay ?? HomNay };
+        if (model.DenNgay < model.TuNgay) ModelState.AddModelError(nameof(model.DenNgay), "Đến ngày không được trước từ ngày.");
+        if (ModelState.IsValid)
+        {
+            var history = await service.LayAsync(AccountId, phongId, model.TuNgay.Value, model.DenNgay.Value, HomNay, ct);
+            model.Nguois = history.Rows; model.HopDongThieuDuLieu = history.Missing; model.DaLoc = true;
+        }
+        return View(model);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Details(int id, CancellationToken ct)
+    {
+        if (!await db.HopDongs.AnyAsync(x => x.Id == id, ct)) return NotFound();
+        if (!await OwnContract(id, ct)) return Forbid();
+        return View(await DetailModel(id, null, ct));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("HOP_DONG", write: true)]
+    public async Task<IActionResult> ChuyenDi(int id, int nguoiId, [Bind(Prefix = "ChuyenDi")] ChuyenDiInput input, CancellationToken ct)
+    {
+        if (!await db.HopDongs.AnyAsync(h => h.Id == id, ct)) return NotFound();
+        if (!await OwnContract(id, ct)) return Forbid();
+        if (!await db.NguoiOGheps.AnyAsync(g => g.Id == nguoiId && g.HopDongId == id, ct)) return Forbid();
+        async Task<IActionResult> Invalid()
+        {
+            var model = await DetailModel(id, null, ct);
+            model.ChuyenDi = input; model.ChuyenDiNguoiId = nguoiId;
+            return View("Details", model);
+        }
+        if (input.NgayRa == null) ModelState.AddModelError("ChuyenDi.NgayRa", "Chọn ngày chuyển đi.");
+        if (input.NgayRa?.Year > 9998) ModelState.AddModelError("ChuyenDi.NgayRa", "Ngày chuyển đi ngoài phạm vi hỗ trợ.");
+        if (!ModelState.IsValid) return await Invalid();
+        try
+        {
+            await db.Database.OpenConnectionAsync(ct);
+            await using var sqlite = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+            await using var transaction = await db.Database.UseTransactionAsync(sqlite, ct);
+            if (!await OwnContract(id, ct)) return Forbid();
+            var h = await db.HopDongs.SingleAsync(x => x.Id == id, ct);
+            var room = await db.PhongTros.SingleAsync(x => x.Id == h.PhongId, ct);
+            var stay = await db.NguoiOGheps.SingleOrDefaultAsync(g => g.Id == nguoiId && g.HopDongId == id, ct);
+            if (stay == null) return Forbid();
+            if (h.TrangThai is not ("DANG_HIEU_LUC" or "CHO_HIEU_LUC"))
+                ModelState.AddModelError("", "Chỉ ghi nhận chuyển đi trong hợp đồng đang hoặc chờ hiệu lực.");
+            if (room.PhienBan != input.PhienBanPhong)
+                ModelState.AddModelError("", "Dữ liệu phòng đã thay đổi. Vui lòng tải lại trang trước khi lưu.");
+            if (stay.NgayRa != null) ModelState.AddModelError("", "Người ở ghép đã được ghi ngày chuyển đi. Không thể ghi lại.");
+            if (input.NgayRa < stay.NgayVao) ModelState.AddModelError("ChuyenDi.NgayRa", "Ngày chuyển đi không được trước ngày bắt đầu ở cùng.");
+            if (!ModelState.IsValid) return await Invalid();
+            var day = input.NgayRa!.Value;
+            var next = new DateOnly(day.Year, day.Month, 1).AddMonths(1);
+            using var probe = db.Database.GetDbConnection().CreateCommand();
+            probe.Transaction = sqlite;
+            probe.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='hoa_don'";
+            var invoicesReady = Convert.ToInt32(await probe.ExecuteScalarAsync(ct)) == 1;
+            // Contracts also work on databases where the optional invoice module is absent.
+            var issued = invoicesReady ? await db.HoaDons.AsNoTracking().Where(x => x.HopDongId == id && x.TrangThai != "DA_HUY"
+                && (x.Nam > next.Year || (x.Nam == next.Year && x.Thang >= next.Month)))
+                .OrderBy(x => x.Nam).ThenBy(x => x.Thang).Select(x => new { x.Nam, x.Thang }).ToListAsync(ct) : [];
+            stay.NgayRa = day; room.PhienBan++;
+            await db.SaveChangesAsync(ct);
+            await sqlite.CommitAsync(ct);
+            TempData["ContractSuccess"] = $"Đã ghi ngày chuyển đi {day:dd/MM/yyyy}. Ngày chuyển đi vẫn tính là ngày còn ở; giảm khoản khoán từ kỳ {next:MM/yyyy}.";
+            if (issued.Count > 0)
+                TempData["ContractWarning"] = "Hóa đơn các kỳ " + string.Join(", ", issued.Select(x => $"{x.Thang:00}/{x.Nam}"))
+                    + " đã lập được giữ nguyên. Số người giảm chỉ áp dụng cho hóa đơn chưa lập; hãy kiểm tra các hóa đơn này.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (Exception ex) when (ex is DbUpdateException or SqliteException)
+        {
+            db.ChangeTracker.Clear();
+            ModelState.AddModelError("", "Không thể ghi nhận chuyển đi. Không có thay đổi nào được lưu. Vui lòng tải lại và thử lại.");
+            return await Invalid();
+        }
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("HOP_DONG", write: true)]
+    public async Task<IActionResult> ThemNguoi(int id, [Bind(Prefix = "Input")] NguoiOGhepInput input, CancellationToken ct)
+    {
+        if (!await db.HopDongs.AnyAsync(x => x.Id == id, ct)) return NotFound();
+        if (!await OwnContract(id, ct)) return Forbid();
+        input.HoTen = input.HoTen?.Trim() ?? "";
+        input.SoDienThoai = input.SoDienThoai?.Trim() ?? "";
+        input.SoGiayTo = input.SoGiayTo?.Trim() ?? "";
+        var errors = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+        System.ComponentModel.DataAnnotations.Validator.TryValidateObject(input, new(input), errors, true);
+        foreach (var error in errors) ModelState.AddModelError("Input." + error.MemberNames.FirstOrDefault(), error.ErrorMessage!);
+        async Task<IActionResult> Invalid() => View("Details", await DetailModel(id, input, ct));
+        if (!ModelState.IsValid) return await Invalid();
+        try
+        {
+            await db.Database.OpenConnectionAsync(ct);
+            await using var sqlite = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+            await using var transaction = await db.Database.UseTransactionAsync(sqlite, ct);
+            if (!await OwnContract(id, ct)) return Forbid();
+            var h = await db.HopDongs.SingleAsync(x => x.Id == id, ct);
+            var room = await db.PhongTros.SingleAsync(x => x.Id == h.PhongId, ct);
+            var signer = await db.KhachThues.SingleOrDefaultAsync(x => x.Id == h.KhachDungTenId, ct);
+            if (signer is null || h.TrangThai is not ("DANG_HIEU_LUC" or "CHO_HIEU_LUC"))
+                ModelState.AddModelError("", "Chỉ thêm người vào hợp đồng đã chốt có một người đứng tên.");
+            if (room.PhienBan != input.PhienBanPhong)
+                ModelState.AddModelError("", "Dữ liệu phòng đã thay đổi. Vui lòng tải lại trang trước khi lưu.");
+            var day = input.NgayVao!.Value;
+            if (!await db.KyHopDongs.AnyAsync(k => k.HopDongId == id && k.NgayBatDau <= day && k.NgayKetThuc >= day, ct))
+                ModelState.AddModelError("Input.NgayVao", "Ngày bắt đầu ở cùng phải nằm trong kỳ hợp đồng.");
+            // New stay has no end date: check every future arrival as well as the requested start.
+            var stays = await db.NguoiOGheps.Where(g => g.HopDongId == id && (g.NgayRa == null || g.NgayRa >= day)).ToListAsync(ct);
+            var peak = stays.Select(g => g.NgayVao).Where(d => d >= day).Append(day)
+                .Max(d => 1 + stays.Count(g => g.NgayVao <= d && (g.NgayRa == null || g.NgayRa >= d)));
+            if (peak + 1 > room.SoNguoiToiDa)
+                ModelState.AddModelError("", $"Phòng {room.MaPhong} tối đa {room.SoNguoiToiDa} người (bao gồm người đứng tên). Không thể thêm người ở ghép.");
+            if (signer?.SoGiayTo == input.SoGiayTo || await
+                (from g in db.NguoiOGheps join k in db.KhachThues on g.KhachThueId equals k.Id
+                 where g.HopDongId == id && k.SoGiayTo == input.SoGiayTo && (g.NgayRa == null || g.NgayRa >= day)
+                 select g.Id).AnyAsync(ct))
+                ModelState.AddModelError("Input.SoGiayTo", "Căn cước trùng người đứng tên hoặc người ở ghép có khoảng ở chồng lấn.");
+            if (!ModelState.IsValid) return await Invalid();
+            // Do not link or modify a sensitive profile owned by an unrelated account.
+            var profile = new KhachThue { HoTen = input.HoTen, SoDienThoai = input.SoDienThoai,
+                SoGiayTo = input.SoGiayTo, NgayTao = (clock ?? new SystemTimeProvider()).UtcNow };
+            db.KhachThues.Add(profile);
+            await db.SaveChangesAsync(ct);
+            db.NguoiOGheps.Add(new() { HopDongId = id, KhachThueId = profile.Id, NgayVao = day });
+            room.PhienBan++;
+            await db.SaveChangesAsync(ct);
+            await sqlite.CommitAsync(ct);
+            TempData["ContractSuccess"] = "Đã thêm người ở ghép. Người đứng tên tiếp tục chịu trách nhiệm thanh toán và nhận lại tiền cọc.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (Exception ex) when (ex is DbUpdateException or SqliteException)
+        {
+            db.ChangeTracker.Clear();
+            ModelState.AddModelError("", "Không thể lưu do dữ liệu đang thay đổi. Vui lòng tải lại trang và thử lại.");
+            return await Invalid();
+        }
+    }
 }
