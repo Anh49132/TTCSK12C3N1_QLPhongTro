@@ -23,6 +23,14 @@
                 <button type="submit" class="btn btn-primary">Xem danh sách</button>
             </div>
         </form>
+        @if (Model.TongPhongCanChot == 0)
+        {
+            <p data-meter-progress>Không có phòng cần ghi chỉ số trong kỳ này.</p>
+        }
+        else
+        {
+            <p data-meter-progress>Đã chốt: @Model.SoPhongDaChot/@Model.TongPhongCanChot · Còn lại: @Model.SoPhongConLai phòng</p>
+        }
         @if (Model.Phongs.Count == 0)
         {
             <div class="alert alert-info">Không có phòng đang thuê có hợp đồng hiệu lực trong kỳ này.</div>
