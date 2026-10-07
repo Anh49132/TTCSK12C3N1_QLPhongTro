@@ -1,3 +1,11 @@
+## 07/10/2026 — Giao diện chi tiết tòa nhà theo ảnh tham chiếu
+
+- Thêm `/PhongTro/ChiTietToaNha/{id}`: thông tin tòa/địa chỉ/quản lý/ngày chốt, ảnh phòng đại diện, quy mô/diện tích, thống kê thuê/trống/đặt cọc và danh sách phòng. Bấm tên tòa tại danh sách mở trang mới; giữ liên kết tới quản lý phòng, chỉnh sửa tòa, thêm phòng và cấu hình điện nước theo quyền.
+- Danh sách lọc mã phòng, tầng, trạng thái; sắp xếp tầng/mã phòng, 8 phòng/trang, phân trang giữ bộ lọc, trạng thái rỗng. Khách đứng tên và hạn hợp đồng lấy từ hợp đồng đang hiệu lực tại hôm nay Việt Nam qua ITimeProvider; không đưa SĐT/căn cước lên trang.
+- Giữ nguyên sidebar, `_Layout.cshtml`, CSS chung và dữ liệu/schema. CSS mới chỉ nạp tại trang chi tiết và dùng class `bd-*`/`building-detail`. Không thêm nút xuất báo cáo/nhập danh sách giả. Chỉ số thu tiền/còn phải thu hiển thị chưa có dữ liệu, không dựng số mẫu; quản lý không thấy các thẻ tài chính/nút sửa/cấu hình.
+- Backend kiểm quyền PHONG_TRO, sở hữu chủ nhà hoặc phân công quản lý; chủ nhà ngoài phạm vi 403, tòa không tồn tại 404. Build C#/Razor PASS; 2/2 test HTTP mục tiêu PASS (dữ liệu thực, hợp đồng, lọc, rỗng, phân trang, link, 403 và quản lý chỉ đọc). Kiểm trực quan desktop/360px qua browser: nội dung mới vừa màn hình, bảng cuộn riêng; không sửa sidebar. Ảnh kiểm chứng trong `data/building-detail-preview.jpg` (ignored). Chưa nghiệm thu Safari/thiết bị thật. Cảnh báo ImageSharp license/CS8601/NU1900 có sẵn còn tồn tại.
+- Lệnh test: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --no-restore --filter FullyQualifiedName~BuildingDetail`. Demo đã khởi động lại; mở `/PhongTro/ToaNha` rồi bấm tên tòa, hoặc `/PhongTro/ChiTietToaNha/1`.
+
 ## 07/10/2026 — S3-02, lát 4: lịch sử người ở theo phòng/khoảng ngày (AC 5)
 
 - Thêm `/HopDong/LichSuNguoiO?phongId=<id>&tuNgay=yyyy-MM-dd&denNgay=yyyy-MM-dd`, liên kết tại trang sửa phòng và chi tiết hợp đồng. Chủ nhà chọn từ ngày–đến ngày; mặc định đầu tháng hiện tại tới hôm nay Việt Nam qua ITimeProvider. Khoảng sai thứ tự hoặc ngày sai không truy vấn lịch sử và có lỗi; kết quả rỗng có thông báo.

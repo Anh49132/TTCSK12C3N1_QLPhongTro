@@ -56,7 +56,7 @@ else
                 buildingStt++;
                 <tr data-building-id="@building.Id" data-area="@building.KhuVuc" data-status="@(building.DangHoatDong ? "active" : "inactive")" data-search="@building.TenToaNha @building.DiaChi">
                     <td>@buildingStt</td>
-                    <th scope="row"><a asp-action="Index" asp-route-toaNhaId="@building.Id">@building.TenToaNha</a><div class="small text-secondary">@building.DiaChi</div></th>
+                    <th scope="row"><a asp-action="ChiTietToaNha" asp-route-id="@building.Id">@building.TenToaNha</a><div class="small text-secondary">@building.DiaChi</div></th>
                     <td>@(building.QuanLy ?? "Chưa phân công")</td>
                     <td><strong>@building.SoPhongDangThue / @building.SoPhong</strong><div class="small text-secondary">@building.SoPhongTrong phòng trống</div></td>
                     <td><strong>@(building.SoPhong == 0 ? "0" : (100m * building.SoPhongDangThue / building.SoPhong).ToString("0.#"))%</strong><progress value="@building.SoPhongDangThue" max="@(building.SoPhong == 0 ? 1 : building.SoPhong)" aria-label="Công suất @building.TenToaNha"></progress></td>
