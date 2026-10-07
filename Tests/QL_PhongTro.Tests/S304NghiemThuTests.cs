@@ -415,4 +415,25 @@ public sealed class S304NghiemThuTests : IDisposable
             Assert.DoesNotContain(model.TinMoiNhat, tin => tin.Id == TinDangId);
         }
     }
+
+    [Fact]
+    public async Task KichHoat_DoiMoiTinChuaChoThueDuocTaoSauBuocDuyet()
+    {
+        var hopDongId = await TaoHopDongNhapAsync();
+        // Giao diện không cho đăng tin mới vào phòng Đã đặt cọc, nên tin ở
+        // trạng thái khác Đã cho thuê (giả lập tin được tạo sau khi duyệt)
+        // chỉ chèn được thẳng vào CSDL.
+        var tinMoiId = (int)Insert(
+            "INSERT INTO tin_dang(phong_id,nguoi_dang_id,tieu_de,noi_dung,trang_thai,ngay_tao) "
+            + "VALUES ($phong,$chu,'Tin tạo sau duyệt','','TAM_AN','2026-10-07 01:00:00')",
+            ("$phong", PhongId), ("$chu", ChuNhaId));
+        Assert.Equal("TAM_AN", Scalar("SELECT trang_thai FROM tin_dang WHERE id=$id", ("$id", tinMoiId)));
+
+        using (var db = Context(ChuNhaId))
+            Assert.IsType<RedirectToActionResult>(await HopDongController(db).KichHoat(hopDongId, null, default));
+
+        // Bước 3 của kích hoạt vẫn đồng bộ mọi tin chưa Đã cho thuê của phòng.
+        Assert.Equal("DA_CHO_THUE", Scalar("SELECT trang_thai FROM tin_dang WHERE id=$id", ("$id", tinMoiId)));
+        Assert.Equal("DA_CHO_THUE", Scalar("SELECT trang_thai FROM tin_dang WHERE id=$id", ("$id", TinDangId)));
+    }
 }
