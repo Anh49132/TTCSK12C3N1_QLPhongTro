@@ -284,6 +284,10 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
         model.Nguois = people.Where(x => x.NgayVao <= HomNay && (x.NgayRa == null || x.NgayRa >= HomNay)).ToList();
         model.DaChuyenDi = people.Where(x => x.NgayRa < HomNay).OrderByDescending(x => x.NgayRa).ToList();
         model.SapVao = people.Where(x => x.NgayVao > HomNay).ToList();
+        model.TrangThaiPhong = p.TrangThai;
+        model.TrangThaiTin = await db.TinDangs.AsNoTracking().Where(t => t.PhongId == h.PhongId)
+            .OrderByDescending(t => t.Id).Select(t => t.TrangThai).FirstOrDefaultAsync(ct) ?? "Chưa có tin";
+        model.ChoKichHoat = h.TrangThai is "NHAP" or "CHO_HIEU_LUC";
         return model;
     }
 
