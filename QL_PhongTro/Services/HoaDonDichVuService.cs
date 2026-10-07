@@ -1,12 +1,13 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
 using QL_PhongTro.ViewModels;
 
 namespace QL_PhongTro.Services;
 
-public sealed class HoaDonDichVuService(AppDbContext db, DichVuService services)
+public sealed class HoaDonDichVuService(AppDbContext db, DichVuService services, ITimeProvider? clock = null)
 {
     public async Task<bool> SanSangAsync()
     {
@@ -24,6 +25,30 @@ public sealed class HoaDonDichVuService(AppDbContext db, DichVuService services)
 
     public static long ThanhTien(decimal quantity, long price) => checked((long)decimal.Round(checked(quantity * price), 0, MidpointRounding.AwayFromZero));
 
+    public sealed record SoNguoiHoaDon(int SoNguoi, DateOnly NgayChot, int PhienBanPhong);
+
+    public async Task<SoNguoiHoaDon> LaySoNguoiAsync(int accountId, int contractId, int buildingId, DateOnly period)
+    {
+        if (!await services.SoHuuToaNhaAsync(accountId, buildingId)) throw new UnauthorizedAccessException();
+        if (period.Year is < 1900 or > 9998) throw new InvalidOperationException("Kỳ hóa đơn ngoài phạm vi hỗ trợ.");
+        var context = await (from h in db.HopDongs.AsNoTracking() join p in db.PhongTros on h.PhongId equals p.Id
+            where h.Id == contractId && p.ToaNhaId == buildingId && h.TrangThai == "DANG_HIEU_LUC"
+            select new { h.KhachDungTenId, h.NgayChot, p.SoNguoiToiDa, p.PhienBan }).SingleOrDefaultAsync()
+            ?? throw new InvalidOperationException("Hợp đồng không hợp lệ hoặc không thuộc tòa nhà.");
+        if (context.KhachDungTenId == null || !await db.KhachThues.AnyAsync(k => k.Id == context.KhachDungTenId))
+            throw new InvalidOperationException("Hợp đồng phải có một người đứng tên để tính phí.");
+        if (context.NgayChot is < 1 or > 31) throw new InvalidOperationException("Ngày chốt hợp đồng không hợp lệ.");
+        var first = new DateOnly(period.Year, period.Month, 1);
+        var cutoff = new DateOnly(period.Year, period.Month, Math.Min(context.NgayChot, DateTime.DaysInMonth(period.Year, period.Month)));
+        // New arrivals start being billed on the first of the following month, for a full month.
+        // Existing departure dates are inclusive; recording departures remains outside this story.
+        var count = 1 + await db.NguoiOGheps.AsNoTracking().Where(g => g.HopDongId == contractId
+            && g.KhachThueId != context.KhachDungTenId && g.NgayVao < first
+            && (g.NgayRa == null || g.NgayRa >= cutoff)).Select(g => g.KhachThueId).Distinct().CountAsync();
+        if (count > context.SoNguoiToiDa) throw new InvalidOperationException($"Số người tính phí vượt sức chứa {context.SoNguoiToiDa} người của phòng.");
+        return new(count, cutoff, context.PhienBan);
+    }
+
     public async Task<int> PhatHanhAsync(int accountId, LapHoaDonDichVuViewModel input)
     {
         Validator.ValidateObject(input, new ValidationContext(input), validateAllProperties: true);
@@ -32,9 +57,18 @@ public sealed class HoaDonDichVuService(AppDbContext db, DichVuService services)
         var chosen = input.Dong.Where(x => x.Chon).ToList();
         if (chosen.Select(x => x.DichVuId).Distinct().Count() != chosen.Count)
             throw new InvalidOperationException("Một dịch vụ chỉ được chọn một lần.");
-        await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.Database.OpenConnectionAsync();
+        await using var sqlite = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+        await using var transaction = await db.Database.UseTransactionAsync(sqlite);
         if (!await services.SoHuuToaNhaAsync(accountId, input.ToaNhaId)) throw new UnauthorizedAccessException();
-        var date = input.NgayApDung!.Value;
+        var occupancy = await LaySoNguoiAsync(accountId, input.HopDongId!.Value, input.ToaNhaId, input.NgayApDung!.Value);
+        if (input.PhienBanPhong.HasValue && input.PhienBanPhong != occupancy.PhienBanPhong)
+            throw new InvalidOperationException("Danh sách người ở hoặc thông tin phòng đã thay đổi. Hãy tải lại bản xem trước trước khi phát hành.");
+        var date = occupancy.NgayChot;
+        var contractServices = await db.HopDongDichVus.Where(x => x.HopDongId == input.HopDongId).Select(x => x.DichVuId).ToListAsync();
+        // Legacy contracts have no service snapshots; retain their assigned-room service list.
+        if (contractServices.Count > 0 && chosen.Any(x => !contractServices.Contains(x.DichVuId)))
+            throw new InvalidOperationException("Dịch vụ không nằm trong danh sách dịch vụ của hợp đồng.");
         if (date.Year < 1900 || date.Year > 9998) throw new InvalidOperationException("Ngày áp dụng ngoài phạm vi hỗ trợ.");
         var from = new DateOnly(date.Year, date.Month, 1);
         var to = from.AddMonths(1).AddDays(-1);
@@ -47,7 +81,6 @@ public sealed class HoaDonDichVuService(AppDbContext db, DichVuService services)
             throw new InvalidOperationException("Hợp đồng trả phòng trong kỳ cần luồng hóa đơn kỳ cuối.");
         var periods = await db.KyHopDongs.Where(x => x.HopDongId == contract.HopDong.Id && x.NgayBatDau <= from && x.NgayKetThuc >= to).Take(2).ToListAsync();
         if (periods.Count != 1) throw new InvalidOperationException("Luồng này chỉ hỗ trợ kỳ thuê trọn tháng với một mức giá phòng. Kỳ lẻ hoặc gia hạn giữa tháng cần xử lý riêng.");
-        if (input.SoNguoi > contract.Phong.SoNguoiToiDa) throw new InvalidOperationException("Số người tính phí vượt sức chứa của phòng.");
         if (await db.HoaDons.AnyAsync(x => x.HopDongId == contract.HopDong.Id && x.Nam == date.Year && x.Thang == date.Month && x.TrangThai != "DA_HUY"))
             throw new InvalidOperationException("Hợp đồng đã có hóa đơn trong tháng này.");
         var invoice = new HoaDon
@@ -59,9 +92,9 @@ public sealed class HoaDonDichVuService(AppDbContext db, DichVuService services)
             TuNgay = from,
             DenNgay = to,
             NgayChot = date,
-            SoNguoiTinhPhi = input.SoNguoi,
-            NgayLap = DateTime.UtcNow,
-            HanThanhToan = DichVuService.HomNay().AddDays(7),
+            SoNguoiTinhPhi = occupancy.SoNguoi,
+            NgayLap = (clock ?? new SystemTimeProvider()).UtcNow,
+            HanThanhToan = DateOnly.FromDateTime((clock ?? new SystemTimeProvider()).UtcNow.AddHours(7)).AddDays(7),
             NguoiLapId = accountId
         };
         invoice.ChiTiet.Add(new ChiTietHoaDon
@@ -89,7 +122,7 @@ public sealed class HoaDonDichVuService(AppDbContext db, DichVuService services)
                     throw new InvalidOperationException("Chỉ số phải không âm, tối đa 3 chữ số thập phân, số cuối không nhỏ hơn số đầu.");
                 quantity = item.ChiSoCuoi.Value - item.ChiSoDau.Value;
             }
-            else quantity = price.CachTinh == CachTinhDichVu.TheoNguoi ? input.SoNguoi : 1;
+            else quantity = price.CachTinh == CachTinhDichVu.TheoNguoi ? occupancy.SoNguoi : 1;
             invoice.ChiTiet.Add(new ChiTietHoaDon
             {
                 SoThuTu = invoice.ChiTiet.Count + 1,
@@ -108,8 +141,8 @@ public sealed class HoaDonDichVuService(AppDbContext db, DichVuService services)
         invoice.TongTien = invoice.ChiTiet.Aggregate(0L, (sum, line) => checked(sum + line.ThanhTien));
         db.HoaDons.Add(invoice);
         await db.SaveChangesAsync(); // Insert lines while NHAP; triggers forbid line changes after publication.
-        invoice.TrangThai = "DA_PHAT_HANH"; invoice.NgayPhatHanh = DateTime.UtcNow; invoice.NguoiPhatHanhId = accountId;
-        await db.SaveChangesAsync(); await transaction.CommitAsync();
+        invoice.TrangThai = "DA_PHAT_HANH"; invoice.NgayPhatHanh = (clock ?? new SystemTimeProvider()).UtcNow; invoice.NguoiPhatHanhId = accountId;
+        await db.SaveChangesAsync(); await sqlite.CommitAsync();
         return invoice.Id;
     }
 

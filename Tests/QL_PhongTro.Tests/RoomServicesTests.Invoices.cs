@@ -25,8 +25,8 @@ public sealed partial class RoomServicesTests
         var a = await AddRoom(db, "DEMO-A");
         var b = await AddRoom(db, "DEMO-B");
         var service = (await db.DichVuToaNhas.FindAsync(catalog))!.DichVuId;
-        var sql = File.ReadAllText(Path.Combine(app, "..", "docs", "sql", "S1-06-quan-he-thue.sql"));
-        await db.Database.ExecuteSqlRawAsync(sql[sql.IndexOf("CREATE TABLE hop_dong", StringComparison.Ordinal)..sql.IndexOf("CREATE TABLE nguoi_o_ghep", StringComparison.Ordinal)]);
+        // LocalDatabaseInitializer already installs the versioned contract schema.
+        RentalRequestSchema.Initialize(path);
         DichVuSchemaInitializer.InitializeInvoices(path);
         await db.Database.ExecuteSqlRawAsync("UPDATE cau_hinh_dich_vu SET tu_ngay='2026-01-01'");
         await db.Database.ExecuteSqlRawAsync("INSERT INTO khach_thue(id,ho_ten,ngay_tao) VALUES(1,'Synthetic tenant','2026-01-01')");
@@ -145,7 +145,7 @@ public sealed partial class RoomServicesTests
         {
             source.Open(); copy.Open(); source.BackupDatabase(copy);
             using var command = copy.CreateCommand();
-            command.CommandText = "DROP TABLE anh_phong; DROP TABLE tin_dang; DROP TABLE ngung_dich_vu_phong; DELETE FROM app_schema_version WHERE version IN (8,9,10,11,12,13)";
+            command.CommandText = "DROP TABLE anh_phong; DROP TABLE tin_dang; DROP TABLE ngung_dich_vu_phong; DELETE FROM app_schema_version WHERE version >= 8";
             command.ExecuteNonQuery();
         }
         var before = Snapshot(copyPath);

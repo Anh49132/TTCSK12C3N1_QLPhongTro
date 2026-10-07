@@ -33,7 +33,19 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
                             join p in db.PhongTros on h.PhongId equals p.Id
                             where h.Id == model.HopDongId && p.ToaNhaId == model.ToaNhaId && h.TrangThai == "DANG_HIEU_LUC"
                             select (int?)p.Id).SingleOrDefaultAsync();
-        foreach (var id in (await services.DanhSachAsync(AccountId, model.ToaNhaId)).Select(x => x.DichVuId).Distinct())
+        if (roomId.HasValue && model.HopDongId.HasValue)
+        {
+            try
+            {
+                var count = await invoices.LaySoNguoiAsync(AccountId, model.HopDongId.Value, model.ToaNhaId, date);
+                model.SoNguoi = count.SoNguoi; model.NgayChotSoNguoi = count.NgayChot; date = count.NgayChot;
+                model.PhienBanPhong ??= count.PhienBanPhong;
+            }
+            catch (InvalidOperationException ex) { ModelState.AddModelError("", ex.Message); model.SoNguoi = 0; }
+        }
+        var contractServices = await db.HopDongDichVus.Where(x => x.HopDongId == model.HopDongId).Select(x => x.DichVuId).ToListAsync();
+        foreach (var id in (await services.DanhSachAsync(AccountId, model.ToaNhaId)).Select(x => x.DichVuId).Distinct()
+            .Where(id => contractServices.Count == 0 || contractServices.Contains(id)))
         {
             var price = roomId.HasValue ? await new DichVuPhongService(db, services).LayGiaHoaDonAsync(AccountId, roomId.Value, id, date) : null;
             if (price is not null) model.DonGias.Add(price);
@@ -70,6 +82,7 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
     [HttpPost, ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]
     public async Task<IActionResult> Issue(LapHoaDonDichVuViewModel model)
     {
+        ModelState.Remove(nameof(model.SoNguoi));
         if (!await services.SoHuuToaNhaAsync(AccountId, model.ToaNhaId)) return Forbid();
         try
         {
@@ -84,6 +97,7 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
         catch (ValidationException ex) { ModelState.AddModelError("", ex.Message); }
         catch (OverflowException) { ModelState.AddModelError("", "Số tiền vượt giới hạn cho phép. Hãy kiểm tra đơn giá và chỉ số."); }
         catch (DbUpdateException) { ModelState.AddModelError("", "Chưa phát hành được hóa đơn: dữ liệu vừa thay đổi hoặc đã có hóa đơn cho kỳ này. Hãy tải lại."); }
+        catch (Microsoft.Data.Sqlite.SqliteException) { ModelState.AddModelError("", "Dữ liệu đang được cập nhật. Hãy tải lại bản xem trước và thử phát hành lại."); }
         // Display refreshed prices but require a new GET before a stale price submission can be accepted.
         await FillAsync(model);
         return View("Index", model);
