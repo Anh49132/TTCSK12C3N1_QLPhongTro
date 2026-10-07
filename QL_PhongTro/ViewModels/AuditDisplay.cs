@@ -35,7 +35,7 @@ public static class AuditDisplay
         ["dich_vu_id"] = "Dịch vụ", ["cach_tinh"] = "Cách tính phí", ["don_vi_tinh"] = "Đơn vị tính",
         ["don_gia"] = "Đơn giá", ["tu_ngay"] = "Từ ngày", ["den_ngay"] = "Đến ngày",
         ["dang_ap_dung"] = "Tình trạng áp dụng", ["da_chot_gia"] = "Đã chốt giá", ["hop_dong_id"] = "Hợp đồng",
-        ["cau_hinh_dich_vu_id"] = "Bảng giá dịch vụ", ["ma_hoa_don"] = "Mã hóa đơn", ["thang"] = "Tháng",
+        ["cau_hinh_dich_vu_id"] = "Bảng giá dịch vụ", ["ma_hop_dong"] = "Mã hợp đồng", ["ma_hoa_don"] = "Mã hóa đơn", ["thang"] = "Tháng",
         ["nam"] = "Năm", ["ngay_chot"] = "Ngày chốt", ["so_nguoi_tinh_phi"] = "Số người tính phí",
         ["loai_hoa_don"] = "Loại hóa đơn", ["han_thanh_toan"] = "Hạn thanh toán", ["tong_tien"] = "Tổng tiền",
         ["ngay_phat_hanh"] = "Ngày phát hành", ["hoa_don_id"] = "Hóa đơn", ["so_thu_tu"] = "Số thứ tự",
@@ -62,7 +62,7 @@ public static class AuditDisplay
         var titleField = row.LoaiDoiTuong switch
         {
             "phong_tro" => "ma_phong", "toa_nha" => "ten_toa_nha", "tai_khoan" => "ho_ten",
-            "dich_vu" => "ten_dich_vu", "hoa_don" => "ma_hoa_don", _ => ""
+            "dich_vu" => "ten_dich_vu", "hoa_don" => "ma_hoa_don", "hop_dong" => "ma_hop_dong", _ => ""
         };
         var title = after.GetValueOrDefault(titleField);
         if (title.ValueKind != JsonValueKind.String) title = before.GetValueOrDefault(titleField);
