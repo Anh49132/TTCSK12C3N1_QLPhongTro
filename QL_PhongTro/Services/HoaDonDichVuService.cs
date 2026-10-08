@@ -7,7 +7,7 @@ using QL_PhongTro.ViewModels;
 
 namespace QL_PhongTro.Services;
 
-public sealed class HoaDonDichVuService(AppDbContext db, DichVuService services, ITimeProvider? clock = null)
+public sealed partial class HoaDonDichVuService(AppDbContext db, DichVuService services, ITimeProvider? clock = null)
 {
     public async Task<bool> SanSangAsync()
     {

@@ -17,6 +17,41 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
 {
     private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
 
+    [HttpGet, Authorize(Roles = "CHU_NHA")]
+    public async Task<IActionResult> Monthly(int? toaNhaId, int? nam, int? thang)
+    {
+        var buildings = await db.ToaNhas.AsNoTracking().Where(x => x.ChuNhaId == AccountId && x.DangHoatDong)
+            .OrderBy(x => x.TenToaNha).Select(x => new SelectListItem(x.TenToaNha, x.Id.ToString())).ToListAsync();
+        var today = DateOnly.FromDateTime(HttpContext.RequestServices.GetRequiredService<ITimeProvider>().UtcNow.AddHours(7));
+        var selected = toaNhaId ?? (buildings.Count > 0 ? int.Parse(buildings[0].Value) : 0);
+        var model = new PhatHanhThangViewModel { Nam = nam ?? today.Year, Thang = thang ?? today.Month };
+        if (selected != 0)
+        {
+            try { model = await invoices.XemThangAsync(AccountId, selected, model.Nam, model.Thang); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+            catch (InvalidOperationException ex) { ModelState.AddModelError("", ex.Message); }
+        }
+        model.ToaNhas = buildings;
+        return View(model);
+    }
+
+    [HttpPost, Authorize(Roles = "CHU_NHA"), ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]
+    public async Task<IActionResult> IssueMonthly(int toaNhaId, int nam, int thang)
+    {
+        if (!ModelState.IsValid) return BadRequest();
+        try
+        {
+            var count = await invoices.PhatHanhThangAsync(AccountId, toaNhaId, nam, thang);
+            TempData["MonthlyMessage"] = count > 0 ? $"Đã phát hành {count} hóa đơn. Chỉ số điện nước đã được khóa." : "Không có phòng đủ dữ liệu để phát hành hóa đơn mới.";
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { TempData["MonthlyError"] = ex.Message; }
+        catch (OverflowException) { TempData["MonthlyError"] = "Số tiền vượt giới hạn. Hãy kiểm tra chỉ số và đơn giá."; }
+        catch (DbUpdateException) { TempData["MonthlyError"] = "Dữ liệu đã thay đổi. Hãy kiểm tra lại kỳ hóa đơn."; }
+        catch (Microsoft.Data.Sqlite.SqliteException) { TempData["MonthlyError"] = "Chưa thể phát hành hóa đơn. Hãy kiểm tra thiết lập hoặc thử lại."; }
+        return RedirectToAction(nameof(Monthly), new { toaNhaId, nam, thang });
+    }
+
     private async Task FillAsync(LapHoaDonDichVuViewModel model)
     {
         model.SanSang = await invoices.SanSangAsync();

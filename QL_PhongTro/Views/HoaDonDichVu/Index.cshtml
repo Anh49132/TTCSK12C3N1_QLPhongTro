@@ -5,6 +5,7 @@
 @{ ViewData["Title"] = "Lập hóa đơn"; var write = await Permissions.AllowsAsync("TAI_CHINH", true); }
 <a asp-controller="DichVu" asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId">← Dịch vụ và đơn giá</a>
 <h1 class="h2 mt-3">Lập hóa đơn tiền phòng và dịch vụ</h1>
+@if (User.IsInRole("CHU_NHA")) { <a asp-action="Monthly" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-dark mb-3">Phát hành hóa đơn tháng cho cả tòa</a> }
 @if (!Model.SanSang)
 {
     <div class="alert alert-info">Chức năng hóa đơn chưa sẵn sàng. Vui lòng liên hệ người quản trị để hoàn tất thiết lập.</div>
