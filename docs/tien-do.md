@@ -1,3 +1,75 @@
+## 08/10/2026 — Admin tạo tài khoản Admin và đổi vai trò
+
+- Form tạo tài khoản thêm Quản trị viên (Admin), backend cho phép ADMIN cùng CHU_NHA/QUAN_LY. Giữ mật khẩu tạm BCrypt, gửi email và bắt buộc đổi mật khẩu lần đầu; hỗ trợ gửi lại mật khẩu tạm cho Admin mới.
+- Danh sách tài khoản thêm nút Đổi vai trò tới form chọn KHACH_THUE/CHU_NHA/QUAN_LY/ADMIN. GET/POST chỉ ADMIN, POST có CSRF. Không tự đổi vai trò của tài khoản đang đăng nhập; không đổi khỏi vai trò chủ nhà/quản lý khi còn sở hữu/được phân công tòa nhà. Giữ hồ sơ thuê và lịch sử hiện có; không chuyển hoặc xóa dữ liệu theo vai trò.
+- So vai trò gốc để từ chối form đã cũ. Đổi vai trò, nhật ký allowlist và thu hồi cookie/JWT/refresh cùng transaction; lỗi audit rollback toàn bộ. Không đổi schema, không cập nhật DB thật, không stage/commit; giữ file import ảnh chưa theo dõi và project test hiện có.
+- Build Debug PASS; 12/12 test HTTP trên SQLite tạm PASS: tạo Admin/bắt đổi mật khẩu/gửi lại, 403 ba vai trò khác, CSRF, vai trò sai/form cũ/tự đổi, ràng buộc tòa nhà, nhật ký/rollback, thu hồi cookie/JWT/refresh. Lệnh: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --no-restore --filter "FullyQualifiedName~ManagedRole|FullyQualifiedName~ManagedAccount_CreateAdmin"`. `git diff --check` PASS. Cảnh báo NU1900/ImageSharp/CS8601 và analyzer test cũ còn tồn tại.
+- Chưa kiểm trực quan 360px/Safari, SMTP thật hoặc bộ regression toàn dự án. Giao diện dùng auth-card/form responsive và bảng cuộn hiện có.
+
+## 07/10/2026 — Giao diện chi tiết tòa nhà theo ảnh tham chiếu
+
+- Thêm `/PhongTro/ChiTietToaNha/{id}`: thông tin tòa/địa chỉ/quản lý/ngày chốt, ảnh phòng đại diện, quy mô/diện tích, thống kê thuê/trống/đặt cọc và danh sách phòng. Bấm tên tòa tại danh sách mở trang mới; giữ liên kết tới quản lý phòng, chỉnh sửa tòa, thêm phòng và cấu hình điện nước theo quyền.
+- Danh sách lọc mã phòng, tầng, trạng thái; sắp xếp tầng/mã phòng, 8 phòng/trang, phân trang giữ bộ lọc, trạng thái rỗng. Khách đứng tên và hạn hợp đồng lấy từ hợp đồng đang hiệu lực tại hôm nay Việt Nam qua ITimeProvider; không đưa SĐT/căn cước lên trang.
+- Giữ nguyên sidebar, `_Layout.cshtml`, CSS chung và dữ liệu/schema. CSS mới chỉ nạp tại trang chi tiết và dùng class `bd-*`/`building-detail`. Không thêm nút xuất báo cáo/nhập danh sách giả. Chỉ số thu tiền/còn phải thu hiển thị chưa có dữ liệu, không dựng số mẫu; quản lý không thấy các thẻ tài chính/nút sửa/cấu hình.
+- Backend kiểm quyền PHONG_TRO, sở hữu chủ nhà hoặc phân công quản lý; chủ nhà ngoài phạm vi 403, tòa không tồn tại 404. Build C#/Razor PASS; 2/2 test HTTP mục tiêu PASS (dữ liệu thực, hợp đồng, lọc, rỗng, phân trang, link, 403 và quản lý chỉ đọc). Kiểm trực quan desktop/360px qua browser: nội dung mới vừa màn hình, bảng cuộn riêng; không sửa sidebar. Ảnh kiểm chứng trong `data/building-detail-preview.jpg` (ignored). Chưa nghiệm thu Safari/thiết bị thật. Cảnh báo ImageSharp license/CS8601/NU1900 có sẵn còn tồn tại.
+- Lệnh test: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --no-restore --filter FullyQualifiedName~BuildingDetail`. Demo đã khởi động lại; mở `/PhongTro/ToaNha` rồi bấm tên tòa, hoặc `/PhongTro/ChiTietToaNha/1`.
+
+## 08/10/2026 — S3-05:5 hoàn thiện ghi chỉ số trên mobile
+
+- Cùng DOM/form theo phòng: bảng responsive thành thẻ 360px, tham chiếu sát ô, inputmode decimal, input/nút >=48px, status/progress rõ. Validate tức thời và focus/cuộn đúng field/room/warning; redirect success thêm fragment phòng. Chỉ presentation và một dòng redirect, giữ mọi nghiệp vụ lát 1–4, không thêm schema/S3-06/hóa đơn.
+- Build cách ly PASS, 0 lỗi; Meter/schema 98/98 PASS (95 cũ + 3 HTTP mobile mới), bộ cuối kèm ba test nâng schema 101/101 PASS; JS harness 8/8 PASS. Regression cùng bốn nhóm lát 4 306/314 PASS, đúng 8 baseline FAIL, 0 skipped. So tập tên với TRX cuối lát 4 khớp hoàn toàn, không lỗi mới.
+- Browser in-app 360x800 trên DB COPY riêng v18: không overflow cấp trang; lỗi điện/nước đúng ô, sửa/lưu từng phòng, warning điện và cả hai, không confirm vẫn không save, confirm save, progress tới 2/2, focus/vị trí/reload đạt. Desktop 1280x900 giữ bảng và lưu được. THEO_NGUOI không tạo meter nước giả; copy integrity/FK đạt, nguồn copy SHA256 không đổi; app đã dừng.
+- Chưa kiểm thiết bị/bàn phím Android/iPhone thật, Safari/3G/stress. DB demo chính không bị ghi test hoặc nâng schema; demo S3-05 đầy đủ dùng fixture v18. Không stage/commit/push/merge/PR. Chi tiết AC5, test/filter, baseline và bằng chứng: [s3055-mobile-meter-entry.md](s3055-mobile-meter-entry.md).
+
+## 08/10/2026 — S3-05:3: tiến độ ghi chỉ số theo tòa/kỳ
+
+- PO duyệt mẫu số là các phòng trong danh sách hiện tại có `DichVu.Count > 0`; đếm phòng, không đếm dịch vụ/hợp đồng. ViewModel thêm computed properties `TongPhongCanChot`, `SoPhongDaChot`, `SoPhongConLai`; số đã chốt chỉ đếm `DaChot` trong cùng tập cần meter. Phòng không cần meter giữ nguyên list/status legacy nhưng không góp vào progress. Thiếu reference vẫn nằm trong tổng/còn lại, không giả 0 hay đổi validation.
+- Razor hiển thị `Đã chốt: X/Y · Còn lại: Z phòng` sau bộ chọn tòa và trước danh sách tầng. Khi tổng bằng 0, cả ba values bằng 0 và UI ghi `Không có phòng cần ghi chỉ số trong kỳ này.` Không có tòa được phân công thì giữ thông báo hiện có. Kế thừa nguyên trạng cách chọn tập DichVu của lát 2, không phân loại thêm cấu hình lỗi/thiếu.
+- Không đổi service/controller/save/schema/DB/updater, không JS/AJAX/CSS mới. Redirect GET sau save hoặc render khi POST lỗi đọc dữ liệu DB hiện có; input chưa lưu không tăng progress. Không triển khai lát 4/5, S3-06/S3-10 hoặc sửa baseline.
+- Thêm 8 test progress dùng SQLite temp theo fixture hiện có: 0/N, một phần, N/N, cập nhật lại không tăng, phòng khác không đổi, nước theo người, chỉ một meter/chỉ đủ hai meter, kỳ/hợp đồng khác, thiếu reference/không fake 0, không-meter giữ legacy status/0 tổng, không trộn tòa/không lặp phòng, concurrency/stale/audit rollback, HTTP invalid/redirect/GET mới/zero message. Bộ S3-05/schema gồm 55 ca cũ + 8 mới: **63/63 PASS**. Test quyền/module/phân công và CSRF của lát 1/2 chạy lại cùng bộ. Build C#/Razor PASS, 0 lỗi; cảnh báo ImageSharp/CS8601 và analyzer của test lát 2 có sẵn.
+- Browser in-app thật trên DB copy disposable `data/s3053-acceptance/copy.sqlite` (ignored): bản sao nguồn v17, thêm một bàn giao hợp đồng 1/ngày 01/08/2026/điện 100/nước 20/người nhập 1. Ban đầu 0/2/còn 2; điện 99 báo lỗi và không tăng; lưu 110 rồi reload 1/2/còn 1, C002 thiếu reference vẫn Chưa chốt/còn lại. Nước THEO_NGUOI không input/record. Bản sao sau save đúng một dòng DIEN/hợp đồng 1/kỳ 01–31/10/2026/100→110/người nhập 6/da_khoa=0/phien_ban=0; integrity_check=ok, foreign_key_check rỗng. Ảnh `data/s3053-acceptance/progress-after-save.png` ignored. Fixture hai meter và N/N được chứng minh bằng automated tests; không chạy browser hai-meter lần này. App nghiệm thu đã dừng.
+- Regression bốn nhóm: **278/286 PASS, 8 FAIL, 0 skipped**, log `data/test-results/s3053-regression.trx`. Tập 8 tên lỗi khớp chính xác TRX nghiệm thu lát 2 `s3052-acceptance-regression.trx`, không có failure mới; không sửa baseline. Đây không phải full suite. Review diff và git diff --check PASS; branch feature/S3-05/03-reading-progress, HEAD 5208a65 giữ nguyên; 3 modified + 1 untracked, không staged/commit/push/merge/switch.
+- DB demo chính/backup không bị ghi hoặc sửa; SHA-256 nguồn trước/sau `6c86a6e2022ec7b96a12a7e296b8f22bfe7769bb8b952b7b5bda29b4744284d9`. Không sửa csproj test. Chưa nghiệm thu Chrome/Safari/thiết bị vật lý hoặc tối ưu mobile thuộc lát 5.
+- Lệnh: `dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore --output data/s3053-build`; `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --no-restore --output data/s3053-tests --filter FullyQualifiedName~MeterReadingListTests --logger 'trx;LogFileName=s3053-tests.trx' --results-directory data/test-results`. Regression dùng `--no-build --no-restore --output data/s3053-tests --filter 'FullyQualifiedName~MeterReadingListTests|FullyQualifiedName~PermissionTests|FullyQualifiedName~ContractCreationTests|FullyQualifiedName~RoomServicesTests' --logger 'trx;LogFileName=s3053-regression.trx' --results-directory data/test-results`.
+
+## 07/10/2026 — Nghiệm thu kỹ thuật S3-05:2 (trước commit)
+
+- PASS phạm vi lát 2. Điều khiển trình duyệt in-app thật trên hai bản sao riêng ở `data/s3052-acceptance/`, local ignored. DB chính `QL_PhongTro/Data/s3-demo/sprint2.sqlite` đã được người dùng nâng lên v17 trước lượt này; agent không nâng/ghi DB chính và không sửa/xóa backup. SHA-256 nguồn trước/sau bằng nhau: `6c86a6e2022ec7b96a12a7e296b8f22bfe7769bb8b952b7b5bda29b4744284d9`.
+- Sửa lỗi thông báo thiếu tham chiếu lặp: Razor trước đây có lời nhắc riêng ngoài span lỗi, trong khi JS/POST dùng span với cùng nội dung. Nay GET/POST/JS cùng dùng một span mỗi dịch vụ; giữ lỗi server khi đã có. Test HTTP kiểm đúng một thông báo mỗi form ở GET và POST cố chốt thiếu tham chiếu, DB không có bản giả.
+- `copy.sqlite`: thêm đúng một dòng `hop_dong_chi_so_dau_ky` cho hợp đồng 1, ngày 01/08/2026, điện 100, nước 20, người nhập 1; ngày nằm trong kỳ hợp đồng. C001/phòng 6 có tham chiếu, C002/phòng 7 giữ thiếu. Nước THEO_NGUOI không có input/record meter. Trình duyệt: 99 lỗi ngay tại điện và chặn lưu; 100 bằng tham chiếu xóa lỗi/lưu được; cập nhật 125 và reload giữ số/trạng thái. C002 vẫn Chưa chốt, lời nhắc không lặp khi nhập. POST HTTP trực tiếp gửi 99 kèm previousReading=0 bị từ chối; cố chốt C002 cũng bị từ chối, không đổi DB.
+- `both-meters.sqlite`: bản sao riêng khác từ nguồn, cùng dòng bàn giao; thêm cấu hình giá riêng phòng 6/id 7 cho NUOC/id 2, THEO_CHI_SO, 18.000 đ/m3, 01–31/10/2026, người tạo 1/ngày tạo 01/09/2026. Đây là fixture kiểm thử cấu hình từ kỳ sau, không đổi cấu hình nguồn/hóa đơn lịch sử. Trình duyệt xác minh riêng điện 99/nước 20, điện 100/nước 19, cả hai 99/19, chặn lưu; sửa 110/25 xóa cả hai lỗi, lưu/reload Đã chốt. C002 vẫn Chưa chốt.
+- Kiểm SQLite trực tiếp: bản sao đầu đúng một dòng (hợp đồng 1, DIEN/id 1, đầu 100/cuối 125, người nhập 6, da_khoa=0, phien_ban=1); bản sao hai đúng hai dòng (hợp đồng 1, DIEN 100→110, NUOC 20→25, người nhập 6, da_khoa=0, phien_ban=0). Tất cả kỳ 01–31/10/2026; không bản của hợp đồng 2, không bản meter cho THEO_NGUOI. Cả hai integrity_check=ok, foreign_key_check rỗng. Không tạo invoice giả. Lưu có nhật ký như implementation hiện có; app cũng có các tác vụ hạ tầng thông thường trên COPY.
+- Build riêng PASS (0 lỗi, cảnh báo license ImageSharp có sẵn). S3-05/schema 55/55 PASS; concurrency riêng 1/1 PASS; JS harness 8/8 PASS. Regression bốn nhóm 270/278 PASS, đúng 8 baseline cũ, không lỗi mới. So TRX với lượt 269/277: thêm đúng `StaleHttpFormKeepsOldVersionUntilExplicitReload` đã có trong source trước lượt này. Không khẳng định full suite hoặc Chrome/Safari/thiết bị vật lý đã nghiệm thu.
+- Lệnh thực tế:
+  - `dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore --output data/s3052-acceptance-build`
+  - `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --no-restore --output data/s3052-acceptance-runtime --filter FullyQualifiedName~MeterReadingListTests --logger 'trx;LogFileName=s3052-acceptance.trx' --results-directory data/test-results`
+  - `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --no-build --no-restore --output data/s3052-acceptance-runtime --filter 'FullyQualifiedName~MeterReadingListTests|FullyQualifiedName~PermissionTests|FullyQualifiedName~ContractCreationTests|FullyQualifiedName~RoomServicesTests' --logger 'trx;LogFileName=s3052-acceptance-regression.trx' --results-directory data/test-results`
+  - `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --no-build --no-restore --output data/s3052-acceptance-runtime --filter FullyQualifiedName~DuplicateConcurrentSaveAndOptimisticUpdate --logger 'trx;LogFileName=s3052-acceptance-concurrency.trx' --results-directory data/test-results`
+- JS harness chạy Node stdin với JS production, mock DOM, 8 trường hợp điện/nước/cả hai/sửa hợp lệ/bằng/lớn hơn/precision/rỗng-thiếu tham chiếu và chặn submit. HTTP Python stdin dùng cookie/CSRF thật và đọc SQLite bản sao để đối chiếu không ghi khi lỗi. Ảnh bằng chứng nằm local ignored `data/s3052-acceptance/browser-after-save.png` và `browser-both-after-save.png`.
+- App nghiệm thu đã dừng. Review phạm vi/diff và git diff --check PASS; chỉ 10 modified + 7 untracked source/test/docs thuộc lát 2, không staged, DB/backup/WAL/SHM/secret/temp không xuất hiện Git. Không commit/push/merge/switch; không triển khai các lát 3/4/5, S3-06/S3-10, không sửa baseline.
+
+## S3-05, lát 2: nhập, kiểm tra và lưu từng phòng — schema v17
+
+- Triển khai MeterReadingSchema v17 và entity/DbSet/audit cho chi_so_dien_nuoc; FK RESTRICT tới hợp đồng/dịch vụ/người nhập, unique hợp đồng/dịch vụ/khoảng tháng, CHECK tháng/decimal/đầu-cuối. Giữ da_khoa và phien_ban (concurrency token); guard bản đã khóa nhưng không có action khóa/mở khóa. Bước mới thêm dữ liệu rỗng, không backfill hay đổi bảng/dòng cũ. Updater chạy lặp nhận lại bảng chỉ khi định nghĩa bảng và mọi trigger khớp chính xác; schema lạ bị từ chối. AccountReuseSchema mở rộng phạm vi kiểm tra tới v17, giữ nguyên logic nâng/index cũ.
+- GET/POST dùng cookie, ModuleAccess DIEN_NUOC (WRITE trên Save), phân công tòa và CSRF. Kỳ Việt Nam, phòng/hợp đồng/giao kỳ/dịch vụ/chỉ số đầu được kiểm lại server-side. Chỉ DIEN/NUOC được gán cho phòng, còn áp dụng và có cấu hình hiệu lực THEO_CHI_SO cần nhập; cấu hình riêng thắng mặc định, snapshot dịch vụ hợp đồng được tôn trọng khi đã có. THEO_NGUOI không tạo bản giả. Nguồn đầu: bản chốt kỳ trước → hóa đơn legacy hợp lệ → bàn giao. Thiếu tham chiếu chặn lưu, không giả 0.
+- Form riêng từng phòng; client/server kiểm số hợp lệ, tối đa 3 số lẻ, giới hạn và mới >= trước. Lỗi tại ô/dòng tương ứng, sửa hợp lệ xóa lỗi; số input dùng binder bất biến. BEGIN IMMEDIATE + unique + phien_ban kiểm insert/update; stale báo tải lại và giữ token cũ trên form lỗi. Hai dịch vụ của phòng lưu cùng transaction với nhật ký; lỗi ghi/audit rollback, phòng khác không đổi. Reload đọc dữ liệu đã lưu; Đã chốt khi đầy đủ dịch vụ meter cần nhập của kỳ. Bản chưa khóa có thể lưu lại với version đúng.
+- Build C#/Razor PASS. Toàn bộ 28 test lát 1 giữ nguyên; bộ S3-05/schema cuối 55/55 PASS (`data/test-results/s3052-complete.trx`), bổ sung test concurrency hai Task.Run/two connections 1/1 PASS (`s3052-concurrency.trx`). JavaScript harness Node PASS equal/greater/both wrong/correction/precision/missing reference/submit blocking. Chưa nghiệm thu trực quan trình duyệt, Chrome/Safari hay thiết bị 360px cho lát 2; harness không thay cho nghiệm thu browser.
+- Updater: test SQLite temp v16→v17, bảo toàn mọi dòng cũ, idempotency, từ chối schema lạ/thiếu protections, constraints/FK/unique/bản khóa PASS. Thử bản sao read-only backup từ DB demo v16 với build cuối: hai lượt update PASS, integrity/FK PASS, mọi dòng cũ giữ nguyên, hash nguồn không đổi. Không chạy updater/seed hoặc sửa trực tiếp DB demo; nguồn còn v16. App repository đã dừng trước build, chưa tự khởi động lại.
+- Regression filter MeterReadingListTests + PermissionTests + ContractCreationTests + RoomServicesTests: 269/277 PASS, đúng 8 baseline FAIL đã được đối chứng trên dev trước S3-05 (log `s3052-regression-final.trx`). UpdateV13 vẫn kỳ vọng 15, thực tế nay 17; bảy lỗi assertion/fixture còn lại như báo cáo baseline. Không sửa 8 test đó. Lượt trung gian còn lỗi của code mới (AccountReuse giới hạn version, bước v17 từ chối bảng giữ lại khi test xóa marker) và một tiêu đề UI làm test lát 1 lỗi; đã sửa và test lại đạt. Hai test nâng cấp V7/V5 từng lỗi đạt trong bộ mục tiêu 56/56 và trong regression cuối. Không khẳng định toàn suite PASS.
+- Lệnh: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --no-restore --output data/s3052-complete --filter FullyQualifiedName~MeterReadingListTests --logger 'trx;LogFileName=s3052-complete.trx' --results-directory data/test-results`; concurrency tương tự với filter DuplicateConcurrentSaveAndOptimisticUpdate và output data/s3052-concurrency. Regression cuối dùng --no-build --no-restore --output data/s3052-final-tests, filter bốn nhóm trên, log s3052-regression-final.trx. Build cuối `dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore --output data/s3052-ui-final`. Cảnh báo ImageSharp license/CS8601 có sẵn. Không sửa csproj test.
+- Chi tiết thiết kế/vận hành: [s305-chi-so-theo-ky.md](s305-chi-so-theo-ky.md). Không triển khai progress S3-05:3, bất thường S3-05:4, tối ưu S3-05:5, phát hành S3-06 hay khóa kỳ S3-10. Không sửa chi_so_id/dòng hóa đơn để chứa số mới. Branch feature/S3-05/02-meter-reading-input-save; chưa commit/push/merge/switch/reset.
+
+## 07/10/2026 — S3-05, lát 1: danh sách phòng cần ghi chỉ số (AC 1)
+
+- Thêm GET `/ChiSoDienNuoc` cho QUAN_LY; menu Chỉ số điện nước dẫn tới màn thật, `/Modules/DIEN_NUOC` chuyển hướng riêng cho quản lý. Vai trò khác giữ trang module hiện có. Backend dùng cookie, ModuleAccess DIEN_NUOC, account đang hoạt động và `toa_nha.quan_ly_id`; chọn trực tiếp tòa ngoài phân công/ngừng hoạt động bị 403. Không được phân công có thông báo rỗng; tham số sai định dạng trả 400.
+- Kỳ hiện tại là tháng dương lịch theo ngày Việt Nam qua ITimeProvider, không chuyển tháng theo ngày chốt. Chỉ phòng DANG_THUE có hợp đồng DANG_HIEU_LUC và kỳ thuê giao tháng (bao gồm hai đầu); ngày trả thực tế giới hạn khoảng thuê. Loại nháp/hủy/kết thúc/chờ hiệu lực, kỳ ngoài tháng và phòng trống. Nhiều kỳ không nhân đôi phòng; nếu nhiều hợp đồng cùng giao tháng, chọn hợp đồng có ngày bắt đầu kỳ giao tháng mới nhất, rồi ID giảm dần để ổn định; không gộp chỉ số giữa các hợp đồng.
+- Chỉ số điện/nước tham chiếu: chi_tiet_hoa_don.chi_so_cuoi của đúng hợp đồng, mã dịch vụ DIEN/NUOC, dòng DICH_VU, snapshot THEO_CHI_SO, giá trị khác NULL, hóa đơn DA_PHAT_HANH kết thúc trước đầu kỳ. Lấy gần nhất theo den_ngay rồi ID hóa đơn/dòng. Fallback bảng hop_dong_chi_so_dau_ky của chính hợp đồng, ngày bàn giao không sau cuối kỳ; UI ghi rõ Chỉ số bàn giao. Thiếu nguồn giữ nullable và hiển thị Chưa có dữ liệu; 0 thật vẫn hiển thị 0. Module hóa đơn chưa cài vẫn đọc bàn giao, không tự cài schema.
+- UI tiếng Việt dùng layout/theme hiện có, chọn tòa, kỳ, nhóm theo tầng, mã phòng, chỉ số và trạng thái; sắp tầng rồi mã phòng. Đã chốt chỉ khi có snapshot chỉ số thật cho cả DIEN và NUOC trên hóa đơn phát hành trong khoảng kỳ; thiếu một hoặc cả hai giữ Chưa chốt. Bàn giao hoặc hóa đơn khoán/không chỉ số không chứng minh đã chốt. Không thêm nơi lưu trạng thái, nhập/lưu chỉ số, tiến độ, cảnh báo >200% hay popup. Không đổi schema, chạy updater/seed hoặc sửa DB demo; không hard-code dữ liệu/DatabasePath.
+- Kiểm chứng bản cuối: build C#/Razor thành công; 28/28 MeterReadingListTests PASS, gồm HTTP menu/route, Login/403, thu hồi/thiếu quyền, phân công, chỉ số, fallback/0/thiếu dữ liệu, kỳ giao/không giao, thứ tự và chống lặp, UTC+7/đổi năm, module hóa đơn tùy chọn, GET không đổi schema/dữ liệu và HTML không có nhập/lưu chỉ số mới. Test dùng SQLite tạm; GET được so sánh toàn bộ schema/dữ liệu sau bước login. Chưa nghiệm thu trực quan Chrome/Safari, 360px hoặc thiết bị thật. App repository đã dừng trước build và không tự khởi động lại.
+- Lệnh bản cuối: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --no-restore --output data/s305-final-tests --filter FullyQualifiedName~MeterReadingListTests --logger 'console;verbosity=minimal'`. Build project: `dotnet build QL_PhongTro/QL_PhongTro.csproj -c Debug --no-restore`. Restore test đã thực hiện vì thiếu project.assets.json. Build thường ban đầu lỗi quyền ghi obj; chạy lại với quyền cần thiết đạt. Cảnh báo ImageSharp license/CS8601 có sẵn vẫn còn.
+- Lượt mở rộng filter MeterReadingListTests + PermissionTests + ContractCreationTests + RoomServicesTests: 242/251 PASS, 9 FAIL. Một FAIL là fixture mới thiếu module yêu cầu thuê trong ca không có hóa đơn, đã sửa và kiểm chứng lại bằng bộ 28/28 phía trên. Tám FAIL còn lại thuộc test hồi quy ngoài phần thay đổi: MoiVaDaHenLich_DeuDuocTinhChuaXuLyVaDanhDauQua24Gio (badge); UpdateV13_ChoQuanLyQuyenDangTinNhungKhongMoLaiQuyenDaThuHoi (kỳ vọng 15, thực tế 16); MenuAndEveryModuleRouteMatchMatrixForAllRoles (menu); GuestPricingUsesRoomOverrideAndOmitsInvalidOrInactivePrices (nội dung phí); RegisterHasPasswordToggleAndConfirmationEmailIsEditable (class password-field); ProfileReadIsScopedToSelfOrSignedContractAndOwnerCannotEdit (fixture tạo lại hop_dong); AnonymousGuestViewsNhaTotBrandedHomePage (link tin trang chủ); DepartureHttpWarningSnapshotsAndFutureUnissuedBill (chữ Ghi nhận chuyển đi). Không sửa các phần này và không khẳng định toàn suite PASS; chưa chạy baseline độc lập để chứng minh tất cả lỗi có trước. Các lượt fixture mới ban đầu còn thất bại do thiếu người đứng tên/module hóa đơn, đã sửa fixture; không che giấu các lượt thất bại.
+- Đang làm trên feature/S3-05/01-meter-reading-list; chưa commit/push/merge/rebase/reset/switch. Database demo hiện thiếu chỉ số cho hai hợp đồng legacy: UI phản ánh Chưa có dữ liệu, không seed để giả lập. Lát 2–5 chưa triển khai.
+
 ## 07/10/2026 — S3-02, lát 4: lịch sử người ở theo phòng/khoảng ngày (AC 5)
 
 - Thêm `/HopDong/LichSuNguoiO?phongId=<id>&tuNgay=yyyy-MM-dd&denNgay=yyyy-MM-dd`, liên kết tại trang sửa phòng và chi tiết hợp đồng. Chủ nhà chọn từ ngày–đến ngày; mặc định đầu tháng hiện tại tới hôm nay Việt Nam qua ITimeProvider. Khoảng sai thứ tự hoặc ngày sai không truy vấn lịch sử và có lỗi; kết quả rỗng có thông báo.
@@ -730,3 +802,153 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 - Tiến độ thu tiền tòa nhà: bộ chọn tháng kiểu ảnh mẫu, icon lịch trái/mũi tên phải, mặc định tháng hiện tại giờ VN và 12 tháng gần nhất. Dữ liệu tài chính vẫn chưa có. Build 0 lỗi; HTTP/HTML đạt; sidebar không đổi.
 - Đầu danh sách tòa nhà theo ảnh: kính lúp/ô tìm tên-địa chỉ, lọc khu vực/tình trạng, nút list-grid và sắp xếp mới nhất theo ID hoặc tên A-Z. Lọc client trên các tòa đã được backend giới hạn quyền. Giữ sidebar. Build 0 lỗi; HTTP HTML/JS đạt; không chụp ảnh.
 - Nút list/grid và Mới nhất dùng SVG nét mảnh theo ảnh, nền nhóm xám/ô active trắng, bo góc 10px. Giữ icon khi đổi sắp xếp. Build 0 lỗi; HTTP đạt, không chụp ảnh.
+
+
+### 07/10/2026 — Bố cục danh sách tòa nhà theo ảnh tham chiếu
+- Thêm cột thu tiền theo tháng, cần xử lý và liên kết Chi tiết; giữ số phòng, công suất và thanh tiến độ. Gom thao tác quản trị vào mục Thao tác, giữ nguyên sidebar.
+- Chưa có nguồn thanh toán/báo hỏng: hiển thị rõ chưa có dữ liệu, không tạo số giả hoặc thay đổi schema.
+- Kiểm chứng: build thành công; đăng nhập chủ nhà và GET /PhongTro/ToaNha trả 200, có các cột và liên kết mới. Chưa kiểm chứng trực quan ở 360px/Safari.
+
+
+### 07/10/2026 — Điều hướng chi tiết tòa nhà
+- Thêm biểu tượng nhà và breadcrumb Không gian quản lý → Tòa nhà → Chi tiết tòa nhà theo ảnh; chỉnh khoảng cách và liên kết quay lại. Sidebar giữ nguyên.
+- Build thành công; HTTP chi tiết trả 200 và có breadcrumb mới. Chưa kiểm chứng trực quan/mobile.
+
+- Điều chỉnh theo yêu cầu: breadcrumb chi tiết tòa nhà đặt trong dashboard-header của layout, bỏ breadcrumb trong nội dung; giới hạn theo route chi tiết. Build và HTTP kiểm tra đạt.
+
+- Đồng bộ breadcrumb dashboard-header với Tổng quan: chữ 16px/600, màu #25282D, biểu tượng nhà 21px, khoảng cách 12px; giữ header và sidebar chung.
+
+- Breadcrumb: trang hiện tại giữ màu #25282D; các liên kết cấp trước giảm độ đậm xuống #25282D80.
+
+- 08/10/2026: Bỏ chữ Tổng quan trong breadcrumb chi tiết tòa nhà, giữ biểu tượng nhà có nhãn truy cập và các mục Tòa nhà / Chi tiết tòa nhà.
+
+- 08/10/2026: Breadcrumb cuối cùng: biểu tượng nhà / Quản lý tòa nhà › Chi tiết tòa nhà; bỏ liên kết Danh sách tòa nhà dưới header theo yêu cầu.
+
+- 08/10/2026: Cột Thao tác danh sách tòa nhà: Chi tiết màu nhấn, nút sửa hình bút và menu ba chấm; giữ các form có xác nhận và CSRF.
+
+- Menu ba chấm: bỏ khung các nút và menu, xếp Cấu hình điện nước / Ngừng hoạt động / Xóa theo cột dọc; giữ nguyên hành vi và xác nhận.
+
+- Menu ba chấm hiển thị nổi bằng position absolute; mở menu không tăng chiều cao hàng. Mobile dùng menu fixed để giữ cuộn ngang bảng.
+
+- 08/10/2026: Thanh lọc phòng chi tiết tòa nhà theo ảnh: tìm mã/tên khách, tầng, loại phòng, mã tăng dần; giữ trạng thái tab và loại phòng khi phân trang. Thanh toán tạm vô hiệu vì chưa có nguồn dữ liệu. Chưa thêm tìm SĐT; build và HTTP ba trường hợp đạt, chưa kiểm chứng trực quan mobile.
+
+- Ô tìm kiếm phòng theo ảnh: kính lúp 19px cùng hàng, cao 44px, bo 11px, viền xám mảnh, chữ 14px; giữ nội dung placeholder đúng chức năng tìm mã/tên hiện có.
+
+- Chi tiết phòng: thêm cột thanh toán tháng theo quyền tài chính (chưa có dữ liệu), hiển thị ngày hết hạn hợp đồng và menu nổi ba chấm. Không giả lập đã trả/quá hạn.
+
+- Thay nút quản lý phòng/cấu hình điện nước bằng Nhập danh sách (dẫn CreateBulk hiện có, chưa nhập tệp) và chuyển danh sách/lưới trong trang.
+
+- Dấu ba chấm của phòng mở trực tiếp trang Edit; bỏ menu nổi chỉnh sửa/xem hợp đồng theo yêu cầu.
+
+- 08/10/2026: Thiết kế lại SuaToaNha theo ảnh: bốn nhóm thông tin, cột tóm tắt bên phải, thanh lưu/hủy bên dưới; CSS riêng, sidebar giữ nguyên. Chỉ trường được backend hỗ trợ, ảnh minh họa thay upload. Build đạt; GET và POST thiếu trường trả form có validation; không chụp màn hình, chưa kiểm chứng trực quan.
+
+- Bổ sung chi tiết chỉnh sửa tòa nhà: breadcrumb theo tòa, ảnh phòng đại diện, tổng phòng/đang thuê/tổng diện tích, trạng thái và SĐT quản lý hiện tại chỉ đọc; nạp lại tóm tắt khi validation lỗi. Chưa có loại hình/tiện ích/upload ảnh tòa riêng; không đổi schema, không chụp ảnh. Build và GET/POST không hợp lệ đạt.
+
+- 08/10/2026: PO đồng ý bổ sung trường lưu diện tích đất và sáu tiện ích chung. Schema v17 additive + backup; EF, form, validation decimal invariant, audit allowlist tích hợp. Kiểm chứng bảo toàn cột cũ/integrity/FK/idempotence trên bản sao, khởi tạo DB rỗng đạt, HTTP lưu/tải lại/chặn âm/chặn sở hữu chéo đạt. Chi tiết tại docs/nang-cap-toa-nha-v17.md. Sidebar giữ nguyên; không chụp ảnh.
+
+- Ba trường Tỉnh/thành phố, Quận/huyện, Phường/xã có dấu sao và validation bắt buộc phía server/client; kiểm tra POST bỏ trống không lưu đạt.
+
+- 08/10/2026: Quản lý phòng theo ảnh: bốn thống kê thực tế, thanh phòng trống, tabs trạng thái, bộ lọc cơ sở/quản lý, tìm mã/tên khách hiện tại, bảng khách/giá/trạng thái, menu giữ thao tác cũ, phân trang client 10/20/50, danh sách/lưới và CSV. Không gán ngừng cho thuê thành bảo trì; sidebar giữ nguyên; không chụp ảnh. Build và HTTP bộ lọc đạt; chưa kiểm chứng trực quan và JS trong trình duyệt.
+
+- 08/10/2026: Thêm phòng theo bố cục ảnh, partial/CSS riêng chỉ nạp Create; giữ Edit và backend cũ. Form có thông tin/giá/trạng thái, sidebar ảnh hướng dẫn thêm sau lưu; chưa hỗ trợ tiện nghi/ghi chú/cọc ở phòng, không tạo trường giả. Build và HTTP form/validation/Edit đạt, không chụp ảnh.
+
+- 08/10/2026: Chỉnh khối Thông tin cơ bản của Thêm phòng theo ảnh: viền, khoảng cách, đơn vị, địa chỉ quận/tỉnh theo cơ sở thực tế và radio Còn trống/Bảo trì. Bảo trì dùng NGUNG_CHO_THUE hiện có, chưa có nghiệp vụ bảo trì riêng. Tầng giữ input số, không tự giới hạn tầng. Không đổi schema, không thêm nghiệp vụ, không chụp màn hình. Build Debug đạt; git diff --check đạt. Chưa kiểm chứng trực quan/mobile trong trình duyệt. Tiện nghi riêng vẫn chưa có; ảnh thêm sau khi lưu theo luồng hiện có. Mã HopDongController thực tế đã có cập nhật DANG_THUE, khác ghi chú Sprint 3 chưa làm trong AGENTS.md.
+
+- 08/10/2026: Làm đẹp dropdown cơ sở ở form thêm phòng: danh sách trắng bo góc, bóng nhẹ, lựa chọn màu be và dấu tick; hỗ trợ phím mũi tên/Home/End/Escape, đóng khi rời focus/bấm ngoài. Select gốc giữ nguyên binding và validation, tự dùng lại giao diện gốc khi JavaScript không chạy. Chỉ sửa CSS/JS, không thêm nghiệp vụ. git diff --check đạt; chưa kiểm chứng trực quan trình duyệt, không chụp màn hình.
+
+- 08/10/2026: Tinh chỉnh dropdown cơ sở theo ảnh mới: nhãn Cơ sở màu nhạt trong ô chọn, tên cơ sở đậm, menu thoáng 41px mỗi mục, nền be và tick màu vàng nâu. Giữ Chọn cơ sở khi chưa chọn vì form tạo phòng yêu cầu một cơ sở cụ thể; không dùng Tất cả cơ sở của bộ lọc. node --check và git diff --check đạt. Chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Tăng cột rc-aside của form thêm phòng từ 300 lên 350px; ở breakpoint <=950px tăng từ 260 lên 300px. Giữ bố cục một cột <=750px. Chỉ chỉnh CSS, không thêm chức năng; chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Chỉnh hiệu ứng nổi cho nút chọn cơ sở theo ảnh: viền xám nhẹ, bo góc 10px, bóng quanh nút và menu, trạng thái mở/focus dùng bóng be nhẹ. Chỉ CSS, giữ chức năng và chiều rộng rc-aside. git diff --check đạt; chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Sửa dropdown cơ sở không hiện giao diện mới ở demo đang chạy. HTTP xác nhận Razor runtime cũ có select#ToaNhaId nhưng thiếu data-room-building, trong khi server đã phục vụ JS mới. Bổ sung selector theo id trong room-create-page để tương thích form đang chạy, không ảnh hưởng Edit/CreateBulk. HTTP xác nhận server phục vụ bản sửa; node --check và git diff --check đạt. Không chụp màn hình, chưa kiểm chứng trực quan trình duyệt.
+
+- 08/10/2026: Tăng thêm chiều rộng rc-aside theo yêu cầu: màn hình lớn 350 → 400px, breakpoint <=950px 300 → 330px; giữ một cột <=750px. Chỉ CSS, không thêm chức năng. git diff --check đạt; chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Tăng tiếp rc-aside theo yêu cầu: màn hình lớn 400 → 450px, breakpoint <=950px 330 → 350px; giữ một cột <=750px. Chỉ CSS. git diff --check đạt; chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Chỉnh lại khối Thông tin cơ bản theo ảnh mới, biểu tượng SVG, bố cục/ô nhập gọn và bỏ nhãn Cơ sở lặp bên trong nút. Tầng có gợi ý từ SoTang của cơ sở, vẫn nhập số nếu chưa khai báo; không thay validation backend. Bảo trì chỉ còn radio disabled, không bind NGUNG_CHO_THUE và có thông báo chưa hỗ trợ. Còn trống và các trường hiện có giữ hoạt động. Không thêm nghiệp vụ, không đổi schema; node --check và git diff --check đạt, chưa kiểm chứng trực quan. Bản demo dùng DLL riêng cần build/khởi động lại để nhận Razor mới; không chụp màn hình.
+
+- 08/10/2026: Cập nhật đúng DLL demo đang phục vụ cổng 5247: dừng PID theo netstat, build runtime demo hiện có và chạy lại với cùng DB/ảnh/keys/pickup. HTTP đăng nhập xác nhận Create trả rc-basic-card, Bảo trì disabled và data-room-building mới. Không chạy updater, không chụp màn hình.
+
+- 08/10/2026: Giá thuê & tiền cọc theo ảnh: giữ input giá thuê hoạt động; thêm ô cọc disabled và khung 4 phí Điện/Nước/Internet/Vệ sinh với checkbox, giá minh họa, cách tính, Thêm phí khác đều disabled và không có name để không gửi/lưu. Thông báo rõ từng mục chưa hoạt động; dịch vụ mặc định hiện có không đổi. CSS responsive. Build runtime demo đạt và khởi động lại cùng DB; HTTP xác nhận card mới, 4 dòng phí và cọc disabled; diff --check đạt. Không chụp màn hình; chưa kiểm chứng trực quan/mobile.
+
+- 08/10/2026: Thêm khung Ghi chú dưới phần giá/phí theo ảnh: biểu tượng, tiêu đề/mô tả, textarea bo góc, nội dung mẫu qua placeholder, dòng chỉ hiển thị cho chủ nhà và 0/500 ký tự. Ô disabled, không có name và không lưu vì form chưa hỗ trợ ghi chú; có thông báo rõ. Không đổi schema/backend. Build demo và diff --check đạt, khởi động lại cùng cấu hình; HTTP xác nhận khung và textarea disabled. Chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Chuyển Ghi chú từ cột chính sang rc-aside dưới Ảnh phòng theo bố cục mẫu. Build lại/khởi động demo cùng DB; HTTP xác nhận Ghi chú nằm trong aside. Ô vẫn disabled, không lưu. Không chụp màn hình.
+
+- 08/10/2026: Thêm nút Tạo nhanh phòng giữa Xuất danh sách và Thêm phòng trên Quản lý phòng, dùng CreateBulk hiện có và giữ toaNhaId đang lọc. Điều kiện quyền ghi PHONG_TRO và có cơ sở giống Thêm phòng. Không thêm nghiệp vụ/schema. Build demo đạt, khởi động lại cùng DB; HTTP xác nhận thứ tự nút và CreateBulk 200. diff --check đạt; không chụp màn hình.
+
+- 08/10/2026: Bỏ toàn bộ khung Lưu ý và liên kết Tạo nhanh nhiều phòng trong sidebar trang Thêm phòng theo ảnh. Nút tạo nhanh ở Quản lý phòng giữ nguyên. Build runtime demo/khởi động lại cùng DB đạt; HTTP xác nhận không còn rc-bulk; diff --check đạt. Không chụp màn hình.
+
+- 08/10/2026: Đổi giao diện Dịch vụ & đơn giá theo ảnh với CSS riêng service-management.css chỉ nạp Index: 4 thống kê từ dữ liệu thật của tòa đang chọn; lịch giá sắp áp dụng khi có; bảng tên/mã, cách tính, giá, đơn vị, phạm vi tòa, trạng thái, hiệu lực và menu thao tác; hai thẻ giải thích. Sidebar/layout không sửa. Giữ chọn tòa, thêm/sửa đơn giá, đặt mặc định, xóa, cấu hình điện nước, hóa đơn và CSRF/quyền hiện có. Xuất danh sách, tìm kiếm, tab lọc, lọc cách tính, sắp xếp, phân trang chỉ có khung disabled và thông báo rõ; không thêm backend/schema. Build runtime demo đạt (cảnh báo ImageSharp/CS8601 có sẵn), khởi động lại cùng DB. HTTP Index/CSS/Manage 200, 4 thống kê, 5 dịch vụ thực tế, token CSRF còn; diff --check đạt, không có diff Views/Shared. Chưa kiểm chứng trực quan/mobile; không chụp màn hình.
+
+- 08/10/2026: Thay mũi tên chữ của Xem đơn giá trong banner sắp áp dụng bằng SVG nét mảnh màu #8D7953 theo ảnh. Chỉ giao diện, sidebar giữ nguyên. Build runtime demo đạt, khởi động lại cùng cấu hình, HTTP xác nhận CSS mới; diff --check đạt. Banner chỉ xuất hiện khi có lịch giá thực tế. Không chụp màn hình.
+
+- 08/10/2026: Nút Xuất danh sách trang Dịch vụ dùng SVG tải xuống nét mảnh và chữ đậm theo ảnh. Nút vẫn disabled vì chưa hỗ trợ xuất; không thêm nghiệp vụ/sidebar. Build demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận icon mới, diff --check đạt. Không chụp màn hình.
+
+- 08/10/2026: Chuyển nút Cấu hình điện nước lên giữa Xuất danh sách và Thêm dịch vụ trong header Dịch vụ & đơn giá; bỏ vị trí cũ, giữ liên kết hóa đơn bên dưới. Giữ toaNhaId, quyền ghi và trạng thái sẵn sàng. Build runtime demo đạt, khởi động cùng cấu hình; HTTP xác nhận nút header và DienNuoc 200. Không đổi sidebar, không chụp màn hình.
+
+- 08/10/2026: Thêm trang tổng quan phòng Details theo ảnh và chuyển liên kết Chi tiết trong Quản lý phòng sang trang này; nút Chỉnh sửa giữ form Edit cũ. Dữ liệu phòng/cơ sở/giá thật; quyền module và phạm vi tòa owner/manager/admin được kiểm tra backend, dữ liệu khác trả 403. CSS riêng, không sửa layout/sidebar, không đổi schema. Các khối khách thuê/hợp đồng/hóa đơn/cọc/phí/tiện nghi chưa kết nối chỉ hiển thị dấu — hoặc nhãn minh họa; tab phụ, tạo hóa đơn trực tiếp, xem hồ sơ/hợp đồng, ghi chú/bảo trì disabled. Khối tài chính/hợp đồng chỉ hiển thị khi có quyền. Link xem hóa đơn theo tòa và lịch sử người ở dùng luồng hiện có. Build demo đạt, HTTP trang chi tiết/CSS 200, liên kết Edit còn và 9 nút preview disabled; diff --check đạt, Views/Shared không có diff. Chưa kiểm chứng trực quan/mobile, không chụp màn hình.
+
+- 08/10/2026: Sửa tên hiển thị trang thành Chi tiết phòng (tiêu đề trang, h1, tab và mô tả) theo yêu cầu; giữ bố cục/sidebar/chức năng. Build demo đạt và đã khởi động lại cùng cấu hình. Không chụp màn hình.
+
+- 08/10/2026: Header Chi tiết phòng có breadcrumb icon nhà / Phòng cho thuê / mã phòng thực tế theo ảnh; liên kết về danh sách giữ cơ sở đang xem. Chỉ thêm nhánh header Details và CSS riêng, sidebar không sửa. Build demo/HTTP breadcrumb đạt, không chụp màn hình.
+
+- 08/10/2026: Đồng bộ breadcrumb Chi tiết phòng với Chi tiết tòa: chữ 16px/600, icon 21px stroke 1.6, gap 12px và cùng màu chữ/phân cách. Chỉ CSS riêng, sidebar giữ nguyên. HTTP xác nhận server phục vụ CSS mới, diff --check đạt; không chụp màn hình.
+
+- 08/10/2026: Bỏ liên kết Quay lại danh sách phòng ở nội dung Chi tiết phòng theo ảnh. Breadcrumb header giữ nguyên. Build runtime demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận không còn rd-back. Không chụp màn hình.
+
+- 08/10/2026: Thay 4 ký hiệu phí dịch vụ trong Chi tiết phòng bằng SVG nét mảnh màu xám: tia sét, giọt nước, Wi-Fi, thùng rác theo ảnh. Chỉ giao diện, giữ trạng thái khung chưa kết nối/sidebar. Build demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận 4 SVG, diff --check đạt. Không chụp màn hình.
+
+- 08/10/2026: Chỉnh form Edit theo ảnh bằng partial _EditRoomForm và CSS room-edit riêng: header/breadcrumb, banner lưu ý, hai cột thông tin/giá/phí/ghi chú và khách thuê/tiện nghi/ảnh, footer lưu/hủy. Sidebar không sửa. Giữ toàn bộ binding/validation/CSRF và POST Edit, select trạng thái hiện có, cơ sở disabled + hidden; JS dropdown bỏ qua select disabled. Giữ nguyên image manager và endpoint upload/reorder/delete. Cọc, phí dịch vụ, thêm phí, ghi chú, tiện nghi chỉ là khung disabled không gửi/lưu; khách thuê/hợp đồng/cọc/công nợ chưa kết nối hiển thị —, không dùng dữ liệu mẫu. Giá mẫu phí chỉ placeholder. Build demo đạt, khởi động lại cùng DB; HTTP xác nhận form/breadcrumb/endpoint ảnh, POST dữ liệu không hợp lệ trả validation và không lưu; Create vẫn hiển thị partial cũ. node --check/diff --check đạt; chưa kiểm chứng trực quan/mobile/upload trong trình duyệt, không chụp màn hình.
+
+- 08/10/2026: Bỏ liên kết Quay lại chi tiết phòng trên form Edit theo ảnh; breadcrumb và nút Hủy giữ nguyên. Build demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận không còn re-back, diff --check đạt. Không chụp màn hình.
+
+- 08/10/2026: Giao diện Thêm dịch vụ theo ảnh: 4 khối thông tin/cách tính/phạm vi/hiệu lực, tóm tắt cập nhật client từ dữ liệu nhập, giải thích công thức, footer lưu/hủy, breadcrumb riêng. Sidebar không đổi. Giữ tên/cách tính (3 loại hiện có)/đơn giá nguyên đồng/đơn vị/chọn một tòa/mặc định phòng mới và POST/CSRF/validation hiện có. Mã tự sinh sau lưu, không lấy mã mẫu. Chọn nhiều tòa, phòng cụ thể, hẹn hiệu lực, chọn trạng thái, ghi chú chưa hỗ trợ và disabled/ghi rõ; trạng thái/ngày theo backend đang áp dụng từ ngày khai báo. Không thêm backend/schema. Build demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận form, 3 cách tính, tóm tắt, CSS 200; POST không hợp lệ trả validation không lưu. node --check/diff --check đạt. Chưa kiểm chứng trực quan/client interaction/mobile; không chụp màn hình.
+
+- 08/10/2026: Bỏ liên kết quay lại Dịch vụ & đơn giá phía trên tiêu đề Thêm dịch vụ theo ảnh. Build demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận không còn sc-back. Không chụp màn hình.
+
+- 08/10/2026: Xếp Theo tiêu thụ/Cố định/Theo đầu người thành một hàng trên form Thêm dịch vụ; <=750px giữ một cột. Chỉ CSS, không đổi xử lý. HTTP xác nhận CSS mới; không chụp màn hình.
+
+- 08/10/2026: Tinh chỉnh khối cách tính/đơn giá theo ảnh: ô chọn cao 72px, radio nét mảnh với nền be khi chọn, viền vàng nâu, đơn vị có mũi tên và thanh công thức nhạt. Giữ 3 cách tính một hàng theo yêu cầu trước, không bỏ Theo đầu người. Chỉ CSS, chức năng không đổi; HTTP xác nhận CSS mới. Không chụp màn hình.
+
+- 08/10/2026: Ô Theo tiêu thụ dùng SVG đồng hồ nét mảnh thay ký hiệu chữ, nền trắng/viền xám/spacing theo ảnh. Giữ ba cách tính một hàng và xử lý radio. Build demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận icon mới. Không chụp màn hình.
+
+- 08/10/2026: Sửa bố cục/kích thước ô cách tính theo làm rõ của người dùng: grid radio 15px + nội dung, icon absolute góc phải, cao tối thiểu 82px, padding dành riêng cho icon; cột tóm tắt 290px (260px <=1000) để tăng không gian ba ô cùng hàng. Mobile giữ một cột/ô cao 72px. Chỉ CSS; HTTP xác nhận bản sửa, không chụp màn hình.
+
+- 08/10/2026: Đồng bộ rõ cả ba ô Theo tiêu thụ/Cố định/Theo đầu người: cùng chiều cao, padding, cột radio/nội dung và vị trí icon; grid stretch giữ kích thước ngang nhau. Giữ ba cách tính hiện có và mobile một cột. Chỉ CSS; HTTP xác nhận bản mới. Không chụp màn hình.
+
+- 08/10/2026: Đồng bộ hoàn chỉnh ba ô cách tính: cả ba icon dùng SVG cùng kích thước/nét/màu/vị trí, cùng trạng thái chọn nền be/viền vàng nâu. Giữ kích thước, font, padding và ba ô cùng hàng đã chỉnh. Build runtime demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận 3 SVG. Không sửa sidebar/chức năng, không chụp màn hình.
+
+- 08/10/2026: Chỉnh kích thước/cỡ chữ/bố cục ba ô cách tính theo ảnh mới: min-height 70px, title 12px/600/17px, mô tả 10px/16px, padding 11px, radio 15px, icon góc phải 15px, gap 10px và 3 cột bằng nhau. Mobile một cột. Chỉ CSS, không đổi nội dung/nghiệp vụ/sidebar. HTTP xác nhận server phục vụ CSS mới; diff --check đạt, chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Giảm chiều cao tối thiểu ba khung cách tính từ 70 xuống 64px và padding dọc từ 11 xuống 8px theo yêu cầu chỉnh chiều cao; giữ cỡ chữ/bố cục. HTTP xác nhận CSS mới. Không chụp màn hình.
+
+- 08/10/2026: Làm đẹp menu Đơn vị tính ở Thêm dịch vụ: thay popup datalist khi JS hoạt động bằng menu trắng full-width, bo góc/bóng nhẹ, nền be/tick khi chọn; giữ input gốc và đơn vị tự nhập, name/validation/preview không đổi. Hỗ trợ phím mũi tên/Enter/Escape/Tab, đóng khi bấm ngoài. Không có backend mới. node --check/diff --check đạt; HTTP xác nhận JS mới. Chưa kiểm chứng tương tác trực quan, không chụp màn hình.
+
+- 08/10/2026: Sửa nguyên nhân chiều cao ba ô cách tính không cập nhật: selector :has(#sc-meter/fixed/person) có specificity ID giữ min-height 82px và ghi đè quy tắc 64px. Chuyển selector về :has(input) cùng specificity để quy tắc cuối 64px/padding 8px có hiệu lực cho cả ba. HTTP xác nhận không còn selector ID và CSS 64px được phục vụ; diff --check đạt. Chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Xóa các khai báo min-height 82px cũ trong CSS ba ô cách tính theo yêu cầu. Giữ quy tắc cuối 64px. HTTP xác nhận CSS không còn 82px, vẫn có 64px. Không chụp màn hình.
+
+- 08/10/2026: Cân đối ba khung cách tính: 3 cột bằng nhau, cao tối thiểu 72px, gap/padding 12px, radio/icon 15px, chữ 12px và mô tả 10px, cùng hàng/cùng chiều cao; mobile một cột. Gộp các override cách tính cũ thành một khối thống nhất để tránh ghi đè chiều cao. Giữ CSS menu đơn vị và xử lý hiện có. HTTP xác nhận CSS mới; diff --check đạt. Không chụp màn hình.
+
+- 08/10/2026: Giảm các ô sc-methods từ min-height 72 xuống 60px, padding dọc 8px, căn icon top 9px. Giữ ba ô cùng hàng và nội dung. HTTP xác nhận CSS mới; không chụp màn hình.
+
+- 08/10/2026: Thu thấp sc-methods xuống min-height 52px, padding dọc 6px. Căn radio 15px với tiêu đề line-height 15px cùng hàng, mô tả phía dưới line-height 14px/gap 3px, icon top 6px. Giữ ba lựa chọn và responsive. HTTP xác nhận CSS mới, diff --check đạt; chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Căn ba ô cách tính theo ảnh: padding 10px dọc/11px trái, radio ngang tiêu đề, mô tả thẳng dưới tiêu đề cách 4px, icon góc phải top 11px/right 12px; giữ min-height 52px, tự giãn khi chữ xuống dòng. Chỉ CSS. HTTP xác nhận bản mới; không chụp màn hình.
+
+- 08/10/2026: Sửa căn ba ô bằng grid 3 cột rõ ràng: radio cột 1/hàng 1, khối tiêu đề+mô tả cột 2/hàng 1, SVG cột 3/hàng 1. Bỏ icon absolute và override căn cũ, min-height 58px/padding 10px. HTTP xác nhận CSS grid mới được phục vụ; diff --check đạt. Chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Ẩn nút tăng/giảm mặc định của input số Đơn giá ở form Thêm dịch vụ theo ảnh; giữ input number và validation hiện có. Chỉ CSS, HTTP xác nhận bản mới. Không chụp màn hình.
+
+- 08/10/2026: Khối Phạm vi áp dụng theo ảnh: tòa đang chọn hiển thị dạng thẻ trong menu riêng bo góc, chọn tòa giữ select/binding gốc; phạm vi mặc định dùng nút hình tròn giữ boolean cũ. Vẫn chỉ một tòa mỗi lần, không tạo dữ liệu/thẻ mẫu nhiều tòa; không gán tất cả phòng hiện có, không mở chọn phòng cụ thể. Có nhãn giải thích giới hạn hiện có. JS hỗ trợ bàn phím/đóng ngoài; node --check/diff --check đạt, HTTP xác nhận JS mới. Không sửa sidebar/schema/backend, chưa kiểm chứng trực quan, không chụp màn hình.
+
+## 08/10/2026 — Đồng bộ origin/dev vào feature/fix/UI
+
+- Fetch dev tới 8cb2167 và merge vào nhánh UI, giữ giao diện hiện có. Giải quyết xung đột AccountReuseSchema/DatabaseUpdates/tien-do bằng bước đối chiếu schema v19 vì hai nhánh dùng v17 khác nhau; giữ nội dung tiến độ hai phía.
+- Build Debug đạt. Test lọc MeterReadingListTests/PhongTroNhatKyTests/ContractActivationTests: 113/113 PASS. Lượt đầu 111/113 do test cũ chỉ xóa marker18 và kỳ vọng18; cập nhật kịch bản cho v19 rồi chạy lại đạt.
+- Có hai ca mới từ UI v17 thiếu bảng chỉ số và dev v18 thiếu cột tòa: backup, integrity/FK, giữ dữ liệu, chạy lại không đổi. Thử updater trên bản sao mới data/sync-dev-20261008-070900/verification.sqlite: bảo toàn 264 dòng trong 34 bảng cũ; integrity/FK đạt; chạy lặp/check schema đạt.
+- Không chạy updater/initializer trên DB local/demo gốc. App cổng5247 đã dừng trước build và giữ dừng để tránh chạy mã mới với DB cũ; cần cập nhật DB có chủ đích trước khi chạy lại. Không push, không chụp màn hình. Cảnh báo ImageSharp, CS8601, NU1900/xUnit2013 có sẵn.

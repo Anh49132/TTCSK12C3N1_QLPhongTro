@@ -16,6 +16,7 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
     public DbSet<NguoiOGhep> NguoiOGheps => Set<NguoiOGhep>();
     public DbSet<HopDongThamChieu> HopDongs => Set<HopDongThamChieu>();
     public DbSet<HopDongChiSoDauKy> HopDongChiSoDauKys => Set<HopDongChiSoDauKy>();
+    public DbSet<ChiSoDienNuoc> ChiSoDienNuocs => Set<ChiSoDienNuoc>();
     public DbSet<KyHopDongThamChieu> KyHopDongs => Set<KyHopDongThamChieu>();
     public DbSet<HopDongDichVu> HopDongDichVus => Set<HopDongDichVu>();
     public DbSet<HoaDon> HoaDons => Set<HoaDon>();
@@ -33,6 +34,11 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<ChiSoDienNuoc>().HasOne<HopDongThamChieu>().WithMany().HasForeignKey(x=>x.HopDongId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ChiSoDienNuoc>().HasOne<DichVu>().WithMany().HasForeignKey(x=>x.DichVuId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ChiSoDienNuoc>().HasOne<TaiKhoan>().WithMany().HasForeignKey(x=>x.NguoiNhapId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ChiSoDienNuoc>().Property(x=>x.PhienBan).IsConcurrencyToken();
+        modelBuilder.Entity<ChiSoDienNuoc>().HasIndex(x=>new{x.HopDongId,x.DichVuId,x.TuNgay,x.DenNgay}).IsUnique();
         modelBuilder.Entity<NguoiOGhep>().HasOne<HopDongThamChieu>().WithMany().HasForeignKey(x => x.HopDongId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<NguoiOGhep>().HasOne<KhachThue>().WithMany().HasForeignKey(x => x.KhachThueId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<NguoiOGhep>().HasIndex(x => new { x.HopDongId, x.KhachThueId, x.NgayVao }).IsUnique();
@@ -133,6 +139,14 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         building.Property(e => e.QuanHuyen).HasColumnName("quan_huyen").HasMaxLength(100);
         building.Property(e => e.TinhThanh).HasColumnName("tinh_thanh").HasMaxLength(100);
         building.Property(e => e.SoTang).HasColumnName("so_tang");
+        building.Property(e => e.DienTichDat).HasColumnName("dien_tich_dat");
+        building.Property(e => e.ThangMay).HasColumnName("thang_may");
+        building.Property(e => e.BaiDoXe).HasColumnName("bai_do_xe");
+        building.Property(e => e.CameraAnNinh).HasColumnName("camera_an_ninh");
+        building.Property(e => e.BaoVe24h).HasColumnName("bao_ve_24h");
+        building.Property(e => e.KhuGiatSay).HasColumnName("khu_giat_say");
+        building.Property(e => e.SanThuong).HasColumnName("san_thuong");
+
         building.Property(e => e.NgayChotHangThang).HasColumnName("ngay_chot_hang_thang").HasDefaultValue(1);
         building.Property(e => e.DangHoatDong).HasColumnName("dang_hoat_dong").HasDefaultValue(true);
         building.Property(e => e.GhiChu).HasColumnName("ghi_chu");

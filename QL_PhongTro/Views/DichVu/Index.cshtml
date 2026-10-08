@@ -1,84 +1,60 @@
-﻿@model QL_PhongTro.ViewModels.DanhSachDichVuViewModel
+@model QL_PhongTro.ViewModels.DanhSachDichVuViewModel
 @using QL_PhongTro.Models
-@using System.Globalization
 @using QL_PhongTro.Services
-@{ var error = TempData.Peek("Error") as string; }
+@using System.Globalization
 @inject QL_PhongTro.Authorization.PermissionService Permissions
-@{ ViewData["Title"] = "Dịch vụ và đơn giá"; var write = await Permissions.AllowsAsync("PHONG_TRO", true); }
-<section class="mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
-    <div><p class="text-uppercase text-secondary small">Vận hành nhà cho thuê</p><h1 class="h2">Dịch vụ và đơn giá</h1><p class="text-secondary mb-0">Danh sách dịch vụ đã khai báo theo từng tòa nhà.</p></div>
-    @if (Model.SanSang && Model.ToaNhaId.HasValue && await Permissions.AllowsAsync("PHONG_TRO", true))
-    { <a asp-action="Create" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-primary">Thêm dịch vụ</a> }
+@{
+    ViewData["Title"] = "Dịch vụ & đơn giá";
+    var write = await Permissions.AllowsAsync("PHONG_TRO", true);
+    var today = DichVuService.HomNay();
+    var groups = Model.DichVus.GroupBy(x => x.DichVuId).ToList();
+    var rows = groups.Select(g => g.Where(x => x.TuNgay <= today).OrderBy(x => x.TuNgay).LastOrDefault() ?? g.OrderBy(x => x.TuNgay).First()).ToList();
+    var active = rows.Count(x => x.TuNgay <= today && x.DaChotGia && x.DangApDung && x.DichVu.DangHoatDong);
+    var upcoming = groups.Count(g => g.Any(x => x.TuNgay > today));
+    var paused = rows.Count(x => !x.DangApDung || !x.DichVu.DangHoatDong);
+    var building = Model.ToaNhas.FirstOrDefault(x => x.Value == Model.ToaNhaId?.ToString())?.Text ?? "Chưa chọn tòa nhà";
+    var scheduled = Model.DichVus.Where(x => x.TuNgay > today).OrderBy(x => x.TuNgay).FirstOrDefault();
+    var error = TempData.Peek("Error") as string;
+    var vn = CultureInfo.GetCultureInfo("vi-VN");
+}
+<div class="service-management">
+<header class="sm-heading"><div><h1>Dịch vụ &amp; đơn giá</h1><p>Quản lý dịch vụ, thiết lập đơn giá và phạm vi áp dụng cho các tòa nhà.</p></div><div class="sm-actions"><button class="sm-button" type="button" disabled title="Chưa hỗ trợ xuất danh sách dịch vụ"><svg class="sm-export-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 15v5h14v-5" /></svg><span>Xuất danh sách</span></button>@if (Model.SanSang && write && Model.ToaNhaId.HasValue) { <a asp-action="DienNuoc" asp-route-toaNhaId="@Model.ToaNhaId" class="sm-button">Cấu hình điện nước</a> }@if (Model.SanSang && Model.ToaNhaId.HasValue && write) { <a class="sm-button sm-primary" asp-action="Create" asp-route-toaNhaId="@Model.ToaNhaId">＋ Thêm dịch vụ</a> }</div></header>
+<section class="sm-stats">
+<article><span>Tổng số dịch vụ <i>≡</i></span><strong>@rows.Count.ToString("D2") <small>dịch vụ</small></strong><p>@active đang áp dụng · @upcoming có lịch thay đổi · @paused ngừng áp dụng</p></article>
+<article><span>Theo tiêu thụ <i>◴</i></span><strong>@rows.Count(x => x.CachTinh == CachTinhDichVu.TheoChiSo).ToString("D2") <small>dịch vụ</small></strong><p>Điện, nước · ghi chỉ số mỗi kỳ</p></article>
+<article><span>Phí cố định <i>▤</i></span><strong>@rows.Count(x => x.CachTinh != CachTinhDichVu.TheoChiSo).ToString("D2") <small>dịch vụ</small></strong><p>Theo phòng hoặc theo người / tháng</p></article>
+<article><span>Phạm vi quản lý <i>▥</i></span><strong>@Model.ToaNhas.Count.ToString("D2") <small>tòa nhà</small></strong><p>Số liệu dịch vụ theo tòa đang chọn</p></article>
 </section>
-@if (!Model.SanSang)
-{
-    <div class="alert alert-info" role="status">Chức năng dịch vụ chưa sẵn sàng. Vui lòng liên hệ người quản trị để hoàn tất thiết lập.</div>
+@if (!Model.SanSang) { <p class="alert alert-info">Chức năng dịch vụ chưa sẵn sàng. Vui lòng liên hệ người quản trị để hoàn tất thiết lập.</p> }
+else if (Model.ToaNhas.Count == 0) { <p>Bạn chưa có tòa nhà đang hoạt động.</p><a asp-controller="PhongTro" asp-action="TaoToaNha" class="sm-button">Khai báo tòa nhà</a> }
+else {
+@if (scheduled is not null) { <div class="sm-scheduled"><span>▣ <strong>Sắp áp dụng</strong> <span>@scheduled.DichVu.TenDichVu tại @building · @(scheduled.DaChotGia ? scheduled.DonGia.ToString("N0", vn) + " đ / " + scheduled.DonViTinh : "Chưa thiết lập giá") · từ @scheduled.TuNgay.ToString("dd/MM/yyyy")</span></span><a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@scheduled.DichVuId">Xem đơn giá <svg class="sm-price-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg></a></div> }
+<section class="sm-panel">
+<div class="sm-panel-heading"><h2>Danh sách dịch vụ <small>@rows.Count dịch vụ</small></h2><span>☑ Chỉnh sửa đơn giá theo tòa nhà</span></div>
+<nav class="sm-tabs" aria-label="Trạng thái dịch vụ"><span class="active">Tất cả dịch vụ <small>@rows.Count</small></span><button disabled>Đang áp dụng <small>@active</small></button><button disabled>Sắp áp dụng <small>@upcoming</small></button><button disabled>Tạm ngừng <small>@paused</small></button></nav>
+<form method="get" class="sm-filters"><input disabled placeholder="⌕  Tìm theo tên hoặc mã dịch vụ..." aria-label="Tìm dịch vụ — chưa hỗ trợ" /><select name="toaNhaId" asp-for="ToaNhaId" asp-items="Model.ToaNhas" aria-label="Tòa nhà"></select><button type="submit" class="sm-button">Xem dịch vụ</button><select disabled aria-label="Lọc cách tính — chưa hỗ trợ"><option>Tất cả cách tính phí</option></select><button disabled type="button" class="sm-sort">⇵ Mã dịch vụ tăng dần</button></form>
+@if (Model.CanKhoiTao && write) {
+<form id="initialize-services" asp-action="Initialize" method="post" class="sm-initialize"><input name="toaNhaId" value="@Model.ToaNhaId" type="hidden" /><span>Chuẩn bị điện, nước, rác, gửi xe và internet cho tòa nhà.</span><button class="sm-button sm-primary">Khởi tạo năm dịch vụ</button></form>
+@if (error is null) { <script>document.getElementById('initialize-services').requestSubmit();</script> }
 }
-else if (Model.ToaNhas.Count == 0)
-{
-    <p>Bạn chưa có tòa nhà đang hoạt động.</p>
-    <a asp-controller="PhongTro" asp-action="TaoToaNha" class="btn btn-primary">Khai báo tòa nhà</a>
+<div class="sm-table-scroll"><table class="sm-table"><thead><tr><th>Dịch vụ</th><th>Cách tính phí</th><th>Đơn giá</th><th>Đơn vị tính</th><th>Phạm vi áp dụng</th><th>Trạng thái</th><th>Hiệu lực từ</th><th>Thao tác</th></tr></thead><tbody>
+@foreach (var item in rows) {
+var status = item.TuNgay > today ? "Sắp áp dụng" : !item.DaChotGia ? "Chờ đơn giá" : item.DangApDung && item.DichVu.DangHoatDong ? "Đang áp dụng" : "Tạm ngừng";
+var icon = item.DichVu.MaDichVu switch { "DIEN" => "ϟ", "NUOC" => "♧", "INTERNET" => "⌁", "RAC" => "♲", "GUI_XE" => "♧", _ => "▤" };
+<tr><td><div class="sm-service"><span class="sm-icon @(item.CachTinh == CachTinhDichVu.TheoChiSo ? "meter" : "")">@icon</span><div><a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@item.DichVuId">@item.DichVu.TenDichVu</a><small>@item.DichVu.MaDichVu</small></div></div></td><td><span class="sm-type @(item.CachTinh == CachTinhDichVu.TheoChiSo ? "meter" : "")">@(item.CachTinh == CachTinhDichVu.TheoChiSo ? "Theo tiêu thụ" : item.CachTinh == CachTinhDichVu.TheoNguoi ? "Theo người" : "Cố định")</span></td><td><strong>@(item.DaChotGia ? item.DonGia.ToString("N0", vn) + " đ" : "Chưa thiết lập")</strong></td><td>@item.DonViTinh</td><td>@building<small>Giá mặc định của tòa nhà</small></td><td><span class="sm-status @(status == "Đang áp dụng" ? "active" : status == "Sắp áp dụng" ? "scheduled" : "")">@status</span></td><td>@item.TuNgay.ToString("dd/MM/yyyy")</td><td>
+@if (write) {
+<details class="sm-row-actions"><summary aria-label="Thao tác @item.DichVu.TenDichVu">✎</summary><div><a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@item.DichVuId">Sửa đơn giá</a><form asp-action="SetDefault" method="post"><input type="hidden" name="toaNhaId" value="@Model.ToaNhaId" /><input type="hidden" name="dichVuId" value="@item.DichVuId" /><input type="hidden" name="enabled" value="@((!Model.MacDinhIds.Contains(item.DichVuId)).ToString().ToLowerInvariant())" /><button>@(Model.MacDinhIds.Contains(item.DichVuId) ? "Bỏ áp dụng mặc định" : "Đặt áp dụng mặc định")</button></form><form asp-action="Delete" method="post" data-service-name="@item.DichVu.TenDichVu" onsubmit="return confirm('Xóa dịch vụ ' + this.dataset.serviceName + ' khỏi tòa nhà? Dịch vụ đã được sử dụng sẽ không thể xóa.');"><input name="toaNhaId" value="@Model.ToaNhaId" type="hidden" /><input name="dichVuId" value="@item.DichVuId" type="hidden" /><button>Xóa dịch vụ</button></form></div></details>
+} else { <a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@item.DichVuId" aria-label="Xem đơn giá @item.DichVu.TenDichVu">↗</a> }
+</td></tr>
 }
-else
-{
-    @if (write && Model.ToaNhaId.HasValue)
-    {
-        <p><a asp-action="DienNuoc" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-primary">Cấu hình điện nước</a></p>
-    }
-    @if (await Permissions.AllowsAsync("TAI_CHINH")) { <p><a class="btn btn-outline-primary" asp-controller="HoaDonDichVu" asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId">Lập và xem hóa đơn</a></p> }
-    @if (Model.CanKhoiTao && await Permissions.AllowsAsync("PHONG_TRO", true))
-    {
-        <form id="initialize-services" asp-action="Initialize" method="post" class="mb-3">
-            <input name="toaNhaId" value="@Model.ToaNhaId" type="hidden" />
-            <p>Chuẩn bị điện, nước, rác, gửi xe và internet cho tòa nhà.</p><button class="btn btn-primary">Khởi tạo năm dịch vụ</button>
-        </form>
-        @if (error is null) { <script>document.getElementById('initialize-services').requestSubmit();</script> }
-    }
-    <form method="get" class="d-flex flex-wrap align-items-end gap-2 mb-4">
-        <div><label for="toaNhaId" class="form-label">Tòa nhà</label><select id="toaNhaId" name="toaNhaId" asp-for="ToaNhaId" asp-items="Model.ToaNhas" class="form-select"></select></div>
-        <button class="btn btn-outline-primary" type="submit">Xem dịch vụ</button>
-    </form>
-    @if (Model.DichVus.Count == 0)
-    { <p class="text-secondary">Chưa có dịch vụ. Chọn “Thêm dịch vụ” để khai báo đơn giá đầu tiên.</p> }
-    else
-    {
-        <p class="text-secondary">Mặc định chỉ áp dụng khi tạo phòng mới. Các phòng đã tồn tại giữ nguyên lựa chọn.</p>
-        <div class="table-responsive">
-        <table class="table align-middle">
-            <caption>@Model.DichVus.Select(x => x.DichVuId).Distinct().Count() dịch vụ đã khai báo</caption>
-            <thead><tr><th scope="col">STT</th><th scope="col">Tên dịch vụ</th><th scope="col">Cách tính tiền</th><th scope="col">Đơn vị tính</th><th scope="col" class="text-end">Đơn giá (VND)</th><th scope="col">Trạng thái</th><th scope="col">Áp dụng mặc định</th>@if (write) { <th scope="col">Thao tác</th> }</tr></thead>
-            <tbody>@{ var serviceStt = 0; } @foreach (var versions in Model.DichVus.GroupBy(x => x.DichVuId))
-            {
-                serviceStt++;
-                var item = versions.Where(x => x.TuNgay <= DichVuService.HomNay()).OrderBy(x => x.TuNgay).LastOrDefault() ?? versions.OrderBy(x => x.TuNgay).First();
-                var serviceStatusClass = !item.DaChotGia ? "text-bg-warning" : item.DangApDung && item.DichVu.DangHoatDong ? "text-bg-success" : "text-bg-danger";
-                <tr><td>@serviceStt</td><td><a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@item.DichVuId">@item.DichVu.TenDichVu</a>@if (DichVuMacDinhOptions.LaMacDinh(item.DichVu.MaDichVu)) { <span class="badge text-bg-light ms-1">Danh mục gợi ý</span> }@if (versions.Any(x => x.TuNgay > DichVuService.HomNay())) { <small class="d-block text-secondary">Có thay đổi đã lên lịch</small> }</td><td>@CachTinhDichVu.Ten(item.CachTinh)</td><td>@item.DonViTinh</td><td class="text-end text-nowrap">@(item.DaChotGia ? item.DonGia.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) : "Chưa thiết lập")</td><td><span class="badge @serviceStatusClass">@(!item.DaChotGia ? "Chờ đơn giá" : item.DangApDung && item.DichVu.DangHoatDong ? "Đang áp dụng" : "Ngừng áp dụng")</span></td>
-                <td>
-                    @if (write)
-                    {
-                        <form asp-action="SetDefault" method="post">
-                            <input type="hidden" name="toaNhaId" value="@Model.ToaNhaId" />
-                            <input type="hidden" name="dichVuId" value="@item.DichVuId" />
-                            <input type="hidden" name="enabled" value="@((!Model.MacDinhIds.Contains(item.DichVuId)).ToString().ToLowerInvariant())" />
-                            <button class="btn btn-sm btn-outline-secondary" aria-label="Đổi mặc định @item.DichVu.TenDichVu">@(Model.MacDinhIds.Contains(item.DichVuId) ? "Có — bỏ mặc định" : "Không — đặt mặc định")</button>
-                        </form>
-                    }
-                    else { @(Model.MacDinhIds.Contains(item.DichVuId) ? "Có" : "Không") }
-                </td>
-                @if (write)
-                {
-                    <td><div class="d-flex flex-wrap gap-2">
-                        <a asp-action="Manage" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-dichVuId="@item.DichVuId" class="btn btn-sm btn-outline-primary" aria-label="Sửa đơn giá @item.DichVu.TenDichVu">Sửa đơn giá</a>
-                        <form asp-action="Delete" method="post" data-service-name="@item.DichVu.TenDichVu" onsubmit="return confirm('Xóa dịch vụ ' + this.dataset.serviceName + ' khỏi tòa nhà? Dịch vụ đã được sử dụng sẽ không thể xóa.');">
-                            <input name="toaNhaId" value="@Model.ToaNhaId" type="hidden" />
-                            <input name="dichVuId" value="@item.DichVuId" type="hidden" />
-                            <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Xóa @item.DichVu.TenDichVu">Xóa</button>
-                        </form>
-                    </div></td>
-                }
-                </tr>
-            }</tbody>
-        </table>
-        </div>
-    }
+</tbody></table></div>
+@if (rows.Count == 0) { <p class="sm-empty">Chưa có dịch vụ. Chọn “Thêm dịch vụ” để khai báo đơn giá đầu tiên.</p> }
+<footer class="sm-pagination"><span>Hiển thị @rows.Count trong tổng số @rows.Count dịch vụ</span><div><select disabled aria-label="Số dòng — chưa hỗ trợ"><option>10 / trang</option></select><button disabled aria-label="Trang trước">‹</button><span class="sm-page">1</span><button disabled aria-label="Trang sau">›</button></div></footer>
+</section>
+<div class="sm-existing-actions">@if (await Permissions.AllowsAsync("TAI_CHINH")) { <a class="sm-button" asp-controller="HoaDonDichVu" asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId">Lập và xem hóa đơn</a> }</div>
 }
+<div class="sm-explanations"><article><span class="sm-icon">◴</span><div><h3>Theo tiêu thụ</h3><p>Thành tiền = (chỉ số cuối − chỉ số đầu) × đơn giá. Ghi chỉ số điện, nước cho từng phòng mỗi kỳ.</p></div></article><article><span class="sm-icon">▤</span><div><h3>Phí cố định</h3><p>Thành tiền = số phòng / người / xe × đơn giá tháng. Áp dụng theo số lượng đã đăng ký trong hợp đồng.</p></div></article></div>
+<p class="sm-footnote">ⓘ Mặc định chỉ áp dụng khi tạo phòng mới. Các phòng đã tồn tại giữ nguyên lựa chọn; thay đổi giá không làm thay đổi hóa đơn đã phát hành.</p>
+<p class="sm-unavailable">Chưa hoạt động: xuất danh sách, tìm kiếm, tab lọc trạng thái, lọc cách tính, sắp xếp và phân trang. Các mục này chỉ là khung giao diện. Danh sách hiện hiển thị toàn bộ dịch vụ của tòa nhà đang chọn.</p>
+</div>
+@section Styles { <link rel="stylesheet" href="~/css/service-management.css" asp-append-version="true" /> }

@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using QL_PhongTro.Models;
 
@@ -21,6 +21,10 @@ public enum TrangThaiPhong
 
 public class DanhSachPhongViewModel
 {
+    public decimal DoanhThuPhongTrong { get; set; }
+
+    public Dictionary<int, string> KhachTheoPhong { get; set; } = [];
+
     public int? ToaNhaId { get; set; }
     public int? QuanLyId { get; set; }
     public string? TuKhoa { get; set; }
@@ -118,6 +122,23 @@ public class TaoPhongHangLoatViewModel
 
 public class TaoToaNhaViewModel
 {
+    [Range(typeof(decimal), "0.01", "100000000", ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true, ErrorMessage = "Diện tích đất phải lớn hơn 0.")]
+    public decimal? DienTichDat { get; set; }
+    public bool ThangMay { get; set; }
+    public bool BaiDoXe { get; set; }
+    public bool CameraAnNinh { get; set; }
+    public bool BaoVe24h { get; set; }
+    public bool KhuGiatSay { get; set; }
+    public bool SanThuong { get; set; }
+
+    public bool DangHoatDongHienTai { get; set; }
+    public int TongPhongHienTai { get; set; }
+    public int DangThueHienTai { get; set; }
+    public decimal TongDienTichHienTai { get; set; }
+    public string? AnhHienTai { get; set; }
+    public int? PhongAnhHienTaiId { get; set; }
+    public string? DienThoaiQuanLyHienTai { get; set; }
+
     [Required(ErrorMessage = "Tên tòa nhà là bắt buộc.")]
     [StringLength(150)]
     [Display(Name = "Tên tòa nhà")]
@@ -128,17 +149,21 @@ public class TaoToaNhaViewModel
     public string DiaChi { get; set; } = string.Empty;
 
     [StringLength(100)]
+    [Required(ErrorMessage = "Phường/xã là bắt buộc.")]
     [Display(Name = "Phường/xã")]
     public string? PhuongXa { get; set; }
 
     [StringLength(100)]
+    [Required(ErrorMessage = "Quận/huyện là bắt buộc.")]
     [Display(Name = "Quận/huyện")]
     public string? QuanHuyen { get; set; }
 
     [StringLength(100)]
+    [Required(ErrorMessage = "Tỉnh/thành phố là bắt buộc.")]
     [Display(Name = "Tỉnh/thành phố")]
     public string? TinhThanh { get; set; }
 
+    [Required(ErrorMessage = "Số tầng là bắt buộc.")]
     [Range(1, 99, ErrorMessage = "Số tầng phải từ 1 đến 99.")]
     [Display(Name = "Số tầng")]
     public int? SoTang { get; set; }
@@ -169,4 +194,10 @@ public class ToaNhaTongHopViewModel
     public int SoPhongTrong { get; set; }
     public int SoPhongDangThue { get; set; }
     public bool DangHoatDong { get; set; }
+}
+
+public class ChiTietPhongViewModel
+{
+    public PhongTro Phong { get; set; } = null!;
+    public ToaNha ToaNha { get; set; } = null!;
 }

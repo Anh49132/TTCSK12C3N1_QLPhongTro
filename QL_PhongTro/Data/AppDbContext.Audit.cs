@@ -17,13 +17,14 @@ public partial class AppDbContext
     // Explicit allowlist: never serialize entities, navigation properties or arbitrary request data.
     private static readonly IReadOnlyDictionary<Type, string[]> AuditFields = new Dictionary<Type, string[]>
     {
+        [typeof(ChiSoDienNuoc)] = ["HopDongId", "DichVuId", "TuNgay", "DenNgay", "ChiSoDau", "ChiSoCuoi", "DaXacNhanBatThuong", "DaKhoa", "PhienBan"],
         [typeof(NguoiOGhep)] = ["HopDongId", "KhachThueId", "NgayVao", "NgayRa"],
         [typeof(HopDongChiSoDauKy)] = ["HopDongId", "NgayBanGiao", "ChiSoDien", "ChiSoNuoc"],
         [typeof(HopDongThamChieu)] = ["MaHopDong", "PhongId", "KhachDungTenId", "YeuCauThueId", "TienCoc", "NgayChot", "TrangThai"],
         [typeof(KyHopDongThamChieu)] = ["HopDongId", "NgayBatDau", "NgayKetThuc", "GiaThue", "SoThang"],
         [typeof(YeuCauThue)] = ["MaYeuCau", "TinDangId", "KhachThueId", "LoaiYeuCau", "NgayMongMuon", "SoNguoiDuKien", "TrangThai"],
         [typeof(TaiKhoan)] = ["HoTen", "VaiTro", "DangHoatDong", "MustChangePassword", "IsDeleted"],
-        [typeof(ToaNha)] = ["ChuNhaId", "QuanLyId", "TenToaNha", "DiaChi", "PhuongXa", "QuanHuyen", "TinhThanh", "SoTang", "NgayChotHangThang", "DangHoatDong"],
+        [typeof(ToaNha)] = ["ChuNhaId", "QuanLyId", "TenToaNha", "DiaChi", "PhuongXa", "QuanHuyen", "TinhThanh", "SoTang", "DienTichDat", "ThangMay", "BaiDoXe", "CameraAnNinh", "BaoVe24h", "KhuGiatSay", "SanThuong", "NgayChotHangThang", "DangHoatDong"],
         [typeof(PhongTro)] = ["ToaNhaId", "MaPhong", "Tang", "LoaiPhong", "DienTich", "GiaThue", "TienCocDuKien", "SoNguoiToiDa", "TrangThai"],
         [typeof(DichVuToaNha)] = ["ToaNhaId", "DichVuId", "ApDungMacDinh"],
         [typeof(NgungDichVuPhong)] = ["DichVuPhongId", "YeuCauLucUtc", "NgungTuKy", "ApDungLaiTuKy", "ApDungLaiLucUtc"],

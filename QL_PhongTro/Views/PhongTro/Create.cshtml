@@ -1,109 +1,12 @@
 @model QL_PhongTro.ViewModels.TaoPhongViewModel
-@inject QL_PhongTro.Authorization.PermissionService Permissions
-
-@{
-    var isEdit = ViewData["RoomId"] is int;
-    ViewData["Title"] = isEdit ? "Sửa phòng" : "Thêm phòng";
+@{ var isEdit = ViewData["RoomId"] is int; ViewData["Title"] = isEdit ? "Chỉnh sửa phòng " + Model.MaPhong : "Thêm phòng"; }
+@if (isEdit) { <partial name="_EditRoomForm" model="Model" /> } else { <partial name="_CreateRoomForm" model="Model" /> }
+@section Styles {
+<link rel="stylesheet" href="~/css/room-create.css" asp-append-version="true" />
+@if (isEdit) { <link rel="stylesheet" href="~/css/room-edit.css" asp-append-version="true" /> }
 }
-
-<div class="mb-4">
-    <a asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId" class="link-secondary">Quản lý phòng</a>
-    <h1 class="h2 mt-2">@ViewData["Title"]</h1>
-    <p class="text-secondary">Nhập thông tin phòng. Giá thuê được tính theo tháng, đơn vị VND.</p>
-    @if (!isEdit) { <a asp-action="CreateBulk" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-secondary mt-2">Tạo nhanh nhiều phòng</a> }
-    @if (isEdit && User.IsInRole("CHU_NHA") && await Permissions.AllowsAsync("HOP_DONG", false)) { <a asp-controller="HopDong" asp-action="LichSuNguoiO" asp-route-phongId="@ViewData["RoomId"]" class="btn btn-outline-secondary mt-2">Lịch sử người ở</a> }
-</div>
-
-<form asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@ViewData["RoomId"]" method="post" class="row g-3 property-form" novalidate>
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-    <div class="col-12 col-md-6">
-        <label asp-for="ToaNhaId" class="form-label"></label>
-        <select asp-for="ToaNhaId" asp-items="Model.ToaNhaOptions" class="form-select" disabled="@isEdit">
-            <option value="">Chọn tòa nhà</option>
-        </select>
-        @if (isEdit) { <input type="hidden" asp-for="ToaNhaId" id="edit-building-id" /> }
-        <span asp-validation-for="ToaNhaId" class="text-danger"></span>
-    </div>
-    <div class="col-12 col-md-6">
-        <label asp-for="MaPhong" class="form-label"></label>
-        <input asp-for="MaPhong" class="form-control" autocomplete="off" />
-        <span asp-validation-for="MaPhong" class="text-danger"></span>
-    </div>
-    <div class="col-12 col-md-6">
-        <label asp-for="Tang" class="form-label"></label>
-        <input asp-for="Tang" type="number" class="form-control" />
-        <span asp-validation-for="Tang" class="text-danger"></span>
-    </div>
-    <div class="col-12 col-md-6">
-        <label asp-for="DienTich" class="form-label"></label>
-        <input asp-for="DienTich" type="number" min="0.01" step="0.01" class="form-control" />
-        <span asp-validation-for="DienTich" class="text-danger"></span>
-    </div>
-    <div class="col-12 col-md-6">
-        <label asp-for="GiaThueDisplay" class="form-label"></label>
-        <input asp-for="GiaThueDisplay" type="text" inputmode="numeric" autocomplete="off" placeholder="500.000" data-vnd-input class="form-control" />
-        <span asp-validation-for="GiaThue" class="text-danger"></span>
-    </div>
-    <div class="col-12 col-md-6">
-        <label asp-for="SoNguoiToiDa" class="form-label"></label>
-        <input asp-for="SoNguoiToiDa" type="number" min="1" step="1" class="form-control" />
-        <span asp-validation-for="SoNguoiToiDa" class="text-danger"></span>
-    </div>
-    <div class="col-12 col-md-6">
-        <label asp-for="TrangThai" class="form-label"></label>
-        <select asp-for="TrangThai" asp-items="Html.GetEnumSelectList<QL_PhongTro.ViewModels.TrangThaiPhong>()" class="form-select">
-            <option value="">Chọn trạng thái</option>
-        </select>
-        <span asp-validation-for="TrangThai" class="text-danger"></span>
-    </div>
-    @if (isEdit)
-    {
-        <section class="col-12 room-image-manager"
-             data-upload-url="@Url.Action("UploadImage", new { id = ViewData["RoomId"] })"
-             data-reorder-url="@Url.Action("ReorderImages", new { id = ViewData["RoomId"] })"
-             data-delete-url-template="@Url.Action("DeleteImage", new { id = ViewData["RoomId"], imageId = "__imageId__" })">
-            <div class="room-image-heading">
-                <div>
-                    <h2>Ảnh phòng</h2>
-                    <p>JPG hoặc PNG, tối đa 5 MB mỗi ảnh. Có thể chọn nhiều ảnh cùng lúc.</p>
-                </div>
-                <strong data-image-count>@Model.Anh.Count/8 ảnh</strong>
-            </div>
-            <label for="room-image-files" class="form-label">Chọn ảnh tải lên</label>
-            <input id="room-image-files" class="form-control" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple />
-            <div class="room-image-grid" data-image-grid aria-live="polite">
-                @foreach (var image in Model.Anh)
-                {
-                    <article class="room-image-card" data-image-id="@image.Id">
-                        <div class="room-image-preview">
-                            <img src="@(image.DuongDanAnhNho ?? image.DuongDan)" alt="Ảnh phòng thứ @image.ThuTu" />
-                            <span class="room-image-primary" data-primary-label hidden="@(image.ThuTu != 1)">Ảnh đại diện</span>
-                        </div>
-                        <div class="room-image-card-footer">
-                            <span data-order-label>Ảnh @image.ThuTu</span>
-                            <div class="room-image-move-controls" aria-label="Sắp xếp ảnh">
-                                <button type="button" class="room-image-delete-button" data-delete-image aria-label="Xóa ảnh" title="Xóa ảnh">Xóa</button>
-                            </div>
-                        </div>
-                    </article>
-                }
-            </div>
-            <div class="room-image-queue" data-image-queue aria-live="polite"></div>
-            <p class="room-image-sort-status" data-sort-status role="status" aria-live="polite"></p>
-        </section>
-    }
-    <div class="col-12 d-flex gap-2 pt-2">
-        <button type="submit" class="btn btn-primary">@(isEdit ? "Lưu thay đổi" : "Thêm phòng")</button>
-        <a asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-outline-secondary">Hủy</a>
-    </div>
-</form>
-
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-    <script src="~/js/room-form.js" asp-append-version="true"></script>
-    @if (isEdit)
-    {
-        <script src="~/js/room-images.js" asp-append-version="true"></script>
-    }
+<partial name="_ValidationScriptsPartial" />
+<script src="~/js/room-form.js" asp-append-version="true"></script>
+@if (isEdit) { <script src="~/js/room-images.js" asp-append-version="true"></script> }
 }

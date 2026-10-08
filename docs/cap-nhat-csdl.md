@@ -1,5 +1,7 @@
 # Đồng bộ cấu trúc SQLite trong team
 
+**S3-05:2: code yêu cầu schema v17.** V16 thêm người ở ghép; v17 thêm bảng chỉ số theo kỳ `chi_so_dien_nuoc` (một dòng/hợp đồng/dịch vụ/tháng), FK RESTRICT, unique, CHECK và guard bản khóa. Không đổi/bổ sung chỉ số giả cho dữ liệu cũ. Chi tiết ở [S3-05:2](s305-chi-so-theo-ky.md). Task đã xác minh nâng v16→v17 và chạy lặp trên bản sao/temp; Người dùng đã nâng DB demo lên v17 và check-database thành công trước lượt nghiệm thu; agent chỉ thao tác trên bản sao riêng. Dừng app và backup trước khi chủ động chạy updater với DatabasePath đúng. Web không tự nâng cấp. Các mốc v15/v13 bên dưới là lịch sử.
+
 **S3-01 (07/10/2026): phiên bản hiện tại v15.** V14 bổ sung thông tin hợp đồng/kỳ thuê; v15 bổ sung bảng snapshot chỉ số bàn giao `hop_dong_chi_so_dau_ky` và bộ cấp số mã `hop_dong_so_ma`. Không thay các hợp đồng/dữ liệu đã có. Dừng app, đặt `DatabasePath` đúng file đang dùng rồi chạy `dotnet run --project QL_PhongTro -- --update-database` và `--check-database`. Updater tạo backup trước nâng cấp. `run.bat` không tự cập nhật DB đã tồn tại; chỉ chạy lại sau khi cập nhật thành công.
 
 Kiểm chứng bảo toàn dữ liệu trên **bản sao mới** (nguồn phải ở v14): `python verification/s301_copy_upgrade.py --source <DB-v14> --copy <file-moi.sqlite> --runtime <QL_PhongTro.dll-da-build> --app QL_PhongTro`. Công cụ từ chối ghi đè bản sao, sao lưu nguồn qua SQLite backup read-only, cập nhật bản sao hai lần, so sánh mọi dòng của các bảng cũ và kiểm tra integrity/FK. Không chạy vào nguồn.
@@ -64,3 +66,11 @@ python verification/s201_database.py
 ```
 
 Script chỉ thao tác bản sao tạm: backup, giữ dữ liệu, integrity/FK, chạy lại không đổi dữ liệu; khởi tạo file mới không có tài khoản, từ chối ghi đè và xác nhận hash nguồn không đổi. Bộ xUnit hiện dùng database tạm khởi tạo từ script, không phụ thuộc database local. Công cụ `verification/database_updates.py` và fixture S109 lịch sử chưa được cập nhật/nghiệm thu cho v7.
+
+## 08/10/2026 — Đồng bộ dev và feature/fix/UI: schema v19
+
+Hai nhánh đã dùng số phiên bản 17 cho hai cấu trúc khác nhau: UI thêm cột thông tin/tiện nghi tòa, dev thêm chi_so_dien_nuoc; dev v18 thêm xác nhận bất thường. Không suy cấu trúc chỉ từ số phiên bản.
+
+Bước v19 giữ bước UI v17 cũ, bổ sung/kiểm tra schema chỉ số và cột xác nhận bằng các helper hiện có mà không ghi lại marker v17/v18; bổ sung các cột tòa còn thiếu rồi ghi v19. Helper mặc định vẫn giữ marker cũ khi gọi độc lập. Bảng chỉ số lạ bị từ chối, không rebuild/drop; updater vẫn backup trước thay đổi và kiểm integrity/FK. Có test DB tạm cho UI v17 và dev v18, chạy lặp không đổi dữ liệu.
+
+Không chạy updater trên DB đang dùng. Dừng app, sao lưu và thử trên bản sao mới trước khi cập nhật. Dùng cùng DatabasePath cho --update-database, --check-database và chạy web. Không chép đè DB hay commit DB/backup.
