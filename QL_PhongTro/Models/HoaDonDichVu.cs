@@ -59,6 +59,7 @@ public class HoaDon
     [Column("loai_hoa_don")] public string LoaiHoaDon { get; set; } = "DINH_KY";
     [Column("ngay_lap")] public DateTime NgayLap { get; set; }
     [Column("ngay_phat_hanh")] public DateTime? NgayPhatHanh { get; set; }
+    [Column("ngay_phat_hanh_nghiep_vu")] public DateOnly? NgayPhatHanhNghiepVu { get; set; }
     [Column("han_thanh_toan")] public DateOnly HanThanhToan { get; set; }
     [Column("tong_tien")] public long TongTien { get; set; }
     [Column("trang_thai")] public string TrangThai { get; set; } = "NHAP";

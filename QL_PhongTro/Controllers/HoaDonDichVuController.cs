@@ -8,6 +8,9 @@ using QL_PhongTro.Authorization;
 using QL_PhongTro.Data;
 using QL_PhongTro.Services;
 using QL_PhongTro.ViewModels;
+using Microsoft.AspNetCore.DataProtection;
+using System.Text.Json;
+using System.Security.Cryptography;
 
 namespace QL_PhongTro.Controllers;
 
@@ -16,32 +19,60 @@ namespace QL_PhongTro.Controllers;
 public class HoaDonDichVuController(AppDbContext db, DichVuService services, HoaDonDichVuService invoices) : Controller
 {
     private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
+    private ITimeProvider Clock => HttpContext.RequestServices.GetRequiredService<ITimeProvider>();
+    private IDataProtector ReviewProtector => HttpContext.RequestServices.GetRequiredService<IDataProtectionProvider>().CreateProtector("MonthlyInvoices.Review.v1");
+    private sealed record ReviewSnapshot(int Actor, int Building, int Year, int Month, DateOnly Issue, DateOnly Due,
+        DateTime ExpiresUtc, Dictionary<int, string> Candidates);
+    private string ReviewToken(PhatHanhThangViewModel model) => ReviewProtector.Protect(JsonSerializer.Serialize(new ReviewSnapshot(
+        AccountId, model.ToaNhaId, model.Nam, model.Thang, model.NgayPhatHanh, model.HanThanhToan, Clock.UtcNow.AddMinutes(30),
+        model.DuKien.ToDictionary(x => x.HoaDon.HopDongId, HoaDonDichVuService.ReviewFingerprint))));
 
     [HttpGet, Authorize(Roles = "CHU_NHA")]
-    public async Task<IActionResult> Monthly(int? toaNhaId, int? nam, int? thang)
+    public async Task<IActionResult> Monthly(int? toaNhaId, int? nam, int? thang, DateOnly? ngayPhatHanh, DateOnly? hanThanhToan)
     {
         var buildings = await db.ToaNhas.AsNoTracking().Where(x => x.ChuNhaId == AccountId && x.DangHoatDong)
             .OrderBy(x => x.TenToaNha).Select(x => new SelectListItem(x.TenToaNha, x.Id.ToString())).ToListAsync();
         var today = DateOnly.FromDateTime(HttpContext.RequestServices.GetRequiredService<ITimeProvider>().UtcNow.AddHours(7));
         var selected = toaNhaId ?? (buildings.Count > 0 ? int.Parse(buildings[0].Value) : 0);
-        var model = new PhatHanhThangViewModel { Nam = nam ?? today.Year, Thang = thang ?? today.Month };
+        var model = new PhatHanhThangViewModel { ToaNhaId = selected, Nam = nam ?? today.Year, Thang = thang ?? today.Month,
+            NgayPhatHanh = ngayPhatHanh ?? today, HanThanhToan = hanThanhToan ?? today.AddDays(7) };
         if (selected != 0)
         {
-            try { model = await invoices.XemThangAsync(AccountId, selected, model.Nam, model.Thang); }
+            try { model = await invoices.XemThangAsync(AccountId, selected, model.Nam, model.Thang, ngayPhatHanh, hanThanhToan); }
             catch (UnauthorizedAccessException) { return Forbid(); }
             catch (InvalidOperationException ex) { ModelState.AddModelError("", ex.Message); }
         }
         model.ToaNhas = buildings;
+        foreach (var item in model.ToaNhas) item.Selected = item.Value == model.ToaNhaId.ToString();
+        if (model.SanSang && ModelState.IsValid) model.ReviewToken = ReviewToken(model);
+        if (TempData["MonthlyResults"] is string results) model.KetQua = JsonSerializer.Deserialize<List<KetQuaPhongHoaDon>>(results) ?? [];
         return View(model);
     }
 
     [HttpPost, Authorize(Roles = "CHU_NHA"), ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]
-    public async Task<IActionResult> IssueMonthly(int toaNhaId, int nam, int thang, int? hopDongId)
+    public async Task<IActionResult> IssueMonthly(int toaNhaId, int nam, int thang, int? hopDongId,
+        DateOnly? ngayPhatHanh, DateOnly? hanThanhToan, string? reviewToken, bool xacNhan, List<int>? selectedIds)
     {
         if (!ModelState.IsValid) return BadRequest();
         try
         {
-            var count = await invoices.PhatHanhThangAsync(AccountId, toaNhaId, nam, thang, hopDongId);
+            if (!await services.SoHuuToaNhaAsync(AccountId, toaNhaId)) return Forbid();
+            if (!xacNhan) throw new InvalidOperationException("Hãy xác nhận danh sách và ngày thanh toán trước khi phát hành.");
+            ReviewSnapshot? review;
+            try { review = JsonSerializer.Deserialize<ReviewSnapshot>(ReviewProtector.Unprotect(reviewToken ?? "")); }
+            catch (Exception ex) when (ex is CryptographicException or JsonException or ArgumentException)
+            { throw new InvalidOperationException("Bản kiểm tra không hợp lệ. Hãy tải lại trước khi phát hành."); }
+            if (review is null || review.Actor != AccountId || review.Building != toaNhaId || review.Year != nam || review.Month != thang
+                || review.ExpiresUtc < Clock.UtcNow || (ngayPhatHanh.HasValue && ngayPhatHanh != review.Issue)
+                || (hanThanhToan.HasValue && hanThanhToan != review.Due))
+                throw new InvalidOperationException("Kỳ hoặc ngày thanh toán đã thay đổi. Hãy kiểm tra lại trước khi phát hành.");
+            ngayPhatHanh = review.Issue; hanThanhToan = review.Due;
+            var chosen = hopDongId.HasValue ? new List<int> { hopDongId.Value } : selectedIds ?? [];
+            if (chosen.Count == 0) throw new InvalidOperationException("Hãy chọn ít nhất một phòng để phát hành.");
+            if (chosen.Any(id => !review.Candidates.ContainsKey(id))) return Forbid();
+            var result = await invoices.PhatHanhDanhSachAsync(AccountId, toaNhaId, nam, thang, chosen, ngayPhatHanh, hanThanhToan, review.Candidates);
+            TempData["MonthlyResults"] = JsonSerializer.Serialize(result.Phongs);
+            var count = result.SoDaPhatHanh;
             TempData["MonthlyMessage"] = count > 0 ? $"Đã phát hành {count} hóa đơn. Chỉ số điện nước đã được khóa." : "Không có phòng đủ dữ liệu để phát hành hóa đơn mới.";
         }
         catch (UnauthorizedAccessException) { return Forbid(); }
@@ -49,10 +80,10 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
         catch (OverflowException) { TempData["MonthlyError"] = "Số tiền vượt giới hạn. Hãy kiểm tra chỉ số và đơn giá."; }
         catch (DbUpdateException) { TempData["MonthlyError"] = "Dữ liệu đã thay đổi. Hãy kiểm tra lại kỳ hóa đơn."; }
         catch (Microsoft.Data.Sqlite.SqliteException) { TempData["MonthlyError"] = "Chưa thể phát hành hóa đơn. Hãy kiểm tra thiết lập hoặc thử lại."; }
-        return RedirectToAction(nameof(Monthly), new { toaNhaId, nam, thang });
+        return RedirectToAction(nameof(Monthly), new { toaNhaId, nam, thang, ngayPhatHanh = ngayPhatHanh?.ToString("yyyy-MM-dd"), hanThanhToan = hanThanhToan?.ToString("yyyy-MM-dd") });
     }
 
-    private async Task<ChiTietHoaDonViewModel> InvoiceViewAsync(QL_PhongTro.Models.HoaDon invoice, bool preview)
+    private async Task<ChiTietHoaDonViewModel> InvoiceViewAsync(QL_PhongTro.Models.HoaDon invoice, bool preview, string reviewToken = "")
     {
         var context = await (from h in db.HopDongs.AsNoTracking()
             join p in db.PhongTros on h.PhongId equals p.Id
@@ -60,12 +91,12 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
             where h.Id == invoice.HopDongId
             select new { p.MaPhong, p.ToaNhaId, t.TenToaNha, h.KhachDungTenId }).SingleAsync();
         var tenant = await db.KhachThues.AsNoTracking().Where(x => x.Id == context.KhachDungTenId).Select(x => x.HoTen).SingleOrDefaultAsync();
-        return new() { HoaDon = invoice, XemTruoc = preview, ToaNhaId = context.ToaNhaId,
+        return new() { HoaDon = invoice, XemTruoc = preview, ReviewToken = reviewToken, ToaNhaId = context.ToaNhaId,
             MaPhong = context.MaPhong, TenToaNha = context.TenToaNha, TenKhach = tenant ?? "Chưa có thông tin" };
     }
 
     [HttpGet, Authorize(Roles = "CHU_NHA")]
-    public async Task<IActionResult> Preview(int toaNhaId, int hopDongId, int nam, int thang)
+    public async Task<IActionResult> Preview(int toaNhaId, int hopDongId, int nam, int thang, DateOnly? ngayPhatHanh, DateOnly? hanThanhToan)
     {
         if (!ModelState.IsValid) return BadRequest();
         var belongs = await (from h in db.HopDongs join p in db.PhongTros on h.PhongId equals p.Id
@@ -73,14 +104,15 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
         if (!belongs || !await services.SoHuuToaNhaAsync(AccountId, toaNhaId)) return Forbid();
         try
         {
-            var preview = await invoices.XemThangAsync(AccountId, toaNhaId, nam, thang);
+            var preview = await invoices.XemThangAsync(AccountId, toaNhaId, nam, thang, ngayPhatHanh, hanThanhToan);
             var row = preview.DuKien.SingleOrDefault(x => x.HoaDon.HopDongId == hopDongId);
             if (row is null)
             {
                 TempData["MonthlyError"] = "Phòng chưa đủ dữ liệu hoặc đã có hóa đơn trong kỳ. Hãy kiểm tra lại danh sách.";
                 return RedirectToAction(nameof(Monthly), new { toaNhaId, nam, thang });
             }
-            return View("Details", await InvoiceViewAsync(row.HoaDon, true));
+            preview.DuKien = [row];
+            return View("Details", await InvoiceViewAsync(row.HoaDon, true, ReviewToken(preview)));
         }
         catch (UnauthorizedAccessException) { return Forbid(); }
         catch (InvalidOperationException ex) { TempData["MonthlyError"] = ex.Message; return RedirectToAction(nameof(Monthly), new { toaNhaId, nam, thang }); }

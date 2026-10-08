@@ -35,7 +35,7 @@ with sync_playwright() as p:
     page.locator('button[type="submit"]').click()
     page.wait_for_load_state("networkidle")
     page.goto(monthly, wait_until="networkidle")
-    assert f"Sẵn sàng tạo {expected_ready} hóa đơn" in page.locator("main").inner_text()
+    assert page.locator('.room-select').count() == expected_ready
     assert page.locator(".mi-steps").count() == 0
     for example in examples[:4]:
         if example["contractId"] in already_issued:
@@ -73,6 +73,8 @@ with sync_playwright() as p:
     page.goto(preview, wait_until="networkidle")
     if target["contractId"] not in already_issued:
         page.get_by_role("button", name="Xác nhận và phát hành hóa đơn").click()
+        page.locator('#issue-confirmation [name="xacNhan"]').check()
+        page.locator('#issue-confirmation').get_by_role('button',name='Xác nhận phát hành',exact=True).click()
         page.wait_for_load_state("networkidle")
         assert "Đã phát hành 1 hóa đơn" in page.locator("main").inner_text()
     with sqlite3.connect(Path(access["database"]).as_uri()+"?mode=ro", uri=True) as db:

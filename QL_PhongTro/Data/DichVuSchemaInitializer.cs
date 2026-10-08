@@ -24,6 +24,7 @@ public static class DichVuSchemaInitializer
         using var readerScript = new StreamReader(stream);
         using var tx = connection.BeginTransaction();
         check.Transaction = tx; check.CommandText = readerScript.ReadToEnd(); check.ExecuteNonQuery();
+        InvoiceIssueDateSchema.Ensure(connection, tx);
         check.CommandText = "PRAGMA foreign_key_check";
         using (var reader = check.ExecuteReader()) if (reader.Read()) throw new InvalidOperationException("Khóa ngoại không hợp lệ; hãy thay đổi.");
         tx.Commit(); Console.WriteLine("Đã thêm schema hóa đơn/dịch vụ. Bản sao lưu: " + backupPath);

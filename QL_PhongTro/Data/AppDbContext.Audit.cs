@@ -32,7 +32,7 @@ public partial class AppDbContext
         [typeof(DichVu)] = ["MaDichVu", "TenDichVu", "DangHoatDong"],
         [typeof(CauHinhDichVu)] = ["ToaNhaId", "PhongId", "DichVuId", "CachTinh", "DonViTinh", "DonGia", "TuNgay", "DenNgay", "DangApDung", "DaChotGia"],
         [typeof(HopDongDichVu)] = ["HopDongId", "DichVuId", "CauHinhDichVuId", "TenDichVu", "CachTinh", "DonViTinh", "DonGia"],
-        [typeof(HoaDon)] = ["MaHoaDon", "HopDongId", "Thang", "Nam", "TuNgay", "DenNgay", "NgayChot", "SoNguoiTinhPhi", "LoaiHoaDon", "HanThanhToan", "TongTien", "TrangThai", "NgayPhatHanh"],
+        [typeof(HoaDon)] = ["MaHoaDon", "HopDongId", "Thang", "Nam", "TuNgay", "DenNgay", "NgayChot", "SoNguoiTinhPhi", "LoaiHoaDon", "HanThanhToan", "TongTien", "TrangThai", "NgayPhatHanh", "NgayPhatHanhNghiepVu"],
         [typeof(ChiTietHoaDon)] = ["HoaDonId", "SoThuTu", "DichVuId", "CauHinhDichVuId", "KyHopDongId", "LoaiKhoan", "TenKhoan", "CachTinhApDung", "DonViTinh", "SoLuong", "DonGia", "ChiSoDau", "ChiSoCuoi", "ThanhTien"]
     };
 
