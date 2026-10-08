@@ -10,7 +10,7 @@
         && await QL_PhongTro.Services.InvoiceNotificationDispatcher.IsInstalledAsync(NotificationDb);
     var unread = 0;
     if (showNotifications) {
-        var published = NotificationDb.HoaDons.Where(x => x.TrangThai == "DA_PHAT_HANH").Select(x => x.Id);
+        var published = NotificationDb.HoaDons.Where(x => x.TrangThai == "DA_PHAT_HANH" || x.TrangThai == "DA_HUY").Select(x => x.Id);
         unread = await NotificationDb.ThongBaoHoaDons.CountAsync(x => x.NguoiNhanId == actor && x.NgayDoc == null && published.Contains(x.HoaDonId));
     }
 }

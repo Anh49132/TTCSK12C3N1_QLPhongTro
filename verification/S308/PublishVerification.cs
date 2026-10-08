@@ -24,6 +24,8 @@ internal static class PublishVerification
             await db.Database.ExecuteSqlRawAsync("UPDATE khach_thue SET tai_khoan_id=4 WHERE id=1");
             id = await db.HoaDons.Where(x => x.Thang == 12 && x.TrangThai == "NHAP").Select(x => x.Id).SingleAsync();
             check(!await db.ThongBaoHoaDons.AnyAsync(), "drafts create no in-app notifications");
+            await db.Database.ExecuteSqlRawAsync("UPDATE hoa_don SET ghi_chu='Retained invoice note' WHERE id={0}",id);
+            await db.Database.ExecuteSqlRawAsync("UPDATE chi_tiet_hoa_don SET chi_so_id=123,bao_hong_id=456,so_ngay_tinh_tien=10,so_ngay_trong_thang=31 WHERE hoa_don_id={0}",id);
         }
         async Task<PhatHanhNhapViewModel> Input() {
             using var db = context(); var bill = await db.HoaDons.FindAsync(id);
@@ -98,7 +100,7 @@ internal static class PublishVerification
             source.Open(); using var target = new SqliteConnection("Data Source=" + copy); target.Open(); source.BackupDatabase(target);
         }
         using (var c = new SqliteConnection("Data Source=" + copy)) {
-            c.Open(); using var cmd = c.CreateCommand(); cmd.CommandText = "DROP TABLE thong_bao; DELETE FROM app_schema_version WHERE version=21"; cmd.ExecuteNonQuery();
+            c.Open(); using var cmd = c.CreateCommand(); cmd.CommandText = "DROP TABLE thong_bao; DELETE FROM app_schema_version WHERE version>=21"; cmd.ExecuteNonQuery();
         }
         async Task<string> Snapshot(string path) {
             using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite("Data Source=" + path).Options);

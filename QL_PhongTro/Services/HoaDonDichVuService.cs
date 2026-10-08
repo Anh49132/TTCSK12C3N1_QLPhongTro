@@ -83,6 +83,8 @@ public sealed partial class HoaDonDichVuService(AppDbContext db, DichVuService s
         if (periods.Count != 1) throw new InvalidOperationException("Luồng này chỉ hỗ trợ kỳ thuê trọn tháng với một mức giá phòng. Kỳ lẻ hoặc gia hạn giữa tháng cần xử lý riêng.");
         if (await db.HoaDons.AnyAsync(x => x.HopDongId == contract.HopDong.Id && x.Nam == date.Year && x.Thang == date.Month && x.TrangThai != "DA_HUY"))
             throw new InvalidOperationException("Hợp đồng đã có hóa đơn trong tháng này.");
+        if (await db.HoaDons.AnyAsync(x => x.HopDongId == contract.HopDong.Id && x.Nam == date.Year && x.Thang == date.Month && x.TrangThai == "DA_HUY"))
+            throw new InvalidOperationException("Kỳ này có bản đã hủy. Hãy mở bản cũ và tạo Nháp thay thế để giữ liên kết.");
         var invoice = new HoaDon
         {
             MaHoaDon = "HD" + Guid.NewGuid().ToString("N")[..24],

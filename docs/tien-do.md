@@ -1,3 +1,12 @@
+## 09/10/2026 — S3-08 lát 3: hủy có lý do và phát hành lại
+
+- Nhánh feature/S3-08/03-invoice-cancel-reissue kế thừa phần 1/2. Chủ nhà hủy Đã phát hành có lý do/xác nhận/phiên bản; giữ tiền, dòng, ghi chú, mã và lần phát hành của bản cũ. Tạo Nháp thay thế có liên kết hai phía, sao chép đủ snapshot; bấm lặp/đồng thời không sinh trùng. Sửa/phát hành qua luồng hiện có, khách nhận thông báo mới, bản hủy vẫn tra cứu được.
+- Chặn hủy khi có khoản thu/cấn cọc đang hiệu lực hoặc chờ xử lý, schema tiền chưa tương thích hoặc email đang gửi. Hủy dừng email chưa gửi, không mở khóa/ghi lại chỉ số nguồn. Khách không được xem bản thay thế khi còn Nháp. Danh sách tháng giữ bản hủy và nhãn trạng thái chính xác.
+- Schema v22 thay guard, không thêm bảng/cột nghiệp vụ và không sửa bước migration cũ. Nâng cấp trên bản sao v21, kiểm tra dữ liệu trước/sau và chạy lặp, integrity/FK PASS. CSDL gốc và demo trước đó giữ nguyên; demo mới dùng thư mục riêng dưới data/s308-demo.
+- 174 kiểm tra service/HTTP/Chrome PASS, gồm rollback audit/ghi dòng, race tạo thay thế, chống sửa bản hủy, nguồn chỉ số đã khóa, quyền, CSRF, trạng thái/thông báo/link, tính lại tiền chính xác, giao diện 360px và email pickup. Sửa lỗi partial khi mở từ ThongBao, nguồn đã khóa chặn phát hành bản thay thế, ẩn bản hủy và nhãn phát hành sai. Hướng dẫn/kết quả hồi quy: [s3083-huy-phat-hanh-lai.md](s3083-huy-phat-hanh-lai.md).
+- Web demo cổng 5249, CSDL bản sao v22; email local. Chưa kiểm tra SMTP thật/Safari/tải production; chưa làm giao diện nhật ký chi tiết trước/sau các lần sửa. Chưa commit/push phần 3.
+- Hồi quy toàn bộ và chạy lại test sau sửa fixture: tổng hợp 560/569 PASS, 9 FAIL đã có trên baseline trước phần 2. Cả 7 test schema liên quan PASS; chi tiết và giới hạn nằm trong báo cáo phần 3.
+
 ## 09/10/2026 — Rà soát tương thích S3-08 phần 2
 
 - Sửa lỗi 500 trên trang khách thuê khi CSDL chưa cài module hóa đơn; kiểm tra module và quyền trước chuông, trang thông báo và hàng đợi email. 105 kiểm tra S3-08 PASS; 4 test schema và 3 test HTTP Nháp hàng loạt PASS sau cập nhật fixture/kỳ vọng cho luồng mới. Hồi quy tổng hợp 557/569 PASS sau chạy lại 3 test; 12 FAIL còn lại cũng FAIL trên commit trước phần 2 (xem báo cáo). CSDL gốc không đổi. Thêm project verification/S308Regression để chạy test có sẵn; kết quả và giới hạn: [s3082-ra-soat-loi.md](s3082-ra-soat-loi.md).

@@ -65,12 +65,21 @@ public class HoaDon
     [Column("trang_thai")] public string TrangThai { get; set; } = "NHAP";
     [Column("nguoi_lap_id")] public int NguoiLapId { get; set; }
     [Column("nguoi_phat_hanh_id")] public int? NguoiPhatHanhId { get; set; }
+    [Column("thay_the_hoa_don_id")] public int? ThayTheHoaDonId { get; set; }
+    [Column("nguoi_huy_id")] public int? NguoiHuyId { get; set; }
+    [Column("ngay_huy")] public DateTime? NgayHuy { get; set; }
+    [Column("ly_do_huy")] public string? LyDoHuy { get; set; }
+    [Column("ghi_chu")] public string? GhiChu { get; set; }
     [Column("phien_ban")] public int PhienBan { get; set; }
     public List<ChiTietHoaDon> ChiTiet { get; set; } = [];
 }
 [Table("chi_tiet_hoa_don")]
 public class ChiTietHoaDon
 {
+    [Column("chi_so_id")] public int? ChiSoId { get; set; }
+    [Column("bao_hong_id")] public int? BaoHongId { get; set; }
+    [Column("so_ngay_tinh_tien")] public int? SoNgayTinhTien { get; set; }
+    [Column("so_ngay_trong_thang")] public int? SoNgayTrongThang { get; set; }
     [Column("ghi_chu")] public string? GhiChu { get; set; }
     [Column("id")] public int Id { get; set; }
     [Column("hoa_don_id")] public int HoaDonId { get; set; }

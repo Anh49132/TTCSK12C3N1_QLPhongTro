@@ -18,7 +18,7 @@ namespace QL_PhongTro.Controllers;
 
 [Authorize(Roles = "CHU_NHA,ADMIN"), ModuleAccess("TAI_CHINH")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class HoaDonDichVuController(AppDbContext db, DichVuService services, HoaDonDichVuService invoices) : Controller
+public partial class HoaDonDichVuController(AppDbContext db, DichVuService services, HoaDonDichVuService invoices) : Controller
 {
     private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
     private ITimeProvider Clock => HttpContext.RequestServices.GetRequiredService<ITimeProvider>();
@@ -244,7 +244,10 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
         if (context is null) return NotFound();
         if (!await services.SoHuuToaNhaAsync(AccountId, context.ToaNhaId)) return Forbid();
         ViewData["ToaNhaId"] = context.ToaNhaId;
-        return View(await InvoiceViewAsync(await db.HoaDons.AsNoTracking().Include(x => x.ChiTiet).SingleAsync(x => x.Id == id), false));
+        var model = await InvoiceViewAsync(await db.HoaDons.AsNoTracking().Include(x => x.ChiTiet).SingleAsync(x => x.Id == id), false);
+        await invoices.FillRelationsAsync(model);
+        if (model.HoaDon.TrangThai == "DA_PHAT_HANH") model.LyDoChanHuy = await invoices.LyDoChanHuyAsync(id);
+        return View(model);
     }
 
     [HttpPost, Authorize(Roles = "CHU_NHA"), ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]

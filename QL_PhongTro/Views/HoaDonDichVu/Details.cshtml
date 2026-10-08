@@ -18,12 +18,13 @@
 <nav class="mi-breadcrumb" aria-label="Đường dẫn"><a asp-controller="Home" asp-action="Index">Tổng quan</a> / <a asp-controller="@(Model.KhachXem ? "ThongBao" : "HoaDonDichVu")" asp-action="@(Model.KhachXem ? "Index" : "Monthly")" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-nam="@invoice.Nam" asp-route-thang="@invoice.Thang">Hóa đơn, thanh toán</a> / @Model.MaPhong</nav>
 <header class="id-heading">
 <a asp-controller="@(Model.KhachXem ? "ThongBao" : "HoaDonDichVu")" asp-action="@(Model.KhachXem ? "Index" : "Monthly")" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-nam="@invoice.Nam" asp-route-thang="@invoice.Thang" class="btn btn-outline-secondary id-back">← Quay lại danh sách</a>
-<div><div class="id-title"><h1>@(Model.XemTruoc ? "Xem trước hóa đơn" : "Hóa đơn") · Phòng @Model.MaPhong</h1><span class="id-status">✓ @(Model.XemTruoc ? "Đủ dữ liệu" : invoice.TrangThai == "DA_PHAT_HANH" ? "Đã phát hành" : "Bản nháp")</span></div><p>@Model.TenKhach · @Model.TenToaNha · Kỳ tháng @invoice.Thang/@invoice.Nam</p></div>
+<div><div class="id-title"><h1>@(Model.XemTruoc ? "Xem trước hóa đơn" : "Hóa đơn") · Phòng @Model.MaPhong</h1><span class="id-status">@(Model.XemTruoc ? "Đủ dữ liệu" : invoice.TrangThai == "DA_PHAT_HANH" ? "Đã phát hành" : invoice.TrangThai == "DA_HUY" ? "Đã hủy" : "Bản nháp")</span></div><p>@Model.TenKhach · @Model.TenToaNha · Kỳ tháng @invoice.Thang/@invoice.Nam</p></div>
 <button type="button" class="btn btn-outline-secondary id-print" onclick="window.print()">▤ Xem bản in</button>
 </header>
 <div class="id-columns"><div>
 @if (TempData["DraftError"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
 @if (TempData["DraftSuccess"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+@if (!Model.XemTruoc) { <partial name="~/Views/HoaDonDichVu/_Cancellation.cshtml" model="Model" /> }
 @if (!Model.XemTruoc && invoice.TrangThai == "NHAP" && write) { <partial name="_DraftEditor" model="invoice" /><partial name="_PublishDraft" model="Model" /> }
 @if (!Model.XemTruoc && invoice.TrangThai == "DA_PHAT_HANH") { <div class="alert alert-light">Hóa đơn đã phát hành. Chỉ số, các khoản tiền và tổng tiền đã được khóa.</div> }
 <section class="mi-card"><h2>Chi tiết các khoản thu</h2>

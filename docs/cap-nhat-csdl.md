@@ -1,3 +1,6 @@
+## S3-08:3 — schema v22
+
+v22 bổ sung guard hủy/thay thế vào trigger hóa đơn, giữ nguyên bảng/cột và dữ liệu đã có. Các cột thay_the_hoa_don_id, nguoi_huy_id, ngay_huy, ly_do_huy đã có trong SQLite, nay được ánh xạ để dùng. Chỉ cho phát hành → hủy cùng metadata hợp lệ; bản hủy/dòng tiền vẫn bất biến. Module hóa đơn cài sau nền v22 cũng được áp dụng guard. Updater có backup; chỉ chạy trên bản sao demo trong phiên này. Không cập nhật CSDL gốc. Xem [hướng dẫn phần 3](s3083-huy-phat-hanh-lai.md).
 ## S3-08:2 — schema v21
 
 Bổ sung bảng thong_bao và hàng đợi email, unique hóa đơn/người nhận/loại. Updater có backup, transaction và kiểm tra cấu trúc; không thay dữ liệu hóa đơn cũ. Trong phiên này chỉ nâng cấp bản sao demo, không chạy trên CSDL gốc. Xem [hướng dẫn phần 2](s3082-phat-hanh-thong-bao.md). Dừng ứng dụng trước khi nâng cấp; luôn kiểm chứng trên bản sao trước.

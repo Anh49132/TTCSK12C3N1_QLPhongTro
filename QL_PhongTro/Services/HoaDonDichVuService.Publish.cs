@@ -49,8 +49,12 @@ public sealed partial class HoaDonDichVuService
         var serviceIds = bill.ChiTiet.Where(x => x.CachTinhApDung == CachTinhDichVu.TheoChiSo && x.DichVuId.HasValue).Select(x => x.DichVuId!.Value).ToList();
         var readings = await db.ChiSoDienNuocs.Where(x => x.HopDongId == bill.HopDongId && serviceIds.Contains(x.DichVuId)
             && x.TuNgay == bill.TuNgay && x.DenNgay == bill.DenNgay).ToListAsync();
-        if (readings.Any(x => x.DaKhoa)) throw new InvalidOperationException("Bản chỉ số gốc đã được khóa; hãy kiểm tra lại trước khi phát hành.");
-        foreach (var reading in readings) { reading.DaKhoa = true; reading.PhienBan++; }
+        var replacement = bill.ThayTheHoaDonId.HasValue && await db.HoaDons.AnyAsync(x => x.Id == bill.ThayTheHoaDonId
+            && x.TrangThai == "DA_HUY" && x.HopDongId == bill.HopDongId && x.Nam == bill.Nam && x.Thang == bill.Thang
+            && x.TuNgay == bill.TuNgay && x.DenNgay == bill.DenNgay);
+        if (bill.ThayTheHoaDonId.HasValue && !replacement) throw new InvalidOperationException("Liên kết hóa đơn thay thế chưa hợp lệ.");
+        if (readings.Any(x => x.DaKhoa) && !replacement) throw new InvalidOperationException("Bản chỉ số gốc đã được khóa; hãy kiểm tra lại trước khi phát hành.");
+        foreach (var reading in readings.Where(x => !x.DaKhoa)) { reading.DaKhoa = true; reading.PhienBan++; }
         bill.TrangThai = "DA_PHAT_HANH"; bill.NgayPhatHanh = now; bill.NgayPhatHanhNghiepVu = dates.Issue;
         bill.HanThanhToan = dates.Due; bill.NguoiPhatHanhId = actor; bill.PhienBan++;
         db.ThongBaoHoaDons.Add(new() { NguoiNhanId = recipient.Id, HoaDonId = bill.Id, NgayTao = now, EmailNhan = recipient.Email,

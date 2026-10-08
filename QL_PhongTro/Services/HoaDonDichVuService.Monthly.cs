@@ -72,6 +72,13 @@ public sealed partial class HoaDonDichVuService
                 continue;
             }
             if (terms.Count != 1 || h.NgayTraPhong < last) { Skip("Chưa có kỳ hợp đồng thuê trọn tháng hợp lệ."); continue; }
+            var cancelled = await db.HoaDons.AsNoTracking().Where(x => x.HopDongId == h.Id && x.Nam == year && x.Thang == month && x.TrangThai == "DA_HUY")
+                .OrderByDescending(x => x.Id).Select(x => (int?)x.Id).FirstOrDefaultAsync();
+            if (cancelled.HasValue) {
+                model.BoQua.Add(new(h.Id, context.Room.MaPhong, "Kỳ này có bản đã hủy. Mở bản cũ để tạo Nháp thay thế.")
+                    { TrangThai="DA_CO_HOA_DON", HoaDonId=cancelled });
+                continue;
+            }
             if (h.NgayChot is < 1 or > 31) { Skip("Ngày chốt hợp đồng không hợp lệ."); continue; }
             var cutoff = new DateOnly(year, month, Math.Min(h.NgayChot, last.Day));
             SoNguoiHoaDon occupancy;
@@ -136,7 +143,7 @@ public sealed partial class HoaDonDichVuService
         }
         var history = await (from invoice in db.HoaDons.AsNoTracking().Include(x => x.ChiTiet)
             join h in db.HopDongs on invoice.HopDongId equals h.Id join p in db.PhongTros on h.PhongId equals p.Id
-            where p.ToaNhaId == building && invoice.Nam == year && invoice.Thang == month && invoice.TrangThai != "DA_HUY"
+            where p.ToaNhaId == building && invoice.Nam == year && invoice.Thang == month
             orderby p.MaPhong select new { p.MaPhong, Invoice = invoice }).ToListAsync();
         model.DaPhatHanh = history.Select(x => new HoaDonThangDuKien(x.MaPhong, x.Invoice, [])).ToList();
         return model;

@@ -7,6 +7,7 @@
 @foreach (var item in Model) {
 <article class="card mb-3"><div class="card-body">
 <h2 class="h5">@item.TieuDe @if (item.NgayDoc == null) { <span class="badge bg-dark">Mới</span> }</h2>
+@if (ViewData["CancelledIds"] is HashSet<int> cancelled && cancelled.Contains(item.HoaDonId)) { <p class="alert alert-warning">Hóa đơn này đã hủy. Mở bản cũ để xem lý do và bản thay thế đã phát hành (nếu có).</p> }
 <p>@item.NoiDung</p><p class="text-muted">@item.NgayTao.AddHours(7).ToString("dd/MM/yyyy HH:mm")</p>
 <div class="d-flex flex-wrap gap-2"><a asp-action="HoaDon" asp-route-id="@item.HoaDonId" class="btn btn-dark">Xem hóa đơn</a>
 @if (item.NgayDoc == null) { <form asp-action="Read" method="post"><input type="hidden" name="id" value="@item.Id" /><button class="btn btn-outline-secondary">Đánh dấu đã đọc</button></form> }

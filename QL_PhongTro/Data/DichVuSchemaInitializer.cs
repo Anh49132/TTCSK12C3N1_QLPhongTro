@@ -25,6 +25,8 @@ public static class DichVuSchemaInitializer
         using var tx = connection.BeginTransaction();
         check.Transaction = tx; check.CommandText = readerScript.ReadToEnd(); check.ExecuteNonQuery();
         InvoiceIssueDateSchema.Ensure(connection, tx);
+        check.CommandText = "SELECT MAX(version) FROM app_schema_version";
+        if (Convert.ToInt32(check.ExecuteScalar()) >= 22) InvoiceCancellationSchema.Ensure(connection, tx);
         check.CommandText = "PRAGMA foreign_key_check";
         using (var reader = check.ExecuteReader()) if (reader.Read()) throw new InvalidOperationException("Khóa ngoại không hợp lệ; hãy thay đổi.");
         tx.Commit(); Console.WriteLine("Đã thêm schema hóa đơn/dịch vụ. Bản sao lưu: " + backupPath);

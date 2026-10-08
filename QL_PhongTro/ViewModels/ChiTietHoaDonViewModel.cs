@@ -11,5 +11,11 @@ public sealed class ChiTietHoaDonViewModel
     public string TenKhach { get; init; } = "";
     public bool XemTruoc { get; init; }
     public bool KhachXem { get; init; }
+    public string? LyDoChanHuy { get; set; }
+    public int? HoaDonGocId { get; set; }
+    public string? MaHoaDonGoc { get; set; }
+    public int? HoaDonThayTheId { get; set; }
+    public string? MaHoaDonThayThe { get; set; }
+    public string? TrangThaiThayThe { get; set; }
     public string ReviewToken { get; init; } = "";
 }

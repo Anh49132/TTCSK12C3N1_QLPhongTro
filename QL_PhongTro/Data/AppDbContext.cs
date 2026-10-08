@@ -69,6 +69,8 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
         modelBuilder.Entity<HopDongDichVu>().HasOne<CauHinhDichVu>().WithMany().HasForeignKey(x => x.CauHinhDichVuId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<HoaDon>().HasIndex(x => new { x.HopDongId, x.Nam, x.Thang }).IsUnique().HasFilter("trang_thai <> 'DA_HUY'");
         modelBuilder.Entity<HoaDon>().Property(x => x.PhienBan).IsConcurrencyToken();
+        modelBuilder.Entity<HoaDon>().HasIndex(x => x.ThayTheHoaDonId).IsUnique();
+        modelBuilder.Entity<HoaDon>().HasOne<HoaDon>().WithMany().HasForeignKey(x => x.ThayTheHoaDonId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<ThongBaoHoaDon>().HasIndex(x => new { x.HoaDonId, x.NguoiNhanId, x.LoaiThongBao }).IsUnique();
         modelBuilder.Entity<ThongBaoHoaDon>().HasOne<HoaDon>().WithMany().HasForeignKey(x => x.HoaDonId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<ThongBaoHoaDon>().HasOne<TaiKhoan>().WithMany().HasForeignKey(x => x.NguoiNhanId).OnDelete(DeleteBehavior.Restrict);

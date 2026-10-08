@@ -208,6 +208,7 @@ try {
     await server.WaitForExitAsync();
 }
 await PublishVerification.Run(Context, path, root, Check);
+await CancelVerification.Run(Context, path, root, Check);
 
 // A second host verifies publication and the tenant experience against the disposable fixture.
 start.ArgumentList.Add("--PasswordReset:From"); start.ArgumentList.Add("noreply@example.test");
@@ -276,6 +277,56 @@ try {
     Check(!otherNotices.Contains("Hóa đơn phòng TEST"), "other tenant cannot list notification");
     Check((await otherTenant.GetAsync("/ThongBao/HoaDon/" + webId)).StatusCode == HttpStatusCode.Forbidden, "other tenant cannot view invoice");
     Check((await otherTenant.PostAsync("/ThongBao/Read", new FormUrlEncodedContent(new Dictionary<string,string> { ["id"] = noticeId.ToString(), ["__RequestVerificationToken"] = Token(otherNotices) }))).StatusCode == HttpStatusCode.Forbidden, "other tenant cannot mark notification read");
+    // Exercise cancellation, preserved history and reissue in the real MVC/browser flow.
+    int issuedVersion; long issuedTotal;
+    using (var db = Context()) { var bill = await db.HoaDons.FindAsync(webId); issuedVersion=bill!.PhienBan; issuedTotal=bill.TongTien; }
+    var cancellationPage = await owner.GetStringAsync("/HoaDonDichVu/Details/"+webId);
+    var cancelFields = new Dictionary<string,string> { ["Id"]=webId.ToString(),["PhienBan"]=issuedVersion.ToString(),["LyDo"]="   ",["XacNhan"]="true",["__RequestVerificationToken"]=Token(cancellationPage) };
+    await owner.PostAsync("/HoaDonDichVu/CancelInvoice",new FormUrlEncodedContent(cancelFields));
+    using (var db=Context()) Check((await db.HoaDons.FindAsync(webId))!.TrangThai=="DA_PHAT_HANH","HTTP blank cancellation reason rejected");
+    cancelFields["LyDo"]="Browser correction";cancelFields["PhienBan"]=(issuedVersion-1).ToString();
+    await owner.PostAsync("/HoaDonDichVu/CancelInvoice",new FormUrlEncodedContent(cancelFields));
+    using (var db=Context()) Check((await db.HoaDons.FindAsync(webId))!.TrangThai=="DA_PHAT_HANH","HTTP stale cancellation rejected");
+    cancelFields.Remove("__RequestVerificationToken");
+    Check((await owner.PostAsync("/HoaDonDichVu/CancelInvoice",new FormUrlEncodedContent(cancelFields))).StatusCode==HttpStatusCode.BadRequest,"cancellation CSRF enforced");
+    Check((await owner.PostAsync("/HoaDonDichVu/CreateReplacement",new FormUrlEncodedContent(new Dictionary<string,string>{["id"]=webId.ToString(),["phienBan"]=issuedVersion.ToString()}))).StatusCode==HttpStatusCode.BadRequest,"replacement CSRF enforced");
+    foreach(var email in new[]{"other@example.test","manager@example.test","tenant@example.test","admin@example.test"}) {
+        using var denied=Client();await Login(denied,email);cancelFields["__RequestVerificationToken"]=Token(await denied.GetStringAsync("/"));
+        foreach(var action in new[]{"CancelInvoice","CreateReplacement"})
+            Check((await denied.PostAsync("/HoaDonDichVu/"+action,new FormUrlEncodedContent(cancelFields))).StatusCode==HttpStatusCode.Forbidden,"HTTP "+action+" denied for "+email);
+    }
+    await browser.ClearCookies();await browser.Login(url,"owner@example.test");await browser.Navigate(url+"/HoaDonDichVu/Details/"+webId);
+    await browser.Evaluate("document.querySelector('#cancel-open').click();true");
+    Check((await browser.Evaluate("document.querySelector('#cancel-confirmation').open && !document.querySelector('#cancel-invoice-form').checkValidity()")).GetBoolean(),"browser cancellation requires reason and confirmation");
+    await browser.Screenshot(Path.Combine(folder,"cancel-confirmation-360.png"));
+    await browser.Evaluate("document.querySelector('#cancel-reason').value='Ghi nhầm khoản phí';document.querySelector('#cancel-invoice-form [name=XacNhan]').checked=true;document.querySelector('#cancel-invoice-form').requestSubmit();true");
+    await browser.Wait("!!document.querySelector('#cancelled-invoice') && !document.querySelector('#cancel-open') && document.readyState==='complete'");
+    Check((await browser.Evaluate("document.body.innerText.includes('Ghi nhầm khoản phí') && !document.querySelector('#draft-editor')")).GetBoolean(),"browser cancelled invoice keeps reason and locks content");
+    Check((await browser.Evaluate("document.documentElement.scrollWidth<=innerWidth")).GetBoolean(),"cancelled owner invoice fits 360px");
+    await browser.Screenshot(Path.Combine(folder,"cancelled-owner-360.png"));
+    Check((await tenant.GetStringAsync("/ThongBao/HoaDon/"+webId)).Contains("Hóa đơn đã hủy"),"tenant retains access to cancelled original");
+    Check((await tenant.GetStringAsync("/ThongBao")).Contains("Hóa đơn này đã hủy"),"tenant notification list labels cancelled invoice");
+    await browser.Evaluate("document.querySelector('#create-replacement').click();true");
+    await browser.Wait("!!document.querySelector('#draft-editor') && !document.querySelector('#cancelled-invoice') && document.readyState==='complete'");
+    var replacementWebId=int.Parse((await browser.Evaluate("location.pathname.split('/').pop()")).GetString()!);
+    string replacementCode;
+    using(var db=Context()) { var bill=await db.HoaDons.FindAsync(replacementWebId);replacementCode=bill!.MaHoaDon;
+        Check(bill.ThayTheHoaDonId==webId && bill.TongTien==issuedTotal && !await db.ThongBaoHoaDons.AnyAsync(x=>x.HoaDonId==replacementWebId),"browser creates linked replacement draft without notification"); }
+    Check((await tenant.GetAsync("/ThongBao/HoaDon/"+replacementWebId)).StatusCode==HttpStatusCode.Forbidden,"tenant cannot open unpublished replacement");
+    Check(!(await tenant.GetStringAsync("/ThongBao/HoaDon/"+webId)).Contains(replacementCode),"cancelled tenant view does not expose draft replacement link");
+    await browser.Evaluate("document.querySelector('[name=\"Khoan[0].TenKhoan\"]').value='Điều chỉnh bản thay thế';document.querySelector('[name=\"Khoan[0].SoTien\"]').value='1000';document.querySelector('[name=\"Khoan[0].GhiChu\"]').value='Sửa khoản phí';document.querySelector('#draft-editor').requestSubmit();true");
+    await browser.Wait("document.querySelector('#draft-editor [name=PhienBan]')?.value==='1' && document.readyState==='complete'");
+    using(var db=Context()) Check((await db.HoaDons.FindAsync(replacementWebId))!.TongTien==issuedTotal+1000 && (await db.HoaDons.FindAsync(webId))!.TongTien==issuedTotal,"browser edit recalculates replacement and preserves cancelled total");
+    await browser.Evaluate("document.querySelector('#publish-open').click();document.querySelector('#publish-draft-form [name=XacNhan]').checked=true;document.querySelector('#publish-draft-form').requestSubmit();true");
+    await browser.Wait("!document.querySelector('#draft-editor') && !!document.querySelector('#cancel-open') && document.readyState==='complete'");
+    using(var db=Context()) Check((await db.HoaDons.FindAsync(replacementWebId))!.TrangThai=="DA_PHAT_HANH" && await db.ThongBaoHoaDons.CountAsync(x=>x.HoaDonId==replacementWebId)==1,"browser replacement reissued and tenant notified once");
+    var oldTenantView=await tenant.GetStringAsync("/ThongBao/HoaDon/"+webId);
+    Check(oldTenantView.Contains("/ThongBao/HoaDon/"+replacementWebId),"tenant sees published replacement link from cancelled original");
+    await browser.ClearCookies();await browser.Login(url,"tenant@example.test");await browser.Navigate(url+"/ThongBao/HoaDon/"+replacementWebId);
+    Check((await browser.Evaluate("!document.querySelector('#draft-editor') && !document.querySelector('#cancel-open') && document.body.innerText.includes('Thay thế bản đã hủy')")).GetBoolean(),"tenant replacement is readonly and links back to original");
+    Check((await browser.Evaluate("document.documentElement.scrollWidth<=innerWidth")).GetBoolean(),"tenant replacement fits 360px");
+    await browser.Screenshot(Path.Combine(folder,"replacement-tenant-360.png"));
+    Check((await otherTenant.GetAsync("/ThongBao/HoaDon/"+replacementWebId)).StatusCode==HttpStatusCode.Forbidden,"other tenant cannot access replacement");
     using (var db = Context()) await db.RolePermissions.Where(x => x.RoleCode == "KHACH_THUE" && x.ModuleCode == "TAI_CHINH")
         .ExecuteUpdateAsync(set => set.SetProperty(x => x.AccessLevel, "NONE"));
     var revokedHome = await tenant.GetAsync("/");
@@ -286,6 +337,8 @@ try {
 } finally {
     if (!publishServer.HasExited) publishServer.Kill(entireProcessTree: true);
     await publishServer.WaitForExitAsync();
+    var publicationLog = await publishOut; var publicationErrors = await publishError;
+    if (publicationLog.Contains("fail:") || publicationErrors.Length > 0) { Console.WriteLine(publicationLog); Console.WriteLine(publicationErrors); }
 }
 
 // Optional S1-09 invoice module is absent on a valid base-only database.
