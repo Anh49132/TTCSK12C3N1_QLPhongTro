@@ -71,6 +71,7 @@ public class HoaDon
 [Table("chi_tiet_hoa_don")]
 public class ChiTietHoaDon
 {
+    [Column("ghi_chu")] public string? GhiChu { get; set; }
     [Column("id")] public int Id { get; set; }
     [Column("hoa_don_id")] public int HoaDonId { get; set; }
     [Column("so_thu_tu")] public int SoThuTu { get; set; }

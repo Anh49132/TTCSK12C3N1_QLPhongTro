@@ -44,10 +44,12 @@ public sealed record KetQuaPhongHoaDon(int HopDongId, string MaPhong, string Tra
 public sealed record KetQuaPhatHanhThang(List<KetQuaPhongHoaDon> Phongs)
 {
     public int SoDaPhatHanh => Phongs.Count(x => x.TrangThai == "DA_PHAT_HANH");
+    public int SoNhap => Phongs.Count(x => x.TrangThai == "NHAP");
+    public int SoDaTao => SoDaPhatHanh + SoNhap;
     public int SoThieuChiSo => Phongs.Count(x => x.ThieuChiSo);
     public int SoDaCoHoaDon => Phongs.Count(x => x.TrangThai == "DA_CO_HOA_DON");
-    public int SoBoQuaKhac => Phongs.Count - SoDaPhatHanh - SoThieuChiSo - SoDaCoHoaDon;
-    public decimal TongTien => Phongs.Where(x => x.TrangThai == "DA_PHAT_HANH").Sum(x => (decimal)x.TongTien);
+    public int SoBoQuaKhac => Phongs.Count - SoDaTao - SoThieuChiSo - SoDaCoHoaDon;
+    public decimal TongTien => Phongs.Where(x => x.TrangThai is "DA_PHAT_HANH" or "NHAP").Sum(x => (decimal)x.TongTien);
     public string MaLanChay { get; init; } = Guid.NewGuid().ToString("N");
     public int NguoiThucHienId { get; init; }
     public string NguoiThucHien { get; init; } = "";

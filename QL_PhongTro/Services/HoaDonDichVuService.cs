@@ -49,7 +49,7 @@ public sealed partial class HoaDonDichVuService(AppDbContext db, DichVuService s
         return new(count, cutoff, context.PhienBan);
     }
 
-    public async Task<int> PhatHanhAsync(int accountId, LapHoaDonDichVuViewModel input)
+    public async Task<int> PhatHanhAsync(int accountId, LapHoaDonDichVuViewModel input, bool taoNhap = false)
     {
         Validator.ValidateObject(input, new ValidationContext(input), validateAllProperties: true);
         if (input.Dong.Count > 100)
@@ -141,7 +141,10 @@ public sealed partial class HoaDonDichVuService(AppDbContext db, DichVuService s
         invoice.TongTien = invoice.ChiTiet.Aggregate(0L, (sum, line) => checked(sum + line.ThanhTien));
         db.HoaDons.Add(invoice);
         await db.SaveChangesAsync(); // Insert lines while NHAP; triggers forbid line changes after publication.
-        invoice.TrangThai = "DA_PHAT_HANH"; invoice.NgayPhatHanh = (clock ?? new SystemTimeProvider()).UtcNow; invoice.NguoiPhatHanhId = accountId;
+        if (!taoNhap)
+        {
+            invoice.TrangThai = "DA_PHAT_HANH"; invoice.NgayPhatHanh = (clock ?? new SystemTimeProvider()).UtcNow; invoice.NguoiPhatHanhId = accountId;
+        }
         await db.SaveChangesAsync(); await sqlite.CommitAsync();
         return invoice.Id;
     }

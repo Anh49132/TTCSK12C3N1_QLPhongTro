@@ -1,3 +1,12 @@
+## 09/10/2026 — S3-08 lát 1: hóa đơn Nháp
+
+- Nhánh `feature/S3-08/01-invoice-draft-edit`: các action tạo hóa đơn trên web lưu `NHAP`; tạo từng hợp đồng hoặc danh sách tháng không phát hành, không khóa chỉ số gốc, không gửi thông báo.
+- Chủ nhà có quyền TAI_CHINH và sở hữu tòa được sửa snapshot chỉ số, thêm PHAT_SINH/GIAM_TRU kèm tên, số tiền nguyên đồng dương và ghi chú bắt buộc. Giữ đơn giá snapshot; decimal, làm tròn từng dòng AwayFromZero; giảm trừ lưu dương và trừ khi cộng tổng. Chặn tổng âm/tràn số, chỉ số sai, dòng chỉ số giả, bản đã phát hành và phiên bản cũ. Lưu trong transaction, CSRF trên POST; danh sách tháng hiển thị Nháp để mở lại.
+- Không đổi schema; dùng cột ghi_chu có sẵn. Không chạy updater hoặc chỉnh dữ liệu gốc. Mã SHA-256 của QL_PhongTro/Data/local-dev.sqlite giữ nguyên trước/sau kiểm thử. Bộ demo S3-08 dùng bản sao riêng dưới data/s308-demo; bổ sung chỉ số giả và kỳ giá nước theo chỉ số trên bản sao (không dùng giá này cho môi trường thật).
+- Build PASS, 46 kiểm tra service/HTTP PASS trên SQLite giả mới: 10 ví dụ làm tròn, tạo Nháp đơn/hàng loạt/chạy lại, sửa chỉ số giữ nguồn gốc, phát sinh/giảm trừ, ghi chú, tổng âm/tràn, lưu cũ, bất biến sau phát hành, integrity/FK, form/binding, CSRF, chủ nhà khác và quyền ghi 4 vai trò, không tạo email. Lệnh: `dotnet run --project verification/S308/S308.csproj -p:OutputPath="$pwd/data/s308-check/" -- .`.
+- Bộ xUnit hiện thiếu Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj trong checkout nên dùng verification/S308 riêng. Giữ UnitTest1.cs sẵn có. Cảnh báo ImageSharp/CS8601 cũ còn tồn tại. Chưa kiểm trực quan mobile/Safari hoặc regression toàn dự án; không bổ sung phát hành/hủy/thay thế/nhật ký riêng trong lát này. Audit nền hiện có tiếp tục hoạt động.
+- Chờ PO xác nhận danh mục loại chi tiết; hiện dùng hai nhóm và tên khoản tự nhập. Quy tắc làm tròn kế thừa AGENTS.md. Hướng dẫn và giới hạn: [s3081-hoa-don-nhap.md](s3081-hoa-don-nhap.md). Chạy demo: `./verification/Start-S308Demo.ps1`, cổng 5249. Chưa commit/push.
+
 
 ## 08/10/2026 — Admin tạo tài khoản Admin và đổi vai trò
 

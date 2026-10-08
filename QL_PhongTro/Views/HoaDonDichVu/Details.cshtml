@@ -22,16 +22,20 @@
 <button type="button" class="btn btn-outline-secondary id-print" onclick="window.print()">▤ Xem bản in</button>
 </header>
 <div class="id-columns"><div>
+@if (TempData["DraftError"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
+@if (TempData["DraftSuccess"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+@if (!Model.XemTruoc && invoice.TrangThai == "NHAP" && write) { <partial name="_DraftEditor" model="invoice" /> }
 <section class="mi-card"><h2>Chi tiết các khoản thu</h2>
 <div class="table-responsive"><table class="table id-charges"><thead><tr><th>Khoản thu</th><th>Cách tính</th><th>Số lượng</th><th class="text-end">Đơn giá</th><th class="text-end">Thành tiền</th></tr></thead><tbody>
 @foreach (var line in invoice.ChiTiet.OrderBy(x => x.SoThuTu))
 {
-    <tr><th scope="row">@line.TenKhoan</th><td>
-    @if (line.LoaiKhoan == "TIEN_PHONG") { <span>Cố định theo hợp đồng</span> }
+    <tr><th scope="row">@line.TenKhoan @if (!string.IsNullOrEmpty(line.GhiChu)) { <small class="d-block">@line.GhiChu</small> }</th><td>
+    @if (line.LoaiKhoan is "PHAT_SINH" or "GIAM_TRU") { <span>@(line.LoaiKhoan == "GIAM_TRU" ? "Giảm trừ (trừ khỏi tổng)" : "Phát sinh")</span> }
+    else if (line.LoaiKhoan == "TIEN_PHONG") { <span>Cố định theo hợp đồng</span> }
     else if (line.CachTinhApDung == CachTinhDichVu.CoDinh) { <span>Cố định theo phòng</span> }
     else if (line.CachTinhApDung == CachTinhDichVu.TheoNguoi) { <span>Khoán theo đầu người</span> }
     else { <span>@line.ChiSoCuoi?.ToString("0.###", vn) − @line.ChiSoDau?.ToString("0.###", vn)</span> }
-    </td><td>@line.SoLuong.ToString("0.###", vn) @(line.CachTinhApDung == CachTinhDichVu.TheoNguoi ? "người" : line.LoaiKhoan == "TIEN_PHONG" ? "tháng" : line.CachTinhApDung == CachTinhDichVu.CoDinh ? "phòng" : line.DonViTinh)</td><td class="text-end">@line.DonGia.ToString("N0", vn) đ</td><td class="text-end"><strong>@line.ThanhTien.ToString("N0", vn) đ</strong></td></tr>
+    </td><td>@line.SoLuong.ToString("0.###", vn) @(line.CachTinhApDung == CachTinhDichVu.TheoNguoi ? "người" : line.LoaiKhoan == "TIEN_PHONG" ? "tháng" : line.CachTinhApDung == CachTinhDichVu.CoDinh ? "phòng" : line.DonViTinh)</td><td class="text-end">@line.DonGia.ToString("N0", vn) đ</td><td class="text-end"><strong>@(line.LoaiKhoan == "GIAM_TRU" ? "−" : "")@line.ThanhTien.ToString("N0", vn) đ</strong></td></tr>
 }
 </tbody></table></div>
 <div class="id-total"><span>Tổng cộng</span><strong>@invoice.TongTien.ToString("N0", vn) đ</strong></div>
@@ -39,13 +43,13 @@
 </section>
 <section class="mi-card"><h2>Chỉ số sử dụng</h2><div class="table-responsive"><table class="table id-readings"><thead><tr><th>Dịch vụ</th><th>Chỉ số kỳ trước</th><th>Chỉ số kỳ này</th><th>Sản lượng tiêu thụ</th><th>Trạng thái</th></tr></thead><tbody>
 @foreach (var line in meters) { <tr><th scope="row">@line.TenKhoan</th><td>@line.ChiSoDau?.ToString("0.###", vn) @line.DonViTinh</td><td>@line.ChiSoCuoi?.ToString("0.###", vn) @line.DonViTinh</td><td><strong>@line.SoLuong.ToString("0.###", vn) @line.DonViTinh</strong></td><td><span class="id-status">✓ @(Model.XemTruoc ? "Đã chốt" : "Đã lưu trên hóa đơn")</span></td></tr> }
-</tbody></table></div><p class="mi-muted">Ngày chốt kỳ: <strong>@invoice.NgayChot.ToString("dd/MM/yyyy")</strong>. @(Model.XemTruoc ? "Chỉ số sẽ được khóa khi phát hành." : "Chỉ số và đơn giá đã được lưu tại thời điểm phát hành.")</p></section>
+</tbody></table></div><p class="mi-muted">Ngày chốt kỳ: <strong>@invoice.NgayChot.ToString("dd/MM/yyyy")</strong>. @(Model.XemTruoc ? "Chỉ số sẽ được khóa khi phát hành." : invoice.TrangThai == "NHAP" ? "Chỉ số lưu trên bản nháp; chưa khóa bản chỉ số gốc." : "Chỉ số và đơn giá đã được lưu tại thời điểm phát hành.")</p></section>
 <section class="mi-card"><h2>Số người tính phí</h2><p class="id-people"><strong>@invoice.SoNguoiTinhPhi người</strong> trong kỳ tháng @invoice.Thang/@invoice.Nam</p><p class="mi-muted">Gồm người đứng tên và người ở ghép bắt đầu tính phí từ tháng sau ngày vào. Người chuyển đi vẫn tính hết tháng rời phòng.</p></section>
 </div><aside>
 <section class="mi-card"><h2>Thông tin hóa đơn</h2><dl class="id-info">
 <dt>Mã hóa đơn</dt><dd>@(Model.XemTruoc ? "Tạo khi phát hành" : invoice.MaHoaDon)</dd>
 <dt>Kỳ áp dụng</dt><dd>Tháng @invoice.Thang/@invoice.Nam</dd>
-<dt>@(Model.XemTruoc ? "Ngày phát hành dự kiến" : "Ngày phát hành")</dt><dd>@issueDate.ToString("dd/MM/yyyy")</dd>
+<dt>@(Model.XemTruoc ? "Ngày phát hành dự kiến" : "Ngày phát hành")</dt><dd>@(invoice.TrangThai == "NHAP" && !Model.XemTruoc ? "Chưa phát hành" : issueDate.ToString("dd/MM/yyyy"))</dd>
 <dt>Hạn thanh toán</dt><dd>@invoice.HanThanhToan.ToString("dd/MM/yyyy")</dd>
 <dt>Khách thuê</dt><dd>@Model.TenKhach</dd><dt>Phòng</dt><dd>@Model.MaPhong</dd><dt>Ngày chốt</dt><dd>@invoice.NgayChot.ToString("dd/MM/yyyy")</dd>
 </dl><p class="mi-muted">ⓘ Hạn thanh toán mặc định 7 ngày sau ngày phát hành.</p></section>
@@ -60,7 +64,7 @@
 @if (Model.XemTruoc) { <section class="mi-card id-checks"><h2>Kiểm tra dữ liệu</h2><p>✓ Có hợp đồng hiệu lực</p><p>✓ Đã chốt đủ chỉ số điện nước</p><p>✓ Chưa có hóa đơn kỳ này</p><p>✓ Đơn giá hợp lệ theo ngày chốt</p><p>✓ Đã tính các dịch vụ đang áp dụng</p></section> }
 </aside></div>
 <footer class="mi-footer"><strong>@(Model.XemTruoc ? "Chưa phát hành" : "Đã lưu hóa đơn") · @invoice.TongTien.ToString("N0", vn) đ</strong>
-@if (Model.XemTruoc && write) { <form asp-action="IssueMonthly" method="post" id="issue-monthly-form"><input type="hidden" name="toaNhaId" value="@Model.ToaNhaId" /><input type="hidden" name="nam" value="@invoice.Nam" /><input type="hidden" name="thang" value="@invoice.Thang" /><input type="hidden" name="hopDongId" value="@invoice.HopDongId" /><input type="hidden" name="ngayPhatHanh" value="@issueDate.ToString("yyyy-MM-dd")" /><input type="hidden" name="hanThanhToan" value="@invoice.HanThanhToan.ToString("yyyy-MM-dd")" /><input type="hidden" name="reviewToken" value="@Model.ReviewToken" /><a asp-action="Monthly" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-nam="@invoice.Nam" asp-route-thang="@invoice.Thang" class="btn btn-outline-secondary">Quay lại</a><button type="button" data-review-open class="btn btn-dark">Xác nhận và phát hành hóa đơn →</button><partial name="_IssueConfirmation" model="confirmation" /></form> }
+@if (Model.XemTruoc && write) { <form asp-action="CreateDraft" method="post"><input type="hidden" name="toaNhaId" value="@Model.ToaNhaId" /><input type="hidden" name="hopDongId" value="@invoice.HopDongId" /><input type="hidden" name="nam" value="@invoice.Nam" /><input type="hidden" name="thang" value="@invoice.Thang" /><input type="hidden" name="ngayPhatHanh" value="@issueDate.ToString("yyyy-MM-dd")" /><input type="hidden" name="hanThanhToan" value="@invoice.HanThanhToan.ToString("yyyy-MM-dd")" /><button class="btn btn-dark">Tạo hóa đơn Nháp để chỉnh sửa</button></form> }
 else { <a asp-action="Monthly" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-nam="@invoice.Nam" asp-route-thang="@invoice.Thang" class="btn btn-outline-secondary">Quay lại danh sách hóa đơn</a> }
 </footer>
 </div>
