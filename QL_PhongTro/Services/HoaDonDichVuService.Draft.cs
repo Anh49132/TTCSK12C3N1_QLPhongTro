@@ -1,0 +1,79 @@
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using QL_PhongTro.Models;
+using QL_PhongTro.ViewModels;
+namespace QL_PhongTro.Services;
+
+public sealed partial class HoaDonDichVuService
+{
+    public static long TongNhap(IEnumerable<ChiTietHoaDon> lines) => lines.Aggregate(0L,
+        (total, line) => checked(total + (line.LoaiKhoan == "GIAM_TRU" ? -line.ThanhTien : line.ThanhTien)));
+
+    public async Task<int> TaoNhapThangAsync(int actor, int building, int contract, int year, int month, DateOnly? issueDate = null, DateOnly? dueDate = null)
+    {
+        await db.Database.OpenConnectionAsync();
+        await using var sqlite = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+        await using var tx = await db.Database.UseTransactionAsync(sqlite);
+        await KiemTraChuNhaAsync(actor, building);
+        if (!await (from h in db.HopDongs join p in db.PhongTros on h.PhongId equals p.Id
+            where h.Id == contract && p.ToaNhaId == building select h.Id).AnyAsync()) throw new UnauthorizedAccessException();
+        var preview = await XemThangAsync(actor, building, year, month, issueDate, dueDate);
+        var row = preview.DuKien.SingleOrDefault(x => x.HoaDon.HopDongId == contract)
+            ?? throw new InvalidOperationException("Hợp đồng chưa đủ dữ liệu hoặc đã có hóa đơn kỳ này. Hãy kiểm tra lại.");
+        row.HoaDon.NgayPhatHanhNghiepVu = null;
+        db.HoaDons.Add(row.HoaDon);
+        await db.SaveChangesAsync();
+        await sqlite.CommitAsync();
+        return row.HoaDon.Id;
+    }
+
+    public async Task LuuNhapAsync(int actor, SuaHoaDonNhapViewModel input)
+    {
+        await db.Database.OpenConnectionAsync();
+        await using var sqlite = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+        await using var tx = await db.Database.UseTransactionAsync(sqlite);
+        var building = await (from existing in db.HoaDons.AsNoTracking()
+            join contract in db.HopDongs on existing.HopDongId equals contract.Id
+            join room in db.PhongTros on contract.PhongId equals room.Id
+            where existing.Id == input.Id select (int?)room.ToaNhaId).SingleOrDefaultAsync();
+        if (!building.HasValue || !await services.SoHuuToaNhaAsync(actor, building.Value)) throw new UnauthorizedAccessException();
+        await KiemTraChuNhaAsync(actor, building.Value);
+        var invoice = await db.HoaDons.Include(x => x.ChiTiet).SingleAsync(x => x.Id == input.Id);
+        if (invoice.TrangThai != "NHAP") throw new InvalidOperationException("Chỉ được sửa hóa đơn Nháp.");
+        if (invoice.PhienBan != input.PhienBan) throw new InvalidOperationException("Hóa đơn đã được sửa bởi người khác. Hãy tải lại trang.");
+        var beforeHistory = SnapshotNhap(invoice);
+        var meters = invoice.ChiTiet.Where(x => x.CachTinhApDung == CachTinhDichVu.TheoChiSo).ToDictionary(x => x.Id);
+        if (input.ChiSo.Count != meters.Count || input.ChiSo.Select(x => x.Id).Distinct().Count() != meters.Count
+            || input.ChiSo.Any(x => !meters.ContainsKey(x.Id))) throw new InvalidOperationException("Danh sách chỉ số không hợp lệ.");
+        if (input.Khoan.Count > 100) throw new InvalidOperationException("Tối đa 100 khoản điều chỉnh mỗi lần lưu.");
+        foreach (var reading in input.ChiSo)
+        {
+            if (reading.ChiSoDau < 0 || reading.ChiSoCuoi < reading.ChiSoDau || reading.ChiSoCuoi > 99999999999.999m
+                || decimal.Round(reading.ChiSoDau, 3) != reading.ChiSoDau || decimal.Round(reading.ChiSoCuoi, 3) != reading.ChiSoCuoi)
+                throw new InvalidOperationException("Chỉ số không âm, tối đa 3 số thập phân; số cuối phải lớn hơn hoặc bằng số đầu.");
+        }
+        var additions = input.Khoan.Where(x => !string.IsNullOrWhiteSpace(x.TenKhoan) || x.SoTien.HasValue || !string.IsNullOrWhiteSpace(x.GhiChu)).ToList();
+        foreach (var item in additions)
+            if (item.LoaiKhoan is not ("PHAT_SINH" or "GIAM_TRU") || string.IsNullOrWhiteSpace(item.TenKhoan)
+                || item.TenKhoan.Trim().Length > 200 || !item.SoTien.HasValue || item.SoTien <= 0 || string.IsNullOrWhiteSpace(item.GhiChu) || item.GhiChu.Trim().Length > 1000)
+                throw new InvalidOperationException("Khoản phát sinh/giảm trừ phải có tên (tối đa 200 ký tự), số tiền dương và ghi chú (tối đa 1000 ký tự).");
+        foreach (var reading in input.ChiSo)
+        {
+            var line = meters[reading.Id];
+            line.ChiSoDau = reading.ChiSoDau; line.ChiSoCuoi = reading.ChiSoCuoi;
+            line.SoLuong = reading.ChiSoCuoi - reading.ChiSoDau;
+            line.ThanhTien = ThanhTien(line.SoLuong, line.DonGia);
+        }
+        var order = invoice.ChiTiet.Max(x => x.SoThuTu);
+        foreach (var item in additions) invoice.ChiTiet.Add(new ChiTietHoaDon {
+            SoThuTu = ++order, LoaiKhoan = item.LoaiKhoan, TenKhoan = item.TenKhoan!.Trim(),
+            GhiChu = item.GhiChu!.Trim(), SoLuong = 1, DonGia = item.SoTien!.Value, ThanhTien = item.SoTien.Value, DonViTinh = "khoản" });
+        invoice.TongTien = TongNhap(invoice.ChiTiet);
+        if (invoice.TongTien < 0) throw new InvalidOperationException("Tổng giảm trừ không được vượt tổng các khoản thu.");
+        if (beforeHistory == SnapshotNhap(invoice)) return;
+        invoice.PhienBan++;
+        await db.SaveChangesAsync();
+        await GhiLichSuNhapAsync(actor, invoice, beforeHistory);
+        await sqlite.CommitAsync();
+    }
+}

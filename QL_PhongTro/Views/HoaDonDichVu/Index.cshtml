@@ -5,7 +5,7 @@
 @{ ViewData["Title"] = "Lập hóa đơn"; var write = await Permissions.AllowsAsync("TAI_CHINH", true); }
 <a asp-controller="DichVu" asp-action="Index" asp-route-toaNhaId="@Model.ToaNhaId">← Dịch vụ và đơn giá</a>
 <h1 class="h2 mt-3">Lập hóa đơn tiền phòng và dịch vụ</h1>
-@if (User.IsInRole("CHU_NHA")) { <a asp-action="Monthly" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-dark mb-3">Phát hành hóa đơn tháng cho cả tòa</a> }
+@if (User.IsInRole("CHU_NHA")) { <a asp-action="Monthly" asp-route-toaNhaId="@Model.ToaNhaId" class="btn btn-dark mb-3">Tạo hóa đơn Nháp tháng cho cả tòa</a> }
 @if (!Model.SanSang)
 {
     <div class="alert alert-info">Chức năng hóa đơn chưa sẵn sàng. Vui lòng liên hệ người quản trị để hoàn tất thiết lập.</div>
@@ -46,7 +46,7 @@ else
             }
             </tbody></table></div>
             <p class="small text-secondary">Bỏ dịch vụ giữa tháng vẫn tính hết tháng đó, ngừng từ kỳ sau. Danh sách đã lọc theo phòng và kỳ đang chọn. Nếu không còn dịch vụ, hóa đơn chỉ gồm tiền phòng. Sau phát hành, nội dung và đơn giá được giữ nguyên.</p>
-            <button type="submit" class="btn btn-primary">Phát hành hóa đơn</button>
+            <button type="submit" class="btn btn-primary">Tạo hóa đơn Nháp</button>
         </form>
     }
     <h2 class="h4 mt-4">Hóa đơn gần đây</h2>

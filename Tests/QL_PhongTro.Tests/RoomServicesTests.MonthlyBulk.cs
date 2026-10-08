@@ -85,7 +85,12 @@ public sealed partial class RoomServicesTests
         Assert.Equal(HttpStatusCode.Redirect,response.StatusCode);Assert.Contains("Results",response.Headers.Location!.ToString());
         var result=WebUtility.HtmlDecode(await client.GetStringAsync(response.Headers.Location));timer.Stop();
         Assert.True(timer.Elapsed.TotalSeconds<30,$"HTTP confirmation-to-result took {timer.Elapsed.TotalSeconds:F3}s");
-        Assert.Contains("Đã phát hành 50 hóa đơn",result);Assert.Contains("Thông tin lần chạy",result);Assert.DoesNotContain("mi-steps",result);
+        Assert.Contains("Đã tạo nháp 50 hóa đơn",result);Assert.Contains("Thông tin lần chạy",result);Assert.DoesNotContain("mi-steps",result);
+        using(var db=Context()) {
+            Assert.Equal(50,await db.HoaDons.CountAsync(x=>x.TrangThai=="NHAP"));
+            Assert.False(await db.ChiSoDienNuocs.AnyAsync(x=>x.DaKhoa));
+            Assert.Empty(await db.ThongBaoHoaDons.ToListAsync());
+        }
         var runQuery=new Uri(new Uri("http://localhost"),response.Headers.Location).Query;
         var csv=await client.GetAsync("/HoaDonDichVu/ExportResults"+runQuery);Assert.Equal(HttpStatusCode.OK,csv.StatusCode);
         Assert.Equal(51,(await csv.Content.ReadAsStringAsync()).Split("\r\n").Length);

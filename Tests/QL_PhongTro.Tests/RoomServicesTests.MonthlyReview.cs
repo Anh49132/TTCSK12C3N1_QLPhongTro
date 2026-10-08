@@ -92,9 +92,10 @@ public sealed partial class RoomServicesTests
         fields["hanThanhToan"]="2026-11-25";
         var response=await client.PostAsync("/HoaDonDichVu/IssueMonthly",new FormUrlEncodedContent(fields));Assert.Equal(HttpStatusCode.Redirect,response.StatusCode);
         var resultHtml=WebUtility.HtmlDecode(await client.GetStringAsync(response.Headers.Location));
-        Assert.Contains("Kết quả từng phòng",resultHtml);Assert.Contains("Thiếu chỉ số nước",resultHtml);Assert.Contains("Đã phát hành",resultHtml);
+        Assert.Contains("Kết quả từng phòng",resultHtml);Assert.Contains("Thiếu chỉ số nước",resultHtml);Assert.Contains("Đã tạo nháp",resultHtml);
         using var verify=Context();var invoice=await verify.HoaDons.SingleAsync();Assert.Equal(f.A,invoice.HopDongId);Assert.Equal(new DateOnly(2026,11,25),invoice.HanThanhToan);
-        Assert.Equal(new DateOnly(2026,11,7),invoice.NgayPhatHanhNghiepVu);
+        Assert.Equal("NHAP",invoice.TrangThai);Assert.Null(invoice.NgayPhatHanhNghiepVu);
+        Assert.Empty(await verify.ThongBaoHoaDons.ToListAsync());
     }
 
     [Fact]

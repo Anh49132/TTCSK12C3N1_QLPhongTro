@@ -49,7 +49,7 @@ public sealed partial class HoaDonDichVuService(AppDbContext db, DichVuService s
         return new(count, cutoff, context.PhienBan);
     }
 
-    public async Task<int> PhatHanhAsync(int accountId, LapHoaDonDichVuViewModel input)
+    public async Task<int> PhatHanhAsync(int accountId, LapHoaDonDichVuViewModel input, bool taoNhap = false)
     {
         Validator.ValidateObject(input, new ValidationContext(input), validateAllProperties: true);
         if (input.Dong.Count > 100)
@@ -83,6 +83,8 @@ public sealed partial class HoaDonDichVuService(AppDbContext db, DichVuService s
         if (periods.Count != 1) throw new InvalidOperationException("Luồng này chỉ hỗ trợ kỳ thuê trọn tháng với một mức giá phòng. Kỳ lẻ hoặc gia hạn giữa tháng cần xử lý riêng.");
         if (await db.HoaDons.AnyAsync(x => x.HopDongId == contract.HopDong.Id && x.Nam == date.Year && x.Thang == date.Month && x.TrangThai != "DA_HUY"))
             throw new InvalidOperationException("Hợp đồng đã có hóa đơn trong tháng này.");
+        if (await db.HoaDons.AnyAsync(x => x.HopDongId == contract.HopDong.Id && x.Nam == date.Year && x.Thang == date.Month && x.TrangThai == "DA_HUY"))
+            throw new InvalidOperationException("Kỳ này có bản đã hủy. Hãy mở bản cũ và tạo Nháp thay thế để giữ liên kết.");
         var invoice = new HoaDon
         {
             MaHoaDon = "HD" + Guid.NewGuid().ToString("N")[..24],
@@ -141,7 +143,10 @@ public sealed partial class HoaDonDichVuService(AppDbContext db, DichVuService s
         invoice.TongTien = invoice.ChiTiet.Aggregate(0L, (sum, line) => checked(sum + line.ThanhTien));
         db.HoaDons.Add(invoice);
         await db.SaveChangesAsync(); // Insert lines while NHAP; triggers forbid line changes after publication.
-        invoice.TrangThai = "DA_PHAT_HANH"; invoice.NgayPhatHanh = (clock ?? new SystemTimeProvider()).UtcNow; invoice.NguoiPhatHanhId = accountId;
+        if (!taoNhap)
+        {
+            invoice.TrangThai = "DA_PHAT_HANH"; invoice.NgayPhatHanh = (clock ?? new SystemTimeProvider()).UtcNow; invoice.NguoiPhatHanhId = accountId;
+        }
         await db.SaveChangesAsync(); await sqlite.CommitAsync();
         return invoice.Id;
     }

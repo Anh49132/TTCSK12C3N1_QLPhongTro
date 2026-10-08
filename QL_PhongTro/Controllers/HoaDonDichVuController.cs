@@ -18,7 +18,7 @@ namespace QL_PhongTro.Controllers;
 
 [Authorize(Roles = "CHU_NHA,ADMIN"), ModuleAccess("TAI_CHINH")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class HoaDonDichVuController(AppDbContext db, DichVuService services, HoaDonDichVuService invoices) : Controller
+public partial class HoaDonDichVuController(AppDbContext db, DichVuService services, HoaDonDichVuService invoices) : Controller
 {
     private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
     private ITimeProvider Clock => HttpContext.RequestServices.GetRequiredService<ITimeProvider>();
@@ -72,7 +72,7 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
             var chosen = hopDongId.HasValue ? new List<int> { hopDongId.Value } : selectedIds ?? [];
             if (chosen.Count == 0 && review.Candidates.Count > 0) throw new InvalidOperationException("Hãy chọn ít nhất một phòng để phát hành.");
             if (chosen.Any(id => !review.Candidates.ContainsKey(id))) return Forbid();
-            var result = await invoices.PhatHanhDanhSachAsync(AccountId, toaNhaId, nam, thang, chosen, ngayPhatHanh, hanThanhToan, review.Candidates);
+            var result = await invoices.PhatHanhDanhSachAsync(AccountId, toaNhaId, nam, thang, chosen, ngayPhatHanh, hanThanhToan, review.Candidates, taoNhap: true);
             // Keep reports server-side: a 50-room report must not fill the authentication/request cookies.
             HttpContext.RequestServices.GetRequiredService<IMemoryCache>().Set("InvoiceRun:" + result.MaLanChay, result, TimeSpan.FromHours(24));
             return RedirectToAction(nameof(Results), new { runId = result.MaLanChay });
@@ -106,8 +106,8 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
         static string Cell(string value) => "\"" + ((value.TrimStart().FirstOrDefault() is '=' or '+' or '-' or '@') ? "'" : "") + value.Replace("\"", "\"\"") + "\"";
         var lines = new List<string> { "Phòng,Khách thuê,Kết quả,Mã hóa đơn,Tổng tiền mới,Ngày phát hành,Hạn thanh toán,Lý do" };
         lines.AddRange(run.Phongs.Select(x => string.Join(",", new[] { x.MaPhong, x.TenKhach,
-            x.TrangThai == "DA_PHAT_HANH" ? "Đã phát hành" : x.TrangThai == "DA_CO_HOA_DON" ? "Đã có hóa đơn" : x.ThieuChiSo ? "Thiếu chỉ số" : "Bị bỏ qua",
-            x.MaHoaDon, x.TrangThai == "DA_PHAT_HANH" ? x.TongTien.ToString(System.Globalization.CultureInfo.InvariantCulture) : "",
+            x.TrangThai == "NHAP" ? "Nháp" : x.TrangThai == "DA_PHAT_HANH" ? "Đã phát hành" : x.TrangThai == "DA_CO_HOA_DON" ? "Đã có hóa đơn" : x.ThieuChiSo ? "Thiếu chỉ số" : "Bị bỏ qua",
+            x.MaHoaDon, x.TrangThai is "NHAP" or "DA_PHAT_HANH" ? x.TongTien.ToString(System.Globalization.CultureInfo.InvariantCulture) : "",
             run.NgayPhatHanh.ToString("dd/MM/yyyy"), run.HanThanhToan.ToString("dd/MM/yyyy"), x.LyDo }.Select(Cell))));
         return File(Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(string.Join("\r\n", lines))).ToArray(), "text/csv; charset=utf-8", $"ket-qua-hoa-don-{run.Nam}{run.Thang:00}-{run.MaLanChay[..8]}.csv");
     }
@@ -209,7 +209,7 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
         return View(model);
     }
 
-    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]
+    [HttpPost, Authorize(Roles = "CHU_NHA"), ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]
     public async Task<IActionResult> Issue(LapHoaDonDichVuViewModel model)
     {
         ModelState.Remove(nameof(model.SoNguoi));
@@ -218,7 +218,7 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
         {
             if (ModelState.IsValid)
             {
-                var id = await invoices.PhatHanhAsync(AccountId, model);
+                var id = await invoices.PhatHanhAsync(AccountId, model, taoNhap: true);
                 return RedirectToAction(nameof(Details), new { id });
             }
         }
@@ -244,6 +244,45 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
         if (context is null) return NotFound();
         if (!await services.SoHuuToaNhaAsync(AccountId, context.ToaNhaId)) return Forbid();
         ViewData["ToaNhaId"] = context.ToaNhaId;
-        return View(await InvoiceViewAsync(await db.HoaDons.AsNoTracking().Include(x => x.ChiTiet).SingleAsync(x => x.Id == id), false));
+        var model = await InvoiceViewAsync(await db.HoaDons.AsNoTracking().Include(x => x.ChiTiet).SingleAsync(x => x.Id == id), false);
+        await invoices.FillRelationsAsync(model);
+        model.LichSuNhap = await invoices.LichSuNhapAsync(AccountId, id);
+        if (model.HoaDon.TrangThai == "DA_PHAT_HANH") model.LyDoChanHuy = await invoices.LyDoChanHuyAsync(id);
+        return View(model);
+    }
+
+    [HttpPost, Authorize(Roles = "CHU_NHA"), ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]
+    public async Task<IActionResult> CreateDraft(int toaNhaId, int hopDongId, int nam, int thang, DateOnly? ngayPhatHanh, DateOnly? hanThanhToan)
+    {
+        if (!ModelState.IsValid) return BadRequest();
+        try { return RedirectToAction(nameof(Details), new { id = await invoices.TaoNhapThangAsync(AccountId, toaNhaId, hopDongId, nam, thang, ngayPhatHanh, hanThanhToan) }); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (Exception ex) when (ex is InvalidOperationException or OverflowException or DbUpdateException or Microsoft.Data.Sqlite.SqliteException)
+        { TempData["MonthlyError"] = "Chưa tạo được bản nháp. Hãy kiểm tra dữ liệu và tải lại kỳ hóa đơn."; }
+        return RedirectToAction(nameof(Monthly), new { toaNhaId, nam, thang });
+    }
+
+    [HttpPost, Authorize(Roles = "CHU_NHA"), ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]
+    public async Task<IActionResult> PublishDraft(PhatHanhNhapViewModel model)
+    {
+        if (!ModelState.IsValid) { TempData["DraftError"] = "Ngày phát hành hoặc hạn thanh toán không hợp lệ."; return RedirectToAction(nameof(Details), new { id = model.Id }); }
+        try { await invoices.PhatHanhNhapAsync(AccountId, model); TempData["DraftSuccess"] = "Đã phát hành hóa đơn và tạo thông báo cho khách. Nội dung hóa đơn đã được khóa."; }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { TempData["DraftError"] = ex.Message; }
+        catch (Exception ex) when (ex is DbUpdateException or Microsoft.Data.Sqlite.SqliteException or OverflowException)
+        { TempData["DraftError"] = "Phát hành không thành công. Hãy tải lại hóa đơn và kiểm tra dữ liệu; chưa tạo thông báo mới."; }
+        return RedirectToAction(nameof(Details), new { id = model.Id });
+    }
+
+    [HttpPost, Authorize(Roles = "CHU_NHA"), ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]
+    public async Task<IActionResult> SaveDraft(SuaHoaDonNhapViewModel model)
+    {
+        if (!ModelState.IsValid) { TempData["DraftError"] = "Số tiền/chỉ số không hợp lệ. Hãy kiểm tra định dạng nhập."; return RedirectToAction(nameof(Details), new { id = model.Id }); }
+        try { await invoices.LuuNhapAsync(AccountId, model); TempData["DraftSuccess"] = "Đã lưu bản nháp và tính lại tổng tiền. Chưa gửi thông báo cho khách."; }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { TempData["DraftError"] = ex.Message; }
+        catch (Exception ex) when (ex is OverflowException or DbUpdateException or Microsoft.Data.Sqlite.SqliteException)
+        { TempData["DraftError"] = "Chưa lưu được hóa đơn. Số tiền vượt giới hạn hoặc dữ liệu đang thay đổi; hãy tải lại."; }
+        return RedirectToAction(nameof(Details), new { id = model.Id });
     }
 }

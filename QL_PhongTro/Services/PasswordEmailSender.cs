@@ -37,12 +37,26 @@ public interface IAppointmentEmailSender
     Task SendConfirmedAsync(string email, string name, string requestCode, DateTime appointmentLocal, int requestId);
 }
 
+public interface IInvoiceEmailSender
+{
+    Task SendIssuedAsync(string email, string subject, string body, string path);
+}
+
 public enum EmailDeliveryMode { Pickup, Smtp }
 
 public sealed record EmailDeliveryResult(EmailDeliveryMode Mode, string? PickupDirectory = null, string? PickupFilePath = null);
 
-public sealed class PasswordEmailSender(IOptions<PasswordResetOptions> options, IWebHostEnvironment environment) : IPasswordEmailSender, ITemporaryPasswordEmailSender, IRegistrationEmailSender, IAppointmentEmailSender
+public sealed class PasswordEmailSender(IOptions<PasswordResetOptions> options, IWebHostEnvironment environment) : IPasswordEmailSender, ITemporaryPasswordEmailSender, IRegistrationEmailSender, IAppointmentEmailSender, IInvoiceEmailSender
 {
+    public Task SendIssuedAsync(string email, string subject, string body, string path)
+    {
+        if (!Uri.TryCreate(options.Value.PublicBaseUrl, UriKind.Absolute, out var origin)
+            || (origin.Scheme != "https" && !(environment.IsDevelopment() && origin.Scheme == "http" && origin.IsLoopback))
+            || !string.IsNullOrEmpty(origin.UserInfo) || !string.IsNullOrEmpty(origin.Query) || !string.IsNullOrEmpty(origin.Fragment)
+            || !path.StartsWith("/ThongBao/HoaDon/", StringComparison.Ordinal))
+            throw new InvalidOperationException("Configure a trusted PublicBaseUrl.");
+        return DeliverAsync(email, subject, body + "\n\nXem hóa đơn: " + options.Value.PublicBaseUrl.TrimEnd('/') + path);
+    }
     public Task SendAsync(string email, string resetUrl) => DeliverAsync(email, "Đặt lại mật khẩu Nhà Trọ",
         "Bạn đã yêu cầu đặt lại mật khẩu Nhà Trọ. Mở liên kết sau trong vòng 30 phút; liên kết chỉ dùng được một lần:\n\n" + resetUrl + "\n\nNếu bạn không yêu cầu, hãy bỏ qua email này.");
 

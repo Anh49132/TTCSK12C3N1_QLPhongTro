@@ -72,6 +72,13 @@ public sealed partial class HoaDonDichVuService
                 continue;
             }
             if (terms.Count != 1 || h.NgayTraPhong < last) { Skip("Chưa có kỳ hợp đồng thuê trọn tháng hợp lệ."); continue; }
+            var cancelled = await db.HoaDons.AsNoTracking().Where(x => x.HopDongId == h.Id && x.Nam == year && x.Thang == month && x.TrangThai == "DA_HUY")
+                .OrderByDescending(x => x.Id).Select(x => (int?)x.Id).FirstOrDefaultAsync();
+            if (cancelled.HasValue) {
+                model.BoQua.Add(new(h.Id, context.Room.MaPhong, "Kỳ này có bản đã hủy. Mở bản cũ để tạo Nháp thay thế.")
+                    { TrangThai="DA_CO_HOA_DON", HoaDonId=cancelled });
+                continue;
+            }
             if (h.NgayChot is < 1 or > 31) { Skip("Ngày chốt hợp đồng không hợp lệ."); continue; }
             var cutoff = new DateOnly(year, month, Math.Min(h.NgayChot, last.Day));
             SoNguoiHoaDon occupancy;
@@ -136,7 +143,7 @@ public sealed partial class HoaDonDichVuService
         }
         var history = await (from invoice in db.HoaDons.AsNoTracking().Include(x => x.ChiTiet)
             join h in db.HopDongs on invoice.HopDongId equals h.Id join p in db.PhongTros on h.PhongId equals p.Id
-            where p.ToaNhaId == building && invoice.Nam == year && invoice.Thang == month && invoice.TrangThai == "DA_PHAT_HANH"
+            where p.ToaNhaId == building && invoice.Nam == year && invoice.Thang == month
             orderby p.MaPhong select new { p.MaPhong, Invoice = invoice }).ToListAsync();
         model.DaPhatHanh = history.Select(x => new HoaDonThangDuKien(x.MaPhong, x.Invoice, [])).ToList();
         return model;
@@ -148,7 +155,7 @@ public sealed partial class HoaDonDichVuService
 
     public async Task<KetQuaPhatHanhThang> PhatHanhDanhSachAsync(int actor, int building, int year, int month,
         IReadOnlyCollection<int>? selectedIds = null, DateOnly? issueDate = null, DateOnly? dueDate = null,
-        IReadOnlyDictionary<int, string>? expected = null)
+        IReadOnlyDictionary<int, string>? expected = null, bool taoNhap = false)
     {
         var timer = Stopwatch.StartNew();
         var started = (clock ?? new SystemTimeProvider()).UtcNow;
@@ -181,22 +188,23 @@ public sealed partial class HoaDonDichVuService
         }
         foreach (var row in model.DuKien)
         {
+            if (taoNhap) row.HoaDon.NgayPhatHanhNghiepVu = null;
             db.HoaDons.Add(row.HoaDon);
-            foreach (var reading in row.ChiSo)
+            foreach (var reading in row.ChiSo.Where(_ => !taoNhap))
             {
                 var tracked = await db.ChiSoDienNuocs.FindAsync(reading.Id);
                 tracked!.DaKhoa = true; tracked.PhienBan++;
             }
         }
         await db.SaveChangesAsync();
-        foreach (var row in model.DuKien)
+        foreach (var row in model.DuKien.Where(_ => !taoNhap))
         {
             row.HoaDon.TrangThai = "DA_PHAT_HANH";
             row.HoaDon.NgayPhatHanh = (clock ?? new SystemTimeProvider()).UtcNow;
             row.HoaDon.NguoiPhatHanhId = actor;
         }
         await db.SaveChangesAsync();
-        results.AddRange(model.DuKien.Select(x => new KetQuaPhongHoaDon(x.HoaDon.HopDongId, x.MaPhong, "DA_PHAT_HANH", "Đã phát hành và khóa chỉ số điện nước.", x.HoaDon.Id)
+        results.AddRange(model.DuKien.Select(x => new KetQuaPhongHoaDon(x.HoaDon.HopDongId, x.MaPhong, taoNhap ? "NHAP" : "DA_PHAT_HANH", taoNhap ? "Đã tạo Nháp, chưa khóa chỉ số và chưa thông báo cho khách." : "Đã phát hành và khóa chỉ số điện nước.", x.HoaDon.Id)
             { MaHoaDon = x.HoaDon.MaHoaDon, TenKhach = x.TenKhach, Tang = x.Tang, TongTien = x.HoaDon.TongTien }));
         var buildingName = await db.ToaNhas.Where(x => x.Id == building).Select(x => x.TenToaNha).SingleAsync();
         var actorName = await db.TaiKhoans.Where(x => x.Id == actor).Select(x => x.HoTen).SingleAsync();

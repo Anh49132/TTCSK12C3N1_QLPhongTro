@@ -1,3 +1,36 @@
+## 09/10/2026 — S3-08 phần 4: lịch sử sửa Nháp
+
+- Nhánh feature/S3-08/04-invoice-draft-history kế thừa phần 3. Ghi một bản trước/sau cho mỗi lần lưu có thay đổi, cùng transaction; có tên/người sửa, giờ UTC, chỉ số, tiền và ghi chú phát sinh/giảm trừ. Thao tác rỗng/sai/stale không thêm lịch sử. Không đổi công thức hoặc schema v22; giữ audit cũ, không backfill thông tin không tồn tại.
+- Lịch sử mới nhất ở trên, giữ nguyên sau phát hành/hủy, bản thay thế có lịch sử riêng. Chủ nhà trong phạm vi sở hữu xem được; khách không nhận lịch sử nội bộ. 193 kiểm tra S3-08 PASS, gồm rollback riêng khi ghi lịch sử lỗi, race, quyền, append-only, mã hóa HTML, 360px và luồng phát hành/hủy/thay thế. CSDL gốc và demo trước giữ nguyên; web 5249 chạy trên bản sao mới. Chưa commit/push phần 4.
+- Hồi quy toàn bộ: 560/569 PASS, 9 FAIL trùng lỗi cũ, 0 test lỗi mới so với phần 3. Bộ nhật ký hiện có 10/10 PASS. Hướng dẫn test/kết quả/giới hạn: [s3084-lich-su-sua-nhap.md](s3084-lich-su-sua-nhap.md).
+
+## 09/10/2026 — S3-08 lát 3: hủy có lý do và phát hành lại
+
+- Nhánh feature/S3-08/03-invoice-cancel-reissue kế thừa phần 1/2. Chủ nhà hủy Đã phát hành có lý do/xác nhận/phiên bản; giữ tiền, dòng, ghi chú, mã và lần phát hành của bản cũ. Tạo Nháp thay thế có liên kết hai phía, sao chép đủ snapshot; bấm lặp/đồng thời không sinh trùng. Sửa/phát hành qua luồng hiện có, khách nhận thông báo mới, bản hủy vẫn tra cứu được.
+- Chặn hủy khi có khoản thu/cấn cọc đang hiệu lực hoặc chờ xử lý, schema tiền chưa tương thích hoặc email đang gửi. Hủy dừng email chưa gửi, không mở khóa/ghi lại chỉ số nguồn. Khách không được xem bản thay thế khi còn Nháp. Danh sách tháng giữ bản hủy và nhãn trạng thái chính xác.
+- Schema v22 thay guard, không thêm bảng/cột nghiệp vụ và không sửa bước migration cũ. Nâng cấp trên bản sao v21, kiểm tra dữ liệu trước/sau và chạy lặp, integrity/FK PASS. CSDL gốc và demo trước đó giữ nguyên; demo mới dùng thư mục riêng dưới data/s308-demo.
+- 174 kiểm tra service/HTTP/Chrome PASS, gồm rollback audit/ghi dòng, race tạo thay thế, chống sửa bản hủy, nguồn chỉ số đã khóa, quyền, CSRF, trạng thái/thông báo/link, tính lại tiền chính xác, giao diện 360px và email pickup. Sửa lỗi partial khi mở từ ThongBao, nguồn đã khóa chặn phát hành bản thay thế, ẩn bản hủy và nhãn phát hành sai. Hướng dẫn/kết quả hồi quy: [s3083-huy-phat-hanh-lai.md](s3083-huy-phat-hanh-lai.md).
+- Web demo cổng 5249, CSDL bản sao v22; email local. Chưa kiểm tra SMTP thật/Safari/tải production; chưa làm giao diện nhật ký chi tiết trước/sau các lần sửa. Chưa commit/push phần 3.
+- Hồi quy toàn bộ và chạy lại test sau sửa fixture: tổng hợp 560/569 PASS, 9 FAIL đã có trên baseline trước phần 2. Cả 7 test schema liên quan PASS; chi tiết và giới hạn nằm trong báo cáo phần 3.
+
+## 09/10/2026 — Rà soát tương thích S3-08 phần 2
+
+- Sửa lỗi 500 trên trang khách thuê khi CSDL chưa cài module hóa đơn; kiểm tra module và quyền trước chuông, trang thông báo và hàng đợi email. 105 kiểm tra S3-08 PASS; 4 test schema và 3 test HTTP Nháp hàng loạt PASS sau cập nhật fixture/kỳ vọng cho luồng mới. Hồi quy tổng hợp 557/569 PASS sau chạy lại 3 test; 12 FAIL còn lại cũng FAIL trên commit trước phần 2 (xem báo cáo). CSDL gốc không đổi. Thêm project verification/S308Regression để chạy test có sẵn; kết quả và giới hạn: [s3082-ra-soat-loi.md](s3082-ra-soat-loi.md).
+
+## 09/10/2026 — S3-08 lát 2: phát hành và thông báo
+
+- Nhánh feature/S3-08/02-invoice-publish-notify kế thừa lát 1. Thêm xác nhận phát hành, kiểm tra phiên bản/quyền/CSRF, lưu trạng thái và thông báo trong cùng transaction; gửi email từ hàng đợi sau commit. Đã phát hành khóa sửa, hiển thị thời điểm; khách đứng tên xem thông báo và hóa đơn chỉ đọc.
+- Schema v21 bổ sung thong_bao; chỉ nâng cấp bản sao/demo, giữ nguyên CSDL gốc. 97 kiểm tra service/HTTP/Chrome PASS, kiểm tra giao diện 360px và email pickup. Chưa kiểm tra SMTP thật/Safari/regression toàn dự án; chưa làm hủy/thay thế/nhật ký riêng. Chi tiết: [s3082-phat-hanh-thong-bao.md](s3082-phat-hanh-thong-bao.md).
+
+## 09/10/2026 — S3-08 lát 1: hóa đơn Nháp
+
+- Nhánh `feature/S3-08/01-invoice-draft-edit`: các action tạo hóa đơn trên web lưu `NHAP`; tạo từng hợp đồng hoặc danh sách tháng không phát hành, không khóa chỉ số gốc, không gửi thông báo.
+- Chủ nhà có quyền TAI_CHINH và sở hữu tòa được sửa snapshot chỉ số, thêm PHAT_SINH/GIAM_TRU kèm tên, số tiền nguyên đồng dương và ghi chú bắt buộc. Giữ đơn giá snapshot; decimal, làm tròn từng dòng AwayFromZero; giảm trừ lưu dương và trừ khi cộng tổng. Chặn tổng âm/tràn số, chỉ số sai, dòng chỉ số giả, bản đã phát hành và phiên bản cũ. Lưu trong transaction, CSRF trên POST; danh sách tháng hiển thị Nháp để mở lại.
+- Không đổi schema; dùng cột ghi_chu có sẵn. Không chạy updater hoặc chỉnh dữ liệu gốc. Mã SHA-256 của QL_PhongTro/Data/local-dev.sqlite giữ nguyên trước/sau kiểm thử. Bộ demo S3-08 dùng bản sao riêng dưới data/s308-demo; bổ sung chỉ số giả và kỳ giá nước theo chỉ số trên bản sao (không dùng giá này cho môi trường thật).
+- Build PASS, 46 kiểm tra service/HTTP PASS trên SQLite giả mới: 10 ví dụ làm tròn, tạo Nháp đơn/hàng loạt/chạy lại, sửa chỉ số giữ nguồn gốc, phát sinh/giảm trừ, ghi chú, tổng âm/tràn, lưu cũ, bất biến sau phát hành, integrity/FK, form/binding, CSRF, chủ nhà khác và quyền ghi 4 vai trò, không tạo email. Lệnh: `dotnet run --project verification/S308/S308.csproj -p:OutputPath="$pwd/data/s308-check/" -- .`.
+- Bộ xUnit hiện thiếu Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj trong checkout nên dùng verification/S308 riêng. Giữ UnitTest1.cs sẵn có. Cảnh báo ImageSharp/CS8601 cũ còn tồn tại. Chưa kiểm trực quan mobile/Safari hoặc regression toàn dự án; không bổ sung phát hành/hủy/thay thế/nhật ký riêng trong lát này. Audit nền hiện có tiếp tục hoạt động.
+- Chờ PO xác nhận danh mục loại chi tiết; hiện dùng hai nhóm và tên khoản tự nhập. Quy tắc làm tròn kế thừa AGENTS.md. Hướng dẫn và giới hạn: [s3081-hoa-don-nhap.md](s3081-hoa-don-nhap.md). Chạy demo: `./verification/Start-S308Demo.ps1`, cổng 5249. Chưa commit/push.
+
 
 ## 08/10/2026 — Admin tạo tài khoản Admin và đổi vai trò
 

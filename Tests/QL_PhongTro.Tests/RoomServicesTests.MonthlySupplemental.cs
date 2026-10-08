@@ -124,12 +124,12 @@ public sealed partial class RoomServicesTests
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync($"/HoaDonDichVu/Preview?toaNhaId=2&hopDongId={f.A}&nam=2026&thang=10")).StatusCode);
         var token = System.Text.RegularExpressions.Regex.Match(html,"name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
         Assert.NotEmpty(token);
-        var review = System.Text.RegularExpressions.Regex.Match(html,"name=\"reviewToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
-        var response = await client.PostAsync("/HoaDonDichVu/IssueMonthly", new FormUrlEncodedContent(new Dictionary<string,string>
-        { ["toaNhaId"]="1",["nam"]="2026",["thang"]="10",["hopDongId"]=f.A.ToString(),["__RequestVerificationToken"]=token,["reviewToken"]=review,["xacNhan"]="true" }));
+        var response = await client.PostAsync("/HoaDonDichVu/CreateDraft", new FormUrlEncodedContent(new Dictionary<string,string>
+        { ["toaNhaId"]="1",["nam"]="2026",["thang"]="10",["hopDongId"]=f.A.ToString(),["__RequestVerificationToken"]=token }));
         Assert.Equal(HttpStatusCode.Redirect,response.StatusCode);
         using var verify = Context(); var invoice = await verify.HoaDons.SingleAsync();
         Assert.Equal(f.A,invoice.HopDongId); Assert.Equal(1430000,invoice.TongTien);
+        Assert.Equal("NHAP",invoice.TrangThai);Assert.Empty(await verify.ThongBaoHoaDons.ToListAsync());
         Assert.False(await verify.ChiSoDienNuocs.AnyAsync(x=>x.HopDongId==f.B && x.DaKhoa));
         await Login(client,"other"); Assert.Equal(HttpStatusCode.Forbidden,(await client.GetAsync(url)).StatusCode);
     }
