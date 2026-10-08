@@ -534,6 +534,19 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
             ModelState.AddModelError(nameof(model.QuanLyId), "Vui lòng chọn người quản lý đang hoạt động trong danh sách.");
     }
 
+    [HttpGet, ModuleAccess("PHONG_TRO")]
+    public async Task<IActionResult> Details(int id)
+    {
+        var room = await db.PhongTros.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id);
+        if (room is null) return NotFound();
+        var accountId = CurrentAccountId();
+        if (accountId is null) return Forbid();
+        var building = await VisibleBuildings(accountId.Value, activeOnly: false)
+            .SingleOrDefaultAsync(x => x.Id == room.ToaNhaId);
+        if (building is null) return Forbid();
+        return View(new ChiTietPhongViewModel { Phong = room, ToaNha = building });
+    }
+
     [HttpGet, ModuleAccess("PHONG_TRO", write: true)]
     public async Task<IActionResult> Edit(int id)
     {
@@ -838,10 +851,17 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         _ => status.ToString()
     };
 
-    private Task<List<SelectListItem>> GetBuildingOptions(int ownerId) => VisibleBuildings(ownerId, activeOnly: true)
-        .OrderBy(building => building.TenToaNha)
-        .Select(building => new SelectListItem(building.TenToaNha, building.Id.ToString()))
-        .ToListAsync();
+    private async Task<List<SelectListItem>> GetBuildingOptions(int ownerId)
+    {
+        var buildings = await VisibleBuildings(ownerId, activeOnly: true)
+            .OrderBy(building => building.TenToaNha)
+            .Select(building => new { building.Id, building.TenToaNha, building.QuanHuyen, building.TinhThanh, building.SoTang })
+            .ToListAsync();
+        ViewData["RoomBuildingLocations"] = buildings.ToDictionary(building => building.Id.ToString(),
+            building => string.Join(", ", new[] { building.QuanHuyen, building.TinhThanh }.Where(value => !string.IsNullOrWhiteSpace(value))));
+        ViewData["RoomBuildingFloors"] = buildings.ToDictionary(building => building.Id.ToString(), building => building.SoTang);
+        return buildings.Select(building => new SelectListItem(building.TenToaNha, building.Id.ToString())).ToList();
+    }
 
     private Task<ToaNha?> GetOwnedBuilding(int id) => db.ToaNhas
         .SingleOrDefaultAsync(building => building.Id == id && (building.ChuNhaId == CurrentAccountId() || IsAdmin));

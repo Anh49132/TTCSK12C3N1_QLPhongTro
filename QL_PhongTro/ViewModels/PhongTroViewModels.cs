@@ -195,3 +195,9 @@ public class ToaNhaTongHopViewModel
     public int SoPhongDangThue { get; set; }
     public bool DangHoatDong { get; set; }
 }
+
+public class ChiTietPhongViewModel
+{
+    public PhongTro Phong { get; set; } = null!;
+    public ToaNha ToaNha { get; set; } = null!;
+}

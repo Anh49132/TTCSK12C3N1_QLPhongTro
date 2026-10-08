@@ -781,3 +781,97 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 - 08/10/2026: Quản lý phòng theo ảnh: bốn thống kê thực tế, thanh phòng trống, tabs trạng thái, bộ lọc cơ sở/quản lý, tìm mã/tên khách hiện tại, bảng khách/giá/trạng thái, menu giữ thao tác cũ, phân trang client 10/20/50, danh sách/lưới và CSV. Không gán ngừng cho thuê thành bảo trì; sidebar giữ nguyên; không chụp ảnh. Build và HTTP bộ lọc đạt; chưa kiểm chứng trực quan và JS trong trình duyệt.
 
 - 08/10/2026: Thêm phòng theo bố cục ảnh, partial/CSS riêng chỉ nạp Create; giữ Edit và backend cũ. Form có thông tin/giá/trạng thái, sidebar ảnh hướng dẫn thêm sau lưu; chưa hỗ trợ tiện nghi/ghi chú/cọc ở phòng, không tạo trường giả. Build và HTTP form/validation/Edit đạt, không chụp ảnh.
+
+- 08/10/2026: Chỉnh khối Thông tin cơ bản của Thêm phòng theo ảnh: viền, khoảng cách, đơn vị, địa chỉ quận/tỉnh theo cơ sở thực tế và radio Còn trống/Bảo trì. Bảo trì dùng NGUNG_CHO_THUE hiện có, chưa có nghiệp vụ bảo trì riêng. Tầng giữ input số, không tự giới hạn tầng. Không đổi schema, không thêm nghiệp vụ, không chụp màn hình. Build Debug đạt; git diff --check đạt. Chưa kiểm chứng trực quan/mobile trong trình duyệt. Tiện nghi riêng vẫn chưa có; ảnh thêm sau khi lưu theo luồng hiện có. Mã HopDongController thực tế đã có cập nhật DANG_THUE, khác ghi chú Sprint 3 chưa làm trong AGENTS.md.
+
+- 08/10/2026: Làm đẹp dropdown cơ sở ở form thêm phòng: danh sách trắng bo góc, bóng nhẹ, lựa chọn màu be và dấu tick; hỗ trợ phím mũi tên/Home/End/Escape, đóng khi rời focus/bấm ngoài. Select gốc giữ nguyên binding và validation, tự dùng lại giao diện gốc khi JavaScript không chạy. Chỉ sửa CSS/JS, không thêm nghiệp vụ. git diff --check đạt; chưa kiểm chứng trực quan trình duyệt, không chụp màn hình.
+
+- 08/10/2026: Tinh chỉnh dropdown cơ sở theo ảnh mới: nhãn Cơ sở màu nhạt trong ô chọn, tên cơ sở đậm, menu thoáng 41px mỗi mục, nền be và tick màu vàng nâu. Giữ Chọn cơ sở khi chưa chọn vì form tạo phòng yêu cầu một cơ sở cụ thể; không dùng Tất cả cơ sở của bộ lọc. node --check và git diff --check đạt. Chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Tăng cột rc-aside của form thêm phòng từ 300 lên 350px; ở breakpoint <=950px tăng từ 260 lên 300px. Giữ bố cục một cột <=750px. Chỉ chỉnh CSS, không thêm chức năng; chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Chỉnh hiệu ứng nổi cho nút chọn cơ sở theo ảnh: viền xám nhẹ, bo góc 10px, bóng quanh nút và menu, trạng thái mở/focus dùng bóng be nhẹ. Chỉ CSS, giữ chức năng và chiều rộng rc-aside. git diff --check đạt; chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Sửa dropdown cơ sở không hiện giao diện mới ở demo đang chạy. HTTP xác nhận Razor runtime cũ có select#ToaNhaId nhưng thiếu data-room-building, trong khi server đã phục vụ JS mới. Bổ sung selector theo id trong room-create-page để tương thích form đang chạy, không ảnh hưởng Edit/CreateBulk. HTTP xác nhận server phục vụ bản sửa; node --check và git diff --check đạt. Không chụp màn hình, chưa kiểm chứng trực quan trình duyệt.
+
+- 08/10/2026: Tăng thêm chiều rộng rc-aside theo yêu cầu: màn hình lớn 350 → 400px, breakpoint <=950px 300 → 330px; giữ một cột <=750px. Chỉ CSS, không thêm chức năng. git diff --check đạt; chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Tăng tiếp rc-aside theo yêu cầu: màn hình lớn 400 → 450px, breakpoint <=950px 330 → 350px; giữ một cột <=750px. Chỉ CSS. git diff --check đạt; chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Chỉnh lại khối Thông tin cơ bản theo ảnh mới, biểu tượng SVG, bố cục/ô nhập gọn và bỏ nhãn Cơ sở lặp bên trong nút. Tầng có gợi ý từ SoTang của cơ sở, vẫn nhập số nếu chưa khai báo; không thay validation backend. Bảo trì chỉ còn radio disabled, không bind NGUNG_CHO_THUE và có thông báo chưa hỗ trợ. Còn trống và các trường hiện có giữ hoạt động. Không thêm nghiệp vụ, không đổi schema; node --check và git diff --check đạt, chưa kiểm chứng trực quan. Bản demo dùng DLL riêng cần build/khởi động lại để nhận Razor mới; không chụp màn hình.
+
+- 08/10/2026: Cập nhật đúng DLL demo đang phục vụ cổng 5247: dừng PID theo netstat, build runtime demo hiện có và chạy lại với cùng DB/ảnh/keys/pickup. HTTP đăng nhập xác nhận Create trả rc-basic-card, Bảo trì disabled và data-room-building mới. Không chạy updater, không chụp màn hình.
+
+- 08/10/2026: Giá thuê & tiền cọc theo ảnh: giữ input giá thuê hoạt động; thêm ô cọc disabled và khung 4 phí Điện/Nước/Internet/Vệ sinh với checkbox, giá minh họa, cách tính, Thêm phí khác đều disabled và không có name để không gửi/lưu. Thông báo rõ từng mục chưa hoạt động; dịch vụ mặc định hiện có không đổi. CSS responsive. Build runtime demo đạt và khởi động lại cùng DB; HTTP xác nhận card mới, 4 dòng phí và cọc disabled; diff --check đạt. Không chụp màn hình; chưa kiểm chứng trực quan/mobile.
+
+- 08/10/2026: Thêm khung Ghi chú dưới phần giá/phí theo ảnh: biểu tượng, tiêu đề/mô tả, textarea bo góc, nội dung mẫu qua placeholder, dòng chỉ hiển thị cho chủ nhà và 0/500 ký tự. Ô disabled, không có name và không lưu vì form chưa hỗ trợ ghi chú; có thông báo rõ. Không đổi schema/backend. Build demo và diff --check đạt, khởi động lại cùng cấu hình; HTTP xác nhận khung và textarea disabled. Chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Chuyển Ghi chú từ cột chính sang rc-aside dưới Ảnh phòng theo bố cục mẫu. Build lại/khởi động demo cùng DB; HTTP xác nhận Ghi chú nằm trong aside. Ô vẫn disabled, không lưu. Không chụp màn hình.
+
+- 08/10/2026: Thêm nút Tạo nhanh phòng giữa Xuất danh sách và Thêm phòng trên Quản lý phòng, dùng CreateBulk hiện có và giữ toaNhaId đang lọc. Điều kiện quyền ghi PHONG_TRO và có cơ sở giống Thêm phòng. Không thêm nghiệp vụ/schema. Build demo đạt, khởi động lại cùng DB; HTTP xác nhận thứ tự nút và CreateBulk 200. diff --check đạt; không chụp màn hình.
+
+- 08/10/2026: Bỏ toàn bộ khung Lưu ý và liên kết Tạo nhanh nhiều phòng trong sidebar trang Thêm phòng theo ảnh. Nút tạo nhanh ở Quản lý phòng giữ nguyên. Build runtime demo/khởi động lại cùng DB đạt; HTTP xác nhận không còn rc-bulk; diff --check đạt. Không chụp màn hình.
+
+- 08/10/2026: Đổi giao diện Dịch vụ & đơn giá theo ảnh với CSS riêng service-management.css chỉ nạp Index: 4 thống kê từ dữ liệu thật của tòa đang chọn; lịch giá sắp áp dụng khi có; bảng tên/mã, cách tính, giá, đơn vị, phạm vi tòa, trạng thái, hiệu lực và menu thao tác; hai thẻ giải thích. Sidebar/layout không sửa. Giữ chọn tòa, thêm/sửa đơn giá, đặt mặc định, xóa, cấu hình điện nước, hóa đơn và CSRF/quyền hiện có. Xuất danh sách, tìm kiếm, tab lọc, lọc cách tính, sắp xếp, phân trang chỉ có khung disabled và thông báo rõ; không thêm backend/schema. Build runtime demo đạt (cảnh báo ImageSharp/CS8601 có sẵn), khởi động lại cùng DB. HTTP Index/CSS/Manage 200, 4 thống kê, 5 dịch vụ thực tế, token CSRF còn; diff --check đạt, không có diff Views/Shared. Chưa kiểm chứng trực quan/mobile; không chụp màn hình.
+
+- 08/10/2026: Thay mũi tên chữ của Xem đơn giá trong banner sắp áp dụng bằng SVG nét mảnh màu #8D7953 theo ảnh. Chỉ giao diện, sidebar giữ nguyên. Build runtime demo đạt, khởi động lại cùng cấu hình, HTTP xác nhận CSS mới; diff --check đạt. Banner chỉ xuất hiện khi có lịch giá thực tế. Không chụp màn hình.
+
+- 08/10/2026: Nút Xuất danh sách trang Dịch vụ dùng SVG tải xuống nét mảnh và chữ đậm theo ảnh. Nút vẫn disabled vì chưa hỗ trợ xuất; không thêm nghiệp vụ/sidebar. Build demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận icon mới, diff --check đạt. Không chụp màn hình.
+
+- 08/10/2026: Chuyển nút Cấu hình điện nước lên giữa Xuất danh sách và Thêm dịch vụ trong header Dịch vụ & đơn giá; bỏ vị trí cũ, giữ liên kết hóa đơn bên dưới. Giữ toaNhaId, quyền ghi và trạng thái sẵn sàng. Build runtime demo đạt, khởi động cùng cấu hình; HTTP xác nhận nút header và DienNuoc 200. Không đổi sidebar, không chụp màn hình.
+
+- 08/10/2026: Thêm trang tổng quan phòng Details theo ảnh và chuyển liên kết Chi tiết trong Quản lý phòng sang trang này; nút Chỉnh sửa giữ form Edit cũ. Dữ liệu phòng/cơ sở/giá thật; quyền module và phạm vi tòa owner/manager/admin được kiểm tra backend, dữ liệu khác trả 403. CSS riêng, không sửa layout/sidebar, không đổi schema. Các khối khách thuê/hợp đồng/hóa đơn/cọc/phí/tiện nghi chưa kết nối chỉ hiển thị dấu — hoặc nhãn minh họa; tab phụ, tạo hóa đơn trực tiếp, xem hồ sơ/hợp đồng, ghi chú/bảo trì disabled. Khối tài chính/hợp đồng chỉ hiển thị khi có quyền. Link xem hóa đơn theo tòa và lịch sử người ở dùng luồng hiện có. Build demo đạt, HTTP trang chi tiết/CSS 200, liên kết Edit còn và 9 nút preview disabled; diff --check đạt, Views/Shared không có diff. Chưa kiểm chứng trực quan/mobile, không chụp màn hình.
+
+- 08/10/2026: Sửa tên hiển thị trang thành Chi tiết phòng (tiêu đề trang, h1, tab và mô tả) theo yêu cầu; giữ bố cục/sidebar/chức năng. Build demo đạt và đã khởi động lại cùng cấu hình. Không chụp màn hình.
+
+- 08/10/2026: Header Chi tiết phòng có breadcrumb icon nhà / Phòng cho thuê / mã phòng thực tế theo ảnh; liên kết về danh sách giữ cơ sở đang xem. Chỉ thêm nhánh header Details và CSS riêng, sidebar không sửa. Build demo/HTTP breadcrumb đạt, không chụp màn hình.
+
+- 08/10/2026: Đồng bộ breadcrumb Chi tiết phòng với Chi tiết tòa: chữ 16px/600, icon 21px stroke 1.6, gap 12px và cùng màu chữ/phân cách. Chỉ CSS riêng, sidebar giữ nguyên. HTTP xác nhận server phục vụ CSS mới, diff --check đạt; không chụp màn hình.
+
+- 08/10/2026: Bỏ liên kết Quay lại danh sách phòng ở nội dung Chi tiết phòng theo ảnh. Breadcrumb header giữ nguyên. Build runtime demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận không còn rd-back. Không chụp màn hình.
+
+- 08/10/2026: Thay 4 ký hiệu phí dịch vụ trong Chi tiết phòng bằng SVG nét mảnh màu xám: tia sét, giọt nước, Wi-Fi, thùng rác theo ảnh. Chỉ giao diện, giữ trạng thái khung chưa kết nối/sidebar. Build demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận 4 SVG, diff --check đạt. Không chụp màn hình.
+
+- 08/10/2026: Chỉnh form Edit theo ảnh bằng partial _EditRoomForm và CSS room-edit riêng: header/breadcrumb, banner lưu ý, hai cột thông tin/giá/phí/ghi chú và khách thuê/tiện nghi/ảnh, footer lưu/hủy. Sidebar không sửa. Giữ toàn bộ binding/validation/CSRF và POST Edit, select trạng thái hiện có, cơ sở disabled + hidden; JS dropdown bỏ qua select disabled. Giữ nguyên image manager và endpoint upload/reorder/delete. Cọc, phí dịch vụ, thêm phí, ghi chú, tiện nghi chỉ là khung disabled không gửi/lưu; khách thuê/hợp đồng/cọc/công nợ chưa kết nối hiển thị —, không dùng dữ liệu mẫu. Giá mẫu phí chỉ placeholder. Build demo đạt, khởi động lại cùng DB; HTTP xác nhận form/breadcrumb/endpoint ảnh, POST dữ liệu không hợp lệ trả validation và không lưu; Create vẫn hiển thị partial cũ. node --check/diff --check đạt; chưa kiểm chứng trực quan/mobile/upload trong trình duyệt, không chụp màn hình.
+
+- 08/10/2026: Bỏ liên kết Quay lại chi tiết phòng trên form Edit theo ảnh; breadcrumb và nút Hủy giữ nguyên. Build demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận không còn re-back, diff --check đạt. Không chụp màn hình.
+
+- 08/10/2026: Giao diện Thêm dịch vụ theo ảnh: 4 khối thông tin/cách tính/phạm vi/hiệu lực, tóm tắt cập nhật client từ dữ liệu nhập, giải thích công thức, footer lưu/hủy, breadcrumb riêng. Sidebar không đổi. Giữ tên/cách tính (3 loại hiện có)/đơn giá nguyên đồng/đơn vị/chọn một tòa/mặc định phòng mới và POST/CSRF/validation hiện có. Mã tự sinh sau lưu, không lấy mã mẫu. Chọn nhiều tòa, phòng cụ thể, hẹn hiệu lực, chọn trạng thái, ghi chú chưa hỗ trợ và disabled/ghi rõ; trạng thái/ngày theo backend đang áp dụng từ ngày khai báo. Không thêm backend/schema. Build demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận form, 3 cách tính, tóm tắt, CSS 200; POST không hợp lệ trả validation không lưu. node --check/diff --check đạt. Chưa kiểm chứng trực quan/client interaction/mobile; không chụp màn hình.
+
+- 08/10/2026: Bỏ liên kết quay lại Dịch vụ & đơn giá phía trên tiêu đề Thêm dịch vụ theo ảnh. Build demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận không còn sc-back. Không chụp màn hình.
+
+- 08/10/2026: Xếp Theo tiêu thụ/Cố định/Theo đầu người thành một hàng trên form Thêm dịch vụ; <=750px giữ một cột. Chỉ CSS, không đổi xử lý. HTTP xác nhận CSS mới; không chụp màn hình.
+
+- 08/10/2026: Tinh chỉnh khối cách tính/đơn giá theo ảnh: ô chọn cao 72px, radio nét mảnh với nền be khi chọn, viền vàng nâu, đơn vị có mũi tên và thanh công thức nhạt. Giữ 3 cách tính một hàng theo yêu cầu trước, không bỏ Theo đầu người. Chỉ CSS, chức năng không đổi; HTTP xác nhận CSS mới. Không chụp màn hình.
+
+- 08/10/2026: Ô Theo tiêu thụ dùng SVG đồng hồ nét mảnh thay ký hiệu chữ, nền trắng/viền xám/spacing theo ảnh. Giữ ba cách tính một hàng và xử lý radio. Build demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận icon mới. Không chụp màn hình.
+
+- 08/10/2026: Sửa bố cục/kích thước ô cách tính theo làm rõ của người dùng: grid radio 15px + nội dung, icon absolute góc phải, cao tối thiểu 82px, padding dành riêng cho icon; cột tóm tắt 290px (260px <=1000) để tăng không gian ba ô cùng hàng. Mobile giữ một cột/ô cao 72px. Chỉ CSS; HTTP xác nhận bản sửa, không chụp màn hình.
+
+- 08/10/2026: Đồng bộ rõ cả ba ô Theo tiêu thụ/Cố định/Theo đầu người: cùng chiều cao, padding, cột radio/nội dung và vị trí icon; grid stretch giữ kích thước ngang nhau. Giữ ba cách tính hiện có và mobile một cột. Chỉ CSS; HTTP xác nhận bản mới. Không chụp màn hình.
+
+- 08/10/2026: Đồng bộ hoàn chỉnh ba ô cách tính: cả ba icon dùng SVG cùng kích thước/nét/màu/vị trí, cùng trạng thái chọn nền be/viền vàng nâu. Giữ kích thước, font, padding và ba ô cùng hàng đã chỉnh. Build runtime demo đạt, khởi động lại cùng cấu hình; HTTP xác nhận 3 SVG. Không sửa sidebar/chức năng, không chụp màn hình.
+
+- 08/10/2026: Chỉnh kích thước/cỡ chữ/bố cục ba ô cách tính theo ảnh mới: min-height 70px, title 12px/600/17px, mô tả 10px/16px, padding 11px, radio 15px, icon góc phải 15px, gap 10px và 3 cột bằng nhau. Mobile một cột. Chỉ CSS, không đổi nội dung/nghiệp vụ/sidebar. HTTP xác nhận server phục vụ CSS mới; diff --check đạt, chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Giảm chiều cao tối thiểu ba khung cách tính từ 70 xuống 64px và padding dọc từ 11 xuống 8px theo yêu cầu chỉnh chiều cao; giữ cỡ chữ/bố cục. HTTP xác nhận CSS mới. Không chụp màn hình.
+
+- 08/10/2026: Làm đẹp menu Đơn vị tính ở Thêm dịch vụ: thay popup datalist khi JS hoạt động bằng menu trắng full-width, bo góc/bóng nhẹ, nền be/tick khi chọn; giữ input gốc và đơn vị tự nhập, name/validation/preview không đổi. Hỗ trợ phím mũi tên/Enter/Escape/Tab, đóng khi bấm ngoài. Không có backend mới. node --check/diff --check đạt; HTTP xác nhận JS mới. Chưa kiểm chứng tương tác trực quan, không chụp màn hình.
+
+- 08/10/2026: Sửa nguyên nhân chiều cao ba ô cách tính không cập nhật: selector :has(#sc-meter/fixed/person) có specificity ID giữ min-height 82px và ghi đè quy tắc 64px. Chuyển selector về :has(input) cùng specificity để quy tắc cuối 64px/padding 8px có hiệu lực cho cả ba. HTTP xác nhận không còn selector ID và CSS 64px được phục vụ; diff --check đạt. Chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Xóa các khai báo min-height 82px cũ trong CSS ba ô cách tính theo yêu cầu. Giữ quy tắc cuối 64px. HTTP xác nhận CSS không còn 82px, vẫn có 64px. Không chụp màn hình.
+
+- 08/10/2026: Cân đối ba khung cách tính: 3 cột bằng nhau, cao tối thiểu 72px, gap/padding 12px, radio/icon 15px, chữ 12px và mô tả 10px, cùng hàng/cùng chiều cao; mobile một cột. Gộp các override cách tính cũ thành một khối thống nhất để tránh ghi đè chiều cao. Giữ CSS menu đơn vị và xử lý hiện có. HTTP xác nhận CSS mới; diff --check đạt. Không chụp màn hình.
+
+- 08/10/2026: Giảm các ô sc-methods từ min-height 72 xuống 60px, padding dọc 8px, căn icon top 9px. Giữ ba ô cùng hàng và nội dung. HTTP xác nhận CSS mới; không chụp màn hình.
+
+- 08/10/2026: Thu thấp sc-methods xuống min-height 52px, padding dọc 6px. Căn radio 15px với tiêu đề line-height 15px cùng hàng, mô tả phía dưới line-height 14px/gap 3px, icon top 6px. Giữ ba lựa chọn và responsive. HTTP xác nhận CSS mới, diff --check đạt; chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Căn ba ô cách tính theo ảnh: padding 10px dọc/11px trái, radio ngang tiêu đề, mô tả thẳng dưới tiêu đề cách 4px, icon góc phải top 11px/right 12px; giữ min-height 52px, tự giãn khi chữ xuống dòng. Chỉ CSS. HTTP xác nhận bản mới; không chụp màn hình.
+
+- 08/10/2026: Sửa căn ba ô bằng grid 3 cột rõ ràng: radio cột 1/hàng 1, khối tiêu đề+mô tả cột 2/hàng 1, SVG cột 3/hàng 1. Bỏ icon absolute và override căn cũ, min-height 58px/padding 10px. HTTP xác nhận CSS grid mới được phục vụ; diff --check đạt. Chưa kiểm chứng trực quan, không chụp màn hình.
+
+- 08/10/2026: Ẩn nút tăng/giảm mặc định của input số Đơn giá ở form Thêm dịch vụ theo ảnh; giữ input number và validation hiện có. Chỉ CSS, HTTP xác nhận bản mới. Không chụp màn hình.
+
+- 08/10/2026: Khối Phạm vi áp dụng theo ảnh: tòa đang chọn hiển thị dạng thẻ trong menu riêng bo góc, chọn tòa giữ select/binding gốc; phạm vi mặc định dùng nút hình tròn giữ boolean cũ. Vẫn chỉ một tòa mỗi lần, không tạo dữ liệu/thẻ mẫu nhiều tòa; không gán tất cả phòng hiện có, không mở chọn phòng cụ thể. Có nhãn giải thích giới hạn hiện có. JS hỗ trợ bàn phím/đóng ngoài; node --check/diff --check đạt, HTTP xác nhận JS mới. Không sửa sidebar/schema/backend, chưa kiểm chứng trực quan, không chụp màn hình.
