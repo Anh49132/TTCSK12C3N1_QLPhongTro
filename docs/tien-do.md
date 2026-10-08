@@ -1,3 +1,12 @@
+## 09/10/2026 — Rà soát tương thích S3-08 phần 2
+
+- Sửa lỗi 500 trên trang khách thuê khi CSDL chưa cài module hóa đơn; kiểm tra module và quyền trước chuông, trang thông báo và hàng đợi email. 105 kiểm tra S3-08 PASS; 4 test schema và 3 test HTTP Nháp hàng loạt PASS sau cập nhật fixture/kỳ vọng cho luồng mới. Hồi quy tổng hợp 557/569 PASS sau chạy lại 3 test; 12 FAIL còn lại cũng FAIL trên commit trước phần 2 (xem báo cáo). CSDL gốc không đổi. Thêm project verification/S308Regression để chạy test có sẵn; kết quả và giới hạn: [s3082-ra-soat-loi.md](s3082-ra-soat-loi.md).
+
+## 09/10/2026 — S3-08 lát 2: phát hành và thông báo
+
+- Nhánh feature/S3-08/02-invoice-publish-notify kế thừa lát 1. Thêm xác nhận phát hành, kiểm tra phiên bản/quyền/CSRF, lưu trạng thái và thông báo trong cùng transaction; gửi email từ hàng đợi sau commit. Đã phát hành khóa sửa, hiển thị thời điểm; khách đứng tên xem thông báo và hóa đơn chỉ đọc.
+- Schema v21 bổ sung thong_bao; chỉ nâng cấp bản sao/demo, giữ nguyên CSDL gốc. 97 kiểm tra service/HTTP/Chrome PASS, kiểm tra giao diện 360px và email pickup. Chưa kiểm tra SMTP thật/Safari/regression toàn dự án; chưa làm hủy/thay thế/nhật ký riêng. Chi tiết: [s3082-phat-hanh-thong-bao.md](s3082-phat-hanh-thong-bao.md).
+
 ## 09/10/2026 — S3-08 lát 1: hóa đơn Nháp
 
 - Nhánh `feature/S3-08/01-invoice-draft-edit`: các action tạo hóa đơn trên web lưu `NHAP`; tạo từng hợp đồng hoặc danh sách tháng không phát hành, không khóa chỉ số gốc, không gửi thông báo.

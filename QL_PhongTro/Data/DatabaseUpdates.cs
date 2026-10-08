@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    private const int CurrentVersion = 20;
+    internal const int CurrentVersion = 21;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -68,6 +68,7 @@ public static class DatabaseUpdates
         foreach (var entity in db.Model.GetEntityTypes())
         {
             var table = entity.GetTableName()!;
+            if (table == "thong_bao" && schemaVersion < 21) continue;
             if (table == "chi_so_dien_nuoc" && schemaVersion < 19 && !HasTable(c, table)) continue;
             if (table == "nguoi_o_ghep" && schemaVersion < 16) continue;
             if (table == "hop_dong_chi_so_dau_ky" && schemaVersion < 15) continue;
@@ -439,6 +440,7 @@ public static class DatabaseUpdates
             tx.Commit();
         }
         if (version < 20) InvoiceIssueDateSchema.Upgrade(c);
+        if (version < 21) InvoiceNotificationSchema.Upgrade(c);
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }

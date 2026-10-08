@@ -31,7 +31,8 @@ using (var setup = Context()) {
               (2,'Other','other@example.test','0900000002','unused','CHU_NHA',1,1,'2026-01-01','2026-01-01'),
               (3,'Manager','manager@example.test','0900000003','unused','QUAN_LY',1,1,'2026-01-01','2026-01-01'),
               (4,'Tenant','tenant@example.test','0900000004','unused','KHACH_THUE',1,1,'2026-01-01','2026-01-01'),
-              (5,'Admin','admin@example.test','0900000005','unused','ADMIN',1,1,'2026-01-01','2026-01-01');
+              (5,'Admin','admin@example.test','0900000005','unused','ADMIN',1,1,'2026-01-01','2026-01-01'),
+              (6,'Other tenant','tenant2@example.test','0900000006','unused','KHACH_THUE',1,1,'2026-01-01','2026-01-01');
         INSERT INTO toa_nha(id,chu_nha_id,ten_toa_nha,dia_chi) VALUES(1,1,'Synthetic building','Test');
         INSERT INTO phong_tro(id,toa_nha_id,ma_phong,tang,dien_tich,gia_thue,tien_coc_du_kien,so_nguoi_toi_da,trang_thai,ngay_tao)
         VALUES(1,1,'TEST',1,20,1000000,1000000,3,'DANG_THUE','2026-01-01');
@@ -205,4 +206,114 @@ try {
 } finally {
     if (!server.HasExited) server.Kill(entireProcessTree: true);
     await server.WaitForExitAsync();
+}
+await PublishVerification.Run(Context, path, root, Check);
+
+// A second host verifies publication and the tenant experience against the disposable fixture.
+start.ArgumentList.Add("--PasswordReset:From"); start.ArgumentList.Add("noreply@example.test");
+start.ArgumentList.Add("--PasswordReset:PublicBaseUrl"); start.ArgumentList.Add(url);
+using var publishServer = Process.Start(start)!;
+var publishOut = publishServer.StandardOutput.ReadToEndAsync(); var publishError = publishServer.StandardError.ReadToEndAsync();
+try {
+    using var owner = Client();
+    for (var i = 0; i < 100; i++) {
+        try { if ((await owner.GetAsync("/Account/Login")).IsSuccessStatusCode) break; } catch (HttpRequestException) { }
+        if (publishServer.HasExited) throw new Exception(await publishError);
+        await Task.Delay(100);
+    }
+    await Login(owner, "owner@example.test");
+    var detail = await owner.GetStringAsync("/HoaDonDichVu/Details/" + webId);
+    var publishFields = new Dictionary<string,string> { ["Id"] = webId.ToString(), ["PhienBan"] = "0", ["XacNhan"] = "true",
+        ["NgayPhatHanh"] = "2026-10-09", ["HanThanhToan"] = "2026-10-16", ["__RequestVerificationToken"] = Token(detail) };
+    await owner.PostAsync("/HoaDonDichVu/PublishDraft", new FormUrlEncodedContent(publishFields));
+    using (var db = Context()) Check((await db.HoaDons.FindAsync(webId))!.TrangThai == "NHAP"
+        && !await db.ThongBaoHoaDons.AnyAsync(x => x.HoaDonId == webId), "HTTP stale publication remains draft without notification");
+    publishFields.Remove("__RequestVerificationToken");
+    Check((await owner.PostAsync("/HoaDonDichVu/PublishDraft", new FormUrlEncodedContent(publishFields))).StatusCode == HttpStatusCode.BadRequest, "HTTP publication CSRF enforced");
+    foreach (var email in new[] { "other@example.test", "manager@example.test", "tenant@example.test", "admin@example.test" }) {
+        using var denied = Client(); await Login(denied, email);
+        var home = await denied.GetStringAsync("/"); publishFields["__RequestVerificationToken"] = Token(home);
+        Check((await denied.PostAsync("/HoaDonDichVu/PublishDraft", new FormUrlEncodedContent(publishFields))).StatusCode == HttpStatusCode.Forbidden, "HTTP publication denied for " + email);
+    }
+    await using var browser = new BrowserVerification(); await browser.Start(folder);
+    await browser.Login(url, "owner@example.test");
+    await browser.Navigate(url + "/HoaDonDichVu/Details/" + webId);
+    await browser.Evaluate("let field=document.querySelector('[name=\"Khoan[0].TenKhoan\"]');field.value='Unsaved change';field.dispatchEvent(new Event('input',{bubbles:true}));true");
+    Check((await browser.Evaluate("document.querySelector('#publish-open').disabled && !document.querySelector('#publish-dirty').hidden")).GetBoolean(), "browser unsaved edits block publication");
+    await browser.Navigate(url + "/HoaDonDichVu/Details/" + webId);
+    await browser.Evaluate("document.querySelector('#publish-open').click();true");
+    Check((await browser.Evaluate("document.querySelector('#publish-confirmation').open")).GetBoolean(), "browser publication dialog opens");
+    Check((await browser.Evaluate("!document.querySelector('#publish-draft-form').checkValidity()")).GetBoolean(), "browser confirmation checkbox required");
+    await browser.Screenshot(Path.Combine(folder, "publish-confirmation-360.png"));
+    await browser.Evaluate("document.querySelector('#publish-confirmation [name=XacNhan]').checked=true;document.querySelector('#publish-draft-form').requestSubmit();true");
+    await browser.Wait("!document.querySelector('#draft-editor') && document.body.innerText.includes('Thời điểm phát hành') && document.readyState==='complete'");
+    Check((await browser.Evaluate("!document.querySelector('#publish-open') && document.body.innerText.includes('Đã phát hành')")).GetBoolean(), "browser published invoice readonly with publication time");
+    Check((await browser.Evaluate("document.documentElement.scrollWidth<=innerWidth")).GetBoolean(), "owner invoice fits 360px");
+    await browser.Screenshot(Path.Combine(folder, "published-owner-360.png"));
+    await browser.ClearCookies(); await browser.Login(url, "tenant@example.test");
+    await browser.Navigate(url + "/ThongBao");
+    Check((await browser.Evaluate("document.body.innerText.includes('Hóa đơn phòng TEST')")).GetBoolean(), "tenant receives in-app invoice notification");
+    await browser.Navigate(url + "/ThongBao/HoaDon/" + webId);
+    Check((await browser.Evaluate("!document.querySelector('#draft-editor') && !document.querySelector('#publish-open') && document.body.innerText.includes('Đã phát hành')")).GetBoolean(), "tenant can view only published readonly invoice");
+    Check((await browser.Evaluate("document.documentElement.scrollWidth<=innerWidth")).GetBoolean(), "tenant invoice fits 360px");
+    await browser.Screenshot(Path.Combine(folder, "published-tenant-360.png"));
+    var delivered = false;
+    for (var i = 0; i < 60; i++) {
+        using var db = Context();
+        if (await db.ThongBaoHoaDons.AnyAsync(x => x.HoaDonId == webId && x.TrangThaiEmail == "DA_GUI")) { delivered = true; break; }
+        await Task.Delay(100);
+    }
+    Check(delivered && Directory.EnumerateFiles(Path.Combine(folder, "mail")).Any(), "real worker writes email pickup after publication");
+    using var tenant = Client(); await Login(tenant, "tenant@example.test");
+    var notices = await tenant.GetStringAsync("/ThongBao");
+    int noticeId;
+    using (var db = Context()) noticeId = await db.ThongBaoHoaDons.Where(x => x.HoaDonId == webId).Select(x => x.Id).SingleAsync();
+    Check((await tenant.PostAsync("/ThongBao/Read", new FormUrlEncodedContent(new Dictionary<string,string> { ["id"] = noticeId.ToString() }))).StatusCode == HttpStatusCode.BadRequest, "mark-read CSRF enforced");
+    await tenant.PostAsync("/ThongBao/Read", new FormUrlEncodedContent(new Dictionary<string,string> { ["id"] = noticeId.ToString(), ["__RequestVerificationToken"] = Token(notices) }));
+    using (var db = Context()) Check((await db.ThongBaoHoaDons.FindAsync(noticeId))!.NgayDoc.HasValue, "tenant marks own notification read");
+    using var otherTenant = Client(); await Login(otherTenant, "tenant2@example.test");
+    var otherNotices = await otherTenant.GetStringAsync("/ThongBao");
+    Check(!otherNotices.Contains("Hóa đơn phòng TEST"), "other tenant cannot list notification");
+    Check((await otherTenant.GetAsync("/ThongBao/HoaDon/" + webId)).StatusCode == HttpStatusCode.Forbidden, "other tenant cannot view invoice");
+    Check((await otherTenant.PostAsync("/ThongBao/Read", new FormUrlEncodedContent(new Dictionary<string,string> { ["id"] = noticeId.ToString(), ["__RequestVerificationToken"] = Token(otherNotices) }))).StatusCode == HttpStatusCode.Forbidden, "other tenant cannot mark notification read");
+    using (var db = Context()) await db.RolePermissions.Where(x => x.RoleCode == "KHACH_THUE" && x.ModuleCode == "TAI_CHINH")
+        .ExecuteUpdateAsync(set => set.SetProperty(x => x.AccessLevel, "NONE"));
+    var revokedHome = await tenant.GetAsync("/");
+    Check(revokedHome.IsSuccessStatusCode && !(await revokedHome.Content.ReadAsStringAsync()).Contains("Thông báo hóa đơn"), "revoked finance permission hides tenant notification menu");
+    Check((await tenant.GetAsync("/ThongBao")).StatusCode == HttpStatusCode.Forbidden, "revoked finance permission blocks notifications");
+    Check((await tenant.GetAsync("/ThongBao/HoaDon/" + webId)).StatusCode == HttpStatusCode.Forbidden, "revoked finance permission blocks invoice access");
+    Console.WriteLine("Browser screenshots: " + folder);
+} finally {
+    if (!publishServer.HasExited) publishServer.Kill(entireProcessTree: true);
+    await publishServer.WaitForExitAsync();
+}
+
+// Optional S1-09 invoice module is absent on a valid base-only database.
+var baseOnly = Path.Combine(folder, "base-only.sqlite");
+LocalDatabaseInitializer.Create(baseOnly, Path.Combine(root, "QL_PhongTro/Data/permissions.seed.json"));
+using (var baseDb = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite("Data Source=" + baseOnly).Options)) {
+    var passwordHash = BCrypt.Net.BCrypt.HashPassword("S308-Test-a1", 4);
+    await baseDb.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO tai_khoan(ho_ten,email,so_dien_thoai,mat_khau,vai_tro,dang_hoat_dong,email_confirmed,ngay_tao,ngay_cap_nhat) VALUES('Base tenant','base@example.test','0900000099',{passwordHash},'KHACH_THUE',1,1,'2026-01-01','2026-01-01')");
+    Check(!await InvoiceNotificationDispatcher.IsInstalledAsync(baseDb), "base database has no optional invoice module");
+}
+start.ArgumentList[start.ArgumentList.IndexOf("--DatabasePath") + 1] = baseOnly;
+using var baseServer = Process.Start(start)!;
+var baseOut = baseServer.StandardOutput.ReadToEndAsync(); var baseError = baseServer.StandardError.ReadToEndAsync();
+try {
+    using var client = Client();
+    for (var i = 0; i < 100; i++) {
+        try { if ((await client.GetAsync("/Account/Login")).IsSuccessStatusCode) break; } catch (HttpRequestException) { }
+        if (baseServer.HasExited) throw new Exception(await baseError);
+        await Task.Delay(100);
+    }
+    await Login(client, "base@example.test");
+    var home = await client.GetAsync("/");
+    Check(home.IsSuccessStatusCode && !(await home.Content.ReadAsStringAsync()).Contains("Thông báo hóa đơn"), "tenant homepage works without optional invoice tables");
+    Check((await client.GetAsync("/ThongBao")).StatusCode == HttpStatusCode.NotFound, "missing invoice module returns 404 instead of 500");
+    using var baseDb = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite("Data Source=" + baseOnly).Options);
+    Check(await new InvoiceNotificationDispatcher(baseDb, new PasswordEmailSender(Microsoft.Extensions.Options.Options.Create(new PasswordResetOptions()),
+        null!), new SystemTimeProvider()).DispatchAsync() == 0, "email worker skips missing invoice module");
+} finally {
+    if (!baseServer.HasExited) baseServer.Kill(entireProcessTree: true);
+    await baseServer.WaitForExitAsync();
 }

@@ -14,7 +14,7 @@ public sealed partial class RoomServicesTests
         await Issue(db,await BillInput(db,f.A,f.Service,new(2026,10,1)));
         var before=JsonSerializer.Serialize(await db.HoaDons.AsNoTracking().Include(x=>x.ChiTiet).ToListAsync());
         // Synthetic test fixture only: emulate the exact pre-v20 optional invoice schema.
-        await db.Database.ExecuteSqlRawAsync("ALTER TABLE hoa_don DROP COLUMN ngay_phat_hanh_nghiep_vu; DELETE FROM app_schema_version WHERE version=20;");
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE hoa_don DROP COLUMN ngay_phat_hanh_nghiep_vu; DELETE FROM app_schema_version WHERE version>=20;");
         DatabaseUpdates.Update(path,Path.Combine(app,"Data","permissions.seed.json"));
         DatabaseUpdates.Check(path);
         Assert.Equal(before,JsonSerializer.Serialize(await db.HoaDons.AsNoTracking().Include(x=>x.ChiTiet).ToListAsync()));

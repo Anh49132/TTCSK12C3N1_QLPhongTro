@@ -10,5 +10,6 @@ public sealed class ChiTietHoaDonViewModel
     public string TenToaNha { get; init; } = "";
     public string TenKhach { get; init; } = "";
     public bool XemTruoc { get; init; }
+    public bool KhachXem { get; init; }
     public string ReviewToken { get; init; } = "";
 }

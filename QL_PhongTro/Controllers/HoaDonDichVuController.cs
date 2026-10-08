@@ -259,6 +259,18 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
     }
 
     [HttpPost, Authorize(Roles = "CHU_NHA"), ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]
+    public async Task<IActionResult> PublishDraft(PhatHanhNhapViewModel model)
+    {
+        if (!ModelState.IsValid) { TempData["DraftError"] = "Ngày phát hành hoặc hạn thanh toán không hợp lệ."; return RedirectToAction(nameof(Details), new { id = model.Id }); }
+        try { await invoices.PhatHanhNhapAsync(AccountId, model); TempData["DraftSuccess"] = "Đã phát hành hóa đơn và tạo thông báo cho khách. Nội dung hóa đơn đã được khóa."; }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { TempData["DraftError"] = ex.Message; }
+        catch (Exception ex) when (ex is DbUpdateException or Microsoft.Data.Sqlite.SqliteException or OverflowException)
+        { TempData["DraftError"] = "Phát hành không thành công. Hãy tải lại hóa đơn và kiểm tra dữ liệu; chưa tạo thông báo mới."; }
+        return RedirectToAction(nameof(Details), new { id = model.Id });
+    }
+
+    [HttpPost, Authorize(Roles = "CHU_NHA"), ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]
     public async Task<IActionResult> SaveDraft(SuaHoaDonNhapViewModel model)
     {
         if (!ModelState.IsValid) { TempData["DraftError"] = "Số tiền/chỉ số không hợp lệ. Hãy kiểm tra định dạng nhập."; return RedirectToAction(nameof(Details), new { id = model.Id }); }

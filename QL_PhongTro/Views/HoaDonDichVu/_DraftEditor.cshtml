@@ -3,7 +3,7 @@
 <section class="mi-card">
 <h2>Sửa hóa đơn Nháp</h2>
 <p>Chỉ sửa chỉ số trên hóa đơn; đơn giá giữ nguyên. Bản nháp chưa gửi thông báo cho khách.</p>
-<form asp-action="SaveDraft" method="post">
+<form asp-action="SaveDraft" method="post" id="draft-editor">
 <input type="hidden" name="Id" value="@Model.Id" />
 <input type="hidden" name="PhienBan" value="@Model.PhienBan" />
 @{ var readings = Model.ChiTiet.Where(x => x.CachTinhApDung == "THEO_CHI_SO").OrderBy(x => x.SoThuTu).ToList(); }
@@ -22,5 +22,5 @@
 <label for="charge-note-@i">Ghi chú (bắt buộc khi thêm khoản)</label><textarea id="charge-note-@i" class="form-control" name="Khoan[@i].GhiChu" maxlength="1000"></textarea>
 </fieldset>
 }
-<button class="btn btn-dark">Lưu thay đổi và tính lại tổng</button>
+<button class="btn btn-dark">Lưu nháp và tính lại tổng</button>
 </form></section>

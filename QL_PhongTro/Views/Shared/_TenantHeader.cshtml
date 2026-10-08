@@ -1,7 +1,18 @@
+@using Microsoft.EntityFrameworkCore
+@inject QL_PhongTro.Data.AppDbContext NotificationDb
+@inject QL_PhongTro.Authorization.PermissionService NotificationPermissions
 @{
     var name = User.Identity?.Name ?? "Khách thuê";
     var controller = ViewContext.RouteData.Values["controller"]?.ToString();
     string Active(string value) => controller == value ? "is-active" : "";
+    var actor = int.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var actorId) ? actorId : 0;
+    var showNotifications = await NotificationPermissions.AllowsAsync("TAI_CHINH")
+        && await QL_PhongTro.Services.InvoiceNotificationDispatcher.IsInstalledAsync(NotificationDb);
+    var unread = 0;
+    if (showNotifications) {
+        var published = NotificationDb.HoaDons.Where(x => x.TrangThai == "DA_PHAT_HANH").Select(x => x.Id);
+        unread = await NotificationDb.ThongBaoHoaDons.CountAsync(x => x.NguoiNhanId == actor && x.NgayDoc == null && published.Contains(x.HoaDonId));
+    }
 }
 <header class="tenant-header">
     <details class="tenant-menu">
@@ -12,6 +23,7 @@
             <a class="@Active("TinDang")" asp-controller="TinDang" asp-action="Index">▤ <span>Tin đăng cho thuê</span></a>
             <a class="@Active("YeuCau")" asp-controller="YeuCau" asp-action="Index">▧ <span>Yêu cầu thuê</span></a>
             <a class="@Active("HoSo")" asp-controller="HoSo" asp-action="Index">○ <span>Hồ sơ cá nhân</span></a>
+            @if (showNotifications) { <a asp-controller="ThongBao" asp-action="Index">Thông báo hóa đơn (@unread)</a> }
         </nav>
     </details>
     <a class="tenant-brand" asp-controller="Home" asp-action="Index">
@@ -24,6 +36,7 @@
         <a class="@Active("TinDang")" asp-controller="TinDang" asp-action="Index">Tin đăng cho thuê</a>
         <a asp-controller="Home" asp-action="GioiThieu">Giới thiệu</a>
     </nav>
+    @if (showNotifications) { <a asp-controller="ThongBao" asp-action="Index" class="btn btn-sm btn-outline-secondary" aria-label="Thông báo hóa đơn, @unread chưa đọc">🔔 @unread</a> }
     <details class="tenant-account">
         <summary><span class="tenant-avatar" aria-hidden="true">@(string.IsNullOrWhiteSpace(name) ? "K" : System.Globalization.StringInfo.GetNextTextElement(name).ToUpperInvariant())</span><span class="tenant-account-name">@name</span><span aria-hidden="true">⌄</span></summary>
         <div class="tenant-account-panel">

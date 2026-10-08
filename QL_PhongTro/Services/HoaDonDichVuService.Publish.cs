@@ -1,0 +1,62 @@
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using QL_PhongTro.Models;
+using QL_PhongTro.ViewModels;
+namespace QL_PhongTro.Services;
+
+public sealed partial class HoaDonDichVuService
+{
+    public async Task PhatHanhNhapAsync(int actor, PhatHanhNhapViewModel input)
+    {
+        await db.Database.OpenConnectionAsync();
+        await using var sqlite = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+        await using var tx = await db.Database.UseTransactionAsync(sqlite);
+        var context = await (from invoice in db.HoaDons.AsNoTracking()
+            join contract in db.HopDongs on invoice.HopDongId equals contract.Id
+            join room in db.PhongTros on contract.PhongId equals room.Id
+            where invoice.Id == input.Id select new { room.ToaNhaId, room.MaPhong, contract.KhachDungTenId }).SingleOrDefaultAsync()
+            ?? throw new InvalidOperationException("Không tìm thấy hóa đơn.");
+        await KiemTraChuNhaAsync(actor, context.ToaNhaId);
+        var bill = await db.HoaDons.Include(x => x.ChiTiet).SingleAsync(x => x.Id == input.Id);
+        if (bill.TrangThai != "NHAP") throw new InvalidOperationException("Hóa đơn đã được phát hành hoặc không còn là Nháp. Hãy tải lại trang.");
+        if (bill.PhienBan != input.PhienBan) throw new InvalidOperationException("Hóa đơn đã thay đổi sau khi kiểm tra. Hãy tải lại và xác nhận số tiền mới.");
+        if (!input.XacNhan) throw new InvalidOperationException("Hãy xác nhận nội dung và tổng tiền trước khi phát hành.");
+        var dates = NgayHoaDon(input.NgayPhatHanh, input.HanThanhToan);
+        if (bill.ChiTiet.Count == 0 || bill.ChiTiet.Any(x => x.DonGia < 0 || x.SoLuong < 0 || string.IsNullOrWhiteSpace(x.TenKhoan)))
+            throw new InvalidOperationException("Chi tiết hóa đơn chưa hợp lệ.");
+        foreach (var line in bill.ChiTiet) {
+            if (line.LoaiKhoan is not ("TIEN_PHONG" or "DICH_VU" or "PHAT_SINH" or "GIAM_TRU"))
+                throw new InvalidOperationException("Loại khoản trên hóa đơn không hợp lệ.");
+            if (line.LoaiKhoan is "PHAT_SINH" or "GIAM_TRU" && (line.ThanhTien <= 0 || string.IsNullOrWhiteSpace(line.GhiChu)))
+                throw new InvalidOperationException("Khoản phát sinh/giảm trừ phải có số tiền dương và ghi chú.");
+            if (line.CachTinhApDung == CachTinhDichVu.TheoChiSo && (!line.ChiSoDau.HasValue || !line.ChiSoCuoi.HasValue
+                || line.ChiSoDau < 0 || line.ChiSoCuoi < line.ChiSoDau || line.ChiSoCuoi > 99999999999.999m
+                || decimal.Round(line.ChiSoDau.Value, 3) != line.ChiSoDau || decimal.Round(line.ChiSoCuoi.Value, 3) != line.ChiSoCuoi
+                || line.SoLuong != line.ChiSoCuoi.Value - line.ChiSoDau.Value))
+                throw new InvalidOperationException("Chỉ số trên hóa đơn không hợp lệ.");
+            if (ThanhTien(line.SoLuong, line.DonGia) != line.ThanhTien)
+                throw new InvalidOperationException("Thành tiền không khớp chi tiết. Hãy lưu và kiểm tra lại bản nháp.");
+        }
+        if (TongNhap(bill.ChiTiet) < 0 || TongNhap(bill.ChiTiet) != bill.TongTien)
+            throw new InvalidOperationException("Tổng tiền không khớp các khoản trên hóa đơn.");
+        var recipient = await (from tenant in db.KhachThues join account in db.TaiKhoans on tenant.TaiKhoanId equals account.Id
+            where tenant.Id == context.KhachDungTenId && account.VaiTro == "KHACH_THUE" && account.DangHoatDong && !account.IsDeleted
+            select new { account.Id, account.Email }).SingleOrDefaultAsync()
+            ?? throw new InvalidOperationException("Khách đứng tên chưa có tài khoản khách thuê hoạt động để nhận thông báo.");
+        if (string.IsNullOrWhiteSpace(recipient.Email)) throw new InvalidOperationException("Khách đứng tên chưa có email nhận thông báo.");
+        var now = (clock ?? new SystemTimeProvider()).UtcNow;
+        // Lock original readings without rewriting them to match edited invoice snapshots.
+        var serviceIds = bill.ChiTiet.Where(x => x.CachTinhApDung == CachTinhDichVu.TheoChiSo && x.DichVuId.HasValue).Select(x => x.DichVuId!.Value).ToList();
+        var readings = await db.ChiSoDienNuocs.Where(x => x.HopDongId == bill.HopDongId && serviceIds.Contains(x.DichVuId)
+            && x.TuNgay == bill.TuNgay && x.DenNgay == bill.DenNgay).ToListAsync();
+        if (readings.Any(x => x.DaKhoa)) throw new InvalidOperationException("Bản chỉ số gốc đã được khóa; hãy kiểm tra lại trước khi phát hành.");
+        foreach (var reading in readings) { reading.DaKhoa = true; reading.PhienBan++; }
+        bill.TrangThai = "DA_PHAT_HANH"; bill.NgayPhatHanh = now; bill.NgayPhatHanhNghiepVu = dates.Issue;
+        bill.HanThanhToan = dates.Due; bill.NguoiPhatHanhId = actor; bill.PhienBan++;
+        db.ThongBaoHoaDons.Add(new() { NguoiNhanId = recipient.Id, HoaDonId = bill.Id, NgayTao = now, EmailNhan = recipient.Email,
+            TieuDe = $"Hóa đơn phòng {context.MaPhong} · {bill.Thang:00}/{bill.Nam}", DuongDan = $"/ThongBao/HoaDon/{bill.Id}",
+            NoiDung = $"Hóa đơn {bill.MaHoaDon} đã được phát hành. Tổng tiền: {bill.TongTien.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN"))} đ. Hạn thanh toán: {dates.Due:dd/MM/yyyy}." });
+        // Invoice, source meter locks and durable notification are committed together. No email is sent inside this transaction.
+        await db.SaveChangesAsync(); await sqlite.CommitAsync();
+    }
+}

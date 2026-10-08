@@ -1,3 +1,7 @@
+## S3-08:2 — schema v21
+
+Bổ sung bảng thong_bao và hàng đợi email, unique hóa đơn/người nhận/loại. Updater có backup, transaction và kiểm tra cấu trúc; không thay dữ liệu hóa đơn cũ. Trong phiên này chỉ nâng cấp bản sao demo, không chạy trên CSDL gốc. Xem [hướng dẫn phần 2](s3082-phat-hanh-thong-bao.md). Dừng ứng dụng trước khi nâng cấp; luôn kiểm chứng trên bản sao trước.
+
 # Đồng bộ cấu trúc SQLite trong team
 
 **S3-05:2: code yêu cầu schema v17.** V16 thêm người ở ghép; v17 thêm bảng chỉ số theo kỳ `chi_so_dien_nuoc` (một dòng/hợp đồng/dịch vụ/tháng), FK RESTRICT, unique, CHECK và guard bản khóa. Không đổi/bổ sung chỉ số giả cho dữ liệu cũ. Chi tiết ở [S3-05:2](s305-chi-so-theo-ky.md). Task đã xác minh nâng v16→v17 và chạy lặp trên bản sao/temp; Người dùng đã nâng DB demo lên v17 và check-database thành công trước lượt nghiệm thu; agent chỉ thao tác trên bản sao riêng. Dừng app và backup trước khi chủ động chạy updater với DatabasePath đúng. Web không tự nâng cấp. Các mốc v15/v13 bên dưới là lịch sử.
