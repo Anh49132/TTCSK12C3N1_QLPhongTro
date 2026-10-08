@@ -11,6 +11,8 @@ using QL_PhongTro.ViewModels;
 using Microsoft.AspNetCore.DataProtection;
 using System.Text.Json;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Caching.Memory;
+using System.Text;
 
 namespace QL_PhongTro.Controllers;
 
@@ -68,12 +70,12 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
                 throw new InvalidOperationException("Kỳ hoặc ngày thanh toán đã thay đổi. Hãy kiểm tra lại trước khi phát hành.");
             ngayPhatHanh = review.Issue; hanThanhToan = review.Due;
             var chosen = hopDongId.HasValue ? new List<int> { hopDongId.Value } : selectedIds ?? [];
-            if (chosen.Count == 0) throw new InvalidOperationException("Hãy chọn ít nhất một phòng để phát hành.");
+            if (chosen.Count == 0 && review.Candidates.Count > 0) throw new InvalidOperationException("Hãy chọn ít nhất một phòng để phát hành.");
             if (chosen.Any(id => !review.Candidates.ContainsKey(id))) return Forbid();
             var result = await invoices.PhatHanhDanhSachAsync(AccountId, toaNhaId, nam, thang, chosen, ngayPhatHanh, hanThanhToan, review.Candidates);
-            TempData["MonthlyResults"] = JsonSerializer.Serialize(result.Phongs);
-            var count = result.SoDaPhatHanh;
-            TempData["MonthlyMessage"] = count > 0 ? $"Đã phát hành {count} hóa đơn. Chỉ số điện nước đã được khóa." : "Không có phòng đủ dữ liệu để phát hành hóa đơn mới.";
+            // Keep reports server-side: a 50-room report must not fill the authentication/request cookies.
+            HttpContext.RequestServices.GetRequiredService<IMemoryCache>().Set("InvoiceRun:" + result.MaLanChay, result, TimeSpan.FromHours(24));
+            return RedirectToAction(nameof(Results), new { runId = result.MaLanChay });
         }
         catch (UnauthorizedAccessException) { return Forbid(); }
         catch (InvalidOperationException ex) { TempData["MonthlyError"] = ex.Message; }
@@ -81,6 +83,33 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
         catch (DbUpdateException) { TempData["MonthlyError"] = "Dữ liệu đã thay đổi. Hãy kiểm tra lại kỳ hóa đơn."; }
         catch (Microsoft.Data.Sqlite.SqliteException) { TempData["MonthlyError"] = "Chưa thể phát hành hóa đơn. Hãy kiểm tra thiết lập hoặc thử lại."; }
         return RedirectToAction(nameof(Monthly), new { toaNhaId, nam, thang, ngayPhatHanh = ngayPhatHanh?.ToString("yyyy-MM-dd"), hanThanhToan = hanThanhToan?.ToString("yyyy-MM-dd") });
+    }
+
+    private KetQuaPhatHanhThang? FindRun(string? runId) => runId is not null && Guid.TryParseExact(runId, "N", out _)
+        ? HttpContext.RequestServices.GetRequiredService<IMemoryCache>().Get<KetQuaPhatHanhThang>("InvoiceRun:" + runId) : null;
+
+    [HttpGet, Authorize(Roles = "CHU_NHA")]
+    public async Task<IActionResult> Results(string? runId)
+    {
+        var run = FindRun(runId);
+        if (run is null) return NotFound("Báo cáo lần chạy đã hết hạn. Hãy mở lại kỳ hóa đơn để xem dữ liệu hiện tại.");
+        if (run.NguoiThucHienId != AccountId || !await services.SoHuuToaNhaAsync(AccountId, run.ToaNhaId)) return Forbid();
+        return View(run);
+    }
+
+    [HttpGet, Authorize(Roles = "CHU_NHA")]
+    public async Task<IActionResult> ExportResults(string? runId)
+    {
+        var run = FindRun(runId);
+        if (run is null) return NotFound();
+        if (run.NguoiThucHienId != AccountId || !await services.SoHuuToaNhaAsync(AccountId, run.ToaNhaId)) return Forbid();
+        static string Cell(string value) => "\"" + ((value.TrimStart().FirstOrDefault() is '=' or '+' or '-' or '@') ? "'" : "") + value.Replace("\"", "\"\"") + "\"";
+        var lines = new List<string> { "Phòng,Khách thuê,Kết quả,Mã hóa đơn,Tổng tiền mới,Ngày phát hành,Hạn thanh toán,Lý do" };
+        lines.AddRange(run.Phongs.Select(x => string.Join(",", new[] { x.MaPhong, x.TenKhach,
+            x.TrangThai == "DA_PHAT_HANH" ? "Đã phát hành" : x.TrangThai == "DA_CO_HOA_DON" ? "Đã có hóa đơn" : x.ThieuChiSo ? "Thiếu chỉ số" : "Bị bỏ qua",
+            x.MaHoaDon, x.TrangThai == "DA_PHAT_HANH" ? x.TongTien.ToString(System.Globalization.CultureInfo.InvariantCulture) : "",
+            run.NgayPhatHanh.ToString("dd/MM/yyyy"), run.HanThanhToan.ToString("dd/MM/yyyy"), x.LyDo }.Select(Cell))));
+        return File(Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(string.Join("\r\n", lines))).ToArray(), "text/csv; charset=utf-8", $"ket-qua-hoa-don-{run.Nam}{run.Thang:00}-{run.MaLanChay[..8]}.csv");
     }
 
     private async Task<ChiTietHoaDonViewModel> InvoiceViewAsync(QL_PhongTro.Models.HoaDon invoice, bool preview, string reviewToken = "")

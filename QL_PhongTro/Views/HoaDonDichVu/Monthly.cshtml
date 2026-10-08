@@ -9,6 +9,7 @@
     var meters = Model.DuKien.Sum(x => x.HoaDon.ChiTiet.Where(d => d.ChiSoDau.HasValue).Sum(d => (decimal)d.ThanhTien));
     var extras = Model.DuKien.Sum(x => x.HoaDon.ChiTiet.Skip(3).Sum(d => (decimal)d.ThanhTien));
     var total = Model.DuKien.Sum(x => (decimal)x.HoaDon.TongTien);
+    var existing = Model.BoQua.Where(x=>x.TrangThai=="DA_CO_HOA_DON").ToList();
 }
 @section Styles { <link rel="stylesheet" href="~/css/monthly-invoices.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/invoice-review.css" asp-append-version="true" /> }
 @section Scripts { <script src="~/js/invoice-review.js" asp-append-version="true"></script> }
@@ -59,10 +60,11 @@
 <div id="skipped-panel">
 <h3>Phòng bị bỏ qua</h3><p class="mi-muted">Các phòng dưới đây không được đưa vào danh sách xác nhận phát hành.</p>
 <div class="table-responsive"><table class="table mr-table" id="skipped-table"><thead><tr><th>Phòng</th><th>Lý do bị bỏ qua</th></tr></thead><tbody>
-@foreach(var room in Model.BoQua){<tr><th scope="row">@room.MaPhong</th><td><span class="mr-reason">ⓘ @room.LyDo</span></td></tr>}
+@foreach(var room in Model.BoQua){<tr><th scope="row">@room.MaPhong</th><td><span class="mr-reason">ⓘ @room.LyDo</span> @if(room.HoaDonId.HasValue){<a asp-action="Details" asp-route-id="@room.HoaDonId">Xem hóa đơn hiện có</a>}</td></tr>}
 </tbody></table></div>@if(Model.BoQua.Count==0){<p>Không có phòng bị bỏ qua.</p>}
 </div>
 </section>
+@if(existing.Count>0){<section class="mi-card" id="existing-invoices"><h2>Phòng đã có hóa đơn (@existing.Count)</h2><p class="mi-muted">Các hóa đơn hiện có được giữ nguyên khi chạy lại kỳ này.</p><div class="table-responsive"><table class="table mr-table"><thead><tr><th>Phòng</th><th>Kỳ áp dụng</th><th>Thao tác</th></tr></thead><tbody>@foreach(var row in existing){<tr><th>@row.MaPhong</th><td>@Model.Thang.ToString("00")/@Model.Nam</td><td><a asp-action="Details" asp-route-id="@row.HoaDonId">Xem hóa đơn hiện có</a></td></tr>}</tbody></table></div></section>}
 @if(Model.KetQua.Count>0){<section class="mi-card" id="issue-results"><h2>Kết quả từng phòng</h2><div class="table-responsive"><table class="table mr-table"><thead><tr><th>Phòng</th><th>Kết quả</th><th>Chi tiết</th><th></th></tr></thead><tbody>@foreach(var result in Model.KetQua){<tr><th>@result.MaPhong</th><td>@(result.TrangThai=="DA_PHAT_HANH" ? "Đã phát hành" : result.TrangThai=="KHONG_CHON" ? "Không chọn" : "Bị bỏ qua")</td><td>@result.LyDo</td><td>@if(result.HoaDonId.HasValue){<a asp-action="Details" asp-route-id="@result.HoaDonId">Xem hóa đơn</a>}</td></tr>}</tbody></table></div></section>}
 </div><aside>
 <section class="mi-card"><h2>Kết quả kiểm tra</h2><ul class="mr-check-summary"><li><span>▤ Hóa đơn sẵn sàng</span><strong>@Model.DuKien.Count</strong></li><li><span>⚠ Phòng bị bỏ qua</span><strong>@Model.BoQua.Count</strong></li><li><span>▦ Phòng đang thuê</span><strong>@Model.TongPhong</strong></li></ul></section>
@@ -76,7 +78,7 @@
 <form asp-action="IssueMonthly" method="post" id="issue-monthly-form">
 <input type="hidden" name="toaNhaId" value="@Model.ToaNhaId" /><input type="hidden" name="nam" value="@Model.Nam" /><input type="hidden" name="thang" value="@Model.Thang" /><input type="hidden" name="ngayPhatHanh" value="@Model.NgayPhatHanh.ToString("yyyy-MM-dd")" /><input type="hidden" name="hanThanhToan" value="@Model.HanThanhToan.ToString("yyyy-MM-dd")" /><input type="hidden" name="reviewToken" value="@Model.ReviewToken" />
 <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
-<button type="button" data-review-open data-can-write="@write.ToString().ToLowerInvariant()" class="btn btn-dark" disabled="@(!write || !Model.SanSang || string.IsNullOrEmpty(Model.ReviewToken) || Model.DuKien.Count==0)">Tiếp tục phát hành →</button>
+<button type="button" data-review-open data-can-write="@write.ToString().ToLowerInvariant()" class="btn btn-dark" disabled="@(!write || !Model.SanSang || string.IsNullOrEmpty(Model.ReviewToken))">@(Model.DuKien.Count==0 ? "Chạy lại và xem kết quả" : "Tiếp tục phát hành →")</button>
 <partial name="_IssueConfirmation" model="Model" />
 </form></footer>
 </div>

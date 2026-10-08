@@ -78,9 +78,12 @@ with sync_playwright() as p:
     page.wait_for_load_state('networkidle')
     assert len(posts)==1
     assert 'Đã phát hành 1 hóa đơn' in page.locator('main').inner_text()
+    page.locator('[data-result-tab="missing"]').click()
     assert 'A105' in page.locator('#issue-results').inner_text()
     assert 'Thiếu chỉ số nước' in page.locator('#issue-results').inner_text()
+    page.locator('[data-result-tab="other"]').click()
     assert 'Không chọn' in page.locator('#issue-results').inner_text()
+    page.locator('[data-result-tab="issued"]').click()
     page.screenshot(path=str(folder/'review-results.png'),full_page=True)
     with sqlite3.connect(Path(access['database']).as_uri()+'?mode=ro',uri=True) as db:
         invoice,business,due,total=db.execute('SELECT id,ngay_phat_hanh_nghiep_vu,han_thanh_toan,tong_tien FROM hoa_don WHERE hop_dong_id=? AND nam=2026 AND thang=10',(target['contractId'],)).fetchone()

@@ -5,6 +5,7 @@ using QL_PhongTro.ViewModels;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
 
 namespace QL_PhongTro.Services;
 
@@ -62,8 +63,14 @@ public sealed partial class HoaDonDichVuService
             var terms = await db.KyHopDongs.AsNoTracking().Where(x => x.HopDongId == h.Id && x.NgayBatDau <= first && x.NgayKetThuc >= last).ToListAsync();
             void Skip(string reason) => model.BoQua.Add(new(h.Id, context.Room.MaPhong, reason));
             // Retain the existing full-month rule. Partial/renewal months need a separate policy.
-            if (await db.HoaDons.AnyAsync(x => x.HopDongId == h.Id && x.Nam == year && x.Thang == month && x.TrangThai != "DA_HUY"))
-            { Skip($"Đã có hóa đơn tháng {month:00}/{year}."); continue; }
+            var existing = await db.HoaDons.AsNoTracking().Where(x => x.HopDongId == h.Id && x.Nam == year && x.Thang == month && x.TrangThai != "DA_HUY")
+                .Select(x => (int?)x.Id).SingleOrDefaultAsync();
+            if (existing.HasValue)
+            {
+                model.BoQua.Add(new(h.Id, context.Room.MaPhong, $"Đã có hóa đơn tháng {month:00}/{year}.")
+                    { TrangThai = "DA_CO_HOA_DON", HoaDonId = existing });
+                continue;
+            }
             if (terms.Count != 1 || h.NgayTraPhong < last) { Skip("Chưa có kỳ hợp đồng thuê trọn tháng hợp lệ."); continue; }
             if (h.NgayChot is < 1 or > 31) { Skip("Ngày chốt hợp đồng không hợp lệ."); continue; }
             var cutoff = new DateOnly(year, month, Math.Min(h.NgayChot, last.Day));
@@ -101,7 +108,11 @@ public sealed partial class HoaDonDichVuService
             // S3-06 requires both electricity and water, never an incomplete invoice.
             if (missing.Count == 2) problems.Insert(0, "Chưa chốt chỉ số điện và nước.");
             else if (missing.Count == 1) problems.Insert(0, $"Thiếu chỉ số {missing[0]}.");
-            if (readings.Count != 2) { Skip(string.Join(" ", problems)); continue; }
+            if (readings.Count != 2)
+            {
+                model.BoQua.Add(new(h.Id, context.Room.MaPhong, string.Join(" ", problems)) { ThieuChiSo = missing.Count > 0 });
+                continue;
+            }
             var assignedServices = await db.DichVuPhongs.AsNoTracking()
                 .Where(x => x.PhongId == context.Room.Id)
                 .Select(x => x.DichVuToaNha.DichVuId).Distinct().OrderBy(x => x).ToListAsync();
@@ -139,12 +150,15 @@ public sealed partial class HoaDonDichVuService
         IReadOnlyCollection<int>? selectedIds = null, DateOnly? issueDate = null, DateOnly? dueDate = null,
         IReadOnlyDictionary<int, string>? expected = null)
     {
+        var timer = Stopwatch.StartNew();
+        var started = (clock ?? new SystemTimeProvider()).UtcNow;
         await db.Database.OpenConnectionAsync();
         await using var sqlite = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
         await using var tx = await db.Database.UseTransactionAsync(sqlite);
         var model = await XemThangAsync(actor, building, year, month, issueDate, dueDate);
         if (!model.SanSang) throw new InvalidOperationException("Chức năng hóa đơn chưa được thiết lập.");
-        var results = model.BoQua.Select(x => new KetQuaPhongHoaDon(x.HopDongId, x.MaPhong, "BO_QUA", x.LyDo)).ToList();
+        var results = model.BoQua.Select(x => new KetQuaPhongHoaDon(x.HopDongId, x.MaPhong, x.TrangThai, x.LyDo, x.HoaDonId)
+            { ThieuChiSo = x.ThieuChiSo }).ToList();
         if (selectedIds is not null)
         {
             var belongs = await (from h in db.HopDongs join p in db.PhongTros on h.PhongId equals p.Id
@@ -182,8 +196,17 @@ public sealed partial class HoaDonDichVuService
             row.HoaDon.NguoiPhatHanhId = actor;
         }
         await db.SaveChangesAsync();
+        results.AddRange(model.DuKien.Select(x => new KetQuaPhongHoaDon(x.HoaDon.HopDongId, x.MaPhong, "DA_PHAT_HANH", "Đã phát hành và khóa chỉ số điện nước.", x.HoaDon.Id)
+            { MaHoaDon = x.HoaDon.MaHoaDon, TenKhach = x.TenKhach, Tang = x.Tang, TongTien = x.HoaDon.TongTien }));
+        var buildingName = await db.ToaNhas.Where(x => x.Id == building).Select(x => x.TenToaNha).SingleAsync();
+        var actorName = await db.TaiKhoans.Where(x => x.Id == actor).Select(x => x.HoTen).SingleAsync();
         await sqlite.CommitAsync();
-        results.AddRange(model.DuKien.Select(x => new KetQuaPhongHoaDon(x.HoaDon.HopDongId, x.MaPhong, "DA_PHAT_HANH", "Đã phát hành và khóa chỉ số điện nước.", x.HoaDon.Id)));
-        return new(results.OrderBy(x => x.MaPhong, StringComparer.Ordinal).ToList());
+        timer.Stop();
+        return new(results.OrderBy(x => x.MaPhong, StringComparer.Ordinal).ToList())
+        {
+            ToaNhaId = building, TenToaNha = buildingName, NguoiThucHienId = actor, NguoiThucHien = actorName,
+            Nam = year, Thang = month, NgayPhatHanh = model.NgayPhatHanh, HanThanhToan = model.HanThanhToan,
+            BatDauUtc = started, HoanTatUtc = (clock ?? new SystemTimeProvider()).UtcNow, SoGiay = timer.Elapsed.TotalSeconds
+        };
     }
 }
