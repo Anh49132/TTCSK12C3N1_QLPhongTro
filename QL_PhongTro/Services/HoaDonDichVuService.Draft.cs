@@ -41,6 +41,7 @@ public sealed partial class HoaDonDichVuService
         var invoice = await db.HoaDons.Include(x => x.ChiTiet).SingleAsync(x => x.Id == input.Id);
         if (invoice.TrangThai != "NHAP") throw new InvalidOperationException("Chỉ được sửa hóa đơn Nháp.");
         if (invoice.PhienBan != input.PhienBan) throw new InvalidOperationException("Hóa đơn đã được sửa bởi người khác. Hãy tải lại trang.");
+        var beforeHistory = SnapshotNhap(invoice);
         var meters = invoice.ChiTiet.Where(x => x.CachTinhApDung == CachTinhDichVu.TheoChiSo).ToDictionary(x => x.Id);
         if (input.ChiSo.Count != meters.Count || input.ChiSo.Select(x => x.Id).Distinct().Count() != meters.Count
             || input.ChiSo.Any(x => !meters.ContainsKey(x.Id))) throw new InvalidOperationException("Danh sách chỉ số không hợp lệ.");
@@ -69,8 +70,10 @@ public sealed partial class HoaDonDichVuService
             GhiChu = item.GhiChu!.Trim(), SoLuong = 1, DonGia = item.SoTien!.Value, ThanhTien = item.SoTien.Value, DonViTinh = "khoản" });
         invoice.TongTien = TongNhap(invoice.ChiTiet);
         if (invoice.TongTien < 0) throw new InvalidOperationException("Tổng giảm trừ không được vượt tổng các khoản thu.");
+        if (beforeHistory == SnapshotNhap(invoice)) return;
         invoice.PhienBan++;
         await db.SaveChangesAsync();
+        await GhiLichSuNhapAsync(actor, invoice, beforeHistory);
         await sqlite.CommitAsync();
     }
 }

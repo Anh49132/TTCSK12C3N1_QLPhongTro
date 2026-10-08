@@ -246,6 +246,7 @@ public partial class HoaDonDichVuController(AppDbContext db, DichVuService servi
         ViewData["ToaNhaId"] = context.ToaNhaId;
         var model = await InvoiceViewAsync(await db.HoaDons.AsNoTracking().Include(x => x.ChiTiet).SingleAsync(x => x.Id == id), false);
         await invoices.FillRelationsAsync(model);
+        model.LichSuNhap = await invoices.LichSuNhapAsync(AccountId, id);
         if (model.HoaDon.TrangThai == "DA_PHAT_HANH") model.LyDoChanHuy = await invoices.LyDoChanHuyAsync(id);
         return View(model);
     }

@@ -1,3 +1,7 @@
+## S3-08:4 — lịch sử Nháp, giữ schema v22
+
+Dùng bảng nhat_ky_hoat_dong có sẵn và action SUA_NHAP; snapshot trước/sau được ghi cùng transaction, giữ trigger chỉ thêm. Không đổi cấu trúc, không nâng schema và không chạy updater trên CSDL gốc. Chỉ ghi lịch sử cho lần sửa mới, không backfill audit cũ. Xem [hướng dẫn phần 4](s3084-lich-su-sua-nhap.md).
+
 ## S3-08:3 — schema v22
 
 v22 bổ sung guard hủy/thay thế vào trigger hóa đơn, giữ nguyên bảng/cột và dữ liệu đã có. Các cột thay_the_hoa_don_id, nguoi_huy_id, ngay_huy, ly_do_huy đã có trong SQLite, nay được ánh xạ để dùng. Chỉ cho phát hành → hủy cùng metadata hợp lệ; bản hủy/dòng tiền vẫn bất biến. Module hóa đơn cài sau nền v22 cũng được áp dụng guard. Updater có backup; chỉ chạy trên bản sao demo trong phiên này. Không cập nhật CSDL gốc. Xem [hướng dẫn phần 3](s3083-huy-phat-hanh-lai.md).

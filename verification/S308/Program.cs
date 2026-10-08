@@ -209,6 +209,7 @@ try {
 }
 await PublishVerification.Run(Context, path, root, Check);
 await CancelVerification.Run(Context, path, root, Check);
+await HistoryVerification.Run(Context, Check);
 
 // A second host verifies publication and the tenant experience against the disposable fixture.
 start.ArgumentList.Add("--PasswordReset:From"); start.ArgumentList.Add("noreply@example.test");
@@ -238,7 +239,14 @@ try {
     }
     await using var browser = new BrowserVerification(); await browser.Start(folder);
     await browser.Login(url, "owner@example.test");
+    int historyInvoiceId;
+    using(var db=Context()) historyInvoiceId=await db.HoaDons.Where(x=>x.MaHoaDon=="HD-HISTORY").Select(x=>x.Id).SingleAsync();
+    await browser.Navigate(url+"/HoaDonDichVu/Details/"+historyInvoiceId);
+    Check((await browser.Evaluate("document.querySelector('#draft-history').innerText.includes('<script>test</script>') && !Array.from(document.scripts).some(x=>x.textContent==='test')")).GetBoolean(),"browser history notes are HTML encoded");
+    Check((await browser.Evaluate("document.documentElement.scrollWidth<=innerWidth")).GetBoolean(),"history repeated edits fits 360px");
+    await browser.Screenshot(Path.Combine(folder,"draft-history-360.png"));
     await browser.Navigate(url + "/HoaDonDichVu/Details/" + webId);
+    var originalHistory=await browser.Evaluate("document.querySelector('#draft-history').innerText");
     await browser.Evaluate("let field=document.querySelector('[name=\"Khoan[0].TenKhoan\"]');field.value='Unsaved change';field.dispatchEvent(new Event('input',{bubbles:true}));true");
     Check((await browser.Evaluate("document.querySelector('#publish-open').disabled && !document.querySelector('#publish-dirty').hidden")).GetBoolean(), "browser unsaved edits block publication");
     await browser.Navigate(url + "/HoaDonDichVu/Details/" + webId);
@@ -302,6 +310,7 @@ try {
     await browser.Evaluate("document.querySelector('#cancel-reason').value='Ghi nhầm khoản phí';document.querySelector('#cancel-invoice-form [name=XacNhan]').checked=true;document.querySelector('#cancel-invoice-form').requestSubmit();true");
     await browser.Wait("!!document.querySelector('#cancelled-invoice') && !document.querySelector('#cancel-open') && document.readyState==='complete'");
     Check((await browser.Evaluate("document.body.innerText.includes('Ghi nhầm khoản phí') && !document.querySelector('#draft-editor')")).GetBoolean(),"browser cancelled invoice keeps reason and locks content");
+    Check((await browser.Evaluate("document.querySelector('#draft-history').innerText")).GetString()==originalHistory.GetString(),"browser original history unchanged after publication and cancellation");
     Check((await browser.Evaluate("document.documentElement.scrollWidth<=innerWidth")).GetBoolean(),"cancelled owner invoice fits 360px");
     await browser.Screenshot(Path.Combine(folder,"cancelled-owner-360.png"));
     Check((await tenant.GetStringAsync("/ThongBao/HoaDon/"+webId)).Contains("Hóa đơn đã hủy"),"tenant retains access to cancelled original");
@@ -317,13 +326,17 @@ try {
     await browser.Evaluate("document.querySelector('[name=\"Khoan[0].TenKhoan\"]').value='Điều chỉnh bản thay thế';document.querySelector('[name=\"Khoan[0].SoTien\"]').value='1000';document.querySelector('[name=\"Khoan[0].GhiChu\"]').value='Sửa khoản phí';document.querySelector('#draft-editor').requestSubmit();true");
     await browser.Wait("document.querySelector('#draft-editor [name=PhienBan]')?.value==='1' && document.readyState==='complete'");
     using(var db=Context()) Check((await db.HoaDons.FindAsync(replacementWebId))!.TongTien==issuedTotal+1000 && (await db.HoaDons.FindAsync(webId))!.TongTien==issuedTotal,"browser edit recalculates replacement and preserves cancelled total");
+    Check((await browser.Evaluate("!!document.querySelector('#draft-history') && document.querySelector('#draft-history').innerText.includes('Sửa khoản phí') && document.querySelector('#draft-history').innerText.includes('Chưa có')")).GetBoolean(),"browser history renders before after and adjustment notes");
+    var replacementHistory = await browser.Evaluate("document.querySelector('#draft-history').innerText");
     await browser.Evaluate("document.querySelector('#publish-open').click();document.querySelector('#publish-draft-form [name=XacNhan]').checked=true;document.querySelector('#publish-draft-form').requestSubmit();true");
     await browser.Wait("!document.querySelector('#draft-editor') && !!document.querySelector('#cancel-open') && document.readyState==='complete'");
     using(var db=Context()) Check((await db.HoaDons.FindAsync(replacementWebId))!.TrangThai=="DA_PHAT_HANH" && await db.ThongBaoHoaDons.CountAsync(x=>x.HoaDonId==replacementWebId)==1,"browser replacement reissued and tenant notified once");
+    Check((await browser.Evaluate("document.querySelector('#draft-history').innerText")).GetString()==replacementHistory.GetString(),"browser history unchanged after publication");
     var oldTenantView=await tenant.GetStringAsync("/ThongBao/HoaDon/"+webId);
     Check(oldTenantView.Contains("/ThongBao/HoaDon/"+replacementWebId),"tenant sees published replacement link from cancelled original");
     await browser.ClearCookies();await browser.Login(url,"tenant@example.test");await browser.Navigate(url+"/ThongBao/HoaDon/"+replacementWebId);
     Check((await browser.Evaluate("!document.querySelector('#draft-editor') && !document.querySelector('#cancel-open') && document.body.innerText.includes('Thay thế bản đã hủy')")).GetBoolean(),"tenant replacement is readonly and links back to original");
+    Check((await browser.Evaluate("!document.querySelector('#draft-history')")).GetBoolean(),"tenant cannot access private draft edit history");
     Check((await browser.Evaluate("document.documentElement.scrollWidth<=innerWidth")).GetBoolean(),"tenant replacement fits 360px");
     await browser.Screenshot(Path.Combine(folder,"replacement-tenant-360.png"));
     Check((await otherTenant.GetAsync("/ThongBao/HoaDon/"+replacementWebId)).StatusCode==HttpStatusCode.Forbidden,"other tenant cannot access replacement");

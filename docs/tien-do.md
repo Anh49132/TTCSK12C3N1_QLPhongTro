@@ -1,3 +1,9 @@
+## 09/10/2026 — S3-08 phần 4: lịch sử sửa Nháp
+
+- Nhánh feature/S3-08/04-invoice-draft-history kế thừa phần 3. Ghi một bản trước/sau cho mỗi lần lưu có thay đổi, cùng transaction; có tên/người sửa, giờ UTC, chỉ số, tiền và ghi chú phát sinh/giảm trừ. Thao tác rỗng/sai/stale không thêm lịch sử. Không đổi công thức hoặc schema v22; giữ audit cũ, không backfill thông tin không tồn tại.
+- Lịch sử mới nhất ở trên, giữ nguyên sau phát hành/hủy, bản thay thế có lịch sử riêng. Chủ nhà trong phạm vi sở hữu xem được; khách không nhận lịch sử nội bộ. 193 kiểm tra S3-08 PASS, gồm rollback riêng khi ghi lịch sử lỗi, race, quyền, append-only, mã hóa HTML, 360px và luồng phát hành/hủy/thay thế. CSDL gốc và demo trước giữ nguyên; web 5249 chạy trên bản sao mới. Chưa commit/push phần 4.
+- Hồi quy toàn bộ: 560/569 PASS, 9 FAIL trùng lỗi cũ, 0 test lỗi mới so với phần 3. Bộ nhật ký hiện có 10/10 PASS. Hướng dẫn test/kết quả/giới hạn: [s3084-lich-su-sua-nhap.md](s3084-lich-su-sua-nhap.md).
+
 ## 09/10/2026 — S3-08 lát 3: hủy có lý do và phát hành lại
 
 - Nhánh feature/S3-08/03-invoice-cancel-reissue kế thừa phần 1/2. Chủ nhà hủy Đã phát hành có lý do/xác nhận/phiên bản; giữ tiền, dòng, ghi chú, mã và lần phát hành của bản cũ. Tạo Nháp thay thế có liên kết hai phía, sao chép đủ snapshot; bấm lặp/đồng thời không sinh trùng. Sửa/phát hành qua luồng hiện có, khách nhận thông báo mới, bản hủy vẫn tra cứu được.

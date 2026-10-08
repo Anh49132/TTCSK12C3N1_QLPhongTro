@@ -47,6 +47,7 @@
 @foreach (var line in meters) { <tr><th scope="row">@line.TenKhoan</th><td>@line.ChiSoDau?.ToString("0.###", vn) @line.DonViTinh</td><td>@line.ChiSoCuoi?.ToString("0.###", vn) @line.DonViTinh</td><td><strong>@line.SoLuong.ToString("0.###", vn) @line.DonViTinh</strong></td><td><span class="id-status">✓ @(Model.XemTruoc ? "Đã chốt" : "Đã lưu trên hóa đơn")</span></td></tr> }
 </tbody></table></div><p class="mi-muted">Ngày chốt kỳ: <strong>@invoice.NgayChot.ToString("dd/MM/yyyy")</strong>. @(Model.XemTruoc ? "Chỉ số sẽ được khóa khi phát hành." : invoice.TrangThai == "NHAP" ? "Chỉ số lưu trên bản nháp; chưa khóa bản chỉ số gốc." : "Chỉ số và đơn giá đã được lưu tại thời điểm phát hành.")</p></section>
 <section class="mi-card"><h2>Số người tính phí</h2><p class="id-people"><strong>@invoice.SoNguoiTinhPhi người</strong> trong kỳ tháng @invoice.Thang/@invoice.Nam</p><p class="mi-muted">Gồm người đứng tên và người ở ghép bắt đầu tính phí từ tháng sau ngày vào. Người chuyển đi vẫn tính hết tháng rời phòng.</p></section>
+@if (!Model.XemTruoc && !Model.KhachXem) { <partial name="~/Views/HoaDonDichVu/_DraftHistory.cshtml" model="Model.LichSuNhap" /> }
 </div><aside>
 <section class="mi-card"><h2>Thông tin hóa đơn</h2><dl class="id-info">
 <dt>Mã hóa đơn</dt><dd>@(Model.XemTruoc ? "Tạo khi phát hành" : invoice.MaHoaDon)</dd>
