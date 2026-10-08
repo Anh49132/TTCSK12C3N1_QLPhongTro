@@ -993,3 +993,12 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 - Build Debug đạt. Test lọc MeterReadingListTests/PhongTroNhatKyTests/ContractActivationTests: 113/113 PASS. Lượt đầu 111/113 do test cũ chỉ xóa marker18 và kỳ vọng18; cập nhật kịch bản cho v19 rồi chạy lại đạt.
 - Có hai ca mới từ UI v17 thiếu bảng chỉ số và dev v18 thiếu cột tòa: backup, integrity/FK, giữ dữ liệu, chạy lại không đổi. Thử updater trên bản sao mới data/sync-dev-20261008-070900/verification.sqlite: bảo toàn 264 dòng trong 34 bảng cũ; integrity/FK đạt; chạy lặp/check schema đạt.
 - Không chạy updater/initializer trên DB local/demo gốc. App cổng5247 đã dừng trước build và giữ dừng để tránh chạy mã mới với DB cũ; cần cập nhật DB có chủ đích trước khi chạy lại. Không push, không chụp màn hình. Cảnh báo ImageSharp, CS8601, NU1900/xUnit2013 có sẵn.
+
+### 08/10/2026 — Chuẩn bị DB kiểm thử S3-06
+
+- Tạo bản sao DB demo Sprint 2 tại `data/s306-demo/20261008-225500/s306.sqlite`; giữ nguyên toàn bộ 449 dòng nguồn, tài khoản và mật khẩu cũ. Schema nguồn v20, không chạy updater.
+- Thêm tòa 5: 4 phòng đủ dữ liệu (3.780.000 / 3.980.000 / 4.060.000 / 4.220.000 đ), A105 thiếu nước; tòa 6: 50 phòng đủ dữ liệu, mỗi phòng 4.060.000 đ. Giá điện 4.000 đ tại ngày chốt 31/10, giá mới 6.000 đ từ 01/11 để kiểm tra lịch sử.
+- `.env.local` chuyển sang bản sao; cấu hình cũ lưu `env.before.txt`, DB trước test lưu `s306-ready.backup.sqlite`. Hướng dẫn trong `HUONG-DAN-TEST.md` cùng thư mục. Dữ liệu/credential đều bị ignore.
+- Kiểm tra: integrity_check=ok, FK không lỗi; CLI `--check-database` thành công. Chưa phát hành hóa đơn thử; chưa xác minh HTTP vì sandbox chặn localhost (WinError 10013). Web kiểm tra đã dừng, người dùng chạy `run.bat` để test.
+
+- Giao diện kiểm tra hóa đơn tháng: phân trang 15 dòng cho danh sách sẵn sàng, bỏ qua, đã có hóa đơn và lịch sử phát hành; các bảng chuyển trang độc lập. Kiểm tra cú pháp JavaScript và git diff đạt; chưa kiểm tra trực quan trình duyệt.

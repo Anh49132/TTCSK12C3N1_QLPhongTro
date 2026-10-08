@@ -72,6 +72,7 @@
         rows.filter(row => !row.hidden).forEach(row => { row.querySelector('.room-select').checked = event.target.checked; });
         updateSelection();
     });
+    const pageSize = 15;
     let page = 1;
     const search = document.getElementById('room-search'), floor = document.getElementById('floor-filter'), sort = document.getElementById('room-sort');
     const renderRows = () => {
@@ -83,12 +84,12 @@
             const difference = BigInt(a.dataset.total) - BigInt(b.dataset.total);
             return (difference > 0n ? 1 : difference < 0n ? -1 : 0) * (sort.value === 'total-desc' ? -1 : 1);
         });
-        const pages = Math.max(1, Math.ceil(filtered.length / 5));
+        const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
         page = Math.min(page, pages);
         rows.forEach(row => { row.hidden = true; });
         const tbody = document.querySelector('#ready-table tbody');
-        filtered.forEach((row, index) => { tbody.appendChild(row); row.hidden = index < (page - 1) * 5 || index >= page * 5; });
-        document.getElementById('room-page-info').textContent = filtered.length ? `Hiển thị ${(page - 1) * 5 + 1}–${Math.min(page * 5, filtered.length)} trên ${filtered.length} phòng` : 'Không có phòng phù hợp';
+        filtered.forEach((row, index) => { tbody.appendChild(row); row.hidden = index < (page - 1) * pageSize || index >= page * pageSize; });
+        document.getElementById('room-page-info').textContent = filtered.length ? `Hiển thị ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, filtered.length)} trên ${filtered.length} phòng` : 'Không có phòng phù hợp';
         const pagination = document.getElementById('room-pages');
         pagination.replaceChildren();
         for (let number = 1; number <= pages; number++) {
@@ -118,6 +119,37 @@
         const csv = [['Phòng','Khách thuê','Kết quả','Tổng tiền','Lý do'], ...rows.map(row => [row.dataset.room,row.dataset.tenant,'Sẵn sàng',row.dataset.total,'']), ...[...document.querySelectorAll('#skipped-table tbody tr')].map(row => [row.cells[0].textContent.trim(),'','Bị bỏ qua','',row.cells[1].textContent.trim()])].map(line => line.map(cell).join(',')).join('\r\n');
         const url = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
         const link = document.createElement('a'); link.href = url; link.download = 'kiem-tra-hoa-don.csv'; link.click(); URL.revokeObjectURL(url);
+    });
+    document.querySelectorAll('table[data-page-size]').forEach(table => {
+        const tableRows = [...table.querySelectorAll('tbody tr')];
+        const size = Number(table.dataset.pageSize);
+        if (tableRows.length <= size) return;
+        let currentPage = 1;
+        const pageCount = Math.ceil(tableRows.length / size);
+        const navigation = document.createElement('nav');
+        navigation.className = 'mr-pagination';
+        navigation.setAttribute('aria-label', 'Phân trang danh sách hóa đơn');
+        const info = document.createElement('span');
+        info.setAttribute('aria-live', 'polite');
+        const buttons = document.createElement('div');
+        navigation.append(info, buttons);
+        table.closest('.table-responsive').after(navigation);
+        const render = () => {
+            const start = (currentPage - 1) * size;
+            tableRows.forEach((row, index) => { row.hidden = index < start || index >= start + size; });
+            info.textContent = `Hiển thị ${start + 1}–${Math.min(start + size, tableRows.length)} trên ${tableRows.length} bản ghi`;
+            buttons.replaceChildren();
+            for (let number = 1; number <= pageCount; number++) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = number;
+                button.setAttribute('aria-label', `Trang ${number}`);
+                if (number === currentPage) button.setAttribute('aria-current', 'page');
+                button.addEventListener('click', () => { currentPage = number; render(); });
+                buttons.appendChild(button);
+            }
+        };
+        render();
     });
     renderRows();
 })();
