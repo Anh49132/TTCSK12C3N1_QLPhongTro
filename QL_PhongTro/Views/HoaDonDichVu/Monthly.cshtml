@@ -5,8 +5,7 @@
 @section Styles { <link rel="stylesheet" href="~/css/monthly-invoices.css" asp-append-version="true" /> }
 <div class="monthly-invoices">
 <nav aria-label="Đường dẫn" class="mi-breadcrumb"><a asp-controller="Home" asp-action="Index">Tổng quan</a> / Hóa đơn, thanh toán / Phát hành hóa đơn</nav>
-<header class="mi-heading"><div><h1>Phát hành hóa đơn tháng</h1><p>Tính và tạo hóa đơn cho các phòng đã chốt đủ điện nước trong một lần.</p></div><a href="#invoice-history" class="btn btn-outline-secondary">◷ Lịch sử phát hành</a></header>
-<ol class="mi-steps"><li><b>1</b> Cấu hình kỳ</li><li><b>2</b> Kiểm tra hóa đơn</li><li><b>3</b> Phát hành</li></ol>
+<header class="mi-heading"><div><h1>Phát hành hóa đơn tháng</h1><p>Tiền phòng, điện nước, dịch vụ cố định và các khoản tính theo người.</p></div><a href="#invoice-history" class="btn btn-outline-secondary">◷ Lịch sử phát hành</a></header>
 <div asp-validation-summary="All" class="text-danger"></div>
 @if (TempData["MonthlyMessage"] is string message) { <div class="alert alert-success" role="status">@message</div> }
 @if (TempData["MonthlyError"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
@@ -21,14 +20,14 @@
 </form>
 <p class="mi-muted">Hạn thanh toán tự động: 7 ngày kể từ ngày phát hành. Tiền phòng lấy theo kỳ hợp đồng thuê trọn tháng.</p>
 </section>
-<section class="mi-card"><h2>Hóa đơn sẵn sàng phát hành</h2><p class="mi-muted">Chỉ gồm tiền phòng, điện và nước theo chỉ số. Đơn giá và chỉ số được lưu vào từng hóa đơn.</p>
+<section class="mi-card"><h2>Hóa đơn sẵn sàng phát hành</h2><p class="mi-muted">Bao gồm các dịch vụ đang áp dụng của từng phòng. Số người, đơn giá và chỉ số được lưu vào hóa đơn khi phát hành.</p>
 @if (!Model.SanSang) { <div class="alert alert-info">Chưa có tòa nhà hoặc chức năng hóa đơn/chỉ số chưa được thiết lập. Vui lòng liên hệ quản trị.</div> }
 else if (Model.DuKien.Count == 0) { <p>Không có phòng đủ điều kiện tạo hóa đơn mới trong kỳ này.</p> }
 else {
-<div class="table-responsive"><table class="table mi-table"><thead><tr><th>Phòng</th><th>Ngày chốt</th><th>Tiền phòng</th><th>Tiền điện</th><th>Tiền nước</th><th>Tổng tiền</th></tr></thead><tbody>
+<div class="table-responsive"><table class="table mi-table"><thead><tr><th>Phòng</th><th>Ngày chốt</th><th>Tiền phòng</th><th>Tiền điện</th><th>Tiền nước</th><th>Dịch vụ bổ sung</th><th>Tổng tiền</th></tr></thead><tbody>
 @foreach (var row in Model.DuKien) {
-<tr><th>@row.MaPhong</th><td>@row.HoaDon.NgayChot.ToString("dd/MM/yyyy")</td>@foreach (var line in row.HoaDon.ChiTiet) { <td>@line.ThanhTien.ToString("N0", vn) đ</td> }<td><strong>@row.HoaDon.TongTien.ToString("N0", vn) đ</strong></td></tr>
-<tr><td colspan="6"><details><summary>Xem chỉ số và đơn giá · @row.MaPhong</summary>@foreach (var line in row.HoaDon.ChiTiet.Where(x => x.DichVuId.HasValue)) { <p>@line.TenKhoan: @line.ChiSoDau?.ToString("0.###", vn) → @line.ChiSoCuoi?.ToString("0.###", vn) · @line.SoLuong.ToString("0.###", vn) @line.DonViTinh × @line.DonGia.ToString("N0", vn) đ = <strong>@line.ThanhTien.ToString("N0", vn) đ</strong></p> }</details></td></tr>
+<tr><th>@row.MaPhong</th><td>@row.HoaDon.NgayChot.ToString("dd/MM/yyyy")</td>@foreach (var line in row.HoaDon.ChiTiet.Take(3)) { <td>@line.ThanhTien.ToString("N0", vn) đ</td> }<td>@row.HoaDon.ChiTiet.Skip(3).Sum(x => x.ThanhTien).ToString("N0", vn) đ</td><td><strong>@row.HoaDon.TongTien.ToString("N0", vn) đ</strong></td></tr>
+<tr><td colspan="7"><a asp-action="Preview" asp-route-toaNhaId="@Model.ToaNhaId" asp-route-hopDongId="@row.HoaDon.HopDongId" asp-route-nam="@Model.Nam" asp-route-thang="@Model.Thang">Xem đầy đủ các khoản · @row.MaPhong →</a><span class="mi-person-count">@row.HoaDon.SoNguoiTinhPhi người tính phí</span></td></tr>
 }
 </tbody></table></div>
 }

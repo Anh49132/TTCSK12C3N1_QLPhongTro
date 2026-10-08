@@ -36,12 +36,12 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
     }
 
     [HttpPost, Authorize(Roles = "CHU_NHA"), ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]
-    public async Task<IActionResult> IssueMonthly(int toaNhaId, int nam, int thang)
+    public async Task<IActionResult> IssueMonthly(int toaNhaId, int nam, int thang, int? hopDongId)
     {
         if (!ModelState.IsValid) return BadRequest();
         try
         {
-            var count = await invoices.PhatHanhThangAsync(AccountId, toaNhaId, nam, thang);
+            var count = await invoices.PhatHanhThangAsync(AccountId, toaNhaId, nam, thang, hopDongId);
             TempData["MonthlyMessage"] = count > 0 ? $"Đã phát hành {count} hóa đơn. Chỉ số điện nước đã được khóa." : "Không có phòng đủ dữ liệu để phát hành hóa đơn mới.";
         }
         catch (UnauthorizedAccessException) { return Forbid(); }
@@ -50,6 +50,40 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
         catch (DbUpdateException) { TempData["MonthlyError"] = "Dữ liệu đã thay đổi. Hãy kiểm tra lại kỳ hóa đơn."; }
         catch (Microsoft.Data.Sqlite.SqliteException) { TempData["MonthlyError"] = "Chưa thể phát hành hóa đơn. Hãy kiểm tra thiết lập hoặc thử lại."; }
         return RedirectToAction(nameof(Monthly), new { toaNhaId, nam, thang });
+    }
+
+    private async Task<ChiTietHoaDonViewModel> InvoiceViewAsync(QL_PhongTro.Models.HoaDon invoice, bool preview)
+    {
+        var context = await (from h in db.HopDongs.AsNoTracking()
+            join p in db.PhongTros on h.PhongId equals p.Id
+            join t in db.ToaNhas on p.ToaNhaId equals t.Id
+            where h.Id == invoice.HopDongId
+            select new { p.MaPhong, p.ToaNhaId, t.TenToaNha, h.KhachDungTenId }).SingleAsync();
+        var tenant = await db.KhachThues.AsNoTracking().Where(x => x.Id == context.KhachDungTenId).Select(x => x.HoTen).SingleOrDefaultAsync();
+        return new() { HoaDon = invoice, XemTruoc = preview, ToaNhaId = context.ToaNhaId,
+            MaPhong = context.MaPhong, TenToaNha = context.TenToaNha, TenKhach = tenant ?? "Chưa có thông tin" };
+    }
+
+    [HttpGet, Authorize(Roles = "CHU_NHA")]
+    public async Task<IActionResult> Preview(int toaNhaId, int hopDongId, int nam, int thang)
+    {
+        if (!ModelState.IsValid) return BadRequest();
+        var belongs = await (from h in db.HopDongs join p in db.PhongTros on h.PhongId equals p.Id
+            where h.Id == hopDongId && p.ToaNhaId == toaNhaId select h.Id).AnyAsync();
+        if (!belongs || !await services.SoHuuToaNhaAsync(AccountId, toaNhaId)) return Forbid();
+        try
+        {
+            var preview = await invoices.XemThangAsync(AccountId, toaNhaId, nam, thang);
+            var row = preview.DuKien.SingleOrDefault(x => x.HoaDon.HopDongId == hopDongId);
+            if (row is null)
+            {
+                TempData["MonthlyError"] = "Phòng chưa đủ dữ liệu hoặc đã có hóa đơn trong kỳ. Hãy kiểm tra lại danh sách.";
+                return RedirectToAction(nameof(Monthly), new { toaNhaId, nam, thang });
+            }
+            return View("Details", await InvoiceViewAsync(row.HoaDon, true));
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { TempData["MonthlyError"] = ex.Message; return RedirectToAction(nameof(Monthly), new { toaNhaId, nam, thang }); }
     }
 
     private async Task FillAsync(LapHoaDonDichVuViewModel model)
@@ -149,6 +183,6 @@ public class HoaDonDichVuController(AppDbContext db, DichVuService services, Hoa
         if (context is null) return NotFound();
         if (!await services.SoHuuToaNhaAsync(AccountId, context.ToaNhaId)) return Forbid();
         ViewData["ToaNhaId"] = context.ToaNhaId;
-        return View(await db.HoaDons.AsNoTracking().Include(x => x.ChiTiet).SingleAsync(x => x.Id == id));
+        return View(await InvoiceViewAsync(await db.HoaDons.AsNoTracking().Include(x => x.ChiTiet).SingleAsync(x => x.Id == id), false));
     }
 }

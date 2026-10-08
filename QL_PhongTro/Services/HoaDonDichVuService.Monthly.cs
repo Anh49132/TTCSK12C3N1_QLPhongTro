@@ -62,6 +62,23 @@ public sealed partial class HoaDonDichVuService
             }
             // S3-06 requires both electricity and water, never an incomplete invoice.
             if (readings.Count != 2) continue;
+            var assignedServices = await db.DichVuPhongs.AsNoTracking()
+                .Where(x => x.PhongId == context.Room.Id)
+                .Select(x => x.DichVuToaNha.DichVuId).Distinct().OrderBy(x => x).ToListAsync();
+            foreach (var serviceId in assignedServices)
+            {
+                if (invoice.ChiTiet.Any(x => x.DichVuId == serviceId)
+                    || (agreed.Count > 0 && !agreed.Contains(serviceId))) continue;
+                var price = await pricing.LayGiaHoaDonAsync(actor, context.Room.Id, serviceId, cutoff);
+                if (price is null || price.CachTinh is not (CachTinhDichVu.CoDinh or CachTinhDichVu.TheoNguoi)) continue;
+                var quantity = price.CachTinh == CachTinhDichVu.TheoNguoi ? occupancy.SoNguoi : 1;
+                invoice.ChiTiet.Add(new()
+                {
+                    SoThuTu = invoice.ChiTiet.Count + 1, DichVuId = serviceId, CauHinhDichVuId = price.CauHinhId,
+                    TenKhoan = price.TenDichVu, CachTinhApDung = price.CachTinh, DonViTinh = price.DonViTinh,
+                    SoLuong = quantity, DonGia = price.DonGia, ThanhTien = ThanhTien(quantity, price.DonGia)
+                });
+            }
             invoice.TongTien = invoice.ChiTiet.Aggregate(0L, (sum, line) => checked(sum + line.ThanhTien));
             model.DuKien.Add(new(context.Room.MaPhong, invoice, readings));
         }
@@ -73,13 +90,20 @@ public sealed partial class HoaDonDichVuService
         return model;
     }
 
-    public async Task<int> PhatHanhThangAsync(int actor, int building, int year, int month)
+    public async Task<int> PhatHanhThangAsync(int actor, int building, int year, int month, int? contractId = null)
     {
         await db.Database.OpenConnectionAsync();
         await using var sqlite = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
         await using var tx = await db.Database.UseTransactionAsync(sqlite);
         var model = await XemThangAsync(actor, building, year, month);
         if (!model.SanSang) throw new InvalidOperationException("Chức năng hóa đơn chưa được thiết lập.");
+        if (contractId.HasValue)
+        {
+            if (!await (from h in db.HopDongs join p in db.PhongTros on h.PhongId equals p.Id
+                where h.Id == contractId.Value && p.ToaNhaId == building select h.Id).AnyAsync())
+                throw new UnauthorizedAccessException();
+            model.DuKien = model.DuKien.Where(x => x.HoaDon.HopDongId == contractId.Value).ToList();
+        }
         foreach (var row in model.DuKien)
         {
             db.HoaDons.Add(row.HoaDon);

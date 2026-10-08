@@ -11,6 +11,8 @@ public sealed partial class RoomServicesTests
     private async Task<(int A, int B, int Dien, int Nuoc)> MonthlyFixture(AppDbContext db)
     {
         var f = await BillingAsync(db);
+        // Baseline is rent + meters only; supplemental-service tests assign their own services.
+        await db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM dich_vu_phong WHERE dich_vu_toa_nha_id={f.Catalog}");
         var electric = await AddService(db, "Điện kỳ", 4000, type: CachTinhDichVu.TheoChiSo);
         var water = await AddService(db, "Nước kỳ", 16000, type: CachTinhDichVu.TheoChiSo);
         var dien = (await db.DichVuToaNhas.FindAsync(electric))!.DichVuId;
