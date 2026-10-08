@@ -299,4 +299,36 @@ public class PhongTroNhatKyTests : IDisposable
             (Assert.IsType<ViewResult>(await controller.NhatKyPhong(_phongId, null, null, 2))).Model);
         Assert.Equal(3, trang2.Rows.Count);
     }
+
+    [Fact]
+    public void NhatKy_BatBien_CapNhatVaXoaDeuBiChoi()
+    {
+        var id = Convert.ToInt64(Scalar("SELECT id FROM nhat_ky_hoat_dong ORDER BY id LIMIT 1"));
+
+        // Sửa và xoá thẳng bằng SQL đều bị trigger audit chặn.
+        Assert.Throws<SqliteException>(() => Execute(
+            "UPDATE nhat_ky_hoat_dong SET hanh_dong='SUA' WHERE id=$id", ("$id", id)));
+        Assert.Throws<SqliteException>(() => Execute(
+            "DELETE FROM nhat_ky_hoat_dong WHERE id=$id", ("$id", id)));
+
+        // Cấp EF cũng bị chặn trước khi chạm CSDL.
+        var dong = _db.NhatKyHoatDongs.Single(e => e.Id == id);
+        dong.HanhDong = "SUA";
+        Assert.Throws<InvalidOperationException>(() => _db.SaveChanges());
+
+        // Nội dung dòng nhật ký vẫn nguyên sau các lần bị chặn.
+        Assert.Equal("DOI_TRANG_THAI",
+            Scalar("SELECT hanh_dong FROM nhat_ky_hoat_dong WHERE id=$id", ("$id", id)));
+    }
+
+    private void Execute(string sql, params (string Name, object? Value)[] parameters)
+    {
+        var connection = _db.Database.GetDbConnection();
+        using var command = ((SqliteConnection)connection).CreateCommand();
+        if (connection.State != System.Data.ConnectionState.Open) connection.Open();
+        command.CommandText = sql;
+        foreach (var (name, value) in parameters)
+            command.Parameters.AddWithValue(name, value ?? DBNull.Value);
+        command.ExecuteNonQuery();
+    }
 }
