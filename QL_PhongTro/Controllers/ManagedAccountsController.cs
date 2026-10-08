@@ -71,13 +71,56 @@ public sealed class ManagedAccountsController(AppDbContext db, ITemporaryPasswor
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpGet]
+    public async Task<IActionResult> ChangeRole(int id)
+    {
+        var account = await db.TaiKhoans.AsNoTracking().SingleOrDefaultAsync(a => !a.IsDeleted && a.Id == id);
+        if (account is null) return NotFound();
+        return View(new ChangeAccountRoleViewModel
+        {
+            Id = id, HoTen = account.HoTen, VaiTro = account.VaiTro ?? "", OriginalRole = account.VaiTro ?? ""
+        });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ChangeRole(ChangeAccountRoleViewModel model)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync();
+        var account = await db.TaiKhoans.SingleOrDefaultAsync(a => !a.IsDeleted && a.Id == model.Id);
+        if (account is null) return NotFound();
+        model.HoTen = account.HoTen;
+        if (!ModelState.IsValid) return View(model);
+        if (account.VaiTro != model.OriginalRole)
+            ModelState.AddModelError("", "Vai trò đã được thay đổi. Vui lòng tải lại trang.");
+        if (account.VaiTro != model.VaiTro)
+        {
+            if (User.FindFirstValue(ClaimTypes.NameIdentifier) == model.Id.ToString())
+                ModelState.AddModelError("", "Không được tự đổi vai trò của mình.");
+            if (await db.ToaNhas.AnyAsync(b => b.ChuNhaId == model.Id) && model.VaiTro != "CHU_NHA")
+                ModelState.AddModelError("", "Tài khoản đang sở hữu tòa nhà. Cần chuyển chủ nhà trước khi đổi vai trò.");
+            if (await db.ToaNhas.AnyAsync(b => b.QuanLyId == model.Id) && model.VaiTro != "QUAN_LY")
+                ModelState.AddModelError("", "Tài khoản đang được phân công quản lý tòa nhà. Cần bỏ phân công trước khi đổi vai trò.");
+        }
+        if (!ModelState.IsValid) return View(model);
+        if (account.VaiTro == model.VaiTro) return RedirectToAction(nameof(Index));
+        account.VaiTro = model.VaiTro;
+        account.NgayCapNhat = DateTime.UtcNow;
+        account.RefreshTokenHash = null;
+        account.RefreshTokenExpiry = null;
+        await db.SaveChangesAsync();
+        await RevokeAsync(account.Id);
+        await tx.CommitAsync();
+        TempData["AccountMessage"] = "Đã đổi vai trò và thu hồi mọi phiên đăng nhập. Người dùng cần đăng nhập lại.";
+        return RedirectToAction(nameof(Index));
+    }
+
     // Retry after delivery failure without storing a plaintext temporary password.
     [HttpPost]
     public async Task<IActionResult> Resend(int id)
     {
         await using var tx = await db.Database.BeginTransactionAsync();
         var account = await db.TaiKhoans.SingleOrDefaultAsync(a => !a.IsDeleted && a.Id == id && a.MustChangePassword && a.DangHoatDong);
-        if (account is null || account.VaiTro is not ("CHU_NHA" or "QUAN_LY")) return NotFound();
+        if (account is null || account.VaiTro is not ("CHU_NHA" or "QUAN_LY" or "ADMIN")) return NotFound();
         var password = TemporaryPassword();
         db.TemporaryPasswordResentFor = account.Id;
         account.MatKhau = BCrypt.Net.BCrypt.HashPassword(password);

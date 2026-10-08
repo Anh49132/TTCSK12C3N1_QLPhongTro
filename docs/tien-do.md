@@ -1,3 +1,11 @@
+## 08/10/2026 — Admin tạo tài khoản Admin và đổi vai trò
+
+- Form tạo tài khoản thêm Quản trị viên (Admin), backend cho phép ADMIN cùng CHU_NHA/QUAN_LY. Giữ mật khẩu tạm BCrypt, gửi email và bắt buộc đổi mật khẩu lần đầu; hỗ trợ gửi lại mật khẩu tạm cho Admin mới.
+- Danh sách tài khoản thêm nút Đổi vai trò tới form chọn KHACH_THUE/CHU_NHA/QUAN_LY/ADMIN. GET/POST chỉ ADMIN, POST có CSRF. Không tự đổi vai trò của tài khoản đang đăng nhập; không đổi khỏi vai trò chủ nhà/quản lý khi còn sở hữu/được phân công tòa nhà. Giữ hồ sơ thuê và lịch sử hiện có; không chuyển hoặc xóa dữ liệu theo vai trò.
+- So vai trò gốc để từ chối form đã cũ. Đổi vai trò, nhật ký allowlist và thu hồi cookie/JWT/refresh cùng transaction; lỗi audit rollback toàn bộ. Không đổi schema, không cập nhật DB thật, không stage/commit; giữ file import ảnh chưa theo dõi và project test hiện có.
+- Build Debug PASS; 12/12 test HTTP trên SQLite tạm PASS: tạo Admin/bắt đổi mật khẩu/gửi lại, 403 ba vai trò khác, CSRF, vai trò sai/form cũ/tự đổi, ràng buộc tòa nhà, nhật ký/rollback, thu hồi cookie/JWT/refresh. Lệnh: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --no-restore --filter "FullyQualifiedName~ManagedRole|FullyQualifiedName~ManagedAccount_CreateAdmin"`. `git diff --check` PASS. Cảnh báo NU1900/ImageSharp/CS8601 và analyzer test cũ còn tồn tại.
+- Chưa kiểm trực quan 360px/Safari, SMTP thật hoặc bộ regression toàn dự án. Giao diện dùng auth-card/form responsive và bảng cuộn hiện có.
+
 ## 07/10/2026 — Giao diện chi tiết tòa nhà theo ảnh tham chiếu
 
 - Thêm `/PhongTro/ChiTietToaNha/{id}`: thông tin tòa/địa chỉ/quản lý/ngày chốt, ảnh phòng đại diện, quy mô/diện tích, thống kê thuê/trống/đặt cọc và danh sách phòng. Bấm tên tòa tại danh sách mở trang mới; giữ liên kết tới quản lý phòng, chỉnh sửa tòa, thêm phòng và cấu hình điện nước theo quyền.
