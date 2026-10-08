@@ -16,6 +16,7 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
     public DbSet<NguoiOGhep> NguoiOGheps => Set<NguoiOGhep>();
     public DbSet<HopDongThamChieu> HopDongs => Set<HopDongThamChieu>();
     public DbSet<HopDongChiSoDauKy> HopDongChiSoDauKys => Set<HopDongChiSoDauKy>();
+    public DbSet<ChiSoDienNuoc> ChiSoDienNuocs => Set<ChiSoDienNuoc>();
     public DbSet<KyHopDongThamChieu> KyHopDongs => Set<KyHopDongThamChieu>();
     public DbSet<HopDongDichVu> HopDongDichVus => Set<HopDongDichVu>();
     public DbSet<HoaDon> HoaDons => Set<HoaDon>();
@@ -33,6 +34,11 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options, IHttpC
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<ChiSoDienNuoc>().HasOne<HopDongThamChieu>().WithMany().HasForeignKey(x=>x.HopDongId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ChiSoDienNuoc>().HasOne<DichVu>().WithMany().HasForeignKey(x=>x.DichVuId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ChiSoDienNuoc>().HasOne<TaiKhoan>().WithMany().HasForeignKey(x=>x.NguoiNhapId).OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ChiSoDienNuoc>().Property(x=>x.PhienBan).IsConcurrencyToken();
+        modelBuilder.Entity<ChiSoDienNuoc>().HasIndex(x=>new{x.HopDongId,x.DichVuId,x.TuNgay,x.DenNgay}).IsUnique();
         modelBuilder.Entity<NguoiOGhep>().HasOne<HopDongThamChieu>().WithMany().HasForeignKey(x => x.HopDongId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<NguoiOGhep>().HasOne<KhachThue>().WithMany().HasForeignKey(x => x.KhachThueId).OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<NguoiOGhep>().HasIndex(x => new { x.HopDongId, x.KhachThueId, x.NgayVao }).IsUnique();

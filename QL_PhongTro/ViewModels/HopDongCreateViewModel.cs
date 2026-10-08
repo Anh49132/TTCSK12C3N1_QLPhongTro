@@ -28,6 +28,7 @@ public class HopDongCreateViewModel
     public static DateOnly TinhNgayKetThuc(DateOnly start, int months) => start.AddMonths(months).AddDays(-1);
     [BindNever] public List<YeuCauHopDong> YeuCaus { get; set; } = [];
     [BindNever] public YeuCauHopDong? DaChon { get; set; }
+    public string? Intent { get; set; }
 }
 
 public class YeuCauHopDong
@@ -49,4 +50,7 @@ public class YeuCauHopDong
 
 public record HopDongChongLan(int Id, string Ma, DateOnly NgayBatDau, DateOnly NgayKetThuc);
 
-public record HopDongDanhSach(QL_PhongTro.Models.HopDongThamChieu HopDong, string Phong, string ToaNha, string? Khach);
+public record HopDongDanhSach(QL_PhongTro.Models.HopDongThamChieu HopDong, string Phong, string ToaNha, string? Khach)
+{
+    public QL_PhongTro.Models.KyHopDongThamChieu? Ky { get; init; }
+}

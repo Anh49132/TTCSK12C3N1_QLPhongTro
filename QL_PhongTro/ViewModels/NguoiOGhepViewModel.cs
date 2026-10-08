@@ -27,6 +27,9 @@ public class ChuyenDiInput
 public record ChuyenDiRowViewModel(HopDongDetailsViewModel Contract, NguoiOGhepRow Person);
 public class HopDongDetailsViewModel
 {
+    public string ToaNha { get; set; } = "";
+    public KyHopDongThamChieu? Ky { get; set; }
+    public HopDongChiSoDauKy? ChiSo { get; set; }
     public HopDongThamChieu HopDong { get; set; } = null!;
     public KhachThue? DungTen { get; set; }
     public string Phong { get; set; } = "";
@@ -39,4 +42,7 @@ public class HopDongDetailsViewModel
     public int? ChuyenDiNguoiId { get; set; }
     public NguoiOGhepInput Input { get; set; } = new();
     public bool ChoThem { get; set; }
+    public string TrangThaiPhong { get; set; } = "";
+    public string TrangThaiTin { get; set; } = "";
+    public bool ChoKichHoat { get; set; }
 }

@@ -53,7 +53,10 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
                               || (User.IsInRole("KHACH_THUE") && k != null && k.TaiKhoanId == AccountId)
                           orderby h.Id descending
                           select new HopDongDanhSach(h, p.MaPhong, b.TenToaNha, k == null ? null : k.HoTen)).ToListAsync(ct);
-        return View(rows);
+        var ids = rows.Select(x => x.HopDong.Id).ToList();
+        var periods = await db.KyHopDongs.AsNoTracking().Where(x => ids.Contains(x.HopDongId)).OrderByDescending(x => x.NgayBatDau).ToListAsync(ct);
+        ViewData["HomNay"] = HomNay;
+        return View(rows.Select(x => x with { Ky = periods.FirstOrDefault(k => k.HopDongId == x.HopDong.Id) }).ToList());
     }
 
     [HttpGet, ModuleAccess("HOP_DONG", write: true)]
@@ -100,6 +103,7 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
     [HttpPost, ValidateAntiForgeryToken, ModuleAccess("HOP_DONG", write: true)]
     public async Task<IActionResult> Create(HopDongCreateViewModel vm, CancellationToken ct)
     {
+        bool luuNhap = vm.Intent == "NHAP";
         // BEGIN IMMEDIATE serializes writers before checking overlaps and allocating a code.
         await db.Database.OpenConnectionAsync(ct);
         await using var sqliteTransaction = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
@@ -153,18 +157,33 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
             db.HopDongs.Add(contract);
         }
         contract.MaHopDong = code; contract.PhongId = y.PhongId; contract.KhachDungTenId = y.KhachId;
-        contract.TienCoc = vm.TienCoc!.Value; contract.NgayChot = vm.NgayChot!.Value; contract.TrangThai = "DANG_HIEU_LUC";
+        contract.TienCoc = vm.TienCoc!.Value; contract.NgayChot = vm.NgayChot!.Value; contract.TrangThai = luuNhap ? "NHAP" : "DANG_HIEU_LUC";
         await db.SaveChangesAsync(ct);
         var period = await db.KyHopDongs.SingleOrDefaultAsync(k => k.HopDongId == contract.Id && k.SoThuTu == 1, ct);
         if (period is null) { period = new KyHopDongThamChieu { HopDongId = contract.Id, NguoiLapId = AccountId, NgayTao = now }; db.KyHopDongs.Add(period); }
         period.NgayBatDau = vm.NgayBatDau!.Value; period.NgayKetThuc = vm.NgayKetThuc!.Value;
         period.GiaThue = vm.GiaThue!.Value; period.SoThang = vm.SoThang!.Value;
-        db.HopDongChiSoDauKys.Add(new HopDongChiSoDauKy { HopDongId = contract.Id, NgayBanGiao = vm.NgayBatDau.Value,
-            ChiSoDien = vm.ChiSoDien!.Value, ChiSoNuoc = vm.ChiSoNuoc!.Value, NguoiNhapId = AccountId, NgayNhap = now });
-        room.TrangThai = "DANG_THUE";
-        room.PhienBan++;
+        var meter = await db.HopDongChiSoDauKys.SingleOrDefaultAsync(m => m.HopDongId == contract.Id, ct);
+        if (meter is null) { meter = new HopDongChiSoDauKy { HopDongId = contract.Id }; db.HopDongChiSoDauKys.Add(meter); }
+        meter.NgayBanGiao = vm.NgayBatDau.Value;
+        meter.ChiSoDien = vm.ChiSoDien!.Value;
+        meter.ChiSoNuoc = vm.ChiSoNuoc!.Value;
+        meter.NguoiNhapId = AccountId;
+        meter.NgayNhap = now;
+        if (!luuNhap)
+        {
+            room.TrangThai = "DANG_THUE";
+            room.PhienBan++;
+            // Hợp đồng có hiệu lực: mọi tin đăng của phòng rời khỏi trang công khai cùng lúc với phòng.
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE tin_dang SET trang_thai='DA_CHO_THUE' WHERE phong_id={room.Id} AND trang_thai<>'DA_CHO_THUE'", ct);
+        }
         await db.SaveChangesAsync(ct);
         await sqliteTransaction.CommitAsync(ct);
+        if (luuNhap)
+        {
+            TempData["ContractSuccess"] = $"Đã lưu hợp đồng {code} ở trạng thái nháp. Mở chi tiết hợp đồng và bấm Kích hoạt khi sẵn sàng cho thuê.";
+            return RedirectToAction(nameof(Details), new { id = contract.Id });
+        }
         TempData["ContractSuccess"] = $"Đã tạo hợp đồng {code}, ghi chỉ số điện nước đầu kỳ. Phòng {y.Phong} — {y.ToaNha}: Đang thuê.";
         return RedirectToAction(nameof(Index));
         }
@@ -174,6 +193,80 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
             db.ChangeTracker.Clear();
             ModelState.AddModelError("", "Không thể lưu hợp đồng. Không có thay đổi nào được ghi nhận. Vui lòng tải lại trang và thử lại.");
             return View(vm);
+        }
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("HOP_DONG", write: true)]
+    public async Task<IActionResult> KichHoat(int id, string? simulateError, CancellationToken ct)
+    {
+        if (!await db.HopDongs.AnyAsync(h => h.Id == id, ct)) return NotFound();
+        if (!await OwnContract(id, ct)) return Forbid();
+
+        // Error simulation for testing (only in Development)
+        var isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
+        var shouldSimulate = isDevelopment && !string.IsNullOrEmpty(simulateError);
+
+        try
+        {
+            // BEGIN IMMEDIATE serializes writers so two owners cannot activate one room at once.
+            await db.Database.OpenConnectionAsync(ct);
+            await using var sqliteTransaction = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+            await using var transaction = await db.Database.UseTransactionAsync(sqliteTransaction, ct);
+            if (!await OwnContract(id, ct)) return Forbid();
+            var hopDong = await db.HopDongs.SingleAsync(h => h.Id == id, ct);
+            var room = await db.PhongTros.SingleAsync(p => p.Id == hopDong.PhongId, ct);
+            if (hopDong.TrangThai == "DANG_HIEU_LUC")
+                ModelState.AddModelError("", "Hợp đồng đã hiệu lực. Phòng và tin đăng đã được cập nhật trước đó.");
+            else if (hopDong.TrangThai is not ("NHAP" or "CHO_HIEU_LUC"))
+                ModelState.AddModelError("", "Chỉ kích hoạt được hợp đồng ở trạng thái nháp hoặc chờ hiệu lực.");
+            if (room.TrangThai == "NGUNG_CHO_THUE")
+                ModelState.AddModelError("", "Phòng đang ngừng cho thuê, không thể kích hoạt hợp đồng.");
+            var period = await db.KyHopDongs.AsNoTracking().Where(k => k.HopDongId == id).OrderByDescending(k => k.NgayBatDau).FirstOrDefaultAsync(ct);
+            if (period is not null)
+            {
+                var conflicts = await new HopDongService(db).ChongLanAsync(room.Id, period.NgayBatDau, period.NgayKetThuc, ct);
+                if (conflicts.Any(c => c.Id != id))
+                    ModelState.AddModelError("", $"Phòng {room.MaPhong} đã có hợp đồng hiệu lực khác. Không thể kích hoạt.");
+            }
+            if (!ModelState.IsValid) return View("Details", await DetailModel(id, null, ct));
+
+            // Step 1: Activate contract
+            hopDong.TrangThai = "DANG_HIEU_LUC";
+            if (shouldSimulate && simulateError == "contract")
+                throw new InvalidOperationException("Giả lập lỗi: không thể cập nhật trạng thái hợp đồng.");
+            await db.SaveChangesAsync(ct);
+
+            // Step 2: Update room status
+            room.TrangThai = "DANG_THUE";
+            room.PhienBan++;
+            if (shouldSimulate && simulateError == "room")
+                throw new InvalidOperationException("Giả lập lỗi: không thể cập nhật trạng thái phòng.");
+            await db.SaveChangesAsync(ct);
+
+            // Step 3: Update all listings to DA_CHO_THUE
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE tin_dang SET trang_thai='DA_CHO_THUE' WHERE phong_id={room.Id} AND trang_thai<>'DA_CHO_THUE'", ct);
+            if (shouldSimulate && simulateError == "listing")
+                throw new InvalidOperationException("Giả lập lỗi: không thể cập nhật trạng thái tin đăng.");
+            await db.SaveChangesAsync(ct);
+
+            await sqliteTransaction.CommitAsync(ct);
+            TempData["ContractSuccess"] = $"Hợp đồng {hopDong.MaHopDong} đã hiệu lực. Phòng {room.MaPhong}: Đang thuê; tin đăng: Đã cho thuê.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (Exception ex) when (ex is DbUpdateException or SqliteException or InvalidOperationException)
+        {
+            db.ChangeTracker.Clear();
+            var message = ex is InvalidOperationException && shouldSimulate
+                ? $"Kích hoạt thất bại (giả lập): {ex.Message}. Trạng thái chưa thay đổi, bạn có thể thử lại."
+                : "Không thể kích hoạt hợp đồng do lỗi cơ sở dữ liệu. Không có thay đổi nào được lưu. Vui lòng tải lại trang và thử lại.";
+            ModelState.AddModelError("", message);
+            return View("Details", await DetailModel(id, null, ct));
+        }
+        catch (Exception)
+        {
+            db.ChangeTracker.Clear();
+            ModelState.AddModelError("", "Không thể kích hoạt hợp đồng do lỗi không mong đợi. Không có thay đổi nào được lưu. Vui lòng tải lại trang và thử lại.");
+            return View("Details", await DetailModel(id, null, ct));
         }
     }
 
@@ -203,6 +296,9 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
             HomNay = HomNay, ChoThem = signer != null && h.TrangThai is "CHO_HIEU_LUC" or "DANG_HIEU_LUC",
             Input = input ?? new() { NgayVao = HomNay, PhienBanPhong = p.PhienBan },
             ChuyenDi = new() { NgayRa = HomNay, PhienBanPhong = p.PhienBan } };
+        model.ToaNha = await db.ToaNhas.Where(x => x.Id == p.ToaNhaId).Select(x => x.TenToaNha).SingleAsync(ct);
+        model.Ky = await db.KyHopDongs.AsNoTracking().Where(x => x.HopDongId == id).OrderByDescending(x => x.NgayBatDau).FirstOrDefaultAsync(ct);
+        model.ChiSo = await db.HopDongChiSoDauKys.AsNoTracking().SingleOrDefaultAsync(x => x.HopDongId == id, ct);
         var people = await (from g in db.NguoiOGheps.AsNoTracking() join k in db.KhachThues on g.KhachThueId equals k.Id
             where g.HopDongId == id orderby g.NgayVao, g.Id
             select new NguoiOGhepRow(k.HoTen, k.SoDienThoai, k.SoGiayTo, g.NgayVao) { Id = g.Id, NgayRa = g.NgayRa }).ToListAsync(ct);
@@ -215,6 +311,10 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
         model.Nguois = people.Where(x => x.NgayVao <= HomNay && (x.NgayRa == null || x.NgayRa >= HomNay)).ToList();
         model.DaChuyenDi = people.Where(x => x.NgayRa < HomNay).OrderByDescending(x => x.NgayRa).ToList();
         model.SapVao = people.Where(x => x.NgayVao > HomNay).ToList();
+        model.TrangThaiPhong = p.TrangThai;
+        model.TrangThaiTin = await db.TinDangs.AsNoTracking().Where(t => t.PhongId == h.PhongId)
+            .OrderByDescending(t => t.Id).Select(t => t.TrangThai).FirstOrDefaultAsync(ct) ?? "Chưa có tin";
+        model.ChoKichHoat = h.TrangThai is "NHAP" or "CHO_HIEU_LUC";
         return model;
     }
 
@@ -293,7 +393,7 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
             if (issued.Count > 0)
                 TempData["ContractWarning"] = "Hóa đơn các kỳ " + string.Join(", ", issued.Select(x => $"{x.Thang:00}/{x.Nam}"))
                     + " đã lập được giữ nguyên. Số người giảm chỉ áp dụng cho hóa đơn chưa lập; hãy kiểm tra các hóa đơn này.";
-            return RedirectToAction(nameof(Details), new { id });
+            return RedirectToAction(nameof(Details), new { id, tab = "people" });
         }
         catch (Exception ex) when (ex is DbUpdateException or SqliteException)
         {
@@ -354,7 +454,7 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
             await db.SaveChangesAsync(ct);
             await sqlite.CommitAsync(ct);
             TempData["ContractSuccess"] = "Đã thêm người ở ghép. Người đứng tên tiếp tục chịu trách nhiệm thanh toán và nhận lại tiền cọc.";
-            return RedirectToAction(nameof(Details), new { id });
+            return RedirectToAction(nameof(Details), new { id, tab = "people" });
         }
         catch (Exception ex) when (ex is DbUpdateException or SqliteException)
         {

@@ -58,11 +58,37 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
     {
         await expiration.ExpireAsync();
         var model = await Detail(id, new());
-        if (model is null && User.IsInRole("KHACH_THUE")
-            && int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId)
+        if (model is not null) return View(model);
+
+        // Not a public listing (DANG_HIEN_THI). Check if it's DA_CHO_THUE for public viewing.
+        var tin = await db.TinDangs.AsNoTracking().SingleOrDefaultAsync(t => t.Id == id);
+        if (tin is not null && tin.TrangThai == "DA_CHO_THUE")
+        {
+            var room = await db.PhongTros.AsNoTracking().SingleAsync(p => p.Id == tin.PhongId);
+            var detail = await GetListingAsync(id, requirePublic: false);
+            if (detail is not null)
+            {
+                var installed = await requests.IsInstalled();
+                var existing = installed && User.IsInRole("KHACH_THUE")
+                    && int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId)
+                    ? await requests.FindOpenRequest(id, accountId) : null;
+                model = new(tin, room, new(), requests.Today)
+                {
+                    OpenRequestId = existing?.Id,
+                    PublicDetail = detail,
+                    RequestModuleInstalled = installed,
+                    TinConCongKhai = false // Hide request form for rented listings
+                };
+                return View(model);
+            }
+        }
+
+        // Fallback: historical detail for tenant with request
+        if (User.IsInRole("KHACH_THUE")
+            && int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var tenantAccountId)
             && await requests.IsInstalled()
             && await db.YeuCauThues.AsNoTracking().AnyAsync(request => request.TinDangId == id
-                && db.KhachThues.Any(tenant => tenant.Id == request.KhachThueId && tenant.TaiKhoanId == accountId)))
+                && db.KhachThues.Any(tenant => tenant.Id == request.KhachThueId && tenant.TaiKhoanId == tenantAccountId)))
         {
             model = await HistoricalDetail(id);
         }
@@ -332,7 +358,16 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
     public async Task<IActionResult> ChiTietApi(int id)
     {
         var listing = await GetPublicListingAsync(id);
-        return listing is null ? NotFound() : Ok(listing);
+        if (listing is not null) return Ok(listing);
+
+        // Allow DA_CHO_THUE for API consumers
+        var tin = await db.TinDangs.AsNoTracking().SingleOrDefaultAsync(t => t.Id == id);
+        if (tin is not null && tin.TrangThai == "DA_CHO_THUE")
+        {
+            var detail = await GetListingAsync(id, requirePublic: false);
+            return detail is not null ? Ok(detail) : NotFound();
+        }
+        return NotFound();
     }
 
     private async Task<TinDangChiTietViewModel?> GetPublicListingAsync(int id)
