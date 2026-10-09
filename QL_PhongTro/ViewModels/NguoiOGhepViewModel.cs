@@ -38,6 +38,7 @@ public class HopDongDetailsViewModel
     public List<NguoiOGhepRow> Nguois { get; set; } = [];
     public List<NguoiOGhepRow> DaChuyenDi { get; set; } = [];
     public List<NguoiOGhepRow> SapVao { get; set; } = [];
+    public List<HopDongGiaHanHistoryRow> LichSuGiaHan { get; set; } = [];
     public ChuyenDiInput ChuyenDi { get; set; } = new();
     public bool ChoGiaHan { get; set; }
     public int? ChuyenDiNguoiId { get; set; }
@@ -47,3 +48,11 @@ public class HopDongDetailsViewModel
     public string TrangThaiTin { get; set; } = "";
     public bool ChoKichHoat { get; set; }
 }
+
+public sealed record HopDongGiaHanHistoryRow(
+    int SoThuTu,
+    DateOnly NgayBatDau,
+    DateOnly NgayKetThuc,
+    long GiaThue,
+    DateTime ThoiDiemVietNam,
+    string? NguoiThucHien);
