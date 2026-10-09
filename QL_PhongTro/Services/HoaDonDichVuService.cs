@@ -25,6 +25,49 @@ public sealed partial class HoaDonDichVuService(AppDbContext db, DichVuService s
 
     public static long ThanhTien(decimal quantity, long price) => checked((long)decimal.Round(checked(quantity * price), 0, MidpointRounding.AwayFromZero));
 
+    internal static List<ChiTietHoaDon> TinhChiTietTienPhong(
+        IEnumerable<KyHopDongThamChieu> kyHopDongs, DateOnly tuNgay, DateOnly denNgay)
+    {
+        if (denNgay < tuNgay || tuNgay.Year != denNgay.Year || tuNgay.Month != denNgay.Month)
+            throw new InvalidOperationException("Khoảng ngày tính tiền phòng phải nằm trong cùng một tháng.");
+
+        var daysInMonth = DateTime.DaysInMonth(tuNgay.Year, tuNgay.Month);
+        DateOnly? nextDay = tuNgay;
+        var lines = new List<ChiTietHoaDon>();
+        foreach (var period in kyHopDongs.OrderBy(x => x.NgayBatDau).ThenBy(x => x.Id))
+        {
+            var start = period.NgayBatDau > tuNgay ? period.NgayBatDau : tuNgay;
+            var end = period.NgayKetThuc < denNgay ? period.NgayKetThuc : denNgay;
+            if (end < start) continue;
+            if (nextDay is null || start != nextDay.Value)
+                throw new InvalidOperationException("Các kỳ hợp đồng bị gián đoạn hoặc chồng lấn trong kỳ hóa đơn.");
+
+            var days = end.DayNumber - start.DayNumber + 1;
+            var quantity = (decimal)days / daysInMonth;
+            var fullMonth = days == daysInMonth && start == tuNgay && end == denNgay;
+            lines.Add(new ChiTietHoaDon
+            {
+                SoThuTu = lines.Count + 1,
+                LoaiKhoan = "TIEN_PHONG",
+                TenKhoan = "Tiền phòng",
+                DonViTinh = "tháng",
+                KyHopDongId = period.Id,
+                SoLuong = fullMonth ? 1 : quantity,
+                DonGia = period.GiaThue,
+                ThanhTien = ThanhTien(quantity, period.GiaThue),
+                SoNgayTinhTien = fullMonth ? null : days,
+                SoNgayTrongThang = fullMonth ? null : daysInMonth,
+                GhiChu = fullMonth ? null : $"Áp dụng {start:dd/MM/yyyy}–{end:dd/MM/yyyy}: {days}/{daysInMonth} ngày trong tháng."
+            });
+
+            nextDay = end == denNgay ? null : end.AddDays(1);
+        }
+
+        if (nextDay is not null)
+            throw new InvalidOperationException("Không có kỳ hợp đồng liên tục bao phủ toàn bộ kỳ hóa đơn.");
+        return lines;
+    }
+
     public sealed record SoNguoiHoaDon(int SoNguoi, DateOnly NgayChot, int PhienBanPhong);
 
     public async Task<SoNguoiHoaDon> LaySoNguoiAsync(int accountId, int contractId, int buildingId, DateOnly period)
@@ -79,8 +122,9 @@ public sealed partial class HoaDonDichVuService(AppDbContext db, DichVuService s
         if (contract is null) throw new InvalidOperationException("Hợp đồng không hợp lệ hoặc không thuộc tòa nhà.");
         if (contract.HopDong.NgayTraPhong is { } end && end < to)
             throw new InvalidOperationException("Hợp đồng trả phòng trong kỳ cần luồng hóa đơn kỳ cuối.");
-        var periods = await db.KyHopDongs.Where(x => x.HopDongId == contract.HopDong.Id && x.NgayBatDau <= from && x.NgayKetThuc >= to).Take(2).ToListAsync();
-        if (periods.Count != 1) throw new InvalidOperationException("Luồng này chỉ hỗ trợ kỳ thuê trọn tháng với một mức giá phòng. Kỳ lẻ hoặc gia hạn giữa tháng cần xử lý riêng.");
+        var periods = await db.KyHopDongs.Where(x => x.HopDongId == contract.HopDong.Id
+            && x.NgayBatDau <= to && x.NgayKetThuc >= from).OrderBy(x => x.NgayBatDau).ToListAsync();
+        var rentLines = TinhChiTietTienPhong(periods, from, to);
         if (await db.HoaDons.AnyAsync(x => x.HopDongId == contract.HopDong.Id && x.Nam == date.Year && x.Thang == date.Month && x.TrangThai != "DA_HUY"))
             throw new InvalidOperationException("Hợp đồng đã có hóa đơn trong tháng này.");
         if (await db.HoaDons.AnyAsync(x => x.HopDongId == contract.HopDong.Id && x.Nam == date.Year && x.Thang == date.Month && x.TrangThai == "DA_HUY"))
@@ -99,17 +143,7 @@ public sealed partial class HoaDonDichVuService(AppDbContext db, DichVuService s
             HanThanhToan = DateOnly.FromDateTime((clock ?? new SystemTimeProvider()).UtcNow.AddHours(7)).AddDays(7),
             NguoiLapId = accountId
         };
-        invoice.ChiTiet.Add(new ChiTietHoaDon
-        {
-            SoThuTu = 1,
-            LoaiKhoan = "TIEN_PHONG",
-            TenKhoan = "Tiền phòng",
-            DonViTinh = "tháng",
-            KyHopDongId = periods[0].Id,
-            SoLuong = 1,
-            DonGia = periods[0].GiaThue,
-            ThanhTien = periods[0].GiaThue
-        });
+        invoice.ChiTiet.AddRange(rentLines);
         foreach (var item in chosen)
         {
             var price = await new DichVuPhongService(db, services).LayGiaHoaDonAsync(accountId, contract.Phong.Id, item.DichVuId, date)

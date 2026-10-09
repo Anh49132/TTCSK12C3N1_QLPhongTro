@@ -13,7 +13,7 @@ namespace QL_PhongTro.Controllers;
 
 [Authorize, ModuleAccess("HOP_DONG")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : Controller
+public class HopDongController(AppDbContext db, ITimeProvider? clock = null, PermissionService? permissions = null) : Controller
 {
     private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
     private DateOnly HomNay => DateOnly.FromDateTime((clock ?? new SystemTimeProvider()).UtcNow.AddHours(7));
@@ -297,7 +297,35 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
             Input = input ?? new() { NgayVao = HomNay, PhienBanPhong = p.PhienBan },
             ChuyenDi = new() { NgayRa = HomNay, PhienBanPhong = p.PhienBan } };
         model.ToaNha = await db.ToaNhas.Where(x => x.Id == p.ToaNhaId).Select(x => x.TenToaNha).SingleAsync(ct);
-        model.Ky = await db.KyHopDongs.AsNoTracking().Where(x => x.HopDongId == id).OrderByDescending(x => x.NgayBatDau).FirstOrDefaultAsync(ct);
+        var periods = await db.KyHopDongs.AsNoTracking().Where(x => x.HopDongId == id)
+            .OrderByDescending(x => x.NgayBatDau).ThenByDescending(x => x.Id).ToListAsync(ct);
+        model.Ky = periods.FirstOrDefault();
+        var renewalPeriods = periods.Where(x => x.SoThuTu > 1).ToList();
+        if (renewalPeriods.Count > 0)
+        {
+            var periodIds = renewalPeriods.Select(x => x.Id).ToList();
+            var logs = await db.NhatKyHoatDongs.AsNoTracking()
+                .Where(x => x.LoaiDoiTuong == "ky_hop_dong" && periodIds.Contains(x.DoiTuongId) && x.HanhDong == "TAO")
+                .OrderByDescending(x => x.Id)
+                .ToListAsync(ct);
+            var logByPeriod = logs.GroupBy(x => x.DoiTuongId).ToDictionary(x => x.Key, x => x.First());
+            var actorIds = renewalPeriods.Where(x => !logByPeriod.ContainsKey(x.Id) && x.NguoiLapId.HasValue)
+                .Select(x => x.NguoiLapId!.Value).Distinct().ToList();
+            var actorNames = await db.TaiKhoans.AsNoTracking().Where(x => actorIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.HoTen }).ToDictionaryAsync(x => x.Id, x => x.HoTen, ct);
+
+            model.LichSuGiaHan = renewalPeriods
+                .OrderBy(x => x.SoThuTu)
+                .Select(period => logByPeriod.TryGetValue(period.Id, out var log)
+                    ? new HopDongGiaHanHistoryRow(period.SoThuTu, period.NgayBatDau, period.NgayKetThuc,
+                        period.GiaThue, log.ThoiDiem.AddHours(7), log.TenNguoiThucHien)
+                    : new HopDongGiaHanHistoryRow(period.SoThuTu, period.NgayBatDau, period.NgayKetThuc,
+                        period.GiaThue, period.NgayTao, period.NguoiLapId is { } actorId
+                            ? actorNames.GetValueOrDefault(actorId) : null))
+                .ToList();
+        }
+        model.ChoGiaHan = model.Ky is not null && (h.TrangThai is "DANG_HIEU_LUC" or "CHO_HIEU_LUC")
+            && permissions is not null && await permissions.AllowsAsync("HOP_DONG", write: true);
         model.ChiSo = await db.HopDongChiSoDauKys.AsNoTracking().SingleOrDefaultAsync(x => x.HopDongId == id, ct);
         var people = await (from g in db.NguoiOGheps.AsNoTracking() join k in db.KhachThues on g.KhachThueId equals k.Id
             where g.HopDongId == id orderby g.NgayVao, g.Id
@@ -316,6 +344,32 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
             .OrderByDescending(t => t.Id).Select(t => t.TrangThai).FirstOrDefaultAsync(ct) ?? "Chưa có tin";
         model.ChoKichHoat = h.TrangThai is "NHAP" or "CHO_HIEU_LUC";
         return model;
+    }
+
+    private async Task<bool> CanRenewAsync(int id, CancellationToken ct)
+    {
+        if (!await db.HopDongs.AnyAsync(x => x.Id == id && (x.TrangThai == "DANG_HIEU_LUC" || x.TrangThai == "CHO_HIEU_LUC"), ct))
+            return false;
+        var end = await db.KyHopDongs.Where(x => x.HopDongId == id)
+            .OrderByDescending(x => x.NgayBatDau).ThenByDescending(x => x.Id)
+            .Select(x => (DateOnly?)x.NgayKetThuc).FirstOrDefaultAsync(ct);
+        return end.HasValue && end.Value != DateOnly.MaxValue;
+    }
+
+    private async Task<HopDongGiaHanViewModel> GiaHanModelAsync(int id, CancellationToken ct)
+    {
+        var contract = await db.HopDongs.AsNoTracking().SingleAsync(x => x.Id == id, ct);
+        var current = await db.KyHopDongs.AsNoTracking().Where(x => x.HopDongId == id)
+            .OrderByDescending(x => x.NgayBatDau).ThenByDescending(x => x.Id).FirstAsync(ct);
+        return new HopDongGiaHanViewModel
+        {
+            HopDongId = id,
+            MaHopDong = contract.MaHopDong,
+            NgayKetThucHienTai = current.NgayKetThuc,
+            NgayBatDau = current.NgayKetThuc == DateOnly.MaxValue ? null : current.NgayKetThuc.AddDays(1),
+            GiaThueHienTai = current.GiaThue,
+            GiaThueMoi = current.GiaThue
+        };
     }
 
     [HttpGet]
@@ -342,6 +396,111 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null) : C
         if (!await db.HopDongs.AnyAsync(x => x.Id == id, ct)) return NotFound();
         if (!await OwnContract(id, ct)) return Forbid();
         return View(await DetailModel(id, null, ct));
+    }
+
+    [HttpGet, ModuleAccess("HOP_DONG", write: true)]
+    public async Task<IActionResult> GiaHan(int id, CancellationToken ct)
+    {
+        if (!await db.HopDongs.AnyAsync(x => x.Id == id, ct)) return NotFound();
+        if (!await OwnContract(id, ct)) return Forbid();
+        if (!await CanRenewAsync(id, ct))
+        {
+            TempData["ContractWarning"] = "Hợp đồng không đủ điều kiện gia hạn hoặc ngày kết thúc đã ở giới hạn tối đa.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        return View(await GiaHanModelAsync(id, ct));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken, ModuleAccess("HOP_DONG", write: true)]
+    public async Task<IActionResult> GiaHan(int id, HopDongGiaHanViewModel vm, CancellationToken ct)
+    {
+        if (!await db.HopDongs.AnyAsync(x => x.Id == id, ct)) return NotFound();
+        if (!await OwnContract(id, ct)) return Forbid();
+
+        async Task<IActionResult> InvalidAsync()
+        {
+            var model = await GiaHanModelAsync(id, ct);
+            model.SoThang = vm.SoThang;
+            model.GiaThueMoi = vm.GiaThueMoi ?? model.GiaThueHienTai;
+            return View(model);
+        }
+
+        if (!ModelState.IsValid) return await InvalidAsync();
+
+        try
+        {
+            await db.Database.OpenConnectionAsync(ct);
+            await using var sqlite = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+            await using var transaction = await db.Database.UseTransactionAsync(sqlite, ct);
+            if (!await OwnContract(id, ct)) return Forbid();
+
+            var contract = await db.HopDongs.SingleAsync(x => x.Id == id, ct);
+            var current = await db.KyHopDongs.Where(x => x.HopDongId == id)
+                .OrderByDescending(x => x.NgayBatDau).ThenByDescending(x => x.Id).FirstOrDefaultAsync(ct);
+            if (current is null)
+            {
+                TempData["ContractWarning"] = "Hợp đồng không có kỳ hạn hiện tại để gia hạn.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+            if (contract.TrangThai is not ("DANG_HIEU_LUC" or "CHO_HIEU_LUC"))
+                ModelState.AddModelError("", "Chỉ gia hạn được hợp đồng đang hoặc chờ hiệu lực có kỳ hạn hiện tại.");
+
+            DateOnly? start = null;
+            DateOnly? end = null;
+            if (current.NgayKetThuc == DateOnly.MaxValue)
+                ModelState.AddModelError("", "Không thể gia hạn vì ngày kết thúc hiện tại đã là ngày tối đa được hỗ trợ.");
+            else
+            {
+                start = current.NgayKetThuc.AddDays(1);
+                try
+                {
+                    if (vm.SoThang is >= 1 and <= 120)
+                        end = HopDongGiaHanViewModel.TinhNgayKetThuc(start.Value, vm.SoThang.Value);
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    ModelState.AddModelError(nameof(vm.SoThang), "Ngày kết thúc mới vượt ngoài phạm vi ngày được hỗ trợ.");
+                }
+            }
+
+            var rent = vm.GiaThueMoi ?? current.GiaThue;
+            if (rent <= 0)
+                ModelState.AddModelError(nameof(vm.GiaThueMoi), "Giá thuê mới phải lớn hơn 0.");
+
+            var roomId = contract.PhongId;
+            if (start.HasValue && end.HasValue)
+            {
+                var conflicts = await new HopDongService(db).ChongLanAsync(roomId, start.Value, end.Value, ct);
+                if (conflicts.Any(x => x.Id != id))
+                    ModelState.AddModelError("", "Kỳ gia hạn bị chồng lấn với một hợp đồng khác trong cùng phòng.");
+            }
+            if (!ModelState.IsValid) return await InvalidAsync();
+
+            var nextOrder = await db.KyHopDongs.Where(x => x.HopDongId == id)
+                .Select(x => (int?)x.SoThuTu).MaxAsync(ct) ?? 0;
+            db.KyHopDongs.Add(new KyHopDongThamChieu
+            {
+                HopDongId = id,
+                SoThuTu = checked(nextOrder + 1),
+                NgayBatDau = start!.Value,
+                NgayKetThuc = end!.Value,
+                SoThang = vm.SoThang!.Value,
+                GiaThue = rent,
+                NguoiLapId = AccountId,
+                NgayTao = (clock ?? new SystemTimeProvider()).UtcNow.AddHours(7)
+            });
+            await db.SaveChangesAsync(ct);
+            await sqlite.CommitAsync(ct);
+
+            TempData["ContractSuccess"] = $"Đã gia hạn hợp đồng {contract.MaHopDong} đến ngày {end:dd/MM/yyyy}.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (Exception ex) when (ex is DbUpdateException or SqliteException)
+        {
+            db.ChangeTracker.Clear();
+            ModelState.AddModelError("", "Không thể lưu kỳ gia hạn do lỗi cơ sở dữ liệu. Không có thay đổi nào được lưu; vui lòng tải lại và thử lại.");
+            return await InvalidAsync();
+        }
     }
 
     [HttpPost, ValidateAntiForgeryToken, ModuleAccess("HOP_DONG", write: true)]
