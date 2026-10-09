@@ -65,7 +65,7 @@ public sealed partial class MeterReadingListTests : IDisposable
         return await new ChiSoDienNuocService(db, clock, meterProtection).DanhSachAsync(actor, building);
     }
     private void Handover(int contract = 1) => Execute($"INSERT INTO hop_dong_chi_so_dau_ky(hop_dong_id,ngay_ban_giao,chi_so_dien,chi_so_nuoc,nguoi_nhap_id,ngay_nhap) VALUES({contract},'2026-08-01','0','12.345',1,'2026-08-01')");
-    private void Invoice(int id, int contract, int month, string status = "DA_PHAT_HANH", decimal? electricity = 100, decimal? water = 20, string type = "THEO_CHI_SO")
+    private void Invoice(int id, int contract, int month, string status = "DA_PHAT_HANH", decimal? electricity = 100, decimal? water = 20, string type = "THEO_CHI_SO", bool issued = false)
     {
         using var c = Open(); using var cmd = c.CreateCommand();
         var start = new DateOnly(2026, month, 1); var end = start.AddMonths(1).AddDays(-1);
@@ -74,10 +74,14 @@ public sealed partial class MeterReadingListTests : IDisposable
             VALUES($id,$code,$contract,2026,$month,$start,$end,$end,1,'2026-01-01',$end,0,'NHAP',1);
             INSERT INTO chi_tiet_hoa_don(hoa_don_id,so_thu_tu,dich_vu_id,loai_khoan,ten_khoan,cach_tinh_ap_dung,so_luong,don_gia,chi_so_cuoi,thanh_tien)
             VALUES($id,1,1,'DICH_VU','Electricity',$type,'999',0,$electricity,0),($id,2,2,'DICH_VU','Water',$type,'999',0,$water,0);
-            UPDATE hoa_don SET trang_thai=$status WHERE id=$id;
+            UPDATE hoa_don SET trang_thai=$status,
+                ngay_phat_hanh=CASE WHEN $issued THEN '2026-10-07' ELSE NULL END,
+                nguoi_phat_hanh_id=CASE WHEN $issued THEN 1 ELSE NULL END
+            WHERE id=$id;
             """;
         foreach (var p in new (string, object?)[] { ("id",id),("code","INVOICE-"+id),("contract",contract),("month",month),
             ("start",start.ToString("yyyy-MM-dd")),("end",end.ToString("yyyy-MM-dd")),("type",type),("status",status),
+            ("issued",issued),
             ("electricity",electricity?.ToString(System.Globalization.CultureInfo.InvariantCulture)),("water",water?.ToString(System.Globalization.CultureInfo.InvariantCulture)) })
             cmd.Parameters.AddWithValue("$"+p.Item1,p.Item2 ?? DBNull.Value);
         cmd.ExecuteNonQuery();

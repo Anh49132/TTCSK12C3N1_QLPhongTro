@@ -26,6 +26,10 @@
         </div>
     </header>
     @if(TempData["MeterSuccess"] is {} success){<div class="alert alert-success" role="status">@success</div>}
+    @if (Model.KyDaKhoa)
+    {
+        <div class="alert alert-warning" role="status">Kỳ @Model.DauKy.ToString("MM/yyyy") đã khóa sau khi phát hành hóa đơn cho tòa này. Không thể thêm hoặc sửa chỉ số.</div>
+    }
     @if (Model.ToaNhas.Count == 0)
     { <div class="alert alert-info">Bạn chưa được phân công tòa nhà đang hoạt động.</div> }
     else
@@ -109,7 +113,7 @@
                                         <input id="@id" name="@field" type="number" inputmode="decimal" step="0.001" min="0" max="99999999999.999" required
                                                value="@value?.ToString(CultureInfo.InvariantCulture)" class="form-control @(error.Length>0?"is-invalid":"")"
                                                data-previous="@service.Truoc.GiaTri?.ToString(CultureInfo.InvariantCulture)" data-meter-input
-                                               aria-describedby="@(id+"-previous"+" "+id+"-error")" aria-invalid="@(error.Length>0?"true":"false")" readonly="@(service.DaKhoa)" />
+                                               aria-describedby="@(id+"-previous"+" "+id+"-error")" aria-invalid="@(error.Length>0?"true":"false")" readonly="@(Model.KyDaKhoa || service.DaKhoa)" />
                                         <span id="@(id+"-error")" class="text-danger d-block" data-meter-error aria-live="polite">@error</span>
                                         </div>
                                     }
@@ -119,10 +123,10 @@
                                         }
                                         @if(!room.DaChot){<span class="meter-unsaved-usage" aria-label="Chưa có mức tiêu thụ đã chốt">—</span>}
                                     </div>
-                                    <div class="meter-row-status"><span class="meter-status-badge @(hasWarning?"is-warning":room.DaChot?"is-complete":"is-pending")">@(hasWarning?"Cần xác nhận":room.DaChot?"Đã chốt":"Chưa chốt")</span></div>
+                                    <div class="meter-row-status"><span class="meter-status-badge @(Model.KyDaKhoa?"is-locked":hasWarning?"is-warning":room.DaChot?"is-complete":"is-pending")">@(Model.KyDaKhoa?"Đã khóa":hasWarning?"Cần xác nhận":room.DaChot?"Đã chốt":"Chưa chốt")</span></div>
                                     <div class="meter-row-actions">
-                                        @if(room.DaChot){<button type="button" class="meter-edit" data-edit-room hidden>Sửa</button>}
-                                        <button class="btn btn-primary meter-save" type="submit" aria-label="Lưu phòng @room.MaPhong" disabled="@(room.DichVu.Any(x=>x.Truoc.GiaTri==null || x.DaKhoa))"><span class="meter-save-desktop">Lưu</span><span class="meter-save-mobile">Lưu phòng @room.MaPhong</span></button>
+                                        @if(room.DaChot && !Model.KyDaKhoa){<button type="button" class="meter-edit" data-edit-room hidden>Sửa</button>}
+                                        <button class="btn btn-primary meter-save" type="submit" aria-label="Lưu phòng @room.MaPhong" disabled="@(Model.KyDaKhoa || room.DichVu.Any(x=>x.Truoc.GiaTri==null || x.DaKhoa))"><span class="meter-save-desktop">Lưu</span><span class="meter-save-mobile">Lưu phòng @room.MaPhong</span></button>
                                     </div>
                                     @if(Model.Input?.PhongId==room.PhongId && Model.Loi.TryGetValue("Phong",out var roomErrors)){<p class="text-danger meter-room-error" data-room-error tabindex="-1" role="alert">@string.Join(" ",roomErrors)</p>}
                                     @if (Model.Input?.PhongId == room.PhongId && Model.Input.CanhBaos.Count > 0)
@@ -151,7 +155,7 @@
                                             <p>Chưa lưu chỉ số. Bạn có thể sửa ô nhập rồi bấm Lưu phòng để kiểm tra lại, hoặc xác nhận các số hiện tại.</p>
                                             <input type="hidden" name="MaXacNhan" value="@Model.Input.MaXacNhan" />
                                             <div class="meter-dialog-actions"><button type="button" class="btn meter-back" data-close-warning>Quay lại kiểm tra</button>
-                                            <button type="submit" class="btn btn-warning meter-confirm" name="XacNhanBatThuong" value="true">Xác nhận vẫn muốn lưu</button></div>
+                                            <button type="submit" class="btn btn-warning meter-confirm" name="XacNhanBatThuong" value="true" disabled="@Model.KyDaKhoa">Xác nhận vẫn muốn lưu</button></div>
                                         </div>
                                         </dialog>
                                     }

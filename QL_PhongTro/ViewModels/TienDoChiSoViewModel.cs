@@ -18,7 +18,8 @@ public sealed record TienDoChiSoToaNha(
     string TenToaNha,
     int TongPhongDangThue,
     int SoPhongDaChot,
-    int SoPhongConThieu);
+    int SoPhongConThieu,
+    bool KyDaKhoa);
 
 public sealed record PhongConThieuViewModel(
     int ToaNhaId,

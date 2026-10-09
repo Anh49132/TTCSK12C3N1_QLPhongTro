@@ -24,6 +24,8 @@ public sealed partial class ChiSoDienNuocService(AppDbContext db, ITimeProvider 
         if (toaNhaId.HasValue && !model.ToaNhas.Any(x => x.Id == toaNhaId)) throw new UnauthorizedAccessException();
         model.ToaNhaId = toaNhaId ?? model.ToaNhas.FirstOrDefault()?.Id;
         if (model.ToaNhaId is null) return model;
+        model.KyDaKhoa = (await KyChiSoLockService.LayToaNhaDaKhoaAsync(
+            db, [model.ToaNhaId.Value], today.Year, today.Month, ct)).Contains(model.ToaNhaId.Value);
         model.Phongs = await LayPhongAsync(model.ToaNhaId.Value, model.DauKy, ct);
         return model;
     }
@@ -138,7 +140,9 @@ public sealed partial class ChiSoDienNuocService(AppDbContext db, ITimeProvider 
         if(room==null || room.HopDongId!=input.HopDongId) throw new UnauthorizedAccessException();
         var errors=new Dictionary<string,string[]>();
         void Error(string key,string message)=>errors[key]=[message];
-        if(input.Ky!=model.DauKy || input.PhienBanPhong!=room.PhienBanPhong)
+        if(model.KyDaKhoa)
+            Error("Phong","Kỳ chốt chỉ số của tòa nhà đã khóa sau khi phát hành hóa đơn. Không thể thêm hoặc sửa chỉ số.");
+        else if(input.Ky!=model.DauKy || input.PhienBanPhong!=room.PhienBanPhong)
             Error("Phong","Kỳ hoặc thông tin phòng đã thay đổi. Vui lòng tải lại trang.");
         if(room.DichVu.Count==0) Error("Phong","Phòng không có dịch vụ điện/nước theo chỉ số đang áp dụng.");
         foreach(var service in room.DichVu)

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using QL_PhongTro.Data;
 using QL_PhongTro.ViewModels;
 
@@ -6,18 +7,88 @@ namespace QL_PhongTro.Services;
 
 public sealed class TienDoChiSoService(AppDbContext db)
 {
+    public async Task<List<HomeMeterAlert>> LayCanhBaoAsync(
+        int ownerId, DateOnly today, CancellationToken ct = default)
+    {
+        await EnsureLandlordAsync(ownerId, ct);
+        if (!await CoBangChiSoAsync(ct)) return [];
+
+        var buildings = await (from building in db.ToaNhas.AsNoTracking()
+            join room in db.PhongTros.AsNoTracking() on building.Id equals room.ToaNhaId
+            join contract in db.HopDongs.AsNoTracking() on room.Id equals contract.PhongId
+            join period in db.KyHopDongs.AsNoTracking() on contract.Id equals period.HopDongId
+            where building.ChuNhaId == ownerId && building.DangHoatDong
+                && (contract.TrangThai == "DANG_HIEU_LUC" || contract.TrangThai == "DA_KET_THUC")
+                && period.NgayBatDau <= today
+            group period by new { building.Id, building.TenToaNha, building.NgayChotHangThang } into periods
+            select new
+            {
+                periods.Key.Id,
+                periods.Key.TenToaNha,
+                periods.Key.NgayChotHangThang,
+                NgayBatDau = periods.Min(x => x.NgayBatDau)
+            }).ToListAsync(ct);
+
+        var dueBuildingsByMonth = new Dictionary<(int Year, int Month), List<(int Id, string Name)>>();
+        foreach (var building in buildings)
+        {
+            var month = new DateOnly(building.NgayBatDau.Year, building.NgayBatDau.Month, 1);
+            var current = new DateOnly(today.Year, today.Month, 1);
+            while (month <= current)
+            {
+                var cutoffDay = Math.Min(building.NgayChotHangThang, DateTime.DaysInMonth(month.Year, month.Month));
+                if (new DateOnly(month.Year, month.Month, cutoffDay) <= today)
+                {
+                    var key = (month.Year, month.Month);
+                    if (!dueBuildingsByMonth.TryGetValue(key, out var dueBuildings))
+                        dueBuildingsByMonth.Add(key, dueBuildings = []);
+                    dueBuildings.Add((building.Id, building.TenToaNha));
+                }
+                month = month.AddMonths(1);
+            }
+        }
+
+        var alerts = new List<HomeMeterAlert>();
+        foreach (var (period, dueBuildings) in dueBuildingsByMonth.OrderBy(x => x.Key.Year).ThenBy(x => x.Key.Month))
+        {
+            var progress = await XemAsync(ownerId, period.Year, period.Month, ct);
+            var summaries = progress.ToaNhas.ToDictionary(x => x.ToaNhaId);
+            foreach (var building in dueBuildings)
+            {
+                if (summaries.TryGetValue(building.Id, out var summary)
+                    && !summary.KyDaKhoa && summary.SoPhongConThieu > 0)
+                    alerts.Add(new HomeMeterAlert(building.Id, building.Name, period.Year, period.Month,
+                        summary.SoPhongConThieu));
+            }
+        }
+
+        return alerts.OrderBy(x => x.Nam).ThenBy(x => x.Thang).ThenBy(x => x.TenToaNha).ToList();
+    }
+
     public async Task<TienDoChiSoViewModel> XemAsync(int ownerId, int year, int month, CancellationToken ct)
+        => await XemAsync(ownerId, year, month, ct, null);
+
+    public async Task<TienDoChiSoViewModel> XemAsync(
+        int ownerId, int year, int month, CancellationToken ct, int? buildingId)
     {
         ValidatePeriod(year, month);
         await EnsureLandlordAsync(ownerId, ct);
 
-        var buildings = await db.ToaNhas.AsNoTracking()
-            .Where(x => x.ChuNhaId == ownerId)
+        var ownerBuildings = db.ToaNhas.AsNoTracking().Where(x => x.ChuNhaId == ownerId);
+        if (buildingId.HasValue)
+        {
+            if (!await ownerBuildings.AnyAsync(x => x.Id == buildingId.Value, ct))
+                throw new UnauthorizedAccessException();
+            ownerBuildings = ownerBuildings.Where(x => x.Id == buildingId.Value);
+        }
+        var buildings = await ownerBuildings
             .OrderBy(x => x.TenToaNha)
             .Select(x => new { x.Id, x.TenToaNha })
             .ToListAsync(ct);
         var first = new DateOnly(year, month, 1);
         var last = first.AddMonths(1).AddDays(-1);
+        var lockedBuildings = await KyChiSoLockService.LayToaNhaDaKhoaAsync(
+            db, buildings.Select(x => x.Id).ToArray(), year, month, ct);
         var leasedRooms = await GetLeasedRoomsAsync(ownerId, first, last, ct);
         var confirmedContracts = await GetConfirmedContractsAsync(leasedRooms, first, last, ct);
 
@@ -40,7 +111,7 @@ public sealed class TienDoChiSoService(AppDbContext db)
                 var counts = summaries.GetValueOrDefault(building.Id);
                 var total = counts.Total;
                 return new TienDoChiSoToaNha(building.Id, building.TenToaNha, total, counts.Confirmed,
-                    total - counts.Confirmed);
+                    total - counts.Confirmed, lockedBuildings.Contains(building.Id));
             }).ToList()
         };
     }
@@ -78,6 +149,24 @@ public sealed class TienDoChiSoService(AppDbContext db)
         if (!await db.TaiKhoans.AsNoTracking().AnyAsync(x => x.Id == ownerId
             && x.VaiTro == "CHU_NHA" && x.DangHoatDong && !x.IsDeleted, ct))
             throw new UnauthorizedAccessException();
+    }
+
+    private async Task<bool> CoBangChiSoAsync(CancellationToken ct)
+    {
+        var connection = db.Database.GetDbConnection();
+        var close = connection.State != System.Data.ConnectionState.Open;
+        if (close) await connection.OpenAsync(ct);
+        try
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='chi_so_dien_nuoc'";
+            return Convert.ToInt32(await command.ExecuteScalarAsync(ct)) == 1;
+        }
+        finally
+        {
+            if (close) await connection.CloseAsync();
+        }
     }
 
     private static void ValidatePeriod(int year, int month)

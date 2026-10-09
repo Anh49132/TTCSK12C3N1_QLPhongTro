@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using QL_PhongTro.Data;
 using QL_PhongTro.Models;
@@ -96,13 +97,21 @@ public sealed partial class RoomServicesTests
         Assert.DoesNotContain("999.999", html);
     }
 
-    private WebApplicationFactory<Program> BillingWeb() => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+    private WebApplicationFactory<Program> BillingWeb(ITimeProvider? testClock = null) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
     {
         builder.UseContentRoot(app);
         builder.UseEnvironment("Development");
         builder.UseSetting("DatabasePath", path);
         builder.ConfigureLogging(logging => logging.ClearProviders());
-        builder.ConfigureServices(services => services.AddDataProtection().UseEphemeralDataProtectionProvider());
+        builder.ConfigureServices(services =>
+        {
+            services.AddDataProtection().UseEphemeralDataProtectionProvider();
+            if (testClock is not null)
+            {
+                services.RemoveAll<ITimeProvider>();
+                services.AddSingleton(testClock);
+            }
+        });
     });
 
     [Theory]
