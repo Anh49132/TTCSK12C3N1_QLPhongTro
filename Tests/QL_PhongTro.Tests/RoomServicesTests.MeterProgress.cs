@@ -125,6 +125,7 @@ public sealed partial class RoomServicesTests
         Assert.Contains("Building A", html);
         Assert.Contains("name=\"thang\"", html);
         Assert.Contains("name=\"nam\"", html);
+        Assert.Contains("Chưa khóa", html);
 
         await Login(owner, "tenant");
         Assert.Equal(System.Net.HttpStatusCode.Forbidden,

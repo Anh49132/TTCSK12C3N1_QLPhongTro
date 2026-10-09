@@ -18,6 +18,8 @@ public sealed class TienDoChiSoService(AppDbContext db)
             .ToListAsync(ct);
         var first = new DateOnly(year, month, 1);
         var last = first.AddMonths(1).AddDays(-1);
+        var lockedBuildings = await KyChiSoLockService.LayToaNhaDaKhoaAsync(
+            db, buildings.Select(x => x.Id).ToArray(), year, month, ct);
         var leasedRooms = await GetLeasedRoomsAsync(ownerId, first, last, ct);
         var confirmedContracts = await GetConfirmedContractsAsync(leasedRooms, first, last, ct);
 
@@ -40,7 +42,7 @@ public sealed class TienDoChiSoService(AppDbContext db)
                 var counts = summaries.GetValueOrDefault(building.Id);
                 var total = counts.Total;
                 return new TienDoChiSoToaNha(building.Id, building.TenToaNha, total, counts.Confirmed,
-                    total - counts.Confirmed);
+                    total - counts.Confirmed, lockedBuildings.Contains(building.Id));
             }).ToList()
         };
     }

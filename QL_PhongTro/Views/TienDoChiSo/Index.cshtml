@@ -44,6 +44,7 @@
                             <th scope="col" class="text-end">Phòng đang thuê</th>
                             <th scope="col" class="text-end">Đã chốt chỉ số</th>
                             <th scope="col" class="text-end">Còn thiếu</th>
+                            <th scope="col">Trạng thái kỳ</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -67,11 +68,21 @@
                                     <span class="text-success">0 <small>Không còn phòng thiếu</small></span>
                                 }
                             </td>
+                            <td>
+                                @if (building.KyDaKhoa)
+                                {
+                                    <span class="badge text-bg-secondary">Đã khóa</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-success">Chưa khóa</span>
+                                }
+                            </td>
                         </tr>
                     }
                     @if (Model.ToaNhas.Count == 0)
                     {
-                        <tr><td colspan="4" class="text-center text-muted py-4">Bạn chưa có tòa nhà đang hoạt động.</td></tr>
+                        <tr><td colspan="5" class="text-center text-muted py-4">Bạn chưa có tòa nhà đang hoạt động.</td></tr>
                     }
                     </tbody>
                 </table>

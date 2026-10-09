@@ -41,6 +41,12 @@ public sealed partial class RoomServicesTests
         var invoices = await db.HoaDons.Include(x=>x.ChiTiet).ToListAsync();
         Assert.All(invoices, x => { Assert.Equal(1280000, x.TongTien); Assert.Equal("DA_PHAT_HANH", x.TrangThai); Assert.Equal(new DateOnly(2026,11,14), x.HanThanhToan); Assert.Equal(3,x.ChiTiet.Count); });
         Assert.All(await db.ChiSoDienNuocs.ToListAsync(), x=>Assert.True(x.DaKhoa));
+        var progress = Assert.Single((await new TienDoChiSoService(db).XemAsync(1, 2026, 10, default)).ToaNhas);
+        Assert.True(progress.KyDaKhoa);
+        using var factory = BillingWeb();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await Login(client, "owner");
+        Assert.Contains("Đã khóa", await client.GetStringAsync("/TienDoChiSo?nam=2026&thang=10"));
         Assert.Equal(0, await service.PhatHanhThangAsync(1,1,2026,10));
     }
 
