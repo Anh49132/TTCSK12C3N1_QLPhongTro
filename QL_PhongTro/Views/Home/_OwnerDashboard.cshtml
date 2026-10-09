@@ -21,6 +21,22 @@
         <div class="owner-heading-actions"><a class="owner-button owner-button-light" href="/PhongTro/ToaNha">Tất cả cơ sở ↗</a><a class="owner-button" href="/PhongTro/Create">＋ Thêm phòng</a></div>
     </header>
 
+    @if (Model.MeterAlerts.Count > 0)
+    {
+        <section class="owner-meter-alerts" aria-label="Cảnh báo chốt chỉ số">
+            <div class="owner-panel-heading"><h2>Cần chốt chỉ số</h2><span class="owner-label">@Model.MeterAlerts.Count cảnh báo</span></div>
+            @foreach (var alert in Model.MeterAlerts)
+            {
+                <a class="owner-meter-alert" href="/TienDoChiSo?toaNhaId=@alert.ToaNhaId&amp;nam=@alert.Nam&amp;thang=@alert.Thang">
+                    <span aria-hidden="true">⚠</span>
+                    <span><strong>@alert.TenToaNha · kỳ @alert.Thang.ToString("00")/@alert.Nam</strong>
+                        <small>Còn @alert.SoPhongConThieu phòng chưa chốt chỉ số</small></span>
+                    <span aria-hidden="true">Xử lý →</span>
+                </a>
+            }
+        </section>
+    }
+
     <section class="owner-stats" aria-label="Số liệu tổng quan">
         @foreach (var stat in new[] {
             (Label: "Phòng / căn hộ", Value: Model.TongPhong.ToString(), Unit: "phòng", Note: $"{Model.TongToaNha} cơ sở đang quản lý", Url: "/PhongTro", Icon: "home"),

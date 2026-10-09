@@ -11,7 +11,7 @@ namespace QL_PhongTro.Controllers;
 public sealed class TienDoChiSoController(TienDoChiSoService progress, ITimeProvider clock) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> Index(int? nam, int? thang, CancellationToken ct)
+    public async Task<IActionResult> Index(int? nam, int? thang, int? toaNhaId, CancellationToken ct)
     {
         if (!ModelState.IsValid) return BadRequest();
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var ownerId)) return Forbid();
@@ -19,7 +19,7 @@ public sealed class TienDoChiSoController(TienDoChiSoService progress, ITimeProv
         var today = DateOnly.FromDateTime(clock.UtcNow.AddHours(7));
         var year = nam ?? today.Year;
         var month = thang ?? today.Month;
-        try { return View(await progress.XemAsync(ownerId, year, month, ct)); }
+        try { return View(await progress.XemAsync(ownerId, year, month, ct, toaNhaId)); }
         catch (UnauthorizedAccessException) { return Forbid(); }
         catch (ArgumentOutOfRangeException ex) { return BadRequest(ex.Message); }
     }
