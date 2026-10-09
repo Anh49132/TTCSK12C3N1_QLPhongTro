@@ -144,10 +144,32 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
     }
 
     [Authorize(Roles = "CHU_NHA,QUAN_LY,ADMIN"), ModuleAccess("TIN_DANG", write: true), HttpGet]
-    public async Task<IActionResult> Tao(int phongId)
+    public async Task<IActionResult> Tao(int? phongId)
     {
-        var model = await TaoModelAsync(phongId);
+        if (!phongId.HasValue)
+        {
+            ViewData["ChooseListingBuilding"] = true;
+            var options = await PhongDangTinOptionsAsync();
+            if (options.Count == 0) return View("KhongCoPhongDangTin");
+            phongId = options[0].Id;
+        }
+        var model = await TaoModelAsync(phongId.Value);
         return model is null ? NotFound() : View(model);
+    }
+
+    private async Task<List<PhongDangTinOption>> PhongDangTinOptionsAsync(int? currentRoomId = null)
+    {
+        var isManager = User.IsInRole("QUAN_LY");
+        return await (from room in db.PhongTros.AsNoTracking()
+                      join building in db.ToaNhas.AsNoTracking() on room.ToaNhaId equals building.Id
+                      where building.DangHoatDong
+                          && (building.ChuNhaId == AccountId || (isManager && building.QuanLyId == AccountId))
+                          && ((room.TrangThai == "TRONG"
+                              && !db.TinDangs.Any(post => post.PhongId == room.Id && post.TrangThai == "DANG_HIEN_THI"))
+                              || room.Id == currentRoomId)
+                      orderby building.TenToaNha, room.MaPhong
+                      select new PhongDangTinOption(room.Id, building.Id, building.TenToaNha, room.MaPhong, room.Tang, room.DienTich))
+                      .ToListAsync();
     }
 
     [Authorize(Roles = "CHU_NHA,QUAN_LY,ADMIN"), ModuleAccess("TIN_DANG", write: true), HttpPost, ValidateAntiForgeryToken]
@@ -245,8 +267,17 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
         var now = DateTime.UtcNow;
         var saved = await db.TinDangs.AsNoTracking().Where(post => post.PhongId == roomId)
             .OrderByDescending(post => post.Id).FirstOrDefaultAsync();
+        var ownerContact = await db.TaiKhoans.AsNoTracking().Where(account => account.Id == source.Building.ChuNhaId)
+            .Select(account => new { account.HoTen, account.SoDienThoai }).SingleOrDefaultAsync();
         return new TaoTinDangViewModel
         {
+            TenChuNha = ownerContact?.HoTen,
+            DienThoaiChuNha = ownerContact?.SoDienThoai,
+            SoNguoiToiDa = source.Room.SoNguoiToiDa,
+            PhongOptions = await PhongDangTinOptionsAsync(roomId),
+            DiaChi = string.Join(", ", new[] { source.Building.DiaChi, source.Building.PhuongXa, source.Building.QuanHuyen, source.Building.TinhThanh }.Where(value => !string.IsNullOrWhiteSpace(value))),
+            TienCoc = source.Room.TienCocDuKien,
+            Tang = source.Room.Tang,
             PhongId = source.Room.Id,
             TinDangId = saved?.Id,
             TrangThaiTin = saved?.TrangThai,

@@ -1088,3 +1088,20 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 - Build/JS syntax PASS; HTTP owner 200, action/CSRF/sidebar có đủ, tòa của chủ khác không xuất hiện. Chưa kiểm tra trực quan 360px/Safari hoặc gửi POST gỡ tin trong phiên này.
 - 10/10: Ba menu lọc tin đăng chuyển thành dropdown nổi bo góc/bóng nhẹ/hover/dấu chọn; đồng bộ select gốc, tab trạng thái và nút tạo tin. Có keyboard mũi tên/Home/End/Escape, đóng khi rời focus/click ngoài.
 - 10/10: Cột thao tác theo mẫu: Xem tin + bút chì SVG, menu Trạng thái phía dưới chứa action gỡ/tạm ẩn; giữ POST/CSRF/confirm. Các phòng chưa trống và tin nháp vẫn giữ action hiện có.
+
+### 10/10/2026 — Giao diện tạo tin theo mẫu
+- Form Tao: thẻ nội dung, giá/thông số/dịch vụ, địa chỉ và ảnh; cột xem trước trực tiếp, liên hệ, hiển thị; footer hủy/lưu nháp/đăng. Breadcrumb riêng, sidebar giữ nguyên.
+- Giá/cọc/tầng/địa chỉ/ảnh lấy từ phòng và tòa hiện có. Ảnh chỉnh tại hồ sơ phòng; chưa hỗ trợ thay liên hệ riêng/thời hạn tùy chọn. Giữ title/description POST và intent, quyền/CSRF; không đổi schema, không nhập dữ liệu giả.
+- Build/JS syntax PASS; GET chủ nhà phòng 4 HTTP 200, binding/intent/CSRF/sidebar đủ. Chưa kiểm tra UI trực quan/mobile/Safari hoặc gửi POST đăng mới trong phiên này.
+
+### 10/10/2026 — Chọn phòng khi tạo tin
+- Nút Tạo tin đăng trên QuanLy mở /TinDang/Tao. GET không có phòng tự chọn phòng hợp lệ đầu tiên; form chọn tòa/phòng tải lại thông tin phòng tương ứng. Nếu không có phòng hợp lệ, hiển thị trang hướng dẫn.
+- Danh sách chọn backend chỉ tòa đang hoạt động của chủ nhà hoặc giao quản lý, phòng trống chưa có tin đang hiển thị; khi sửa giữ phòng hiện tại. POST vẫn kiểm tra sở hữu/trạng thái/trùng tin/CSRF như cũ. Cảnh báo khi đổi phòng có nội dung chưa lưu.
+- Build/JS syntax PASS. HTTP kiểm tra nút liên kết, form lựa chọn, loại phòng đang thuê/đang đăng/chủ khác, đổi phòng và CSRF PASS; khách thuê bị 403. Không gửi POST đổi dữ liệu demo trong phiên này.
+- 10/10: Thẻ giá/thông số tạo tin theo mẫu: SVG ví, 3 ô giá/cọc/diện tích, tiện nghi checkbox chỉ đọc tham khảo từ mô tả (nêu rõ chưa lưu riêng), giữ bảng dịch vụ và thông tin phòng thực.
+- 10/10: Thẻ ảnh phòng tạo tin theo mẫu: icon ảnh, khung nét đứt upload, số ảnh, gallery 3 cột, nhãn đại diện và ô thêm ảnh. Liên kết quản lý ảnh tại hồ sơ phòng, giữ giới hạn 8 ảnh/backend hiện có.
+- 10/10: Xem trước tin theo mẫu: ảnh lớn/số ảnh, giá, diện tích/sức chứa/tầng, địa chỉ SVG, mô tả thu gọn/Xem thêm, cọc và liên hệ chủ nhà thực lấy sau kiểm tra sở hữu. Build/JS syntax kiểm tra; không đổi schema.
+- 10/10: Thẻ liên hệ/hiển thị tạo tin theo mẫu: tên/số chủ nhà chỉ đọc, checkbox Zalo disabled có chú thích, đăng ngay/hẹn lịch disabled, select 30 ngày và ngày hết hạn. Không thêm chức năng chưa hỗ trợ hoặc thay nghiệp vụ.
+- 10/10: Hai menu chọn cơ sở/phòng chuyển thành dropdown nổi, bo góc/bóng/hover/dấu chọn, đồng bộ select gốc và điều hướng khi đổi; hỗ trợ keyboard/đóng ngoài. JS syntax PASS.
+- 10/10: Mở tạo tin từ danh sách mặc định Chọn tòa nhà/Chọn phòng, chưa cho submit đến khi chọn. Mở trực tiếp phòng hoặc sửa tin giữ lựa chọn hiện tại; đổi tòa tải phòng hợp lệ.
+- 10/10: Chọn tòa không tự chọn phòng; reset ô phòng về Chọn phòng cho thuê và chặn lưu đến khi chọn phòng. Chọn phòng mới tải chi tiết phòng tương ứng; sửa tin giữ lựa chọn hiện có.

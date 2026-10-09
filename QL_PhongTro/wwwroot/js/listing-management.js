@@ -15,7 +15,7 @@
  ['lm-search','lm-building','lm-status','lm-sort','lm-size'].forEach(id=>get(id).addEventListener(id==='lm-search'?'input':'change',()=>{current=1;render();}));
  page.querySelectorAll('[data-lm-tab]').forEach(button=>button.addEventListener('click',()=>{get('lm-status').value=button.dataset.lmTab;current=1;render();}));
  get('lm-prev').addEventListener('click',()=>{current--;render();});get('lm-next').addEventListener('click',()=>{current++;render();});
- page.querySelector('[data-lm-create]').addEventListener('click',()=>{get('lm-status').value='NONE';get('lm-search').value='';get('lm-building').value='';current=1;render();});render();
+ render();
 })();
 
 (() => {
