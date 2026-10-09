@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Microsoft.Data.Sqlite;
@@ -186,7 +186,7 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
 
     [HttpGet]
     [ModuleAccess("PHONG_TRO", write: true)]
-    public async Task<IActionResult> CreateBulk(int? toaNhaId)
+    public async Task<IActionResult> CreateBulk(int? toaNhaId, int? soTang)
     {
         var ownerId = CurrentAccountId();
         if (ownerId is null)
@@ -206,6 +206,7 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         return View(new TaoPhongHangLoatViewModel
         {
             ToaNhaId = selectedBuildingId,
+            SoTang = soTang is >= 1 and <= 99 ? soTang : null,
             ToaNhaOptions = options
         });
     }
@@ -284,6 +285,15 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         if (model.TrangThai is not null && !Enum.IsDefined(model.TrangThai.Value))
             ModelState.AddModelError(nameof(model.TrangThai), "Trạng thái phòng không hợp lệ.");
         BindRentPrice(nameof(model.GiaThue), model.GiaThueDisplay, price => model.GiaThue = price);
+        long deposit = 0;
+        if (!string.IsNullOrWhiteSpace(model.TienCocDisplay) && !TryParseRentPrice(model.TienCocDisplay, out deposit))
+            ModelState.AddModelError(nameof(model.TienCocDisplay), "Tiền cọc phải là số nguyên đồng không âm.");
+        var description = string.Join("\n", new[]
+        {
+            string.IsNullOrWhiteSpace(model.TienIch) ? null : $"Tiện ích: {model.TienIch.Trim()}",
+            string.IsNullOrWhiteSpace(model.NoiThat) ? null : $"Nội thất: {model.NoiThat.Trim()}",
+            string.IsNullOrWhiteSpace(model.GhiChuPhong) ? null : $"Ghi chú: {model.GhiChuPhong.Trim()}"
+        }.Where(value => value is not null));
 
         var building = model.ToaNhaId is null
             ? null
@@ -327,7 +337,9 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
             Tang = int.Parse(code[..^2]),
             DienTich = model.DienTich!.Value,
             GiaThue = model.GiaThue!.Value,
-            SoNguoiToiDa = model.SoNguoiToiDa!.Value,
+            TienCocDuKien = deposit,
+            MoTa = string.IsNullOrEmpty(description) ? null : description,
+            SoNguoiToiDa = model.SoNguoiToiDa ?? 1,
             TrangThai = model.TrangThai!.Value.ToString(),
             NgayTao = createdAt
         }).ToList();
@@ -350,6 +362,8 @@ public class PhongTroController(AppDbContext db, DichVuPhongService roomServices
         }
 
         TempData["Success"] = $"Đã tạo {rooms.Count} phòng thành công.";
+        if (model.TaoTiep)
+            return RedirectToAction(nameof(CreateBulk), new { toaNhaId = building!.Id, soTang = model.SoTang });
         return RedirectToAction(nameof(Index), new { toaNhaId = building!.Id });
     }
 

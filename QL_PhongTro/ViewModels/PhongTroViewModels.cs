@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using QL_PhongTro.Models;
 
@@ -80,6 +80,19 @@ public class TaoPhongViewModel
 
 public class TaoPhongHangLoatViewModel
 {
+    public string? TienCocDisplay { get; set; }
+
+    [StringLength(500, ErrorMessage = "Tiện ích tối đa 500 ký tự.")]
+    public string? TienIch { get; set; }
+
+    [StringLength(500, ErrorMessage = "Nội thất tối đa 500 ký tự.")]
+    public string? NoiThat { get; set; }
+
+    [StringLength(1000, ErrorMessage = "Ghi chú tối đa 1.000 ký tự.")]
+    public string? GhiChuPhong { get; set; }
+
+    public bool TaoTiep { get; set; }
+
     [Required(ErrorMessage = "Vui lòng chọn tòa nhà.")]
     [Display(Name = "Tòa nhà")]
     public int? ToaNhaId { get; set; }
@@ -107,7 +120,7 @@ public class TaoPhongHangLoatViewModel
     [Display(Name = "Giá thuê mỗi tháng (VND)")]
     public string? GiaThueDisplay { get; set; }
 
-    [Required(ErrorMessage = "Số người ở tối đa là bắt buộc.")]
+
     [Range(1, int.MaxValue, ErrorMessage = "Số người ở tối đa phải lớn hơn 0.")]
     [Display(Name = "Số người ở tối đa")]
     public int? SoNguoiToiDa { get; set; }

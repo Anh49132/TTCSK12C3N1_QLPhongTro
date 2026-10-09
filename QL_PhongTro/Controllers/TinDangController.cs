@@ -110,6 +110,10 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
                            orderby building.TenToaNha, room.MaPhong
                            select new { Room = room, BuildingName = building.TenToaNha }).ToListAsync();
         var roomIds = rooms.Select(x => x.Room.Id).ToArray();
+        var thumbnails = await db.AnhPhongs.AsNoTracking().Where(image => roomIds.Contains(image.PhongId))
+            .OrderBy(image => image.ThuTu).ToListAsync();
+        var thumbnailByRoom = thumbnails.GroupBy(image => image.PhongId)
+            .ToDictionary(group => group.Key, group => group.First().DuongDanAnhNho ?? group.First().DuongDan);
         var latest = await db.TinDangs.AsNoTracking().Where(x => roomIds.Contains(x.PhongId))
             .GroupBy(x => x.PhongId).Select(g => g.OrderByDescending(x => x.Id).First()).ToListAsync();
         var listingByRoom = latest.ToDictionary(x => x.PhongId);
@@ -121,6 +125,11 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
                 return new TinDangQuanLyItemViewModel
                 {
                     PhongId = x.Room.Id,
+                    ToaNhaId = x.Room.ToaNhaId,
+                    GiaThue = x.Room.GiaThue,
+                    DienTich = x.Room.DienTich,
+                    AnhDaiDien = thumbnailByRoom.GetValueOrDefault(x.Room.Id),
+                    NgayDang = listing?.NgayDang,
                     MaPhong = x.Room.MaPhong,
                     TenToaNha = x.BuildingName,
                     TrangThaiPhong = x.Room.TrangThai,

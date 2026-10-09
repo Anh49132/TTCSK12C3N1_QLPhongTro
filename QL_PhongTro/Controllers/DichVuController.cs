@@ -24,6 +24,7 @@ public class DichVuController(AppDbContext db, DichVuService services, DichVuPho
     {
         if (!await services.SoHuuToaNhaAsync(AccountId, toaNhaId)) return Forbid();
         if (!await services.SanSangAsync()) return RedirectToAction(nameof(Index), new { toaNhaId });
+        ViewData["UtilityRoomCount"] = await db.PhongTros.CountAsync(room => room.ToaNhaId == toaNhaId);
         return View(await services.LayCauHinhDienNuocAsync(AccountId, toaNhaId));
     }
 
@@ -33,6 +34,7 @@ public class DichVuController(AppDbContext db, DichVuService services, DichVuPho
         if (!await services.SoHuuToaNhaAsync(AccountId, model.ToaNhaId)) return Forbid();
         if (!await services.SanSangAsync()) return RedirectToAction(nameof(Index), new { toaNhaId = model.ToaNhaId });
         var saved = await services.LayCauHinhDienNuocAsync(AccountId, model.ToaNhaId);
+        ViewData["UtilityRoomCount"] = await db.PhongTros.CountAsync(room => room.ToaNhaId == model.ToaNhaId);
         model.TenToaNha = saved.TenToaNha;
         model.DienDaLuu = saved.DienDaLuu;
         model.NuocDaLuu = saved.NuocDaLuu;

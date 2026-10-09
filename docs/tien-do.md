@@ -1035,3 +1035,56 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 - Kiểm tra: integrity_check=ok, FK không lỗi; CLI `--check-database` thành công. Chưa phát hành hóa đơn thử; chưa xác minh HTTP vì sandbox chặn localhost (WinError 10013). Web kiểm tra đã dừng, người dùng chạy `run.bat` để test.
 
 - Giao diện kiểm tra hóa đơn tháng: phân trang 15 dòng cho danh sách sẵn sàng, bỏ qua, đã có hóa đơn và lịch sử phát hành; các bảng chuyển trang độc lập. Kiểm tra cú pháp JavaScript và git diff đạt; chưa kiểm tra trực quan trình duyệt.
+
+### 09/10/2026 — Giao diện tạo nhanh phòng theo mẫu
+
+- Đổi riêng trang `PhongTro/CreateBulk`: thẻ cài đặt chung, thông tin bổ sung thu gọn, cột xem trước và thanh hành động; giữ nguyên sidebar.
+- Xem trước cập nhật theo tòa nhà, số tầng, số phòng mỗi tầng, diện tích, giá, sức chứa và trạng thái. Mã xem trước giữ đúng quy tắc backend (tầng 1..N + hai chữ số); giới hạn hiển thị 100 dòng, ghi rõ tổng loạt.
+- Giữ nguyên model, POST, kiểm tra quyền, CSRF và quy tắc tạo phòng. Không thêm loại phòng/prefix tùy chỉnh hoặc thay đổi schema.
+- Xác minh: `dotnet build QL_PhongTro/QL_PhongTro.csproj --no-restore -o data/sprint2-runtime/20261009-105552-d35514` thành công (0 lỗi; cảnh báo ImageSharp/CS8601 có sẵn). Mở form bằng tài khoản chủ nhà demo; nhập 1 tầng × 5 phòng, xem trước đúng 101–105, giá 4.500.000 đ/tháng. Browser 360px: document width 359px, không tràn ngang.
+- Chưa thử lưu loạt mới trong phiên này; không thay đổi dữ liệu phòng demo. Chưa nghiệm thu Safari/thiết bị cảm ứng thực.
+- Bổ sung theo mẫu breadcrumb trang CreateBulk: biểu tượng nhà, liên kết “Phòng cho thuê”, nhãn “Tạo nhanh phòng”; không có dấu phân cách, không sửa sidebar.
+- Đồng bộ breadcrumb CreateBulk với trang thêm phòng: cùng class rc-breadcrumb, icon, dấu /, màu chữ, cỡ chữ và khoảng cách; nhãn cuối là Tạo nhanh phòng.
+- Bỏ liên kết quay lại “Danh sách phòng & căn hộ” ở phần nội dung CreateBulk theo yêu cầu; giữ breadcrumb và nút Hủy.
+- Chỉnh nhãn Tạo đồng loạt theo ảnh: nền kem bo góc, SVG tia sét màu vàng, chữ đậm màu xám.
+- Đổi icon cài đặt chung thành SVG cửa, nét xám đậm, nền xám bo góc theo ảnh mẫu.
+- Chỉnh thẻ Thông tin bổ sung theo mẫu (icon thanh trượt, nhãn Không bắt buộc, mô tả, Thêm thông tin và chevron; mặc định đóng). Đưa sức chứa bắt buộc về cài đặt chung, giữ nguyên binding/validation.
+- Thêm checkbox Tạo tiếp loạt phòng khác sau khi hoàn tất theo mẫu. Khi chọn, POST thành công chuyển về CreateBulk và giữ tòa nhà/số tầng; không chọn giữ redirect danh sách như trước. Mã trùng vẫn bị backend từ chối.
+- Đổi dropdown trạng thái CreateBulk thành menu nổi bo góc, bóng nhẹ, hover và dấu chọn; giữ select gốc để binding/validation, hỗ trợ phím mũi tên/Home/End/Escape và đóng khi click ngoài.
+- Thu gọn bộ chọn trạng thái: menu rộng bằng nút 190px, nút cao khoảng 36px, dòng lựa chọn khoảng 34px, giảm khoảng cách/bóng; điện thoại vẫn dùng chiều rộng đầy đủ.
+- Căn khoảng đệm footer 24px ngang/20px dọc (mobile 16px), dòng mô tả checkbox thẳng với nhãn và cách 6px.
+- Thêm nhập cọc dự kiến, sức chứa, tiện ích/nội thất/ghi chú cho loạt. Dùng cột hiện có tien_coc_du_kien/so_nguoi_toi_da/mo_ta; không đổi schema. Form thông báo mô tả có thể hiển thị công khai. Build PASS; kiểm tra HTTP trên bản sao: cọc âm từ chối và không tạo phòng, tạo 2 phòng lưu đúng cọc 2.000.000/sức chứa 3/nội dung mô tả; integrity/FK PASS. CSDL demo đang dùng giữ tòa 5 chưa có phòng.
+- Số người tối đa trong CreateBulk không bắt buộc theo yêu cầu: bỏ dấu *, bỏ Required riêng model bulk, để trống lưu sức chứa 1; giá trị nhập vẫn phải lớn hơn 0. Form thêm phòng riêng giữ quy tắc cũ.
+
+### 09/10/2026 — Giao diện thêm tòa nhà theo ảnh mẫu
+- Trang TaoToaNha: 5 thẻ thông tin cơ bản/địa chỉ/quy mô/người phụ trách/trạng thái và ghi chú, cột tóm tắt cập nhật trực tiếp, khung ảnh và lưu ý thêm phòng; breadcrumb riêng. Sidebar giữ nguyên.
+- Giữ nguyên POST, CSRF, quyền và dữ liệu lưu. Các trường chưa hỗ trợ (mã tự nhập/loại hình/ảnh/liên hệ riêng) chỉ đọc hoặc vô hiệu hóa có giải thích; không đổi schema. Tòa mới vẫn có 0 phòng và đang hoạt động.
+- Build thành công (0 lỗi, cảnh báo ImageSharp/CS8601 có sẵn). Mở form bằng chủ nhà demo; DOM có 5 nhóm và tóm tắt; viewport 360px, document width 345px, không tràn ngang. Chưa thử lưu mới/Safari/thiết bị cảm ứng trong phiên giao diện này.
+- 10/10/2026: Đồng bộ breadcrumb thêm tòa nhà với trang thêm phòng (rc-breadcrumb, icon, cỡ chữ/màu/khoảng cách và dấu /), giữ tên Không gian quản lý / Tòa nhà / Thêm tòa nhà.
+- 10/10: Chỉnh thẻ thông tin cơ bản thêm tòa theo mẫu: icon SVG, tên/mã tỉ lệ 2.15:1, thẻ radio loại hình với viền vàng; loại hình chỉ xem trước (thông báo rõ), mã vẫn tự tạo sau lưu. Không đổi schema.
+- 10/10: Chỉnh thẻ địa chỉ theo mẫu: icon vị trí, tỉnh/phường cùng hàng, số nhà và địa chỉ bổ sung toàn hàng. Giữ Quận/Huyện bắt buộc và các binding hiện có; địa chỉ bổ sung chưa hỗ trợ lưu riêng.
+- 10/10: Thẻ Quy mô theo mẫu: icon tầng SVG, hướng dẫn dưới từng ô, đơn vị bên phải, thanh lưu ý nền xám nhạt. Tổng số phòng vẫn chỉ đọc theo dữ liệu thực tế; không tự tạo phòng.
+- 10/10: Chỉnh thẻ người phụ trách/liên hệ theo hình: SVG người, mô tả, 2 cột, ô 40px, email không bắt buộc. Giữ quyền phân công quản lý và trạng thái chỉ đọc/vô hiệu hóa liên hệ chưa hỗ trợ lưu riêng.
+- 10/10: Thẻ trạng thái/ghi chú theo mẫu: SVG điều chỉnh, select trạng thái (tòa mới chỉ Đang hoạt động), hướng dẫn và textarea cao 78px. Giữ hành vi lưu tòa mới đang hoạt động.
+- 10/10: Thẻ tóm tắt theo mẫu: header/icon, khối tên, quy mô nền xám có vạch ngăn, các dòng thông tin, trạng thái vàng nhạt, footer chưa lưu. Hiển thị số phòng thực 0 và mã tạo sau lưu; loại hình theo lựa chọn xem trước.
+- 10/10: Thẻ ảnh tòa nhà theo mẫu: khung nét đứt nền nhạt, icon ảnh/vòng tròn, nút upload, JPG/PNG 5MB và hướng dẫn 4:3. Nút vẫn vô hiệu hóa và có thông báo vì chưa hỗ trợ lưu ảnh tòa riêng.
+
+### 10/10/2026 — Giao diện cấu hình điện & nước
+- Đổi riêng DienNuoc: header/tabs, phạm vi áp dụng, thẻ điện/nước/hiệu lực, cột tóm tắt và ví dụ, footer lưu/hủy. Sidebar không thay đổi.
+- Giữ POST/binding/CSRF/trường chống ghi đồng thời/cấu hình hiện tại và chờ. Nút cách tính đồng bộ select gốc, JS validation giữ nguyên; chỉ hỗ trợ theo chỉ số/theo người như backend. Ngày áp dụng kỳ tiếp theo chỉ đọc; không mở rộng schema/quy tắc.
+- Ví dụ dùng BigInt: 100 kWh, 5 m³ hoặc 2 người; giá nhập cập nhật ngay, không ghi dữ liệu hóa đơn.
+- Build PASS, JS syntax PASS, HTTP chủ nhà 200 và kiểm tra binding/CSRF/sidebar PASS. Browser kiểm tra trực quan bị unavailable nên chưa xác minh 360px/ảnh hiển thị trong phiên này; CSS có breakpoint mobile. Chưa gửi POST thay giá demo.
+- 10/10: Thẻ phạm vi áp dụng theo mẫu: SVG tòa, select tòa hiện tại, thẻ tất cả phòng/chọn cụ thể và thanh danh sách. Chọn cụ thể vô hiệu hóa có giải thích; bảo toàn phạm vi chung và ưu tiên cấu hình riêng. Không hiển thị số phòng giả.
+- 10/10: Thẻ tiền điện theo mẫu: SVG tia sét, badge trạng thái thực, lựa chọn tính phí (bậc thang/khoán phòng chưa hỗ trợ nên disabled; theo người vẫn giữ), hàng đơn giá/đơn vị khóa, công thức trực tiếp. Cấu hình hiện tại/chờ trong details, giữ nguyên dữ liệu/validation.
+- 10/10: Thẻ nước theo mẫu: SVG giọt nước, 3 ô cách tính (khoán phòng disabled), đơn giá/đơn vị cạnh nhau và công thức trực tiếp. Giữ theo người hoạt động, binding/validation nguyên bản.
+- 10/10: Thời điểm hiệu lực theo mẫu: SVG lịch, ngày và kỳ cùng hàng, khối cảnh báo nền kem. Ngày/kỳ vẫn cố định theo kỳ kế tiếp, không thay đổi nghiệp vụ.
+- 10/10: Tóm tắt áp dụng theo mẫu: số phòng truy vấn thật sau kiểm tra sở hữu (GET/POST), nhãn cách tính theo lựa chọn, đơn giá, ngày hiệu lực kèm SVG lịch. Không đổi schema/dữ liệu.
+- 10/10: Thẻ ví dụ điện/nước theo mẫu: 1250→1350 kWh, 120→125 m³, formula/tiền riêng và tổng nền kem; khi theo người ẩn chỉ số minh họa và dùng 2 người. Tiền BigInt theo giá nhập, dữ liệu chỉ minh họa.
+
+### 10/10/2026 — Giao diện tin đăng cho thuê theo mẫu
+- QuanLy: 4 thẻ đếm trạng thái, thanh phòng trống, bảng ảnh/giá/diện tích/ngày đăng/trạng thái, tìm kiếm/lọc cơ sở-trạng thái/sắp xếp/phân trang 10-20-50 dòng. Sidebar giữ nguyên.
+- Bổ sung dữ liệu view từ phòng/tin/ảnh hiện có; bảo toàn kiểm tra sở hữu. Ngày hiển thị UTC+7, tiền vi-VN. Chưa có thống kê quan tâm nên ghi rõ chưa có dữ liệu, không tạo số giả.
+- Giữ các action xem/sửa/đăng lại/gỡ và CSRF. Nút Tạo tin đăng lọc phòng chưa có tin để chọn; phòng chưa trống giữ chặn như trước. Không đổi schema hoặc dữ liệu.
+- Build/JS syntax PASS; HTTP owner 200, action/CSRF/sidebar có đủ, tòa của chủ khác không xuất hiện. Chưa kiểm tra trực quan 360px/Safari hoặc gửi POST gỡ tin trong phiên này.
+- 10/10: Ba menu lọc tin đăng chuyển thành dropdown nổi bo góc/bóng nhẹ/hover/dấu chọn; đồng bộ select gốc, tab trạng thái và nút tạo tin. Có keyboard mũi tên/Home/End/Escape, đóng khi rời focus/click ngoài.
+- 10/10: Cột thao tác theo mẫu: Xem tin + bút chì SVG, menu Trạng thái phía dưới chứa action gỡ/tạm ẩn; giữ POST/CSRF/confirm. Các phòng chưa trống và tin nháp vẫn giữ action hiện có.
