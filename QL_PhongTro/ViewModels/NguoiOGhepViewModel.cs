@@ -39,6 +39,7 @@ public class HopDongDetailsViewModel
     public List<NguoiOGhepRow> DaChuyenDi { get; set; } = [];
     public List<NguoiOGhepRow> SapVao { get; set; } = [];
     public ChuyenDiInput ChuyenDi { get; set; } = new();
+    public bool ChoGiaHan { get; set; }
     public int? ChuyenDiNguoiId { get; set; }
     public NguoiOGhepInput Input { get; set; } = new();
     public bool ChoThem { get; set; }
