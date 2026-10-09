@@ -43,6 +43,7 @@ builder.Services.AddSingleton(sp => new QL_PhongTro.Services.RoomImageStore(
     sp.GetRequiredService<IWebHostEnvironment>(), sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddScoped<QL_PhongTro.Services.HoSoAccess>();
 builder.Services.AddScoped<QL_PhongTro.Services.LichHenService>();
+builder.Services.AddScoped<QL_PhongTro.Services.TienDoChiSoService>();
 builder.Services.AddScoped<QL_PhongTro.Services.ICredentialValidationService, QL_PhongTro.Services.CredentialValidationService>();
 
 var dataDir = Path.Combine(builder.Environment.ContentRootPath, "Data");

@@ -76,6 +76,8 @@
 .meter-status-badge.is-complete::before { content:'✓ '; }
 .meter-status-badge.is-pending { background:#FCF3DF; color:#967138; }
 .meter-status-badge.is-pending::before { content:'◷ '; }
+.meter-status-badge.is-locked { background:#E8E9EC; color:#515761; }
+.meter-status-badge.is-locked::before { content:'🔒 '; }
 .meter-status-badge.is-warning { background:#FFF0D2; color:#95671F; }
 .meter-row-actions { grid-column:7; }
 .meter-page .meter-save, .meter-page .meter-confirm { background:var(--meter-ink); border:1px solid var(--meter-ink); color:#fff; border-radius:6px; }

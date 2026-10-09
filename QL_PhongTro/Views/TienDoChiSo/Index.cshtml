@@ -1,0 +1,92 @@
+@model QL_PhongTro.ViewModels.TienDoChiSoViewModel
+@{
+    ViewData["Title"] = "Tiến độ chốt chỉ số";
+}
+<div class="container py-4">
+    <header class="mb-4">
+        <h1>Tiến độ chốt chỉ số</h1>
+        <p class="text-muted">Theo dõi số phòng đang thuê và tình trạng ghi đủ chỉ số điện, nước theo tháng.</p>
+    </header>
+
+    <section class="card mb-4">
+        <div class="card-body">
+            <form asp-action="Index" method="get" class="row g-3 align-items-end">
+                <div class="col-auto">
+                    <label for="thang" class="form-label">Tháng</label>
+                    <select id="thang" name="thang" class="form-select">
+                        @for (var month = 1; month <= 12; month++)
+                        {
+                            <option value="@month" selected="@(month == Model.Thang)">Tháng @month</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label for="nam" class="form-label">Năm</label>
+                    <input id="nam" name="nam" type="number" min="1900" max="9998" value="@Model.Nam" class="form-control" required />
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Xem tiến độ</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Kỳ @Model.Thang.ToString("00")/@Model.Nam</h2>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Tòa nhà</th>
+                            <th scope="col" class="text-end">Phòng đang thuê</th>
+                            <th scope="col" class="text-end">Đã chốt chỉ số</th>
+                            <th scope="col" class="text-end">Còn thiếu</th>
+                            <th scope="col">Trạng thái kỳ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var building in Model.ToaNhas)
+                    {
+                        <tr>
+                            <th scope="row">@building.TenToaNha</th>
+                            <td class="text-end">@building.TongPhongDangThue</td>
+                            <td class="text-end">@building.SoPhongDaChot</td>
+                            <td class="text-end">
+                                @if (building.SoPhongConThieu > 0)
+                                {
+                                    <a asp-action="PhongConThieu" asp-route-toaNhaId="@building.ToaNhaId"
+                                       asp-route-nam="@Model.Nam" asp-route-thang="@Model.Thang"
+                                       aria-label="Xem @building.SoPhongConThieu phòng còn thiếu tại @building.TenToaNha">
+                                        @building.SoPhongConThieu
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="text-success">0 <small>Không còn phòng thiếu</small></span>
+                                }
+                            </td>
+                            <td>
+                                @if (building.KyDaKhoa)
+                                {
+                                    <span class="badge text-bg-secondary">Đã khóa</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-success">Chưa khóa</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.ToaNhas.Count == 0)
+                    {
+                        <tr><td colspan="5" class="text-center text-muted py-4">Bạn chưa có tòa nhà đang hoạt động.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</div>
