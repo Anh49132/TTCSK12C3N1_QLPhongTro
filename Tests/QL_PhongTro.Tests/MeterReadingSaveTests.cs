@@ -90,4 +90,37 @@ public sealed partial class MeterReadingListTests
         Execute("UPDATE phong_tro SET phien_ban=0 WHERE id=1; CREATE TRIGGER fail_meter_audit BEFORE INSERT ON nhat_ky_hoat_dong BEGIN SELECT RAISE(ABORT,'test audit failure'); END;");
         await Assert.ThrowsAnyAsync<Exception>(()=>Save(SaveInput()));Assert.Equal(0,Count("chi_so_dien_nuoc"));
     }
+
+    [Fact]
+    public async Task PublishedInvoiceLocksBuildingPeriodWithoutChangingExistingReadings()
+    {
+        MeterFixture();
+        Assert.Empty(await Save(SaveInput(10, 20)));
+        Invoice(1, 1, 10, issued: true);
+
+        var locked = await List();
+        Assert.True(locked.KyDaKhoa);
+        var errors = await Save(SaveInput(30, 40));
+        Assert.Contains(errors.Values.SelectMany(x => x), message => message.Contains("đã khóa"));
+
+        using (var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite($"Data Source={path};Pooling=False").Options))
+        {
+            var saved = await db.ChiSoDienNuocs.OrderBy(x => x.DichVuId).ToListAsync();
+            Assert.Equal(2, saved.Count);
+            Assert.Equal(new[] { 10m, 20m }, saved.Select(x => x.ChiSoCuoi));
+        }
+
+        var anotherRoom = SaveInput(1, 13);
+        anotherRoom.PhongId = 2;
+        anotherRoom.HopDongId = 2;
+        Assert.Contains((await Save(anotherRoom)).Values.SelectMany(x => x),
+            message => message.Contains("đã khóa"));
+
+        clock.UtcNow = new(2026, 11, 7, 0, 0, 0, DateTimeKind.Utc);
+        Assert.False((await List()).KyDaKhoa);
+        var november = SaveInput(11, 21);
+        november.Ky = new(2026, 11, 1);
+        Assert.Empty(await Save(november));
+    }
 }

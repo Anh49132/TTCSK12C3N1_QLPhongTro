@@ -1,0 +1,48 @@
+@model QL_PhongTro.ViewModels.PhongConThieuViewModel
+@{
+    ViewData["Title"] = "Phòng còn thiếu chỉ số";
+}
+<div class="container py-4">
+    <header class="mb-4">
+        <a asp-action="Index" asp-route-nam="@Model.Nam" asp-route-thang="@Model.Thang" class="text-decoration-none">
+            ← Quay lại tiến độ
+        </a>
+        <h1 class="mt-3">Phòng còn thiếu chỉ số</h1>
+        <p class="text-muted">@Model.TenToaNha · Kỳ @Model.Thang.ToString("00")/@Model.Nam</p>
+    </header>
+
+    <section class="card">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Danh sách phòng (@Model.Phongs.Count)</h2>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Phòng</th>
+                            <th scope="col">Tầng</th>
+                            <th scope="col">Người quản lý phụ trách</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var room in Model.Phongs)
+                    {
+                        <tr>
+                            <th scope="row">@room.MaPhong</th>
+                            <td>@room.Tang</td>
+                            <td>@(room.TenQuanLy ?? "Chưa phân công")</td>
+                        </tr>
+                    }
+                    @if (Model.Phongs.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-4">Tòa nhà không còn phòng nào thiếu chỉ số trong kỳ này.</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</div>

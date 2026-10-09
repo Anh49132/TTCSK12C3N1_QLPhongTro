@@ -18,4 +18,18 @@ public sealed record TienDoChiSoToaNha(
     string TenToaNha,
     int TongPhongDangThue,
     int SoPhongDaChot,
-    int SoPhongConThieu);
+    int SoPhongConThieu,
+    bool KyDaKhoa);
+
+public sealed record PhongConThieuViewModel(
+    int ToaNhaId,
+    string TenToaNha,
+    int Nam,
+    int Thang,
+    List<PhongConThieuItem> Phongs);
+
+public sealed record PhongConThieuItem(
+    int PhongId,
+    string MaPhong,
+    int Tang,
+    string? TenQuanLy);

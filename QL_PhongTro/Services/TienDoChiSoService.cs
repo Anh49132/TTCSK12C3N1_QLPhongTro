@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using QL_PhongTro.Data;
 using QL_PhongTro.ViewModels;
 
@@ -6,60 +7,90 @@ namespace QL_PhongTro.Services;
 
 public sealed class TienDoChiSoService(AppDbContext db)
 {
-    public async Task<TienDoChiSoViewModel> XemAsync(int ownerId, int year, int month, CancellationToken ct)
+    public async Task<List<HomeMeterAlert>> LayCanhBaoAsync(
+        int ownerId, DateOnly today, CancellationToken ct = default)
     {
-        if (year is < 1900 or > 9998 || month is < 1 or > 12)
-            throw new ArgumentOutOfRangeException(nameof(month), "Kỳ theo dõi không hợp lệ.");
+        await EnsureLandlordAsync(ownerId, ct);
+        if (!await CoBangChiSoAsync(ct)) return [];
 
-        if (!await db.TaiKhoans.AsNoTracking().AnyAsync(x => x.Id == ownerId
-            && x.VaiTro == "CHU_NHA" && x.DangHoatDong && !x.IsDeleted, ct))
-            throw new UnauthorizedAccessException();
+        var buildings = await (from building in db.ToaNhas.AsNoTracking()
+            join room in db.PhongTros.AsNoTracking() on building.Id equals room.ToaNhaId
+            join contract in db.HopDongs.AsNoTracking() on room.Id equals contract.PhongId
+            join period in db.KyHopDongs.AsNoTracking() on contract.Id equals period.HopDongId
+            where building.ChuNhaId == ownerId && building.DangHoatDong
+                && (contract.TrangThai == "DANG_HIEU_LUC" || contract.TrangThai == "DA_KET_THUC")
+                && period.NgayBatDau <= today
+            group period by new { building.Id, building.TenToaNha, building.NgayChotHangThang } into periods
+            select new
+            {
+                periods.Key.Id,
+                periods.Key.TenToaNha,
+                periods.Key.NgayChotHangThang,
+                NgayBatDau = periods.Min(x => x.NgayBatDau)
+            }).ToListAsync(ct);
 
-        var buildings = await db.ToaNhas.AsNoTracking()
-            .Where(x => x.ChuNhaId == ownerId)
+        var dueBuildingsByMonth = new Dictionary<(int Year, int Month), List<(int Id, string Name)>>();
+        foreach (var building in buildings)
+        {
+            var month = new DateOnly(building.NgayBatDau.Year, building.NgayBatDau.Month, 1);
+            var current = new DateOnly(today.Year, today.Month, 1);
+            while (month <= current)
+            {
+                var cutoffDay = Math.Min(building.NgayChotHangThang, DateTime.DaysInMonth(month.Year, month.Month));
+                if (new DateOnly(month.Year, month.Month, cutoffDay) <= today)
+                {
+                    var key = (month.Year, month.Month);
+                    if (!dueBuildingsByMonth.TryGetValue(key, out var dueBuildings))
+                        dueBuildingsByMonth.Add(key, dueBuildings = []);
+                    dueBuildings.Add((building.Id, building.TenToaNha));
+                }
+                month = month.AddMonths(1);
+            }
+        }
+
+        var alerts = new List<HomeMeterAlert>();
+        foreach (var (period, dueBuildings) in dueBuildingsByMonth.OrderBy(x => x.Key.Year).ThenBy(x => x.Key.Month))
+        {
+            var progress = await XemAsync(ownerId, period.Year, period.Month, ct);
+            var summaries = progress.ToaNhas.ToDictionary(x => x.ToaNhaId);
+            foreach (var building in dueBuildings)
+            {
+                if (summaries.TryGetValue(building.Id, out var summary)
+                    && !summary.KyDaKhoa && summary.SoPhongConThieu > 0)
+                    alerts.Add(new HomeMeterAlert(building.Id, building.Name, period.Year, period.Month,
+                        summary.SoPhongConThieu));
+            }
+        }
+
+        return alerts.OrderBy(x => x.Nam).ThenBy(x => x.Thang).ThenBy(x => x.TenToaNha).ToList();
+    }
+
+    public async Task<TienDoChiSoViewModel> XemAsync(int ownerId, int year, int month, CancellationToken ct)
+        => await XemAsync(ownerId, year, month, ct, null);
+
+    public async Task<TienDoChiSoViewModel> XemAsync(
+        int ownerId, int year, int month, CancellationToken ct, int? buildingId)
+    {
+        ValidatePeriod(year, month);
+        await EnsureLandlordAsync(ownerId, ct);
+
+        var ownerBuildings = db.ToaNhas.AsNoTracking().Where(x => x.ChuNhaId == ownerId);
+        if (buildingId.HasValue)
+        {
+            if (!await ownerBuildings.AnyAsync(x => x.Id == buildingId.Value, ct))
+                throw new UnauthorizedAccessException();
+            ownerBuildings = ownerBuildings.Where(x => x.Id == buildingId.Value);
+        }
+        var buildings = await ownerBuildings
             .OrderBy(x => x.TenToaNha)
             .Select(x => new { x.Id, x.TenToaNha })
             .ToListAsync(ct);
         var first = new DateOnly(year, month, 1);
         var last = first.AddMonths(1).AddDays(-1);
-
-        var leasedRooms = await (
-            from building in db.ToaNhas.AsNoTracking()
-            join room in db.PhongTros.AsNoTracking() on building.Id equals room.ToaNhaId
-            join contract in db.HopDongs.AsNoTracking() on room.Id equals contract.PhongId
-            join period in db.KyHopDongs.AsNoTracking() on contract.Id equals period.HopDongId
-            where building.ChuNhaId == ownerId
-                && (contract.TrangThai == "DANG_HIEU_LUC" || contract.TrangThai == "DA_KET_THUC")
-                && period.NgayBatDau <= last && period.NgayKetThuc >= first
-                && (!contract.NgayTraPhong.HasValue || contract.NgayTraPhong.Value >= first)
-            select new { building.Id, RoomId = room.Id, ContractId = contract.Id })
-            .Distinct()
-            .ToListAsync(ct);
-
-        var serviceIds = await db.DichVus.AsNoTracking()
-            .Where(x => x.MaDichVu == "DIEN" || x.MaDichVu == "NUOC")
-            .Select(x => new { x.MaDichVu, x.Id })
-            .ToListAsync(ct);
-        var electricId = serviceIds.Where(x => x.MaDichVu == "DIEN").Select(x => (int?)x.Id).SingleOrDefault();
-        var waterId = serviceIds.Where(x => x.MaDichVu == "NUOC").Select(x => (int?)x.Id).SingleOrDefault();
-
-        var contractIds = leasedRooms.Select(x => x.ContractId).Distinct().ToList();
-        var confirmedContracts = new HashSet<int>();
-        if (electricId.HasValue && waterId.HasValue && contractIds.Count > 0)
-        {
-            var readings = await db.ChiSoDienNuocs.AsNoTracking()
-                .Where(x => contractIds.Contains(x.HopDongId)
-                    && (x.DichVuId == electricId.Value || x.DichVuId == waterId.Value)
-                    && x.TuNgay <= first && x.DenNgay >= last)
-                .Select(x => new { x.HopDongId, x.DichVuId })
-                .ToListAsync(ct);
-            var metersByContract = readings.GroupBy(x => x.HopDongId)
-                .ToDictionary(x => x.Key, x => x.Select(r => r.DichVuId).ToHashSet());
-            foreach (var contractId in contractIds)
-                if (metersByContract.TryGetValue(contractId, out var meters)
-                    && meters.Contains(electricId.Value) && meters.Contains(waterId.Value))
-                    confirmedContracts.Add(contractId);
-        }
+        var lockedBuildings = await KyChiSoLockService.LayToaNhaDaKhoaAsync(
+            db, buildings.Select(x => x.Id).ToArray(), year, month, ct);
+        var leasedRooms = await GetLeasedRoomsAsync(ownerId, first, last, ct);
+        var confirmedContracts = await GetConfirmedContractsAsync(leasedRooms, first, last, ct);
 
         var summaries = leasedRooms.GroupBy(x => x.Id).ToDictionary(
             group => group.Key,
@@ -80,8 +111,118 @@ public sealed class TienDoChiSoService(AppDbContext db)
                 var counts = summaries.GetValueOrDefault(building.Id);
                 var total = counts.Total;
                 return new TienDoChiSoToaNha(building.Id, building.TenToaNha, total, counts.Confirmed,
-                    total - counts.Confirmed);
+                    total - counts.Confirmed, lockedBuildings.Contains(building.Id));
             }).ToList()
         };
     }
+
+    public async Task<PhongConThieuViewModel> PhongConThieuAsync(
+        int ownerId, int buildingId, int year, int month, CancellationToken ct)
+    {
+        ValidatePeriod(year, month);
+        await EnsureLandlordAsync(ownerId, ct);
+
+        var building = await db.ToaNhas.AsNoTracking()
+            .Where(x => x.Id == buildingId && x.ChuNhaId == ownerId)
+            .Select(x => new { x.Id, x.TenToaNha })
+            .SingleOrDefaultAsync(ct) ?? throw new UnauthorizedAccessException();
+
+        var first = new DateOnly(year, month, 1);
+        var last = first.AddMonths(1).AddDays(-1);
+        var leasedRooms = await GetLeasedRoomsAsync(ownerId, first, last, ct);
+        var confirmedContracts = await GetConfirmedContractsAsync(leasedRooms, first, last, ct);
+        var missingRooms = leasedRooms
+            .Where(x => x.Id == building.Id)
+            .GroupBy(x => x.RoomId)
+            .Where(room => room.Any(x => !confirmedContracts.Contains(x.ContractId)))
+            .Select(room => room.First())
+            .OrderBy(x => x.Floor)
+            .ThenBy(x => x.RoomCode)
+            .Select(x => new PhongConThieuItem(x.RoomId, x.RoomCode, x.Floor, x.ManagerName))
+            .ToList();
+
+        return new PhongConThieuViewModel(building.Id, building.TenToaNha, year, month, missingRooms);
+    }
+
+    private async Task EnsureLandlordAsync(int ownerId, CancellationToken ct)
+    {
+        if (!await db.TaiKhoans.AsNoTracking().AnyAsync(x => x.Id == ownerId
+            && x.VaiTro == "CHU_NHA" && x.DangHoatDong && !x.IsDeleted, ct))
+            throw new UnauthorizedAccessException();
+    }
+
+    private async Task<bool> CoBangChiSoAsync(CancellationToken ct)
+    {
+        var connection = db.Database.GetDbConnection();
+        var close = connection.State != System.Data.ConnectionState.Open;
+        if (close) await connection.OpenAsync(ct);
+        try
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = db.Database.CurrentTransaction?.GetDbTransaction();
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='chi_so_dien_nuoc'";
+            return Convert.ToInt32(await command.ExecuteScalarAsync(ct)) == 1;
+        }
+        finally
+        {
+            if (close) await connection.CloseAsync();
+        }
+    }
+
+    private static void ValidatePeriod(int year, int month)
+    {
+        if (year is < 1900 or > 9998 || month is < 1 or > 12)
+            throw new ArgumentOutOfRangeException(nameof(month), "Kỳ theo dõi không hợp lệ.");
+    }
+
+    private Task<List<LeasedRoom>> GetLeasedRoomsAsync(
+        int ownerId, DateOnly first, DateOnly last, CancellationToken ct) =>
+        (from building in db.ToaNhas.AsNoTracking()
+         join room in db.PhongTros.AsNoTracking() on building.Id equals room.ToaNhaId
+         join contract in db.HopDongs.AsNoTracking() on room.Id equals contract.PhongId
+         join period in db.KyHopDongs.AsNoTracking() on contract.Id equals period.HopDongId
+         where building.ChuNhaId == ownerId
+             && (contract.TrangThai == "DANG_HIEU_LUC" || contract.TrangThai == "DA_KET_THUC")
+             && period.NgayBatDau <= last && period.NgayKetThuc >= first
+             && (!contract.NgayTraPhong.HasValue || contract.NgayTraPhong.Value >= first)
+         select new LeasedRoom(
+             building.Id, room.Id, room.MaPhong, room.Tang, contract.Id,
+             db.TaiKhoans.Where(account => account.Id == building.QuanLyId)
+                 .Select(account => account.HoTen).FirstOrDefault()))
+        .Distinct()
+        .ToListAsync(ct);
+
+    private async Task<HashSet<int>> GetConfirmedContractsAsync(
+        List<LeasedRoom> leasedRooms, DateOnly first, DateOnly last, CancellationToken ct)
+    {
+        var serviceIds = await db.DichVus.AsNoTracking()
+            .Where(x => x.MaDichVu == "DIEN" || x.MaDichVu == "NUOC")
+            .Select(x => new { x.MaDichVu, x.Id })
+            .ToListAsync(ct);
+        var electricId = serviceIds.Where(x => x.MaDichVu == "DIEN").Select(x => (int?)x.Id).SingleOrDefault();
+        var waterId = serviceIds.Where(x => x.MaDichVu == "NUOC").Select(x => (int?)x.Id).SingleOrDefault();
+        var confirmedContracts = new HashSet<int>();
+        var contractIds = leasedRooms.Select(x => x.ContractId).Distinct().ToList();
+
+        if (electricId.HasValue && waterId.HasValue && contractIds.Count > 0)
+        {
+            var readings = await db.ChiSoDienNuocs.AsNoTracking()
+                .Where(x => contractIds.Contains(x.HopDongId)
+                    && (x.DichVuId == electricId.Value || x.DichVuId == waterId.Value)
+                    && x.TuNgay <= first && x.DenNgay >= last)
+                .Select(x => new { x.HopDongId, x.DichVuId })
+                .ToListAsync(ct);
+            var metersByContract = readings.GroupBy(x => x.HopDongId)
+                .ToDictionary(x => x.Key, x => x.Select(r => r.DichVuId).ToHashSet());
+            foreach (var contractId in contractIds)
+                if (metersByContract.TryGetValue(contractId, out var meters)
+                    && meters.Contains(electricId.Value) && meters.Contains(waterId.Value))
+                    confirmedContracts.Add(contractId);
+        }
+
+        return confirmedContracts;
+    }
+
+    private sealed record LeasedRoom(
+        int Id, int RoomId, string RoomCode, int Floor, int ContractId, string? ManagerName);
 }

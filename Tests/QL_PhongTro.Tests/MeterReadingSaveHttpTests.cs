@@ -58,4 +58,28 @@ public sealed partial class MeterReadingListTests
         Assert.Contains("name=\"DienPhienBan\" value=\"-1\"",html);
         Assert.Equal("0",(await MeterForm(manager))["DienPhienBan"]);Assert.Equal(2,Count("chi_so_dien_nuoc"));
     }
+
+    [Fact]
+    public async Task PublishedInvoiceDisablesMeterEditingAndPostReturnsLockMessage()
+    {
+        MeterFixture();
+        Invoice(1, 1, 10, issued: true);
+        using var factory = Factory();
+        using var manager = await Login(factory, "manager@meter.test");
+
+        var html = WebUtility.HtmlDecode(await manager.GetStringAsync("/ChiSoDienNuoc?toaNhaId=1"));
+        Assert.Contains("đã khóa", html);
+        Assert.Contains("Đã khóa", html);
+        Assert.Contains("readonly=\"readonly\"", html);
+        Assert.Contains("disabled=\"disabled\"", html);
+
+        var fields = await MeterForm(manager);
+        fields["DienMoi"] = "10";
+        fields["NuocMoi"] = "20";
+        var response = await manager.PostAsync("/ChiSoDienNuoc/Save", new FormUrlEncodedContent(fields));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        Assert.Contains("Không thể thêm hoặc sửa chỉ số", html);
+        Assert.Equal(0, Count("chi_so_dien_nuoc"));
+    }
 }
