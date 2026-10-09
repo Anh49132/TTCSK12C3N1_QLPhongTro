@@ -60,9 +60,9 @@ public sealed partial class HoaDonDichVuService
         foreach (var context in contracts)
         {
             var h = context.Contract;
-            var terms = await db.KyHopDongs.AsNoTracking().Where(x => x.HopDongId == h.Id && x.NgayBatDau <= first && x.NgayKetThuc >= last).ToListAsync();
+            var terms = await db.KyHopDongs.AsNoTracking().Where(x => x.HopDongId == h.Id
+                && x.NgayBatDau <= last && x.NgayKetThuc >= first).OrderBy(x => x.NgayBatDau).ToListAsync();
             void Skip(string reason) => model.BoQua.Add(new(h.Id, context.Room.MaPhong, reason));
-            // Retain the existing full-month rule. Partial/renewal months need a separate policy.
             var existing = await db.HoaDons.AsNoTracking().Where(x => x.HopDongId == h.Id && x.Nam == year && x.Thang == month && x.TrangThai != "DA_HUY")
                 .Select(x => (int?)x.Id).SingleOrDefaultAsync();
             if (existing.HasValue)
@@ -71,7 +71,10 @@ public sealed partial class HoaDonDichVuService
                     { TrangThai = "DA_CO_HOA_DON", HoaDonId = existing });
                 continue;
             }
-            if (terms.Count != 1 || h.NgayTraPhong < last) { Skip("Chưa có kỳ hợp đồng thuê trọn tháng hợp lệ."); continue; }
+            if (h.NgayTraPhong < last) { Skip("Chưa có kỳ hợp đồng thuê trọn tháng hợp lệ."); continue; }
+            List<ChiTietHoaDon> rentLines;
+            try { rentLines = TinhChiTietTienPhong(terms, first, last); }
+            catch (InvalidOperationException ex) { Skip(ex.Message); continue; }
             var cancelled = await db.HoaDons.AsNoTracking().Where(x => x.HopDongId == h.Id && x.Nam == year && x.Thang == month && x.TrangThai == "DA_HUY")
                 .OrderByDescending(x => x.Id).Select(x => (int?)x.Id).FirstOrDefaultAsync();
             if (cancelled.HasValue) {
@@ -88,8 +91,7 @@ public sealed partial class HoaDonDichVuService
             var invoice = new HoaDon { MaHoaDon = "HD" + Guid.NewGuid().ToString("N")[..24], HopDongId = h.Id,
                 Nam = year, Thang = month, TuNgay = first, DenNgay = last, NgayChot = cutoff,
                 SoNguoiTinhPhi = occupancy.SoNguoi, NgayLap = now, NgayPhatHanhNghiepVu = dates.Issue, HanThanhToan = dates.Due, NguoiLapId = actor };
-            invoice.ChiTiet.Add(new() { SoThuTu = 1, LoaiKhoan = "TIEN_PHONG", TenKhoan = "Tiền phòng", DonViTinh = "tháng",
-                KyHopDongId = terms[0].Id, SoLuong = 1, DonGia = terms[0].GiaThue, ThanhTien = terms[0].GiaThue });
+            invoice.ChiTiet.AddRange(rentLines);
             var readings = new List<ChiSoDienNuoc>();
             var agreed = await db.HopDongDichVus.Where(x => x.HopDongId == h.Id).Select(x => x.DichVuId).ToListAsync();
             var problems = new List<string>();
