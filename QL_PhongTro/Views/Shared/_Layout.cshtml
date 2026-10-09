@@ -82,6 +82,11 @@ else if (ViewContext.RouteData.Values["controller"]?.ToString() == "PhongTro" &&
 <button type="button" id="sidebar-toggle" class="owner-mobile-menu" aria-label="Mở thanh điều hướng" aria-controls="app-sidebar" aria-expanded="true">Menu</button>
 <nav class="re-header-breadcrumb" aria-label="Đường dẫn điều hướng"><a asp-controller="Home" asp-action="Index" aria-label="Về trang chủ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3V10ZM9 20v-7h6v7" /></svg></a><span>/</span><a asp-controller="PhongTro" asp-action="Index" asp-route-toaNhaId="@((Model as QL_PhongTro.ViewModels.TaoPhongViewModel)?.ToaNhaId)">Phòng cho thuê</a><span>/</span><a asp-controller="PhongTro" asp-action="Details" asp-route-id="@ViewData["RoomId"]">@((Model as QL_PhongTro.ViewModels.TaoPhongViewModel)?.MaPhong)</a><span>/</span><strong aria-current="page">Chỉnh sửa</strong></nav>
 }
+else if (ViewContext.RouteData.Values["controller"]?.ToString() == "TinDang" && ViewContext.RouteData.Values["action"]?.ToString() == "Tao")
+{
+<button type="button" id="sidebar-toggle" class="owner-mobile-menu" aria-label="Mở thanh điều hướng" aria-controls="app-sidebar" aria-expanded="true">Menu</button>
+<nav class="lc-breadcrumb" aria-label="Đường dẫn điều hướng"><a asp-controller="Home" asp-action="Index" aria-label="Về tổng quan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3V10Z"/><path d="M9 20v-7h6v7"/></svg></a><span>/</span><a asp-controller="TinDang" asp-action="QuanLy">Tin đăng cho thuê</a><span>/</span><strong aria-current="page">@ViewData["Title"]</strong></nav>
+}
 else if (ViewContext.RouteData.Values["controller"]?.ToString() == "DichVu" && ViewContext.RouteData.Values["action"]?.ToString() == "DienNuoc")
 {
 <button type="button" id="sidebar-toggle" class="owner-mobile-menu" aria-label="Mở thanh điều hướng" aria-controls="app-sidebar" aria-expanded="true">Menu</button>

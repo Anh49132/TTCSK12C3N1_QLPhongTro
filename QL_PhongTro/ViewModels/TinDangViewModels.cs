@@ -35,6 +35,13 @@ public sealed class TinDangQuanLyViewModel
 
 public sealed record TaoTinDangViewModel
 {
+    public string? TenChuNha { get; init; }
+    public string? DienThoaiChuNha { get; init; }
+    public int SoNguoiToiDa { get; init; }
+    public IReadOnlyList<PhongDangTinOption> PhongOptions { get; init; } = [];
+    public string DiaChi { get; init; } = "";
+    public long TienCoc { get; init; }
+    public int Tang { get; init; }
     public int? TinDangId { get; set; }
     public string? TrangThaiTin { get; init; }
 
@@ -58,6 +65,8 @@ public sealed record TaoTinDangViewModel
     [StringLength(4000, ErrorMessage = "Mô tả không vượt quá 4.000 ký tự.")]
     public string? NoiDung { get; set; }
 }
+
+public sealed record PhongDangTinOption(int Id, int ToaNhaId, string TenToaNha, string MaPhong, int Tang, decimal DienTich);
 
 public sealed class AnhPhongQuanLyViewModel
 {
