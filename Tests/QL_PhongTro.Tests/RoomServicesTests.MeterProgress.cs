@@ -78,6 +78,35 @@ public sealed partial class RoomServicesTests
     }
 
     [Fact]
+    public async Task MissingRoomDetailsMatchProgressAndIncludeAssignedOrUnassignedManager()
+    {
+        using var db = Context();
+        var fixture = await MonthlyFixture(db);
+        await AddRoom(db, "VACANT-NO-CONTRACT");
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"DELETE FROM chi_so_dien_nuoc WHERE hop_dong_id={fixture.B} AND dich_vu_id={fixture.Nuoc}");
+        await db.Database.ExecuteSqlRawAsync(
+            "UPDATE tai_khoan SET vai_tro='QUAN_LY' WHERE id=2; UPDATE toa_nha SET quan_ly_id=2 WHERE id=1;");
+
+        var service = new TienDoChiSoService(db);
+        var progress = Assert.Single((await service.XemAsync(1, 2026, 10, default)).ToaNhas);
+        Assert.Equal(1, progress.SoPhongConThieu);
+        var details = await service.PhongConThieuAsync(1, 1, 2026, 10, default);
+        var room = Assert.Single(details.Phongs);
+        Assert.Equal(fixture.B, room.PhongId);
+        Assert.Equal("DEMO-B", room.MaPhong);
+        Assert.Equal("Other", room.TenQuanLy);
+        Assert.DoesNotContain(details.Phongs, x => x.MaPhong == "VACANT-NO-CONTRACT");
+
+        await db.Database.ExecuteSqlRawAsync("UPDATE toa_nha SET quan_ly_id=NULL WHERE id=1;");
+        var unassigned = Assert.Single((await service.PhongConThieuAsync(1, 1, 2026, 10, default)).Phongs);
+        Assert.Null(unassigned.TenQuanLy);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => service.PhongConThieuAsync(2, 1, 2026, 10, default));
+    }
+
+    [Fact]
     public async Task MeterProgressPageIsAvailableOnlyToLandlordsAndDisplaysSelectedPeriod()
     {
         using var db = Context();
@@ -100,5 +129,50 @@ public sealed partial class RoomServicesTests
         await Login(owner, "tenant");
         Assert.Equal(System.Net.HttpStatusCode.Forbidden,
             (await owner.GetAsync("/TienDoChiSo?nam=2026&thang=10")).StatusCode);
+    }
+
+    [Fact]
+    public async Task MissingRoomDetailsPageLinksFromProgressEnforcesBuildingScopeAndShowsEmptyState()
+    {
+        using var db = Context();
+        var fixture = await MonthlyFixture(db);
+        await AddRoom(db, "VACANT-NO-CONTRACT");
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"DELETE FROM chi_so_dien_nuoc WHERE hop_dong_id={fixture.B} AND dich_vu_id={fixture.Nuoc}");
+        await db.Database.ExecuteSqlRawAsync(
+            "UPDATE tai_khoan SET vai_tro='QUAN_LY' WHERE id=2; UPDATE toa_nha SET quan_ly_id=2 WHERE id=1;");
+
+        using var factory = BillingWeb();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await Login(client, "owner");
+        var progressHtml = System.Net.WebUtility.HtmlDecode(
+            await client.GetStringAsync("/TienDoChiSo?nam=2026&thang=10"));
+        Assert.Contains("/TienDoChiSo/PhongConThieu?toaNhaId=1&nam=2026&thang=10", progressHtml);
+
+        var detailsResponse = await client.GetAsync("/TienDoChiSo/PhongConThieu?toaNhaId=1&nam=2026&thang=10");
+        Assert.Equal(System.Net.HttpStatusCode.OK, detailsResponse.StatusCode);
+        var detailsHtml = System.Net.WebUtility.HtmlDecode(await detailsResponse.Content.ReadAsStringAsync());
+        Assert.Contains("DEMO-B", detailsHtml);
+        Assert.Contains("Other", detailsHtml);
+        Assert.DoesNotContain("DEMO-A", detailsHtml);
+        Assert.DoesNotContain("VACANT-NO-CONTRACT", detailsHtml);
+        Assert.Equal(System.Net.HttpStatusCode.Forbidden,
+            (await client.GetAsync("/TienDoChiSo/PhongConThieu?toaNhaId=2&nam=2026&thang=10")).StatusCode);
+
+        await db.Database.ExecuteSqlRawAsync("UPDATE toa_nha SET quan_ly_id=NULL WHERE id=1;");
+        var noManager = System.Net.WebUtility.HtmlDecode(
+            await (await client.GetAsync("/TienDoChiSo/PhongConThieu?toaNhaId=1&nam=2026&thang=10"))
+                .Content.ReadAsStringAsync());
+        Assert.Contains("Chưa phân công", noManager);
+
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO chi_so_dien_nuoc(hop_dong_id,dich_vu_id,tu_ngay,den_ngay,chi_so_dau,chi_so_cuoi,nguoi_nhap_id,ngay_nhap)
+            VALUES({fixture.B},{fixture.Nuoc},'2026-10-01','2026-10-31','20','25',1,'2026-10-31');
+            """);
+        var empty = System.Net.WebUtility.HtmlDecode(
+            await (await client.GetAsync("/TienDoChiSo/PhongConThieu?toaNhaId=1&nam=2026&thang=10"))
+                .Content.ReadAsStringAsync());
+        Assert.Contains("Tòa nhà không còn phòng nào thiếu chỉ số", empty);
+        Assert.Contains("Danh sách phòng (0)", empty);
     }
 }

@@ -19,3 +19,16 @@ public sealed record TienDoChiSoToaNha(
     int TongPhongDangThue,
     int SoPhongDaChot,
     int SoPhongConThieu);
+
+public sealed record PhongConThieuViewModel(
+    int ToaNhaId,
+    string TenToaNha,
+    int Nam,
+    int Thang,
+    List<PhongConThieuItem> Phongs);
+
+public sealed record PhongConThieuItem(
+    int PhongId,
+    string MaPhong,
+    int Tang,
+    string? TenQuanLy);

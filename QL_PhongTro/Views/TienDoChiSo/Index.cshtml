@@ -53,7 +53,20 @@
                             <th scope="row">@building.TenToaNha</th>
                             <td class="text-end">@building.TongPhongDangThue</td>
                             <td class="text-end">@building.SoPhongDaChot</td>
-                            <td class="text-end">@building.SoPhongConThieu</td>
+                            <td class="text-end">
+                                @if (building.SoPhongConThieu > 0)
+                                {
+                                    <a asp-action="PhongConThieu" asp-route-toaNhaId="@building.ToaNhaId"
+                                       asp-route-nam="@Model.Nam" asp-route-thang="@Model.Thang"
+                                       aria-label="Xem @building.SoPhongConThieu phòng còn thiếu tại @building.TenToaNha">
+                                        @building.SoPhongConThieu
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="text-success">0 <small>Không còn phòng thiếu</small></span>
+                                }
+                            </td>
                         </tr>
                     }
                     @if (Model.ToaNhas.Count == 0)

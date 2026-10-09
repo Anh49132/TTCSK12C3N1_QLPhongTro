@@ -23,4 +23,19 @@ public sealed class TienDoChiSoController(TienDoChiSoService progress, ITimeProv
         catch (UnauthorizedAccessException) { return Forbid(); }
         catch (ArgumentOutOfRangeException ex) { return BadRequest(ex.Message); }
     }
+
+    [HttpGet]
+    public async Task<IActionResult> PhongConThieu(int? toaNhaId, int? nam, int? thang, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) return BadRequest();
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var ownerId)) return Forbid();
+        if (toaNhaId is null || nam is null || thang is null) return BadRequest();
+
+        try
+        {
+            return View(await progress.PhongConThieuAsync(ownerId, toaNhaId.Value, nam.Value, thang.Value, ct));
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (ArgumentOutOfRangeException ex) { return BadRequest(ex.Message); }
+    }
 }
