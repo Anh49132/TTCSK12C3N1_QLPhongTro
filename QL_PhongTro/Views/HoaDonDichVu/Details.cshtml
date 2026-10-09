@@ -33,11 +33,11 @@
 {
     <tr><th scope="row">@line.TenKhoan @if (!string.IsNullOrEmpty(line.GhiChu)) { <small class="d-block">@line.GhiChu</small> }</th><td>
     @if (line.LoaiKhoan is "PHAT_SINH" or "GIAM_TRU") { <span>@(line.LoaiKhoan == "GIAM_TRU" ? "Giảm trừ (trừ khỏi tổng)" : "Phát sinh")</span> }
-    else if (line.LoaiKhoan == "TIEN_PHONG") { <span>Cố định theo hợp đồng</span> }
+    else if (line.LoaiKhoan == "TIEN_PHONG") { <span>@(line.SoNgayTinhTien.HasValue ? "Giá tháng tính theo số ngày áp dụng" : "Giá tháng theo hợp đồng")</span> }
     else if (line.CachTinhApDung == CachTinhDichVu.CoDinh) { <span>Cố định theo phòng</span> }
     else if (line.CachTinhApDung == CachTinhDichVu.TheoNguoi) { <span>Khoán theo đầu người</span> }
     else { <span>@line.ChiSoCuoi?.ToString("0.###", vn) − @line.ChiSoDau?.ToString("0.###", vn)</span> }
-    </td><td>@line.SoLuong.ToString("0.###", vn) @(line.CachTinhApDung == CachTinhDichVu.TheoNguoi ? "người" : line.LoaiKhoan == "TIEN_PHONG" ? "tháng" : line.CachTinhApDung == CachTinhDichVu.CoDinh ? "phòng" : line.DonViTinh)</td><td class="text-end">@line.DonGia.ToString("N0", vn) đ</td><td class="text-end"><strong>@(line.LoaiKhoan == "GIAM_TRU" ? "−" : "")@line.ThanhTien.ToString("N0", vn) đ</strong></td></tr>
+    </td><td>@(line.SoNgayTinhTien.HasValue ? $"{line.SoNgayTinhTien}/{line.SoNgayTrongThang} ngày" : $"{line.SoLuong.ToString("0.###", vn)} {(line.CachTinhApDung == CachTinhDichVu.TheoNguoi ? "người" : line.LoaiKhoan == "TIEN_PHONG" ? "tháng" : line.CachTinhApDung == CachTinhDichVu.CoDinh ? "phòng" : line.DonViTinh)}")</td><td class="text-end">@line.DonGia.ToString("N0", vn) đ@(line.LoaiKhoan == "TIEN_PHONG" ? "/tháng" : "")</td><td class="text-end"><strong>@(line.LoaiKhoan == "GIAM_TRU" ? "−" : "")@line.ThanhTien.ToString("N0", vn) đ</strong></td></tr>
 }
 </tbody></table></div>
 <div class="id-total"><span>Tổng cộng</span><strong>@invoice.TongTien.ToString("N0", vn) đ</strong></div>
@@ -64,7 +64,7 @@
 <div class="mi-wide"><label for="due-date">Hạn thanh toán</label><input id="due-date" name="hanThanhToan" type="date" value="@invoice.HanThanhToan.ToString("yyyy-MM-dd")" min="@issueDate.ToString("yyyy-MM-dd")" class="form-control" required /></div>
 <button class="btn btn-dark mi-wide">Kiểm tra lại</button></form><p id="review-dirty" class="mr-warning" hidden>Ngày đã thay đổi. Bấm “Kiểm tra lại” trước khi xác nhận.</p></section>
 }
-<section class="mi-card"><h2>Đơn giá @(Model.XemTruoc ? "áp dụng tại ngày chốt" : "đã được chốt") ▣</h2><dl class="id-prices">@foreach (var line in invoice.ChiTiet.Where(x => x.DichVuId.HasValue).OrderBy(x => x.SoThuTu)) { <dt>@line.TenKhoan</dt><dd>@line.DonGia.ToString("N0", vn) đ<span>/@(line.CachTinhApDung == CachTinhDichVu.TheoNguoi ? "người" : line.CachTinhApDung == CachTinhDichVu.CoDinh ? "phòng" : line.DonViTinh)</span></dd> }</dl><p class="mi-muted">ⓘ @(Model.XemTruoc ? "Đơn giá và số người sẽ được kiểm tra lại khi phát hành." : "Thay đổi danh sách người ở hoặc bảng giá không làm thay đổi hóa đơn này.")</p></section>
+<section class="mi-card"><h2>Đơn giá áp dụng ▣</h2><dl class="id-prices">@foreach (var line in invoice.ChiTiet.Where(x => x.DichVuId.HasValue || x.LoaiKhoan == "TIEN_PHONG").OrderBy(x => x.SoThuTu)) { <dt>@line.TenKhoan@if(!string.IsNullOrEmpty(line.GhiChu)){<small class="d-block">@line.GhiChu</small>}</dt><dd>@line.DonGia.ToString("N0", vn) đ<span>/@(line.LoaiKhoan == "TIEN_PHONG" ? "tháng" : line.CachTinhApDung == CachTinhDichVu.TheoNguoi ? "người" : line.CachTinhApDung == CachTinhDichVu.CoDinh ? "phòng" : line.DonViTinh)</span></dd> }</dl><p class="mi-muted">ⓘ @(Model.XemTruoc ? "Giá tiền phòng lấy theo kỳ hạn áp dụng; giá dịch vụ và số người sẽ được kiểm tra lại khi phát hành." : "Giá và số tiền đã lưu trên hóa đơn, không bị thay đổi bởi bảng giá hiện tại.")</p></section>
 @if (Model.XemTruoc) { <section class="mi-card id-checks"><h2>Kiểm tra dữ liệu</h2><p>✓ Có hợp đồng hiệu lực</p><p>✓ Đã chốt đủ chỉ số điện nước</p><p>✓ Chưa có hóa đơn kỳ này</p><p>✓ Đơn giá hợp lệ theo ngày chốt</p><p>✓ Đã tính các dịch vụ đang áp dụng</p></section> }
 </aside></div>
 <footer class="mi-footer"><strong>@(Model.XemTruoc ? "Chưa phát hành" : "Đã lưu hóa đơn") · @invoice.TongTien.ToString("N0", vn) đ</strong>

@@ -13,7 +13,7 @@ namespace QL_PhongTro.Controllers;
 
 [Authorize, ModuleAccess("HOP_DONG")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class HopDongController(AppDbContext db, PermissionService permissions, ITimeProvider? clock = null) : Controller
+public class HopDongController(AppDbContext db, ITimeProvider? clock = null, PermissionService? permissions = null) : Controller
 {
     private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
     private DateOnly HomNay => DateOnly.FromDateTime((clock ?? new SystemTimeProvider()).UtcNow.AddHours(7));
@@ -325,7 +325,7 @@ public class HopDongController(AppDbContext db, PermissionService permissions, I
                 .ToList();
         }
         model.ChoGiaHan = model.Ky is not null && (h.TrangThai is "DANG_HIEU_LUC" or "CHO_HIEU_LUC")
-            && await permissions.AllowsAsync("HOP_DONG", write: true);
+            && permissions is not null && await permissions.AllowsAsync("HOP_DONG", write: true);
         model.ChiSo = await db.HopDongChiSoDauKys.AsNoTracking().SingleOrDefaultAsync(x => x.HopDongId == id, ct);
         var people = await (from g in db.NguoiOGheps.AsNoTracking() join k in db.KhachThues on g.KhachThueId equals k.Id
             where g.HopDongId == id orderby g.NgayVao, g.Id
