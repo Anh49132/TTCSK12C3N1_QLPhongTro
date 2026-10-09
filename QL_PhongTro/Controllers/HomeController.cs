@@ -13,7 +13,9 @@ public class HomeController(
     RegistrationSettings settings,
     AppDbContext? db = null,
     YeuCauThueService? requests = null,
-    TinDangExpirationService? expiration = null) : Controller
+    TinDangExpirationService? expiration = null,
+    TienDoChiSoService? meterProgress = null,
+    ITimeProvider? clock = null) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index()
@@ -177,6 +179,13 @@ public class HomeController(
             {
                 // Fallback nếu schema CSDL chưa sẵn sàng trong các môi trường kiểm thử tối giản
             }
+        }
+
+        if (meterProgress != null && clock != null && User.IsInRole("CHU_NHA")
+            && int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var ownerId))
+        {
+            var today = DateOnly.FromDateTime(clock.UtcNow.AddHours(7));
+            model.Dashboard.MeterAlerts = await meterProgress.LayCanhBaoAsync(ownerId, today, HttpContext.RequestAborted);
         }
 
         return View(model);

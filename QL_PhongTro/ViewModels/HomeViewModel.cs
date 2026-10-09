@@ -24,12 +24,14 @@ public sealed class HomeDashboardViewModel
     public int YeuCauCuaToi { get; set; }
     public int PhongDatCoc { get; set; }
     public List<HomeBuildingItem> Buildings { get; set; } = [];
+    public List<HomeMeterAlert> MeterAlerts { get; set; } = [];
 }
 
 public sealed record HomeRoomItem(int Id, string Code, string Building, string Status, long Rent);
 public sealed record HomeRequestItem(int Id, string Code, string Room, string Name, string Status, DateTime Created);
 public sealed record HomeRoleItem(string Name, int Count);
 public sealed record HomeBuildingItem(int Id, string Name, string Address, int Rooms, int Occupied);
+public sealed record HomeMeterAlert(int ToaNhaId, string TenToaNha, int Nam, int Thang, int SoPhongConThieu);
 
 public sealed class HomeTinDangItemViewModel
 {

@@ -71,6 +71,16 @@ a.owner-stat:hover { color: #25282D; border-color: #BFA77A; }
 .owner-panel-heading a { color: #30343B; font-size: 11px; }
 .owner-panel-heading a:hover { text-decoration: underline; text-decoration-color: #BFA77A; }
 .owner-label { border: 1px solid #E9EAEC; border-radius: 5px; padding: 4px 8px; color: #25282D99; font-size: 10px; white-space: nowrap; }
+.owner-meter-alerts { margin: -6px 0 24px; padding: 18px 20px; border: 1px solid #F0D9A7; border-radius: 10px; background: #FFF9EC; }
+.owner-meter-alerts .owner-panel-heading { margin-bottom: 10px; }
+.owner-meter-alerts .owner-panel-heading h2 { color: #795B20; }
+.owner-meter-alert { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-top: 1px solid #F0D9A7; color: #4E4532; }
+.owner-meter-alert > span:first-child { color: #A06A0B; font-size: 18px; }
+.owner-meter-alert > span:nth-child(2) { display: grid; gap: 3px; flex: 1; }
+.owner-meter-alert strong { font-size: 12px; }
+.owner-meter-alert small { color: #6F6758; font-size: 11px; }
+.owner-meter-alert > span:last-child { color: #795B20; font-size: 11px; font-weight: 600; }
+.owner-meter-alert:hover { background: #FFF3D9; color: #3A3326; }
 .owner-period-picker { margin: 0; }
 .owner-period-picker select {
     border: 1px solid #E9EAEC; border-radius: 6px; background: #FFFFFF;
