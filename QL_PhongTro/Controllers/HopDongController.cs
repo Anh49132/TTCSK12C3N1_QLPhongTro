@@ -13,7 +13,7 @@ namespace QL_PhongTro.Controllers;
 
 [Authorize, ModuleAccess("HOP_DONG")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public class HopDongController(AppDbContext db, PermissionService permissions, ITimeProvider? clock = null) : Controller
+public class HopDongController(AppDbContext db, ITimeProvider? clock = null, PermissionService? permissions = null) : Controller
 {
     private int AccountId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
     private DateOnly HomNay => DateOnly.FromDateTime((clock ?? new SystemTimeProvider()).UtcNow.AddHours(7));
@@ -297,9 +297,35 @@ public class HopDongController(AppDbContext db, PermissionService permissions, I
             Input = input ?? new() { NgayVao = HomNay, PhienBanPhong = p.PhienBan },
             ChuyenDi = new() { NgayRa = HomNay, PhienBanPhong = p.PhienBan } };
         model.ToaNha = await db.ToaNhas.Where(x => x.Id == p.ToaNhaId).Select(x => x.TenToaNha).SingleAsync(ct);
-        model.Ky = await db.KyHopDongs.AsNoTracking().Where(x => x.HopDongId == id).OrderByDescending(x => x.NgayBatDau).FirstOrDefaultAsync(ct);
+        var periods = await db.KyHopDongs.AsNoTracking().Where(x => x.HopDongId == id)
+            .OrderByDescending(x => x.NgayBatDau).ThenByDescending(x => x.Id).ToListAsync(ct);
+        model.Ky = periods.FirstOrDefault();
+        var renewalPeriods = periods.Where(x => x.SoThuTu > 1).ToList();
+        if (renewalPeriods.Count > 0)
+        {
+            var periodIds = renewalPeriods.Select(x => x.Id).ToList();
+            var logs = await db.NhatKyHoatDongs.AsNoTracking()
+                .Where(x => x.LoaiDoiTuong == "ky_hop_dong" && periodIds.Contains(x.DoiTuongId) && x.HanhDong == "TAO")
+                .OrderByDescending(x => x.Id)
+                .ToListAsync(ct);
+            var logByPeriod = logs.GroupBy(x => x.DoiTuongId).ToDictionary(x => x.Key, x => x.First());
+            var actorIds = renewalPeriods.Where(x => !logByPeriod.ContainsKey(x.Id) && x.NguoiLapId.HasValue)
+                .Select(x => x.NguoiLapId!.Value).Distinct().ToList();
+            var actorNames = await db.TaiKhoans.AsNoTracking().Where(x => actorIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.HoTen }).ToDictionaryAsync(x => x.Id, x => x.HoTen, ct);
+
+            model.LichSuGiaHan = renewalPeriods
+                .OrderBy(x => x.SoThuTu)
+                .Select(period => logByPeriod.TryGetValue(period.Id, out var log)
+                    ? new HopDongGiaHanHistoryRow(period.SoThuTu, period.NgayBatDau, period.NgayKetThuc,
+                        period.GiaThue, log.ThoiDiem.AddHours(7), log.TenNguoiThucHien)
+                    : new HopDongGiaHanHistoryRow(period.SoThuTu, period.NgayBatDau, period.NgayKetThuc,
+                        period.GiaThue, period.NgayTao, period.NguoiLapId is { } actorId
+                            ? actorNames.GetValueOrDefault(actorId) : null))
+                .ToList();
+        }
         model.ChoGiaHan = model.Ky is not null && (h.TrangThai is "DANG_HIEU_LUC" or "CHO_HIEU_LUC")
-            && await permissions.AllowsAsync("HOP_DONG", write: true);
+            && permissions is not null && await permissions.AllowsAsync("HOP_DONG", write: true);
         model.ChiSo = await db.HopDongChiSoDauKys.AsNoTracking().SingleOrDefaultAsync(x => x.HopDongId == id, ct);
         var people = await (from g in db.NguoiOGheps.AsNoTracking() join k in db.KhachThues on g.KhachThueId equals k.Id
             where g.HopDongId == id orderby g.NgayVao, g.Id
