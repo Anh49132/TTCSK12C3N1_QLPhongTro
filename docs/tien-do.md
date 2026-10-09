@@ -1,3 +1,17 @@
+# 09/10/2026 — S3-07: chi tiết hóa đơn khách thuê
+
+- PO chốt cho AC1: tiền phòng cố định; điện/nước theo chỉ số; dịch vụ cấu hình, Internet và phí dịch vụ theo giá cố định; không dùng khoán theo người trong danh sách AC này; tiêu thụ giữ tối đa 3 chữ số thập phân; làm tròn thành tiền từng dòng tới đồng `AwayFromZero`; tiền hiển thị VND, dấu chấm phân tách nghìn và hậu tố `đ`; khoản không có chỉ số hiển thị `—`; điện không tính bậc thang.
+- Bổ sung trang mở trực tiếp theo mã hóa đơn và endpoint dữ liệu cho `KHACH_THUE`. Chỉ trả bản đã phát hành/đã hủy mà hồ sơ đứng tên hợp đồng liên kết đúng tài khoản đang đăng nhập; hóa đơn người khác, mã không có, Nháp và schema hóa đơn chưa cài trả cùng 404 “Không tìm thấy hóa đơn.”. Trang có trạng thái tải/lỗi, kỳ hóa đơn, phòng và các dòng snapshot theo thứ tự lưu; không thêm tổng, thanh toán, công nợ, hạn hay danh sách hóa đơn.
+- Không đổi schema, cập nhật giá hay chạy updater trên database local. Bổ sung fixture test nhiều khoản và seeder chỉ dùng bản sao S3-08 dưới `data/s308-demo/`; `Start-S308Demo.ps1` tạo hóa đơn giả có tiền phòng, điện, nước, Internet, phí dịch vụ và ghi mã vào `tenant-invoice-code.txt` đã ignore. Giá trong demo được ghi rõ là minh họa, không dùng cho nghiệp vụ thật.
+- Xác minh: 2/2 test mục tiêu + hồi quy snapshot PASS; build `verification/S308` PASS. Tạo dữ liệu mẫu trên database mới cô lập, đăng nhập khách thuê giả trong trình duyệt, mở đường dẫn trực tiếp và thấy 5 dòng đúng thứ tự, chỉ số/sản lượng/đơn giá/thành tiền cùng quy ước hiển thị. Database demo thử, backup, credential và server đã dừng/dọn; database mặc định vẫn không tồn tại. `node` chưa có trong môi trường nên không chạy được `node --check`; trình duyệt thực tế đã thực thi JavaScript thành công.
+- Còn chưa nghiệm thu viewport 360px/Safari, SMTP thật và database người dùng thật; không commit/push.
+
+## Bổ sung quyết định PO — chặn dịch vụ khoán theo người
+
+- Không cho tạo mới hoặc phát hành hóa đơn khi dịch vụ áp dụng cho phòng đang tính `THEO_NGUOI`; áp dụng cho xem trước, tạo Nháp tháng, phát hành trực tiếp/hàng loạt và phát hành Nháp cũ. Báo tên dịch vụ và yêu cầu đổi sang cố định (`CO_DINH`); xem trước bỏ qua phòng đó, không lập hóa đơn một phần.
+- Thêm kiểm thử dịch vụ cho từ chối phát hành trực tiếp, bỏ qua khi xem trước/phát hành hàng loạt và chặn phát hành Nháp đã tạo trước khi cấu hình đổi. Test hồi quy hóa đơn theo đầu người cũ được chuyển sang kiểm tra snapshot số người hoặc phí cố định tương ứng.
+- Xác minh: 96/96 test `RoomServicesTests` (bỏ qua một kiểm thử luồng giao diện người ở ghép) và 1/1 test chi tiết hóa đơn khách thuê PASS; `git diff --check` PASS. Kiểm thử bị bỏ qua `DepartureHttpWarningSnapshotsAndFutureUnissuedBill` hiện dừng ở assertion form “Ghi nhận chuyển đi” trên trang hợp đồng; chưa sửa vì không thuộc thay đổi phát hành hóa đơn. Build có cảnh báo ImageSharp license và CS8601 đã biết.
+
 ## 09/10/2026 — S3-08 phần 4: lịch sử sửa Nháp
 
 - Nhánh feature/S3-08/04-invoice-draft-history kế thừa phần 3. Ghi một bản trước/sau cho mỗi lần lưu có thay đổi, cùng transaction; có tên/người sửa, giờ UTC, chỉ số, tiền và ghi chú phát sinh/giảm trừ. Thao tác rỗng/sai/stale không thêm lịch sử. Không đổi công thức hoặc schema v22; giữ audit cũ, không backfill thông tin không tồn tại.

@@ -77,6 +77,9 @@ public sealed partial class HoaDonDichVuService(AppDbContext db, DichVuService s
                               where h.Id == input.HopDongId && p.ToaNhaId == input.ToaNhaId && h.TrangThai == "DANG_HIEU_LUC"
                               select new { HopDong = h, Phong = p }).SingleOrDefaultAsync();
         if (contract is null) throw new InvalidOperationException("Hợp đồng không hợp lệ hoặc không thuộc tòa nhà.");
+        var peopleBased = await LayDichVuKhoanTheoNguoiAsync(accountId, contract.Phong.Id, date,
+            await db.HopDongDichVus.Where(x => x.HopDongId == contract.HopDong.Id).Select(x => x.DichVuId).ToListAsync());
+        if (peopleBased.Count > 0) throw new InvalidOperationException(LyDoKhoanTheoNguoi(peopleBased));
         if (contract.HopDong.NgayTraPhong is { } end && end < to)
             throw new InvalidOperationException("Hợp đồng trả phòng trong kỳ cần luồng hóa đơn kỳ cuối.");
         var periods = await db.KyHopDongs.Where(x => x.HopDongId == contract.HopDong.Id && x.NgayBatDau <= from && x.NgayKetThuc >= to).Take(2).ToListAsync();
@@ -114,6 +117,8 @@ public sealed partial class HoaDonDichVuService(AppDbContext db, DichVuService s
         {
             var price = await new DichVuPhongService(db, services).LayGiaHoaDonAsync(accountId, contract.Phong.Id, item.DichVuId, date)
                 ?? throw new InvalidOperationException("Dịch vụ đã ngừng áp dụng cho phòng trong kỳ này hoặc chưa có giá. Hãy tải lại danh sách theo hợp đồng và kỳ hóa đơn.");
+            if (price.CachTinh == CachTinhDichVu.TheoNguoi)
+                throw new InvalidOperationException(LyDoKhoanTheoNguoi([price.TenDichVu]));
             if (price.CauHinhId != item.CauHinhId || price.DonGia != item.DonGiaDaXem)
                 throw new InvalidOperationException("Đơn giá đã thay đổi từ lúc mở form. Hãy tải lại bảng giá trước khi phát hành.");
             decimal quantity;

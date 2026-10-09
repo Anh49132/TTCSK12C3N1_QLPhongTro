@@ -1,0 +1,37 @@
+@model QL_PhongTro.ViewModels.ChiTietHoaDonKhachPageViewModel
+@{
+    ViewData["Title"] = "Chi tiết hóa đơn";
+}
+<section class="container py-4 tenant-invoice-detail" data-invoice-url="@Url.Action("ChiTietDuLieu", "ThongBao", new { maHoaDon = Model.MaHoaDon })">
+    <a asp-action="Index" class="btn btn-outline-secondary mb-3">← Thông báo hóa đơn</a>
+    <h1 class="h3">Chi tiết hóa đơn</h1>
+    <div id="tenant-invoice-loading" class="alert alert-info" role="status" aria-live="polite">
+        Đang tải chi tiết hóa đơn…
+    </div>
+    <div id="tenant-invoice-error" class="alert alert-danger" role="alert" hidden></div>
+    <section id="tenant-invoice-content" class="card" hidden>
+        <div class="card-body">
+            <h2 class="h5 mb-1">Hóa đơn tháng <span id="tenant-invoice-period"></span></h2>
+            <p class="text-muted" id="tenant-invoice-room"></p>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle mb-0" id="tenant-invoice-lines">
+                    <caption class="visually-hidden">Các khoản mục của hóa đơn</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Khoản mục</th>
+                            <th scope="col">Chỉ số đầu kỳ</th>
+                            <th scope="col">Chỉ số cuối kỳ</th>
+                            <th scope="col">Số đơn vị tiêu thụ</th>
+                            <th scope="col">Đơn giá</th>
+                            <th scope="col">Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</section>
+@section Scripts {
+    <script src="~/js/tenant-invoice-detail.js" asp-append-version="true"></script>
+}

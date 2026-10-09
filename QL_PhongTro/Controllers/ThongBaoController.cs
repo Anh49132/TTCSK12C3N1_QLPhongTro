@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QL_PhongTro.Authorization;
 using QL_PhongTro.Data;
+using QL_PhongTro.Models;
 using QL_PhongTro.ViewModels;
 namespace QL_PhongTro.Controllers;
 
@@ -51,5 +52,58 @@ public sealed class ThongBaoController(AppDbContext db, QL_PhongTro.Services.Hoa
             MaPhong = context.MaPhong, ToaNhaId = context.ToaNhaId, TenToaNha = context.TenToaNha, TenKhach = tenant ?? "" };
         await invoices.FillRelationsAsync(model, Actor);
         return View("~/Views/HoaDonDichVu/Details.cshtml", model);
+    }
+
+    [HttpGet]
+    public IActionResult ChiTiet(string maHoaDon)
+    {
+        if (string.IsNullOrWhiteSpace(maHoaDon)) return NotFound();
+        return View(new ChiTietHoaDonKhachPageViewModel(maHoaDon));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ChiTietDuLieu(string maHoaDon, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(maHoaDon)
+            || !await QL_PhongTro.Services.InvoiceNotificationDispatcher.IsInstalledAsync(db, cancellationToken))
+            return NotFound(new { message = "Không tìm thấy hóa đơn." });
+
+        var invoice = await (from bill in db.HoaDons.AsNoTracking()
+            join contract in db.HopDongs.AsNoTracking() on bill.HopDongId equals contract.Id
+            join profile in db.KhachThues.AsNoTracking() on contract.KhachDungTenId equals profile.Id
+            join room in db.PhongTros.AsNoTracking() on contract.PhongId equals room.Id
+            where bill.MaHoaDon == maHoaDon && profile.TaiKhoanId == Actor
+                && (bill.TrangThai == "DA_PHAT_HANH" || bill.TrangThai == "DA_HUY")
+            select new { Bill = bill, room.MaPhong }).SingleOrDefaultAsync(cancellationToken);
+        if (invoice is null) return NotFound(new { message = "Không tìm thấy hóa đơn." });
+
+        var culture = System.Globalization.CultureInfo.GetCultureInfo("vi-VN");
+        var lines = await db.ChiTietHoaDons.AsNoTracking().Where(x => x.HoaDonId == invoice.Bill.Id)
+            .OrderBy(x => x.SoThuTu).Select(x => new ChiTietHoaDonKhachLineViewModel(
+                x.TenKhoan,
+                x.ChiSoDau,
+                x.ChiSoCuoi,
+                x.SoLuong,
+                x.DonViTinh,
+                x.LoaiKhoan,
+                x.DonGia,
+                x.ThanhTien))
+            .ToListAsync(cancellationToken);
+
+        return Ok(new ChiTietHoaDonKhachViewModel(
+            invoice.Bill.MaHoaDon,
+            invoice.Bill.Thang,
+            invoice.Bill.Nam,
+            invoice.MaPhong,
+            lines.Select(x => new ChiTietHoaDonKhachLineResponse(
+                x.TenKhoan,
+                x.ChiSoDau.HasValue && x.ChiSoCuoi.HasValue ? x.ChiSoDau.Value.ToString("0.###", culture) : null,
+                x.ChiSoDau.HasValue && x.ChiSoCuoi.HasValue ? x.ChiSoCuoi.Value.ToString("0.###", culture) : null,
+                (x.ChiSoDau.HasValue && x.ChiSoCuoi.HasValue
+                    ? x.ChiSoCuoi.Value - x.ChiSoDau.Value
+                    : x.SoLuong).ToString("0.###", culture),
+                x.DonViTinh ?? (x.LoaiKhoan == "TIEN_PHONG" ? "tháng" : ""),
+                x.DonGia.ToString("N0", culture),
+                x.ThanhTien.ToString("N0", culture))).ToArray()));
     }
 }

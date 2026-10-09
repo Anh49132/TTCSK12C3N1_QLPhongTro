@@ -11,6 +11,24 @@ namespace QL_PhongTro.Services;
 
 public sealed partial class HoaDonDichVuService
 {
+    private async Task<List<string>> LayDichVuKhoanTheoNguoiAsync(int actor, int roomId, DateOnly date, IReadOnlyCollection<int> agreed)
+    {
+        var serviceIds = await db.DichVuPhongs.AsNoTracking().Where(x => x.PhongId == roomId)
+            .Select(x => x.DichVuToaNha.DichVuId).Distinct().OrderBy(x => x).ToListAsync();
+        if (agreed.Count > 0) serviceIds = serviceIds.Where(agreed.Contains).ToList();
+        var pricing = new DichVuPhongService(db, services);
+        var names = new List<string>();
+        foreach (var serviceId in serviceIds)
+        {
+            var price = await pricing.LayGiaHoaDonAsync(actor, roomId, serviceId, date);
+            if (price?.CachTinh == CachTinhDichVu.TheoNguoi) names.Add(price.TenDichVu);
+        }
+        return names;
+    }
+
+    private static string LyDoKhoanTheoNguoi(IEnumerable<string> names) =>
+        $"Không thể phát hành hóa đơn khi dịch vụ đang tính theo người: {string.Join(", ", names.Distinct())}. Hãy đổi dịch vụ sang cố định (CO_DINH).";
+
     private async Task KiemTraChuNhaAsync(int actor, int building)
     {
         if (!await db.TaiKhoans.AnyAsync(x => x.Id == actor && x.VaiTro == "CHU_NHA" && x.DangHoatDong && !x.IsDeleted)
@@ -84,6 +102,9 @@ public sealed partial class HoaDonDichVuService
             SoNguoiHoaDon occupancy;
             try { occupancy = await LaySoNguoiAsync(actor, h.Id, building, first); }
             catch (InvalidOperationException ex) { Skip(ex.Message); continue; }
+            var agreed = await db.HopDongDichVus.Where(x => x.HopDongId == h.Id).Select(x => x.DichVuId).ToListAsync();
+            var peopleBased = await LayDichVuKhoanTheoNguoiAsync(actor, context.Room.Id, cutoff, agreed);
+            if (peopleBased.Count > 0) { Skip(LyDoKhoanTheoNguoi(peopleBased)); continue; }
             var now = (clock ?? new SystemTimeProvider()).UtcNow;
             var invoice = new HoaDon { MaHoaDon = "HD" + Guid.NewGuid().ToString("N")[..24], HopDongId = h.Id,
                 Nam = year, Thang = month, TuNgay = first, DenNgay = last, NgayChot = cutoff,
@@ -91,7 +112,6 @@ public sealed partial class HoaDonDichVuService
             invoice.ChiTiet.Add(new() { SoThuTu = 1, LoaiKhoan = "TIEN_PHONG", TenKhoan = "Tiền phòng", DonViTinh = "tháng",
                 KyHopDongId = terms[0].Id, SoLuong = 1, DonGia = terms[0].GiaThue, ThanhTien = terms[0].GiaThue });
             var readings = new List<ChiSoDienNuoc>();
-            var agreed = await db.HopDongDichVus.Where(x => x.HopDongId == h.Id).Select(x => x.DichVuId).ToListAsync();
             var problems = new List<string>();
             var missing = new List<string>();
             if (meterServices.Count != 2) problems.Add("Chưa cấu hình đủ dịch vụ điện và nước.");

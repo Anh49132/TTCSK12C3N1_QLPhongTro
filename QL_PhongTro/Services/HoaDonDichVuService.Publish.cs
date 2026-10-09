@@ -14,13 +14,17 @@ public sealed partial class HoaDonDichVuService
         var context = await (from invoice in db.HoaDons.AsNoTracking()
             join contract in db.HopDongs on invoice.HopDongId equals contract.Id
             join room in db.PhongTros on contract.PhongId equals room.Id
-            where invoice.Id == input.Id select new { room.ToaNhaId, room.MaPhong, contract.KhachDungTenId }).SingleOrDefaultAsync()
+            where invoice.Id == input.Id select new { room.Id, room.ToaNhaId, room.MaPhong, contract.KhachDungTenId }).SingleOrDefaultAsync()
             ?? throw new InvalidOperationException("Không tìm thấy hóa đơn.");
         await KiemTraChuNhaAsync(actor, context.ToaNhaId);
         var bill = await db.HoaDons.Include(x => x.ChiTiet).SingleAsync(x => x.Id == input.Id);
         if (bill.TrangThai != "NHAP") throw new InvalidOperationException("Hóa đơn đã được phát hành hoặc không còn là Nháp. Hãy tải lại trang.");
         if (bill.PhienBan != input.PhienBan) throw new InvalidOperationException("Hóa đơn đã thay đổi sau khi kiểm tra. Hãy tải lại và xác nhận số tiền mới.");
         if (!input.XacNhan) throw new InvalidOperationException("Hãy xác nhận nội dung và tổng tiền trước khi phát hành.");
+        var contractServices = await db.HopDongDichVus.Where(x => x.HopDongId == bill.HopDongId).Select(x => x.DichVuId).ToListAsync();
+        var peopleBased = await LayDichVuKhoanTheoNguoiAsync(actor, context.Id, bill.NgayChot, contractServices);
+        peopleBased.AddRange(bill.ChiTiet.Where(x => x.CachTinhApDung == CachTinhDichVu.TheoNguoi).Select(x => x.TenKhoan));
+        if (peopleBased.Count > 0) throw new InvalidOperationException(LyDoKhoanTheoNguoi(peopleBased));
         var dates = NgayHoaDon(input.NgayPhatHanh, input.HanThanhToan);
         if (bill.ChiTiet.Count == 0 || bill.ChiTiet.Any(x => x.DonGia < 0 || x.SoLuong < 0 || string.IsNullOrWhiteSpace(x.TenKhoan)))
             throw new InvalidOperationException("Chi tiết hóa đơn chưa hợp lệ.");

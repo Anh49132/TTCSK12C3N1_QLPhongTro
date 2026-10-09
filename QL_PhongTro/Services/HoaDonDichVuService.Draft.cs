@@ -18,8 +18,12 @@ public sealed partial class HoaDonDichVuService
         if (!await (from h in db.HopDongs join p in db.PhongTros on h.PhongId equals p.Id
             where h.Id == contract && p.ToaNhaId == building select h.Id).AnyAsync()) throw new UnauthorizedAccessException();
         var preview = await XemThangAsync(actor, building, year, month, issueDate, dueDate);
-        var row = preview.DuKien.SingleOrDefault(x => x.HoaDon.HopDongId == contract)
-            ?? throw new InvalidOperationException("Hợp đồng chưa đủ dữ liệu hoặc đã có hóa đơn kỳ này. Hãy kiểm tra lại.");
+        var row = preview.DuKien.SingleOrDefault(x => x.HoaDon.HopDongId == contract);
+        if (row is null)
+        {
+            var reason = preview.BoQua.SingleOrDefault(x => x.HopDongId == contract)?.LyDo;
+            throw new InvalidOperationException(reason ?? "Hợp đồng chưa đủ dữ liệu hoặc đã có hóa đơn kỳ này. Hãy kiểm tra lại.");
+        }
         row.HoaDon.NgayPhatHanhNghiepVu = null;
         db.HoaDons.Add(row.HoaDon);
         await db.SaveChangesAsync();
