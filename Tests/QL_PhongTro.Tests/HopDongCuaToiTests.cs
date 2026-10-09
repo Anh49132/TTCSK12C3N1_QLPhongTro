@@ -219,6 +219,38 @@ public sealed class HopDongCuaToiTests : IDisposable
         Assert.Empty(model.DichVus);
     }
 
+    [Theory]
+    [InlineData(29, 29)]
+    [InlineData(1, 1)]
+    [InlineData(30, 30)]
+    [InlineData(31, 31)]
+    [InlineData(0, 0)]
+    [InlineData(-1, -1)]
+    public void RemainingDaysUsesDateDifference(int offset, int expected)
+    {
+        var today = new DateOnly(2026, 10, 10);
+        Assert.Equal(expected, HopDongCuaToiController.SoNgayConLai(today.AddDays(offset), today));
+    }
+
+    [Fact]
+    public void MissingEndDateHasNoRemainingDays()
+    {
+        Assert.Null(HopDongCuaToiController.SoNgayConLai(null, new DateOnly(2026, 10, 10)));
+    }
+
+    [Theory]
+    [InlineData(29, true)]
+    [InlineData(1, true)]
+    [InlineData(30, false)]
+    [InlineData(31, false)]
+    [InlineData(0, false)]
+    [InlineData(-1, false)]
+    public void ExpiryWarningOnlyAppliesToPositiveDaysUnderThirty(int remaining, bool expected)
+    {
+        var model = new HopDongChiTietViewModel { SoNgayConLai = remaining };
+        Assert.Equal(expected, model.SapHetHan);
+    }
+
     private HopDongCuaToiController ControllerFor(int accountId)
     {
         var controller = new HopDongCuaToiController(db, new HopDongPdfService())

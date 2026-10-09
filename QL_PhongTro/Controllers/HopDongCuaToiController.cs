@@ -54,6 +54,7 @@ public class HopDongCuaToiController(AppDbContext db, HopDongPdfService pdfServi
                 x => x.NgayBatDau, x => x.NgayKetThuc)?.GiaThue ?? 0;
             contract.NgayBatDau = contractPeriods.FirstOrDefault()?.NgayBatDau;
             contract.NgayKetThuc = latest?.NgayKetThuc;
+            contract.SoNgayConLai = SoNgayConLai(contract.NgayKetThuc, today);
             contract.VaiTro = contract.KhachDungTenId == profile.Id ? "Người đứng tên" : "Người ở cùng";
             contract.Category = CategoryFor(contract, today);
         }
@@ -79,6 +80,23 @@ public class HopDongCuaToiController(AppDbContext db, HopDongPdfService pdfServi
         var safeCode = System.Text.RegularExpressions.Regex.Replace(
             result.Model!.MaHopDong, @"[^\p{L}\p{N}._-]", "_");
         return File(pdfService.Generate(result.Model), "application/pdf", $"HopDong-{safeCode}.pdf");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> PreviewPdf(string? maHopDong)
+    {
+        var result = await LoadContractDetailsAsync(maHopDong);
+        return result.Error ?? View(result.Model);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> PdfPreviewFile(string? maHopDong)
+    {
+        var result = await LoadContractDetailsAsync(maHopDong);
+        if (result.Error is not null)
+            return result.Error;
+
+        return File(pdfService.Generate(result.Model!), "application/pdf");
     }
 
     private async Task<(HopDongChiTietViewModel? Model, IActionResult? Error)> LoadContractDetailsAsync(string? maHopDong)
@@ -161,7 +179,8 @@ public class HopDongCuaToiController(AppDbContext db, HopDongPdfService pdfServi
             GiaThueHienTai = applicablePeriod?.GiaThue ?? 0,
             CacKy = periods,
             NguoiO = people,
-            DichVus = appliedServices
+            DichVus = appliedServices,
+            SoNgayConLai = SoNgayConLai(periods.LastOrDefault()?.NgayKetThuc, today)
         }, null);
     }
 
@@ -243,6 +262,9 @@ public class HopDongCuaToiController(AppDbContext db, HopDongPdfService pdfServi
 
     private static DateOnly TodayInVietnam() =>
         DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7)).DateTime);
+
+    public static int? SoNgayConLai(DateOnly? ngayKetThuc, DateOnly today) =>
+        ngayKetThuc is { } end ? end.DayNumber - today.DayNumber : null;
 
     private static T? ApplicablePeriod<T>(IEnumerable<T> periods, DateOnly today,
         Func<T, DateOnly> startDate, Func<T, DateOnly> endDate) where T : class =>

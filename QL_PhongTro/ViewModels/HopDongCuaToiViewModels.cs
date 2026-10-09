@@ -25,6 +25,8 @@ public class HopDongCardViewModel
     public string TrangThai { get; set; } = "";
     public string VaiTro { get; set; } = "";
     public string Category { get; set; } = "other";
+    public int? SoNgayConLai { get; set; }
+    public bool SapHetHan => SoNgayConLai is > 0 and < 30;
 }
 
 public class HopDongChiTietViewModel
@@ -40,6 +42,8 @@ public class HopDongChiTietViewModel
     public List<NguoiOViewModel> NguoiO { get; set; } = [];
     public List<DichVuHopDongViewModel> DichVus { get; set; } = [];
     public long GiaThueHienTai { get; set; }
+    public int? SoNgayConLai { get; set; }
+    public bool SapHetHan => SoNgayConLai is > 0 and < 30;
     public DateOnly? NgayBatDau => CacKy.FirstOrDefault()?.NgayBatDau;
     public DateOnly? NgayKetThuc => CacKy.LastOrDefault()?.NgayKetThuc;
 }
