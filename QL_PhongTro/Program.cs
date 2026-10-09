@@ -44,6 +44,7 @@ builder.Services.AddSingleton(sp => new QL_PhongTro.Services.RoomImageStore(
 builder.Services.AddScoped<QL_PhongTro.Services.HoSoAccess>();
 builder.Services.AddScoped<QL_PhongTro.Services.LichHenService>();
 builder.Services.AddScoped<QL_PhongTro.Services.ICredentialValidationService, QL_PhongTro.Services.CredentialValidationService>();
+builder.Services.AddScoped<HopDongPdfService>();
 
 var dataDir = Path.Combine(builder.Environment.ContentRootPath, "Data");
 var configuredDatabasePath = builder.Configuration["DatabasePath"];
