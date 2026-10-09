@@ -1,3 +1,14 @@
+## 09/10/2026 — Sửa fixture test hợp đồng khách thuê
+
+- Đổi khởi tạo hợp đồng trong `Tests/QL_PhongTro.Tests/HopDongCuaToiTests.cs` từ thuộc tính không còn tồn tại `TienCocThoaThuan` sang `TienCoc`. Đồng bộ fixture với schema hiện tại bằng cách khởi tạo cờ email/xóa mềm, tiện ích tòa nhà và principal hợp lệ cho audit.
+- Xác minh: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --filter FullyQualifiedName~HopDongCuaToiTests` đạt 5/5. Không thao tác database local; test dùng SQLite in-memory. Còn cảnh báo license ImageSharp và analyzer xUnit có sẵn ngoài phạm vi.
+
+## 09/10/2026 — Sửa lỗi ánh xạ chi tiết hợp đồng khách thuê
+
+- Sửa gán ngày chuyển đi từ `NguoiOGhep.NgayRa` vào `NguoiOViewModel.NgayChuyenDi`; dùng `HopDongThamChieu.TienCoc` thay thuộc tính không tồn tại `TienCocThoaThuan`; khai báo `HopDongCardViewModel.KhachDungTenId` nullable khớp entity.
+- Thành phần: `QL_PhongTro/Controllers/HopDongCuaToiController.cs`, `QL_PhongTro/ViewModels/HopDongCuaToiViewModels.cs`.
+- Xác minh: `dotnet build QL_PhongTro/QL_PhongTro.csproj --configuration Debug` thành công, 0 lỗi. Còn 3 cảnh báo đã có: license ImageSharp và 2 nullable warnings trong `AuthController`; không chạy test vì không có test riêng cho controller này trong nhánh hiện tại. Không chạy ứng dụng hoặc thao tác CSDL.
+
 ## 09/10/2026 — S3-08 phần 4: lịch sử sửa Nháp
 
 - Nhánh feature/S3-08/04-invoice-draft-history kế thừa phần 3. Ghi một bản trước/sau cho mỗi lần lưu có thay đổi, cùng transaction; có tên/người sửa, giờ UTC, chỉ số, tiền và ghi chú phát sinh/giảm trừ. Thao tác rỗng/sai/stale không thêm lịch sử. Không đổi công thức hoặc schema v22; giữ audit cũ, không backfill thông tin không tồn tại.
