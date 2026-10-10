@@ -24,6 +24,7 @@
             <a class="@Active("HopDongCuaToi")" asp-controller="HopDongCuaToi" asp-action="Index">▧ <span>Hợp đồng của tôi</span></a>
             <a class="@Active("YeuCau")" asp-controller="YeuCau" asp-action="Index">▧ <span>Yêu cầu thuê</span></a>
             <a class="@Active("HoSo")" asp-controller="HoSo" asp-action="Index">○ <span>Hồ sơ cá nhân</span></a>
+            @if (showNotifications) { <a asp-controller="ThongBao" asp-action="DanhSach">Hóa đơn của tôi</a> }
             @if (showNotifications) { <a asp-controller="ThongBao" asp-action="Index">Thông báo hóa đơn (@unread)</a> }
         </nav>
     </details>
@@ -35,6 +36,7 @@
         <a class="@Active("Home")" asp-controller="Home" asp-action="Index">Trang chủ</a>
         <a class="@Active("TimTin")" asp-controller="TimTin" asp-action="Index">Tìm phòng</a>
         <a class="@Active("TinDang")" asp-controller="TinDang" asp-action="Index">Tin đăng cho thuê</a>
+        @if (showNotifications) { <a class="@Active("ThongBao")" asp-controller="ThongBao" asp-action="DanhSach">Hóa đơn</a> }
         <a asp-controller="Home" asp-action="GioiThieu">Giới thiệu</a>
     </nav>
     @if (showNotifications) { <a asp-controller="ThongBao" asp-action="Index" class="btn btn-sm btn-outline-secondary" aria-label="Thông báo hóa đơn, @unread chưa đọc">🔔 @unread</a> }

@@ -122,7 +122,11 @@ public static class Sprint2DemoSeeder
         {
             if (room == b202) continue; // A2 deliberately has no service configuration for S2-10.
             foreach (var service in new[] { electricity, water, trash, internet })
+            {
+                if (service == water && (room == invoiceRoom || room == invoiceRoomB))
+                    continue;
                 Run("INSERT INTO dich_vu_phong(phong_id,dich_vu_toa_nha_id) VALUES($room,$catalog)", ("$room", room), ("$catalog", catalogs[(alpha, service)]));
+            }
             if (room == a101 || room == invoiceRoom)
                 Run("INSERT INTO dich_vu_phong(phong_id,dich_vu_toa_nha_id,don_gia_rieng) VALUES($room,$catalog,70000)", ("$room", room), ("$catalog", catalogs[(alpha, parking)]));
         }

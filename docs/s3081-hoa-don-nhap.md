@@ -34,7 +34,7 @@ File project của bộ xUnit hiện thiếu trong checkout; chương trình nà
 .\verification\Start-S308Demo.ps1
 ```
 
-Đã kiểm tra 46 kiểm tra service/HTTP PASS; đăng nhập và trang chi tiết Nháp demo trả HTTP 200. Hóa đơn demo sẵn có: `/HoaDonDichVu/Details/3`.
+Đã kiểm tra 46 kiểm tra service/HTTP PASS; đăng nhập và trang chi tiết Nháp demo trả HTTP 200. Hóa đơn demo sẵn có: `/HoaDonDichVu/Details/3`. Demo bổ sung hóa đơn đã phát hành cho khách thuê và đường dẫn trực tiếp theo mã được ghi ở [S3-07](s307-hoa-don-khach-thue.md).
 
 Script dùng bản sao `data/s308-demo/.../s308.sqlite` được chuẩn bị trong phiên này; không đọc CSDL mặc định. Cổng mặc định 5249. Thông tin tài khoản demo nằm trong access.json của bộ Sprint 2 nguồn, không chép mật khẩu vào Git. Script dừng nếu bản sao chưa có.
 

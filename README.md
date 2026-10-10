@@ -20,7 +20,7 @@ Mặc định dùng `QL_PhongTro/Data/local-dev.sqlite`; có thể đặt `$env:
 
 Chạy nhanh trên Windows:
 
-Trên máy hiện tại, `.env.local` chọn bộ demo Sprint 2 và kho ảnh tương ứng. Dùng `run.bat` để chạy tại `http://localhost:5247`; liên kết email dùng `PasswordReset__PublicBaseUrl` trong cấu hình local. Cổng mặc định của script tạo demo cũng là 5247. Mật khẩu demo nằm trong `access.json` và `report.md` đã ignore. Server cần đang chạy để mở website; sau khi khởi động lại máy, chạy lại `run.bat`.
+Mỗi máy có thể tự cấu hình `.env.local` để chọn database và kho ảnh riêng. Mặc định `run.bat` dùng `QL_PhongTro/Data/local-dev.sqlite` và chạy tại `http://localhost:5247`; email dùng `PasswordReset__PublicBaseUrl` trong cấu hình local. Cổng mặc định của script tạo demo cũng là 5247. Credential demo nếu có nằm trong `access.json` và `report.md` đã ignore. Server cần đang chạy để mở website; sau khi khởi động lại máy, chạy lại `run.bat`.
 
 ```bat
 run.bat
@@ -60,7 +60,7 @@ dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --create-local-admin
 dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --launch-profile http
 ```
 
-Updater kiểm tra schema, sao lưu và nâng lên v13; không tạo lại database. Web không tự nâng schema cũ lên v13. Sau khi cập nhật, có thể kiểm tra chỉ đọc bằng `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database`.
+Updater kiểm tra schema, sao lưu và nâng lên phiên bản hiện hành v22; không tạo lại database. Web không tự nâng schema cũ. Sau khi cập nhật, có thể kiểm tra chỉ đọc bằng `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj -- --check-database`.
 Truy cập http://localhost:5247. Giữ terminal đang hiện `Now listening on: http://localhost:5247` mở trong lúc sử dụng. Muốn dừng server, bấm vào đúng terminal đó, nhấn Ctrl+C và chờ dấu nhắc `PS C:\...>` xuất hiện lại rồi mới build hoặc chạy lần nữa.
 
 Không cần cập nhật database hoặc tạo ADMIN mỗi lần chạy. Sau khi pull thay đổi schema, chạy updater một lần. Tài khoản mới đang chờ xác nhận thì tiếp tục nhập/gửi lại mã, không cần xóa rồi đăng ký lại.
@@ -171,7 +171,7 @@ Kiểm thử không cần database cá nhân: `dotnet test Tests/QL_PhongTro.Tes
 
 **Trước lần pull nhận thay đổi bỏ theo dõi `QL_PhongTro/Data/local-dev.sqlite`, mỗi thành viên phải dừng app và sao lưu database local ra ngoài repository. Git có thể xóa file đang được theo dõi khi pull.** File trên máy thực hiện task vẫn được giữ nguyên bởi `git rm --cached`. Không chép DB của thành viên khác vào repo; DB, WAL/SHM/journal, backup và credential demo đều bị ignore.
 
-- Máy mới chưa có DB: đặt `DatabasePath` tới file riêng chưa tồn tại, chạy `--initialize-database`, rồi `--check-database`. Khởi tạo schema hiện hành v13 và quyền module; không tạo tài khoản, dữ liệu cá nhân hoặc demo. Lệnh từ chối file đã tồn tại; web không tự tạo database. ADMIN dùng cấu hình riêng như trên.
+- Máy mới chưa có DB: đặt `DatabasePath` tới file riêng chưa tồn tại, chạy `--initialize-database`, rồi `--check-database`. Khởi tạo schema nền hiện hành v22 và quyền module; không tạo tài khoản, dữ liệu cá nhân hoặc demo. Lệnh từ chối file đã tồn tại; web không tự tạo database. ADMIN dùng cấu hình riêng như trên.
 - Máy đã có DB: kiểm tra đúng `DatabasePath`, dừng app, sao lưu ngoài repository và chạy `--check-database` trước. Khi schema nền cần nâng cấp, dùng `--update-database` có backup, không chạy khởi tạo hoặc chép đè. Nếu lỗi schema lạ, dừng để rà soát.
 - Để sử dụng S2-06 trên DB đã kiểm tra: chạy `--initialize-rental-requests` một lần trên đúng `DatabasePath`, rồi `--check-database`. Module có phiên bản riêng `rental_request_schema=1`, không thay đổi phiên bản nền; sử dụng bảng tin đăng đã có ở v9, chỉ bổ sung yêu cầu và bộ đếm. Cài mới tạo backup `*.before-rental-<id>.bak`, transaction và bảng tin/yêu cầu/bộ đếm; chạy lại không ghi dữ liệu. Schema module chưa có phiên bản hoặc không đầy đủ bị từ chối. Web không tự cài module.
 
@@ -401,13 +401,17 @@ Build Debug ở trên phù hợp để chạy và báo cáo local. Build Release
 ADMIN xem tại `/NhatKy`. Mã hiện tại yêu cầu schema nhật ký v3; kiểm tra schema của đúng database trước khi chạy và chỉ nâng cấp DB đang dùng khi được yêu cầu. Xem mục **Nhật ký hoạt động (S1-10)** trong [bàn giao dự án](docs/tien-do.md).
 ### S2-07 — Danh sách yêu cầu
 
-Schema v11 thêm bảng `yeu_cau`; schema v13 cập nhật quyền mặc định của Quản lý đối với tin đăng từ `READ` lên `WRITE`. Với database đã có dữ liệu, dừng web rồi chạy `--update-database` và `--check-database` theo quy trình bên trên; updater sẽ sao lưu trước và giữ nguyên dữ liệu cũ. Database mới được tạo bằng `--initialize-database` sẽ có schema v13 hiện hành nhưng không tự nạp dữ liệu cá nhân hay dữ liệu demo.
+Schema v11 thêm bảng `yeu_cau`; schema v13 cập nhật quyền mặc định của Quản lý đối với tin đăng từ `READ` lên `WRITE`. Với database đã có dữ liệu, dừng web rồi chạy `--update-database` và `--check-database` theo quy trình bên trên; updater sẽ sao lưu trước và giữ nguyên dữ liệu cũ. Database mới được tạo bằng `--initialize-database` sẽ có schema nền v22 hiện hành nhưng không tự nạp dữ liệu cá nhân hay dữ liệu demo.
 
 Màn hình danh sách của chủ nhà: `/YeuCau`. Dữ liệu mẫu giả để demo nằm tại `docs/sql/S2-07-yeu-cau.sql`; chỉ chạy trên database demo/bản sao đã có tối thiểu ba khách và ba phòng, không chạy trên database local đang sử dụng.
 
 Database local đã bỏ theo dõi Git. **Sao lưu DB riêng ra ngoài repository trước lần pull nhận thay đổi này**, vì Git có thể xóa file từng theo dõi. Không chép đè DB đang sử dụng.
 
 Dùng đúng `DatabasePath` trong cùng terminal; mặc định `QL_PhongTro/Data/local-dev.sqlite`. Web không tự tạo database thiếu, không tự cài bảng tin. Schema v9 chỉ thêm bảng tin/index/FK; không tự tạo tin, tài khoản hoặc mật khẩu.
+
+### S3-07 — Chi tiết hóa đơn cho khách thuê
+
+Quy ước PO, đường dẫn mở trực tiếp theo mã hóa đơn, trạng thái giao diện và demo hóa đơn đã phát hành được ghi tại [hướng dẫn S3-07](docs/s307-hoa-don-khach-thue.md). Chạy `.\verification\Start-S308Demo.ps1` để chuẩn bị bản sao demo; không dùng database local đang sử dụng.
 
 **Máy mới chưa có database:** chọn đường dẫn mới, rồi khởi tạo (lệnh từ chối file đã tồn tại):
 

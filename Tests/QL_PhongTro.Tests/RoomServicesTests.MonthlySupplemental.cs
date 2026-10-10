@@ -37,22 +37,43 @@ public sealed partial class RoomServicesTests
         Assert.Equal(invoice.ChiTiet.Sum(x => x.ThanhTien), invoice.TongTien);
     }
 
-    [Theory]
-    [InlineData(0, 1, 1360000)]
-    [InlineData(1, 2, 1440000)]
-    [InlineData(3, 4, 1600000)]
-    public async Task MonthlyPeopleFeesUseSignerAndRoommates(int roommates, int people, long expected)
+    [Fact]
+    public async Task MonthlyPeopleFeesAreSkippedWithServiceNameAndConversionInstruction()
     {
         using var db = Context(); var f = await MonthlyFixture(db);
         await db.Database.ExecuteSqlRawAsync("UPDATE phong_tro SET so_nguoi_toi_da=10");
-        for (var i = 0; i < roommates; i++) await AddStay(db, f.A, new(2026, 9, 15));
-        var fee = await SupplementalAsync(db, f.A, "Vệ sinh theo người", 80000, CachTinhDichVu.TheoNguoi);
-        await new HoaDonDichVuService(db, new(db)).PhatHanhThangAsync(1, 1, 2026, 10);
-        var invoice = await db.HoaDons.Include(x => x.ChiTiet).SingleAsync(x => x.HopDongId == f.A);
-        Assert.Equal(people, invoice.SoNguoiTinhPhi);
-        Assert.Equal((decimal)people, invoice.ChiTiet.Single(x => x.DichVuId == fee).SoLuong);
-        Assert.Equal(80000L * people, invoice.ChiTiet.Single(x => x.DichVuId == fee).ThanhTien);
-        Assert.Equal(expected, invoice.TongTien);
+        await SupplementalAsync(db, f.A, "Vệ sinh theo người", 80000, CachTinhDichVu.TheoNguoi);
+        var service = new HoaDonDichVuService(db, new(db));
+        var preview = await service.XemThangAsync(1, 1, 2026, 10);
+        Assert.DoesNotContain(preview.DuKien, x => x.HoaDon.HopDongId == f.A);
+        var skipped = Assert.Single(preview.BoQua, x => x.HopDongId == f.A);
+        Assert.Contains("Vệ sinh theo người", skipped.LyDo);
+        Assert.Contains("cố định (CO_DINH)", skipped.LyDo);
+        var draftError = await Assert.ThrowsAsync<InvalidOperationException>(() => service.TaoNhapThangAsync(1, 1, f.A, 2026, 10));
+        Assert.Contains("Vệ sinh theo người", draftError.Message);
+        Assert.False(await db.HoaDons.AnyAsync(x => x.HopDongId == f.A));
+        Assert.Equal(1, await service.PhatHanhThangAsync(1, 1, 2026, 10));
+        Assert.False(await db.HoaDons.AnyAsync(x => x.HopDongId == f.A));
+        Assert.True(await db.HoaDons.AnyAsync(x => x.HopDongId == f.B));
+    }
+
+    [Fact]
+    public async Task ExistingMonthlyDraftCannotBePublishedAfterServiceChangesToPerPerson()
+    {
+        using var db = Context(); var f = await MonthlyFixture(db);
+        var parking = await SupplementalAsync(db, f.A, "Parking draft", 10000);
+        var service = new HoaDonDichVuService(db, new(db));
+        var id = await service.TaoNhapThangAsync(1, 1, f.A, 2026, 10);
+        await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE cau_hinh_dich_vu SET cach_tinh='THEO_NGUOI' WHERE dich_vu_id={parking}");
+        var draft = await db.HoaDons.SingleAsync(x => x.Id == id);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.PhatHanhNhapAsync(1, new()
+        {
+            Id = id, PhienBan = draft.PhienBan, XacNhan = true,
+            NgayPhatHanh = new(2026, 11, 7), HanThanhToan = new(2026, 11, 14)
+        }));
+        Assert.Contains("Parking draft", error.Message);
+        Assert.Contains("cố định (CO_DINH)", error.Message);
+        Assert.Equal("NHAP", (await db.HoaDons.FindAsync(id))!.TrangThai);
     }
 
     [Fact]
@@ -61,23 +82,23 @@ public sealed partial class RoomServicesTests
         using var db = Context(); var f = await MonthlyFixture(db);
         var internet = await SupplementalAsync(db, f.A, "Internet", 150000);
         await SupplementalAsync(db, f.A, "Rác", 50000);
-        var fee = await SupplementalAsync(db, f.A, "Vệ sinh theo người", 80000, CachTinhDichVu.TheoNguoi);
+        var fee = await SupplementalAsync(db, f.A, "Vệ sinh", 80000);
         await AddStay(db, f.A, new(2026, 9, 30));
         await new HoaDonDichVuService(db, new(db)).PhatHanhThangAsync(1, 1, 2026, 10);
         await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE cau_hinh_dich_vu SET don_gia=999999 WHERE dich_vu_id={internet} OR dich_vu_id={fee}");
         await db.Database.ExecuteSqlRawAsync("UPDATE phong_tro SET so_nguoi_toi_da=10");
         await AddStay(db, f.A, new(2026, 9, 10));
         var invoice = await db.HoaDons.AsNoTracking().Include(x => x.ChiTiet).SingleAsync(x => x.HopDongId == f.A);
-        Assert.Equal(1640000, invoice.TongTien);
+        Assert.Equal(1560000, invoice.TongTien);
         Assert.Equal(2, invoice.SoNguoiTinhPhi);
         Assert.Equal(6, invoice.ChiTiet.Count);
         Assert.Equal(150000, invoice.ChiTiet.Single(x => x.DichVuId == internet).ThanhTien);
-        Assert.Equal(160000, invoice.ChiTiet.Single(x => x.DichVuId == fee).ThanhTien);
+        Assert.Equal(80000, invoice.ChiTiet.Single(x => x.DichVuId == fee).ThanhTien);
         using var factory = BillingWeb(); using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
         await Login(client, "owner");
         var html = WebUtility.HtmlDecode(await client.GetStringAsync($"/HoaDonDichVu/Details/{invoice.Id}"));
-        Assert.Contains("Khoán theo đầu người", html); Assert.Contains("Cố định theo phòng", html);
-        Assert.Contains("1.640.000 đ", html); Assert.Contains("2 người", html); Assert.DoesNotContain("999.999", html);
+        Assert.Contains("Cố định theo phòng", html);
+        Assert.Contains("1.560.000 đ", html); Assert.Contains("2 người", html); Assert.DoesNotContain("999.999", html);
     }
 
     [Fact]
@@ -91,9 +112,8 @@ public sealed partial class RoomServicesTests
         var fee = await SupplementalAsync(db, f.A, "Vệ sinh theo người", 80000, CachTinhDichVu.TheoNguoi);
         await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE dich_vu_phong SET don_gia_rieng=90000 WHERE phong_id={f.A} AND dich_vu_toa_nha_id=(SELECT id FROM dich_vu_toa_nha WHERE dich_vu_id={fee} AND toa_nha_id=1)");
         var model = await new HoaDonDichVuService(db, new(db)).XemThangAsync(1, 1, 2026, 10);
-        var invoice = model.DuKien.Single(x => x.HoaDon.HopDongId == f.A).HoaDon;
-        Assert.Equal(2, invoice.SoNguoiTinhPhi); Assert.Equal(180000, invoice.ChiTiet.Single(x => x.DichVuId == fee).ThanhTien);
-        Assert.Equal(1460000, invoice.TongTien);
+        Assert.DoesNotContain(model.DuKien, x => x.HoaDon.HopDongId == f.A);
+        Assert.Contains("Vệ sinh theo người", model.BoQua.Single(x => x.HopDongId == f.A).LyDo);
     }
 
     [Fact]

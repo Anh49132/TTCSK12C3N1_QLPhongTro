@@ -1,0 +1,87 @@
+@model QL_PhongTro.ViewModels.HoaDonKhachDanhSachPageViewModel
+@using QL_PhongTro.ViewModels
+@{
+    ViewData["Title"] = "Hóa đơn của tôi";
+}
+<section class="container py-4 tenant-invoice-list"
+         data-list-url="@Url.Action("DanhSachDuLieu", "ThongBao")"
+         data-detail-url="@Url.Action("ChiTiet", "ThongBao")"
+         data-page-url="@Url.Action("DanhSach", "ThongBao")"
+         data-page="@Model.Page">
+    <header class="tenant-invoice-list-heading">
+        <div>
+            <h1 class="h3">Hóa đơn của tôi</h1>
+            <p class="text-muted mb-0">Theo dõi tổng tiền, khoản còn phải trả và hạn thanh toán.</p>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-secondary">Thông báo hóa đơn</a>
+    </header>
+
+    <form asp-action="DanhSach" method="get" class="tenant-invoice-filters" aria-label="Lọc hóa đơn">
+        <label>
+            <span>Kỳ hóa đơn</span>
+            <input type="month" name="ky" value="@Model.Ky" />
+        </label>
+        <label>
+            <span>Trạng thái thanh toán</span>
+            <select name="trangThai">
+                <option value="@TrangThaiThanhToanHoaDon.TatCa" selected="@(Model.TrangThai == TrangThaiThanhToanHoaDon.TatCa)">Tất cả</option>
+                <option value="@TrangThaiThanhToanHoaDon.ChuaThanhToan" selected="@(Model.TrangThai == TrangThaiThanhToanHoaDon.ChuaThanhToan)">Chưa thanh toán</option>
+                <option value="@TrangThaiThanhToanHoaDon.ThanhToanMotPhan" selected="@(Model.TrangThai == TrangThaiThanhToanHoaDon.ThanhToanMotPhan)">Thanh toán một phần</option>
+                <option value="@TrangThaiThanhToanHoaDon.DaThanhToan" selected="@(Model.TrangThai == TrangThaiThanhToanHoaDon.DaThanhToan)">Đã thanh toán</option>
+                <option value="@TrangThaiThanhToanHoaDon.QuaHan" selected="@(Model.TrangThai == TrangThaiThanhToanHoaDon.QuaHan)">Quá hạn</option>
+            </select>
+        </label>
+        <button type="submit" class="btn btn-dark">Lọc hóa đơn</button>
+        @if (!string.IsNullOrEmpty(Model.Ky) || Model.TrangThai != TrangThaiThanhToanHoaDon.TatCa || Model.Page > 1)
+        {
+            <a asp-action="DanhSach" class="btn btn-outline-secondary">Xóa bộ lọc</a>
+        }
+    </form>
+
+    @if (Model.LoiLoc is not null)
+    {
+        <div class="alert alert-danger" role="alert">@Model.LoiLoc</div>
+    }
+    else
+    {
+        <div id="tenant-invoice-list-loading" class="alert alert-info" role="status" aria-live="polite">
+            Đang tải danh sách hóa đơn…
+        </div>
+        <div id="tenant-invoice-list-error" class="alert alert-danger" role="alert" hidden></div>
+        <div id="tenant-invoice-list-empty" class="alert alert-light" role="status" hidden>
+            Bạn chưa có hóa đơn nào.
+        </div>
+        <div id="tenant-invoice-list-no-match" class="alert alert-light" role="status" hidden>
+            Không có hóa đơn nào khớp bộ lọc.
+        </div>
+        <section id="tenant-invoice-list-results" hidden aria-label="Danh sách hóa đơn">
+            <p id="tenant-invoice-list-count" class="text-muted"></p>
+            <div class="table-responsive tenant-invoice-list-table-wrap">
+                <table class="table table-hover align-middle tenant-invoice-list-table">
+                    <caption class="visually-hidden">Hóa đơn đã phát hành của bạn</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Mã hóa đơn</th>
+                            <th scope="col">Kỳ</th>
+                            <th scope="col" class="text-end">Tổng cộng</th>
+                            <th scope="col" class="text-end">Còn phải trả</th>
+                            <th scope="col">Hạn thanh toán</th>
+                            <th scope="col">Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tenant-invoice-list-rows"></tbody>
+                </table>
+            </div>
+            <nav id="tenant-invoice-list-pagination" aria-label="Phân trang hóa đơn"></nav>
+        </section>
+    }
+</section>
+@section Styles {
+    <link rel="stylesheet" href="~/css/tenant-invoice-list.css" asp-append-version="true" />
+}
+@section Scripts {
+    @if (Model.LoiLoc is null)
+    {
+        <script src="~/js/tenant-invoice-list.js" asp-append-version="true"></script>
+    }
+}

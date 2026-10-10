@@ -6,7 +6,7 @@ namespace QL_PhongTro.Services;
 
 public sealed partial class HoaDonDichVuService
 {
-    public static long TongNhap(IEnumerable<ChiTietHoaDon> lines) => lines.Aggregate(0L,
+    public static long TongCong(IEnumerable<ChiTietHoaDon> lines) => lines.Aggregate(0L,
         (total, line) => checked(total + (line.LoaiKhoan == "GIAM_TRU" ? -line.ThanhTien : line.ThanhTien)));
 
     public async Task<int> TaoNhapThangAsync(int actor, int building, int contract, int year, int month, DateOnly? issueDate = null, DateOnly? dueDate = null)
@@ -18,8 +18,12 @@ public sealed partial class HoaDonDichVuService
         if (!await (from h in db.HopDongs join p in db.PhongTros on h.PhongId equals p.Id
             where h.Id == contract && p.ToaNhaId == building select h.Id).AnyAsync()) throw new UnauthorizedAccessException();
         var preview = await XemThangAsync(actor, building, year, month, issueDate, dueDate);
-        var row = preview.DuKien.SingleOrDefault(x => x.HoaDon.HopDongId == contract)
-            ?? throw new InvalidOperationException("Hợp đồng chưa đủ dữ liệu hoặc đã có hóa đơn kỳ này. Hãy kiểm tra lại.");
+        var row = preview.DuKien.SingleOrDefault(x => x.HoaDon.HopDongId == contract);
+        if (row is null)
+        {
+            var reason = preview.BoQua.SingleOrDefault(x => x.HopDongId == contract)?.LyDo;
+            throw new InvalidOperationException(reason ?? "Hợp đồng chưa đủ dữ liệu hoặc đã có hóa đơn kỳ này. Hãy kiểm tra lại.");
+        }
         row.HoaDon.NgayPhatHanhNghiepVu = null;
         db.HoaDons.Add(row.HoaDon);
         await db.SaveChangesAsync();
@@ -68,7 +72,7 @@ public sealed partial class HoaDonDichVuService
         foreach (var item in additions) invoice.ChiTiet.Add(new ChiTietHoaDon {
             SoThuTu = ++order, LoaiKhoan = item.LoaiKhoan, TenKhoan = item.TenKhoan!.Trim(),
             GhiChu = item.GhiChu!.Trim(), SoLuong = 1, DonGia = item.SoTien!.Value, ThanhTien = item.SoTien.Value, DonViTinh = "khoản" });
-        invoice.TongTien = TongNhap(invoice.ChiTiet);
+        invoice.TongTien = TongCong(invoice.ChiTiet);
         if (invoice.TongTien < 0) throw new InvalidOperationException("Tổng giảm trừ không được vượt tổng các khoản thu.");
         if (beforeHistory == SnapshotNhap(invoice)) return;
         invoice.PhienBan++;

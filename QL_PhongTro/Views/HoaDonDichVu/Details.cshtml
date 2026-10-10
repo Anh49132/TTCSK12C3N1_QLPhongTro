@@ -40,8 +40,27 @@
     </td><td>@(line.SoNgayTinhTien.HasValue ? $"{line.SoNgayTinhTien}/{line.SoNgayTrongThang} ngày" : $"{line.SoLuong.ToString("0.###", vn)} {(line.CachTinhApDung == CachTinhDichVu.TheoNguoi ? "người" : line.LoaiKhoan == "TIEN_PHONG" ? "tháng" : line.CachTinhApDung == CachTinhDichVu.CoDinh ? "phòng" : line.DonViTinh)}")</td><td class="text-end">@line.DonGia.ToString("N0", vn) đ@(line.LoaiKhoan == "TIEN_PHONG" ? "/tháng" : "")</td><td class="text-end"><strong>@(line.LoaiKhoan == "GIAM_TRU" ? "−" : "")@line.ThanhTien.ToString("N0", vn) đ</strong></td></tr>
 }
 </tbody></table></div>
-<div class="id-total"><span>Tổng cộng</span><strong>@invoice.TongTien.ToString("N0", vn) đ</strong></div>
-<p class="mi-muted">Tổng tiền bằng tổng tất cả các khoản trên hóa đơn; từng khoản được làm tròn tới đồng.</p>
+@if (Model.KhachXem)
+{
+    <section class="tenant-invoice-summary mt-4" aria-label="Tổng kết hóa đơn">
+        <dl class="mb-0">
+            <div><dt>Tổng cộng</dt><dd>@Model.TongCong.ToString("N0", vn) đ</dd></div>
+            <div><dt>Đã thanh toán</dt><dd>@Model.SoDaThanhToan.ToString("N0", vn) đ</dd></div>
+            <div><dt>Còn phải trả</dt><dd>@Model.SoConPhaiTra.ToString("N0", vn) đ</dd></div>
+            <div class="tenant-invoice-due-row">
+                <dt>Hạn thanh toán</dt>
+                <dd>@invoice.HanThanhToan.ToString("dd/MM/yyyy")
+                @if (Model.QuaHan) { <span class="tenant-invoice-overdue" role="status">Quá hạn @Model.SoNgayTre ngày</span> }
+                </dd>
+            </div>
+        </dl>
+    </section>
+}
+else
+{
+    <div class="id-total"><span>Tổng cộng</span><strong>@invoice.TongTien.ToString("N0", vn) đ</strong></div>
+    <p class="mi-muted">Tổng tiền bằng tổng tất cả các khoản trên hóa đơn; từng khoản được làm tròn tới đồng.</p>
+}
 </section>
 <section class="mi-card"><h2>Chỉ số sử dụng</h2><div class="table-responsive"><table class="table id-readings"><thead><tr><th>Dịch vụ</th><th>Chỉ số kỳ trước</th><th>Chỉ số kỳ này</th><th>Sản lượng tiêu thụ</th><th>Trạng thái</th></tr></thead><tbody>
 @foreach (var line in meters) { <tr><th scope="row">@line.TenKhoan</th><td>@line.ChiSoDau?.ToString("0.###", vn) @line.DonViTinh</td><td>@line.ChiSoCuoi?.ToString("0.###", vn) @line.DonViTinh</td><td><strong>@line.SoLuong.ToString("0.###", vn) @line.DonViTinh</strong></td><td><span class="id-status">✓ @(Model.XemTruoc ? "Đã chốt" : "Đã lưu trên hóa đơn")</span></td></tr> }

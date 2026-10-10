@@ -7,7 +7,7 @@ namespace QL_PhongTro.Data;
 // Append new versions; never rewrite an update already shared with the team.
 public static class DatabaseUpdates
 {
-    internal const int CurrentVersion = 22;
+    internal const int CurrentVersion = 23;
     private static SqliteConnection Open(string path, bool readOnly)
     {
         var c = new SqliteConnection(new SqliteConnectionStringBuilder
@@ -54,6 +54,7 @@ public static class DatabaseUpdates
         var contracts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "hop_dong", "ky_hop_dong" };
         var services = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "dich_vu", "cau_hinh_dich_vu", "khoi_tao_dich_vu" };
         var invoices = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "hoa_don", "chi_tiet_hoa_don", "hop_dong_dich_vu" };
+        var invoicePayments = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "thanh_toan" };
         var requiredOptional = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var rental = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "tin_dang", "yeu_cau_thue" };
         if (HasTable(c, "yeu_cau_thue")) requiredOptional.UnionWith(rental);
@@ -64,11 +65,13 @@ public static class DatabaseUpdates
             requiredOptional.UnionWith(contracts);
             requiredOptional.UnionWith(services);
             requiredOptional.UnionWith(invoices);
+            requiredOptional.UnionWith(invoicePayments);
         }
         foreach (var entity in db.Model.GetEntityTypes())
         {
             var table = entity.GetTableName()!;
             if (table == "thong_bao" && schemaVersion < 21) continue;
+            if (table == "thanh_toan" && schemaVersion < 23 && !HasTable(c, table)) continue;
             if (table == "chi_so_dien_nuoc" && schemaVersion < 19 && !HasTable(c, table)) continue;
             if (table == "nguoi_o_ghep" && schemaVersion < 16) continue;
             if (table == "hop_dong_chi_so_dau_ky" && schemaVersion < 15) continue;
@@ -77,7 +80,8 @@ public static class DatabaseUpdates
             if (!requirePublicListings && (table is "tin_dang" or "anh_phong") && !HasTable(c, table)) continue;
             // S2-08 tables are produced by migration v10, so they are not required until it has run.
             if (table is "yeu_cau_thue_lich_su" or "yeu_cau_thue_thong_bao" && !HasTable(c, table)) continue;
-            var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table) || table == "yeu_cau_thue";
+            var isOptional = contracts.Contains(table) || services.Contains(table) || invoices.Contains(table)
+                || invoicePayments.Contains(table) || table == "yeu_cau_thue";
             if (isOptional && !requiredOptional.Contains(table)) continue;
             var store = StoreObjectIdentifier.Table(table, entity.GetSchema());
             var columns = entity.GetProperties().Select(p => p.GetColumnName(store)!)
@@ -442,6 +446,7 @@ public static class DatabaseUpdates
         if (version < 20) InvoiceIssueDateSchema.Upgrade(c);
         if (version < 21) InvoiceNotificationSchema.Upgrade(c);
         if (version < 22) InvoiceCancellationSchema.Upgrade(c);
+        if (version < 23) InvoicePaymentSchema.Upgrade(c);
         Check(path);
         Console.WriteLine($"Database updated to version {CurrentVersion}. Existing business rows preserved.");
     }
