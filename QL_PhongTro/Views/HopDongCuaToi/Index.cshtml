@@ -77,7 +77,7 @@
                             </span>
                             @if (isSoon)
                             {
-                                <span class="tenant-contract-expiry">◷ Còn @contract.SoNgayConLai ngày</span>
+                                <span class="tenant-contract-expiry">◷ @(contract.SoNgayConLai == 0 ? "Hết hạn hôm nay" : $"Còn {contract.SoNgayConLai} ngày")</span>
                             }
                         </div>
                         <p class="tenant-contract-room">Phòng @contract.MaPhong <span aria-hidden="true">·</span> @contract.TenToaNha</p>

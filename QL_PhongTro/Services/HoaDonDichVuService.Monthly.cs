@@ -11,24 +11,6 @@ namespace QL_PhongTro.Services;
 
 public sealed partial class HoaDonDichVuService
 {
-    private async Task<List<string>> LayDichVuKhoanTheoNguoiAsync(int actor, int roomId, DateOnly date, IReadOnlyCollection<int> agreed)
-    {
-        var serviceIds = await db.DichVuPhongs.AsNoTracking().Where(x => x.PhongId == roomId)
-            .Select(x => x.DichVuToaNha.DichVuId).Distinct().OrderBy(x => x).ToListAsync();
-        if (agreed.Count > 0) serviceIds = serviceIds.Where(agreed.Contains).ToList();
-        var pricing = new DichVuPhongService(db, services);
-        var names = new List<string>();
-        foreach (var serviceId in serviceIds)
-        {
-            var price = await pricing.LayGiaHoaDonAsync(actor, roomId, serviceId, date);
-            if (price?.CachTinh == CachTinhDichVu.TheoNguoi) names.Add(price.TenDichVu);
-        }
-        return names;
-    }
-
-    private static string LyDoKhoanTheoNguoi(IEnumerable<string> names) =>
-        $"Không thể phát hành hóa đơn khi dịch vụ đang tính theo người: {string.Join(", ", names.Distinct())}. Hãy đổi dịch vụ sang cố định (CO_DINH).";
-
     private async Task KiemTraChuNhaAsync(int actor, int building)
     {
         if (!await db.TaiKhoans.AnyAsync(x => x.Id == actor && x.VaiTro == "CHU_NHA" && x.DangHoatDong && !x.IsDeleted)
@@ -106,8 +88,6 @@ public sealed partial class HoaDonDichVuService
             try { occupancy = await LaySoNguoiAsync(actor, h.Id, building, first); }
             catch (InvalidOperationException ex) { Skip(ex.Message); continue; }
             var agreed = await db.HopDongDichVus.Where(x => x.HopDongId == h.Id).Select(x => x.DichVuId).ToListAsync();
-            var peopleBased = await LayDichVuKhoanTheoNguoiAsync(actor, context.Room.Id, cutoff, agreed);
-            if (peopleBased.Count > 0) { Skip(LyDoKhoanTheoNguoi(peopleBased)); continue; }
             var now = (clock ?? new SystemTimeProvider()).UtcNow;
             var invoice = new HoaDon { MaHoaDon = "HD" + Guid.NewGuid().ToString("N")[..24], HopDongId = h.Id,
                 Nam = year, Thang = month, TuNgay = first, DenNgay = last, NgayChot = cutoff,
@@ -116,14 +96,25 @@ public sealed partial class HoaDonDichVuService
             var readings = new List<ChiSoDienNuoc>();
             var problems = new List<string>();
             var missing = new List<string>();
+            var requiredReadings = 0;
             if (meterServices.Count != 2) problems.Add("Chưa cấu hình đủ dịch vụ điện và nước.");
             foreach (var service in meterServices)
             {
                 var name = service.MaDichVu == "DIEN" ? "điện" : "nước";
                 if (agreed.Count > 0 && !agreed.Contains(service.Id)) { problems.Add($"Dịch vụ {name} không thuộc hợp đồng."); continue; }
                 var price = await pricing.LayGiaHoaDonAsync(actor, context.Room.Id, service.Id, cutoff);
-                if (price is null || price.DonGia <= 0 || price.CachTinh != CachTinhDichVu.TheoChiSo)
-                { problems.Add($"Thiếu đơn giá {name} theo chỉ số đang áp dụng."); continue; }
+                if (price is null || price.DonGia <= 0 || price.CachTinh is not (CachTinhDichVu.TheoChiSo or CachTinhDichVu.TheoNguoi))
+                { problems.Add($"Thiếu đơn giá {name} đang áp dụng."); continue; }
+                // Flat utilities use the contract's billable residents, not meter readings.
+                if (price.CachTinh == CachTinhDichVu.TheoNguoi)
+                {
+                    invoice.ChiTiet.Add(new() { SoThuTu = invoice.ChiTiet.Count + 1, DichVuId = service.Id,
+                        CauHinhDichVuId = price.CauHinhId, TenKhoan = price.TenDichVu,
+                        CachTinhApDung = price.CachTinh, DonViTinh = price.DonViTinh, DonGia = price.DonGia,
+                        SoLuong = occupancy.SoNguoi, ThanhTien = ThanhTien(occupancy.SoNguoi, price.DonGia) });
+                    continue;
+                }
+                requiredReadings++;
                 var reading = await db.ChiSoDienNuocs.AsNoTracking().SingleOrDefaultAsync(x => x.HopDongId == h.Id && x.DichVuId == service.Id && x.TuNgay == first && x.DenNgay == last);
                 if (reading is null) { missing.Add(name); continue; }
                 if (reading.DaKhoa || reading.ChiSoDau < 0 || reading.ChiSoCuoi < reading.ChiSoDau)
@@ -134,10 +125,10 @@ public sealed partial class HoaDonDichVuService
                     ChiSoDau = reading.ChiSoDau, ChiSoCuoi = reading.ChiSoCuoi, SoLuong = reading.ChiSoCuoi - reading.ChiSoDau,
                     ThanhTien = ThanhTien(reading.ChiSoCuoi - reading.ChiSoDau, price.DonGia) });
             }
-            // S3-06 requires both electricity and water, never an incomplete invoice.
+            // Only metered utilities require readings; invalid/missing prices still block billing.
             if (missing.Count == 2) problems.Insert(0, "Chưa chốt chỉ số điện và nước.");
             else if (missing.Count == 1) problems.Insert(0, $"Thiếu chỉ số {missing[0]}.");
-            if (readings.Count != 2)
+            if (problems.Count > 0 || readings.Count != requiredReadings)
             {
                 model.BoQua.Add(new(h.Id, context.Room.MaPhong, string.Join(" ", problems)) { ThieuChiSo = missing.Count > 0 });
                 continue;

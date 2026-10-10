@@ -105,6 +105,7 @@ public sealed partial class PermissionTests
     [Fact]
     public async Task ProfileReadIsScopedToSelfOrSignedContractAndOwnerCannotEdit()
     {
+        QL_PhongTro.Data.RentalRequestSchema.Initialize(database);
         using var tenant = await Login("KHACH_THUE");
         var form = await ProfileForm(tenant, new DateOnly(2000, 1, 1));
         Assert.Equal(HttpStatusCode.Redirect, (await tenant.PostAsync("/HoSo", new FormUrlEncodedContent(form))).StatusCode);
@@ -122,8 +123,7 @@ public sealed partial class PermissionTests
             INSERT INTO toa_nha(chu_nha_id,ten_toa_nha,dia_chi,dang_hoat_dong) VALUES ($owner,'Profile building','Demo',1);
             INSERT INTO phong_tro(toa_nha_id,ma_phong,tang,dien_tich,gia_thue,so_nguoi_toi_da,trang_thai,ngay_tao)
             VALUES (last_insert_rowid(),'PROFILE-1',1,25,2000000,3,'TRONG','2026-01-01');
-            CREATE TABLE hop_dong(id INTEGER PRIMARY KEY,phong_id INTEGER,khach_dung_ten_id INTEGER,trang_thai TEXT);
-            INSERT INTO hop_dong VALUES (1,last_insert_rowid(),$tenant,'NHAP');
+            INSERT INTO hop_dong(id,ma_hop_dong,phong_id,khach_dung_ten_id,trang_thai,nguoi_lap_id,ngay_tao) VALUES (1,'HD-PROFILE',last_insert_rowid(),$tenant,'NHAP',$owner,'2026-01-01');
             """, ("$owner", accounts["CHU_NHA"]), ("$tenant", own));
         Assert.Equal(HttpStatusCode.Forbidden, (await owner.GetAsync($"/HoSo/Xem?id={own}")).StatusCode);
         Execute("UPDATE hop_dong SET trang_thai='DA_KET_THUC'");

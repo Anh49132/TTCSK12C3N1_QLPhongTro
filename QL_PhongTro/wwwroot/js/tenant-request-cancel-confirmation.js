@@ -5,6 +5,7 @@
 
         row.addEventListener('click', event => {
             if (event.target.closest('a, button, form, input, select, textarea')) return;
+            if (event.target.closest('details, summary')) return;
             window.location.assign(url);
         });
     });

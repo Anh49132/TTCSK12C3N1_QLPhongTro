@@ -77,13 +77,10 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null, Per
             {
                 var period = await db.KyHopDongs.AsNoTracking().FirstOrDefaultAsync(k => k.HopDongId == draft.Id && k.SoThuTu == 1, ct);
                 vm.NgayChot = draft.NgayChot;
-                // Preserve old drafts only when the deposit is an exact 0..3-month multiple of the current room price.
-                if (y.GiaThue > 0 && draft.TienCoc >= 0 && draft.TienCoc % y.GiaThue == 0 && draft.TienCoc / y.GiaThue <= 3)
-                    vm.SoThangCoc = (int)(draft.TienCoc / y.GiaThue);
-                if (period is not null) { vm.NgayBatDau = period.NgayBatDau; vm.SoThang = period.SoThang; }
+                vm.TienCoc = draft.TienCoc;
+                if (period is not null) { vm.GiaThue = period.GiaThue; vm.NgayBatDau = period.NgayBatDau; vm.SoThang = period.SoThang; }
             }
             if (vm.NgayBatDau < vm.HomNay) vm.NgayBatDau = vm.HomNay;
-            TinhTienCoc(vm);
         }
         if (vm.DaChon is not null && vm.NgayBatDau is { } start && vm.NgayKetThuc is { } end)
             vm.ChongLans = await new HopDongService(db).ChongLanAsync(vm.DaChon.PhongId, start, end, ct);
@@ -111,10 +108,6 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null, Per
         vm.YeuCaus = await Approved(ct);
         vm.DaChon = vm.YeuCaus.SingleOrDefault(x => x.Id == vm.YeuCauId);
         vm.HomNay = HomNay;
-        vm.GiaThue = vm.DaChon?.GiaThue;
-        // Prices and amounts are display-only: ignore any values or validation errors submitted for them.
-        ModelState.Remove(nameof(vm.GiaThue)); ModelState.Remove(nameof(vm.TienCoc));
-        TinhTienCoc(vm);
         if (vm.DaChon is null && vm.YeuCauId.HasValue && await ForeignRequest(vm.YeuCauId.Value, ct)) return Forbid();
         if (vm.DaChon is null) ModelState.AddModelError(nameof(vm.YeuCauId), "Yêu cầu không được duyệt, không thuộc quyền quản lý hoặc đã lập hợp đồng.");
         // Revalidate independently of the browser and never bind a submitted end date.
@@ -124,8 +117,8 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null, Per
         if (vm.NgayKetThuc is null) ModelState.AddModelError(nameof(vm.NgayBatDau), "Ngày bắt đầu hoặc kỳ hạn không hợp lệ.");
         if (vm.NgayBatDau < vm.HomNay)
             ModelState.AddModelError(nameof(vm.NgayBatDau), "Ngày bắt đầu không được trước ngày hiện tại.");
-        if (vm.DaChon is not null && (vm.GiaThue is not > 0 || vm.TienCoc is null))
-            ModelState.AddModelError("", "Giá phòng hoặc số tháng cọc không hợp lệ, không thể tính tiền cọc.");
+        if (vm.GiaThue.HasValue && vm.TienCoc.HasValue && (decimal)vm.TienCoc.Value > 3m * vm.GiaThue.Value)
+            ModelState.AddModelError(nameof(vm.TienCoc), "Tiền cọc không được vượt quá 3 tháng giá thuê chốt.");
         if (vm.DaChon is { } chosen && vm.PhienBanPhong != chosen.PhienBanPhong)
             ModelState.AddModelError("", "Thông tin phòng đã thay đổi. Vui lòng tải lại trang trước khi lưu.");
         foreach (var meter in new[] { (nameof(vm.ChiSoDien), vm.ChiSoDien), (nameof(vm.ChiSoNuoc), vm.ChiSoNuoc) })
@@ -270,15 +263,6 @@ public class HopDongController(AppDbContext db, ITimeProvider? clock = null, Per
         }
     }
 
-    private static void TinhTienCoc(HopDongCreateViewModel vm)
-    {
-        vm.TienCoc = null;
-        if (vm.GiaThue is > 0 && vm.SoThangCoc is >= 0 and <= 3)
-        {
-            var amount = (decimal)vm.GiaThue.Value * vm.SoThangCoc.Value;
-            if (amount <= long.MaxValue) vm.TienCoc = (long)amount;
-        }
-    }
 
     private async Task<bool> OwnContract(int id, CancellationToken ct) => await
         (from h in db.HopDongs join p in db.PhongTros on h.PhongId equals p.Id

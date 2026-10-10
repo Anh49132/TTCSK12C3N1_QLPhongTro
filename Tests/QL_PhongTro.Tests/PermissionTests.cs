@@ -164,7 +164,7 @@ public sealed partial class PermissionTests : IDisposable
 
         DatabaseUpdates.Update(database, Path.Combine(appPath, "Data", "permissions.seed.json"));
 
-        Assert.Equal(22L, Scalar("SELECT MAX(version) FROM app_schema_version"));
+        Assert.Equal(23L, Scalar("SELECT MAX(version) FROM app_schema_version"));
         Assert.Equal("WRITE", Scalar("SELECT AccessLevel FROM role_permission WHERE RoleCode='QUAN_LY' AND ModuleCode='TIN_DANG'"));
 
         Execute("UPDATE role_permission SET AccessLevel='NONE' WHERE RoleCode='QUAN_LY' AND ModuleCode='TIN_DANG'");

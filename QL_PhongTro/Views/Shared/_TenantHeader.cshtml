@@ -4,7 +4,8 @@
 @{
     var name = User.Identity?.Name ?? "Khách thuê";
     var controller = ViewContext.RouteData.Values["controller"]?.ToString();
-    string Active(string value) => controller == value ? "is-active" : "";
+    var action = ViewContext.RouteData.Values["action"]?.ToString();
+    string Active(string value) => controller == value && !(value == "Home" && action == "GioiThieu") ? "is-active" : "";
     var actor = int.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var actorId) ? actorId : 0;
     var showNotifications = await NotificationPermissions.AllowsAsync("TAI_CHINH")
         && await QL_PhongTro.Services.InvoiceNotificationDispatcher.IsInstalledAsync(NotificationDb);
@@ -16,7 +17,7 @@
 }
 <header class="tenant-header">
     <details class="tenant-menu">
-        <summary aria-label="Mở menu"><span aria-hidden="true">☰</span></summary>
+        <summary aria-label="Mở menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h14" /></svg></summary>
         <nav class="tenant-menu-panel" aria-label="Menu khách thuê">
             <a class="@Active("Home")" asp-controller="Home" asp-action="Index">⌂ <span>Tổng quan</span></a>
             <a class="@Active("TimTin")" asp-controller="TimTin" asp-action="Index">⌕ <span>Tìm phòng</span></a>
@@ -28,8 +29,8 @@
             @if (showNotifications) { <a asp-controller="ThongBao" asp-action="Index">Thông báo hóa đơn (@unread)</a> }
         </nav>
     </details>
-    <a class="tenant-brand" asp-controller="Home" asp-action="Index">
-        <span class="tenant-brand-mark" aria-hidden="true">⌂</span>
+    <a class="tenant-brand" asp-controller="Home" asp-action="Index" aria-label="NhàTốt, về trang chủ">
+        <span class="tenant-brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 10 8-7 8 7v11h-6v-7h-4v7H4Z" /></svg></span>
         <span><strong>NhàTốt</strong><small>Sống đúng nơi</small></span>
     </a>
     <nav class="tenant-primary-nav" aria-label="Điều hướng chính">
@@ -37,15 +38,17 @@
         <a class="@Active("TimTin")" asp-controller="TimTin" asp-action="Index">Tìm phòng</a>
         <a class="@Active("TinDang")" asp-controller="TinDang" asp-action="Index">Tin đăng cho thuê</a>
         @if (showNotifications) { <a class="@Active("ThongBao")" asp-controller="ThongBao" asp-action="DanhSach">Hóa đơn</a> }
-        <a asp-controller="Home" asp-action="GioiThieu">Giới thiệu</a>
+        <a class="@(controller == "Home" && action == "GioiThieu" ? "is-active" : "")" asp-controller="Home" asp-action="GioiThieu">Giới thiệu</a>
     </nav>
-    @if (showNotifications) { <a asp-controller="ThongBao" asp-action="Index" class="btn btn-sm btn-outline-secondary" aria-label="Thông báo hóa đơn, @unread chưa đọc">🔔 @unread</a> }
+    <div class="tenant-header-actions">
+    @if (showNotifications) { <a asp-controller="ThongBao" asp-action="Index" class="tenant-header-bell" aria-label="Thông báo hóa đơn, @unread chưa đọc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0v5l2 3H4l2-3Zm4 11h4M12 1v2" /></svg><span>@unread</span></a> }
     <details class="tenant-account">
-        <summary><span class="tenant-avatar" aria-hidden="true">@(string.IsNullOrWhiteSpace(name) ? "K" : System.Globalization.StringInfo.GetNextTextElement(name).ToUpperInvariant())</span><span class="tenant-account-name">@name</span><span aria-hidden="true">⌄</span></summary>
+        <summary aria-label="Tài khoản @name"><span class="tenant-avatar" aria-hidden="true">@(string.IsNullOrWhiteSpace(name) ? "K" : System.Globalization.StringInfo.GetNextTextElement(name).ToUpperInvariant())</span><span class="tenant-account-name">@name</span><svg class="tenant-account-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5" /></svg></summary>
         <div class="tenant-account-panel">
             <a asp-controller="HoSo" asp-action="Xem">Xem hồ sơ</a>
             <a asp-controller="Account" asp-action="ChangePassword">Đổi mật khẩu</a>
             <form asp-controller="Account" asp-action="Logout" method="post"><button type="submit">Đăng xuất</button></form>
         </div>
     </details>
+    </div>
 </header>

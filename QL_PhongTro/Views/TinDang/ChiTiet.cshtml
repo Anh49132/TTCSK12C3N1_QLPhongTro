@@ -4,136 +4,47 @@
     ViewData["Title"] = Model.PublicDetail.TieuDe;
     Layout = User.Identity?.IsAuthenticated == true ? "~/Views/Shared/_Layout.cshtml" : "~/Views/Shared/_PublicLayout.cshtml";
     var culture = CultureInfo.GetCultureInfo("vi-VN");
-    var location = string.Join(", ", new[] { Model.PublicDetail.PhuongXa, Model.PublicDetail.QuanHuyen, Model.PublicDetail.TinhThanh }.Where(part => !string.IsNullOrWhiteSpace(part)));
+    var detail = Model.PublicDetail;
+    var location = string.Join(", ", new[] { detail.DiaChi, detail.PhuongXa, detail.QuanHuyen, detail.TinhThanh }.Where(x => !string.IsNullOrWhiteSpace(x)));
+    var isDaChoThue = Model.Tin.TrangThai == "DA_CHO_THUE";
+    var isHistorical = !Model.TinConCongKhai && !isDaChoThue;
 }
-
-<nav class="listing-breadcrumb" aria-label="Đường dẫn">
-    <a href="/">Trang chủ</a><span aria-hidden="true">/</span><span>Chi tiết tin thuê</span>
-</nav>
-<article class="listing-page" data-listing-id="@Model.PublicDetail.Id">
-    @{
-        var isDaChoThue = Model.Tin.TrangThai == "DA_CHO_THUE";
-        var isHistorical = !Model.TinConCongKhai && !isDaChoThue;
-    }
-    @if (isDaChoThue)
-    {
-        <div class="alert alert-warning" role="status">Tin đăng này đã cho thuê, không còn hiển thị công khai.</div>
-    }
-    else if (isHistorical)
-    {
-        <div class="alert alert-warning" role="status">Tin đăng này không còn hiển thị công khai. Bạn đang xem lại thông tin gắn với yêu cầu đã gửi.</div>
-    }
-    <header class="listing-heading">
-        <p class="listing-eyebrow">@(isDaChoThue ? "PHÒNG ĐÃ CHO THUÊ" : (Model.TinConCongKhai ? "PHÒNG ĐANG CHO THUÊ" : "THÔNG TIN TIN ĐĂNG ĐÃ GỬI YÊU CẦU"))</p>
-        <h1>@Model.PublicDetail.TieuDe</h1>
-        <p class="listing-address">@Model.PublicDetail.DiaChi@if (!string.IsNullOrEmpty(location)) { <span>, @location</span> }</p>
-    </header>
-
-    @if (Model.PublicDetail.Anh.Count > 0)
-    {
-        <section class="listing-gallery" aria-label="Bộ ảnh phòng">
-            <div class="listing-gallery-stage">
-                <img data-gallery-main src="@Model.PublicDetail.Anh[0].DuongDan" alt="@(Model.PublicDetail.Anh[0].MoTa ?? Model.PublicDetail.TieuDe)" fetchpriority="high" />
-            </div>
-            @if (Model.PublicDetail.Anh.Count > 1)
-            {
-                <div class="listing-gallery-thumbnails" role="group" aria-label="Chọn ảnh phòng">
-                    @foreach (var image in Model.PublicDetail.Anh)
-                    {
-                        <button type="button" class="listing-gallery-thumb" data-gallery-thumb data-full="@image.DuongDan"
-                            data-alt="@(image.MoTa ?? Model.PublicDetail.TieuDe)"
-                            aria-label="Hiển thị ảnh @(image.MoTa ?? $"thứ {image.ThuTu}")"
-                            aria-pressed="@(image == Model.PublicDetail.Anh[0] ? "true" : "false")">
-                            <img src="@(image.DuongDanAnhNho ?? image.DuongDan)" alt="" loading="lazy" />
-                        </button>
-                    }
-                </div>
-            }
-        </section>
-    }
-    else
-    {
-        <section class="listing-gallery listing-gallery-empty" aria-label="Bộ ảnh phòng">
-            <img src="~/room-placeholder.svg" alt="Phòng chưa có ảnh" />
-            <p>Tin này chưa có hình ảnh.</p>
-        </section>
-    }
-
-    <div class="listing-content">
-        <section class="listing-description" aria-labelledby="description-title">
-            <p class="listing-eyebrow">THÔNG TIN PHÒNG</p>
-            <h2 id="description-title">Mô tả</h2>
-            @if (string.IsNullOrWhiteSpace(Model.PublicDetail.MoTa))
-            {
-                <p class="listing-muted">Chưa có mô tả cho tin này.</p>
-            }
-            else
-            {
-                <p class="listing-description-text">@Model.PublicDetail.MoTa</p>
-            }
-            <dl class="listing-facts">
-                <div><dt>Diện tích</dt><dd data-testid="listing-area">@Model.PublicDetail.DienTich.ToString("0.##", culture) m²</dd></div>
-                <div><dt>Số người tối đa</dt><dd data-testid="listing-occupancy">@Model.PublicDetail.SoNguoiToiDa người</dd></div>
-            </dl>
-        </section>
-
-        <aside class="listing-price" aria-label="Chi phí thuê">
-            <p class="listing-eyebrow">GIÁ THUÊ MỖI THÁNG</p>
-            <p class="listing-rent" data-testid="listing-rent">@Model.PublicDetail.GiaThue.ToString("N0", culture)<span>đ / tháng</span></p>
-            <div class="listing-deposit">
-                <span>Tiền cọc dự kiến</span>
-                <strong data-testid="listing-deposit">@Model.PublicDetail.TienCocDuKien.ToString("N0", culture) đ</strong>
-            </div>
-        </aside>
-    </div>
-
-    <section class="listing-services" aria-labelledby="services-title">
-        <p class="listing-eyebrow">DỊCH VỤ VÀ CÁCH TÍNH</p>
-        <h2 id="services-title">Chi phí dịch vụ</h2>
-        @if (Model.PublicDetail.DichVuTheoSuDung.Count == 0 && Model.PublicDetail.KhoanCoDinh.Count == 0)
-        {
-            <p class="listing-empty" data-testid="no-services">Tin này chưa có bảng giá dịch vụ.</p>
-            <span class="visually-hidden" data-testid="no-usage-services">Chưa có đơn giá dịch vụ theo mức sử dụng.</span>
-            <span class="visually-hidden" data-testid="no-fixed-services">Tin này chưa có khoản phí cố định hàng tháng.</span>
-        }
-        else
-        {
-            <div class="service-table-wrap">
-                <table class="service-table">
-                    <caption class="visually-hidden">Bảng giá dịch vụ của phòng</caption>
-                    <thead>
-                        <tr><th scope="col">Dịch vụ</th><th scope="col">Cách tính</th><th scope="col">Đơn giá</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var service in Model.PublicDetail.DichVuTheoSuDung)
-                        {
-                            <tr data-testid="usage-service">
-                                <th scope="row">@service.TenDichVu</th>
-                                <td>@QL_PhongTro.Models.CachTinhDichVu.Ten(service.CachTinh) · @service.DonViTinh</td>
-                                <td class="service-table-price">@service.DonGia.ToString("N0", culture) đ</td>
-                            </tr>
-                        }
-                        @foreach (var service in Model.PublicDetail.KhoanCoDinh)
-                        {
-                            <tr data-testid="fixed-service">
-                                <th scope="row">@service.TenDichVu</th>
-                                <td>@QL_PhongTro.Models.CachTinhDichVu.Ten(service.CachTinh) · @service.DonViTinh</td>
-                                <td class="service-table-price">@service.DonGia.ToString("N0", culture) đ</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-        <aside class="first-month-estimate" aria-label="Ước tính chi phí cố định hàng tháng" data-testid="first-month-estimate">
-            <div class="estimate-heading">
-                <h3>Chi phí cố định ước tính mỗi tháng</h3>
-                <strong data-testid="first-month-total">@Model.PublicDetail.TongChiPhiThangDau.ToString("N0", culture) đ</strong>
-            </div>
-            <p>Gồm tiền thuê và các khoản cố định; chưa gồm điện, nước theo sử dụng thực tế. Tiền cọc dự kiến @Model.PublicDetail.TienCocDuKien.ToString("N0", culture) đ được thu riêng khi ký hợp đồng.</p>
-        </aside>
-    </section>
-</article>
+<article class="ld-page" data-listing-id="@detail.Id" aria-labelledby="listing-title">
+    <nav class="ld-breadcrumb" aria-label="Đường dẫn"><a asp-controller="Home" asp-action="Index">Trang chủ</a><span>/</span><a asp-action="Index">Tin đăng cho thuê</a><span>/</span><span aria-current="page">Chi tiết tin</span></nav>
+    @if(isDaChoThue){<div class="alert alert-warning" role="status">Tin đăng này đã cho thuê, không còn hiển thị công khai.</div>}
+    else if(isHistorical){<div class="alert alert-warning" role="status">Tin đăng này không còn hiển thị công khai. Bạn đang xem lại thông tin gắn với yêu cầu đã gửi.</div>}
+    <div class="ld-columns">
+        <div class="ld-main">
+            <header class="ld-heading">
+                <div><p class="ld-eyebrow">@(Model.TinConCongKhai ? "PHÒNG ĐANG CHO THUÊ" : isDaChoThue ? "PHÒNG ĐÃ CHO THUÊ" : "THÔNG TIN TIN ĐĂNG")</p><h1 id="listing-title">@detail.TieuDe</h1><p class="ld-address"><partial name="_ListingIcon" model='@("pin")' />@location</p></div>
+                <div class="ld-heading-actions"><button type="button" data-save-listing aria-pressed="false"><partial name="_ListingIcon" model='@("heart")' /><span>Lưu tin</span></button><button type="button" data-share-listing><partial name="_ListingIcon" model='@("share")' />Chia sẻ</button></div>
+            </header>
+            <p class="ld-action-status" data-action-status role="status"></p>
+            @if(detail.Anh.Count>0){
+                <section class="ld-gallery @(detail.Anh.Count == 1 ? "ld-gallery-single" : "")" aria-label="Bộ ảnh phòng">
+                    <button class="ld-gallery-main" type="button" data-open-gallery aria-label="Xem ảnh phòng phóng lớn"><img data-gallery-main src="@detail.Anh[0].DuongDan" alt="@(detail.Anh[0].MoTa ?? detail.TieuDe)" fetchpriority="high" /></button>
+                    @if(detail.Anh.Count>1){<div class="ld-gallery-side">@foreach(var image in detail.Anh.Skip(1).Take(2)){<button type="button" data-gallery-thumb data-full="@image.DuongDan" data-alt="@(image.MoTa ?? detail.TieuDe)" aria-label="Hiển thị ảnh thứ @image.ThuTu" aria-pressed="false"><img src="@(image.DuongDanAnhNho ?? image.DuongDan)" alt="@(image.MoTa ?? $"Ảnh phòng thứ {image.ThuTu}")" loading="lazy" /></button>}</div>}
+                    <button type="button" class="ld-all-photos" data-open-gallery><partial name="_ListingIcon" model='@("image")' />Xem tất cả @detail.Anh.Count ảnh</button>
+                </section>
+                <dialog class="ld-photo-dialog" aria-labelledby="all-photos-title"><div class="ld-dialog-heading"><h2 id="all-photos-title">Ảnh phòng · @detail.TieuDe</h2><form method="dialog"><button type="submit" aria-label="Đóng bộ ảnh">✕</button></form></div><div class="ld-all-images">@foreach(var image in detail.Anh){<figure><img src="@image.DuongDan" alt="@(image.MoTa ?? $"Ảnh phòng thứ {image.ThuTu}")" loading="lazy" /><figcaption>@(image.MoTa ?? $"Ảnh {image.ThuTu}")</figcaption></figure>}</div></dialog>
+            }else{<section class="ld-gallery ld-gallery-empty" aria-label="Bộ ảnh phòng"><img src="~/room-placeholder.svg" alt="Phòng chưa có ảnh" /><p>Tin này chưa có hình ảnh.</p></section>}
+            <section class="ld-facts" aria-label="Thông tin phòng">
+                <div><span class="ld-fact-icon"><partial name="_ListingIcon" model='@("area")' /></span><span><strong data-testid="listing-area">@detail.DienTich.ToString("0.##",culture) m²</strong><small>Diện tích</small></span></div>
+                <div><span class="ld-fact-icon"><partial name="_ListingIcon" model='@("people")' /></span><span><strong data-testid="listing-occupancy">Tối đa @detail.SoNguoiToiDa người</strong><small>Số người ở</small></span></div>
+                <div><span class="ld-fact-icon"><partial name="_ListingIcon" model='@("home")' /></span><span><strong>@(string.IsNullOrWhiteSpace(Model.Phong.LoaiPhong) ? $"Tầng {Model.Phong.Tang}" : Model.Phong.LoaiPhong)</strong><small>@(string.IsNullOrWhiteSpace(Model.Phong.LoaiPhong) ? "Vị trí phòng" : "Kết cấu phòng")</small></span></div>
+                <div class="ld-room-state"><span class="ld-fact-icon"><partial name="_ListingIcon" model='@("home")' /></span><span><strong>@(Model.Phong.TrangThai == "TRONG" ? "Phòng trống" : Model.Phong.TrangThai == "DANG_THUE" ? "Đang thuê" : Model.Phong.TrangThai == "DA_DAT_COC" ? "Đã đặt cọc" : "Ngừng cho thuê")</strong><small>@(Model.TinConCongKhai ? "Sẵn sàng đón bạn" : "Không nhận yêu cầu mới")</small></span></div>
+            </section>
+            <section class="ld-card ld-description" aria-labelledby="description-title"><h2 id="description-title"><partial name="_ListingIcon" model='@("file")' />Mô tả phòng</h2><div data-description class="ld-description-text">@if(string.IsNullOrWhiteSpace(detail.MoTa)){<p class="ld-muted">Chưa có mô tả cho tin này.</p>}else{<p>@detail.MoTa</p>}</div>@if(!string.IsNullOrWhiteSpace(detail.MoTa)){<button type="button" class="ld-text-button" data-expand-description aria-expanded="false">Xem thêm ⌄</button>}</section>
+            <section class="ld-card" aria-labelledby="amenities-title"><h2 id="amenities-title"><partial name="_ListingIcon" model='@("home")' />Tiện nghi</h2>@if(detail.TienNghi.Count>0){<ul class="ld-amenities">@foreach(var amenity in detail.TienNghi){<li><partial name="_ListingIcon" model='@("home")' />@amenity</li>}</ul>}else{<p class="ld-muted">Tiện nghi chưa được cập nhật. Hãy trao đổi với chủ nhà khi xem phòng.</p>}</section>
+            <section class="ld-card ld-services" aria-labelledby="services-title"><h2 id="services-title"><partial name="_ListingIcon" model='@("cost")' />Dịch vụ &amp; chi phí</h2>
+                @if(detail.DichVuTheoSuDung.Count==0 && detail.KhoanCoDinh.Count==0){<div class="ld-service-note"><span aria-hidden="true">i</span><div><strong data-testid="no-services">Tin này chưa có bảng giá dịch vụ.</strong><p>Hãy hỏi chủ nhà về điện, nước và các khoản phí trước khi gửi yêu cầu.</p></div></div><span class="visually-hidden" data-testid="no-usage-services">Chưa có đơn giá dịch vụ theo mức sử dụng.</span><span class="visually-hidden" data-testid="no-fixed-services">Tin này chưa có khoản phí cố định hàng tháng.</span>}
+                else{<div class="ld-table-wrap"><table class="ld-service-table"><caption class="visually-hidden">Bảng giá dịch vụ của phòng</caption><thead><tr><th scope="col">Dịch vụ</th><th scope="col">Cách tính</th><th scope="col">Đơn giá</th></tr></thead><tbody>@foreach(var service in detail.DichVuTheoSuDung){<tr data-testid="usage-service"><th scope="row">@service.TenDichVu</th><td>@QL_PhongTro.Models.CachTinhDichVu.Ten(service.CachTinh) · @service.DonViTinh</td><td>@service.DonGia.ToString("N0",culture) đ</td></tr>}@foreach(var service in detail.KhoanCoDinh){<tr data-testid="fixed-service"><th scope="row">@service.TenDichVu</th><td>@QL_PhongTro.Models.CachTinhDichVu.Ten(service.CachTinh) · @service.DonViTinh</td><td>@service.DonGia.ToString("N0",culture) đ</td></tr>}</tbody></table></div>}
+                @if(detail.KhoanCoDinh.Count==0 && detail.DichVuTheoSuDung.Count>0){<p class="ld-muted" data-testid="no-fixed-services">Tin này chưa có khoản phí cố định hàng tháng.</p>}
+                <p class="ld-cost-note">Chi phí ước tính gồm tiền thuê và các khoản cố định; chưa gồm điện, nước theo sử dụng thực tế. Tiền cọc dự kiến @detail.TienCocDuKien.ToString("N0",culture) đ được thu riêng khi ký hợp đồng.</p>
+            </section>
+        </div>
+        <aside class="ld-side" aria-label="Giá thuê và gửi yêu cầu">
+            <section class="ld-card ld-price"><h2>GIÁ THUÊ MỖI THÁNG</h2><p class="ld-rent" data-testid="listing-rent">@detail.GiaThue.ToString("N0",culture) đ</p><small>/ tháng</small><div class="ld-deposit"><span>Tiền cọc dự kiến</span><strong data-testid="listing-deposit">@detail.TienCocDuKien.ToString("N0",culture) đ</strong></div><div class="ld-estimate" data-testid="first-month-estimate"><partial name="_ListingIcon" model='@("cost")' /><div><small>Chi phí cố định ước tính mỗi tháng</small><strong data-testid="first-month-total">@detail.TongChiPhiThangDau.ToString("N0",culture) đ</strong></div></div></section>
 @if (Model.TinConCongKhai && Model.RequestModuleInstalled && User.IsInRole("KHACH_THUE") && !isDaChoThue)
 {
     @if (Model.OpenRequestId is { } existingId)
@@ -143,31 +54,28 @@
             <a id="open-existing-request" asp-action="YeuCau" asp-route-id="@existingId">Mở lại yêu cầu đang tồn tại</a>
         </div>
     }
-    <a class="btn btn-primary mb-3" href="#gui-yeu-cau">Gửi yêu cầu</a>
-    <section id="gui-yeu-cau" class="card p-4" aria-labelledby="request-heading">
-        <h2 id="request-heading">Gửi yêu cầu xem phòng hoặc thuê ngay</h2>
-        <p>Các trường có dấu * là bắt buộc.</p>
+
+    <section id="gui-yeu-cau" class="ld-card ld-request" aria-labelledby="request-heading">
+        <h2 id="request-heading">Gửi yêu cầu</h2>
+
         <form asp-action="GuiYeuCau" asp-route-id="@Model.Tin.Id" method="post">
             <div asp-validation-summary="All" class="text-danger" role="alert"></div>
-            <div class="mb-3"><label asp-for="Form.LoaiYeuCau" class="form-label">Loại yêu cầu *</label>
-                <select asp-for="Form.LoaiYeuCau" class="form-select" required>
-                    <option value="">Chọn loại yêu cầu</option><option value="XEM_PHONG">Xem phòng</option><option value="THUE_NGAY">Thuê ngay</option>
-                </select><span asp-validation-for="Form.LoaiYeuCau" class="text-danger"></span></div>
-            <div class="mb-3"><label asp-for="Form.NgayMongMuon" class="form-label">Ngày mong muốn *</label>
+            <fieldset class="ld-request-types"><legend class="visually-hidden">Loại yêu cầu</legend><label><input type="radio" name="Form.LoaiYeuCau" value="XEM_PHONG" checked="@(Model.Form.LoaiYeuCau is null or "XEM_PHONG")" required /><span>▣ Xem phòng</span></label><label><input type="radio" name="Form.LoaiYeuCau" value="THUE_NGAY" checked="@(Model.Form.LoaiYeuCau == "THUE_NGAY")" /><span>◇ Thuê ngay</span></label></fieldset><span asp-validation-for="Form.LoaiYeuCau" class="text-danger"></span>
+            <div class="mb-3"><label asp-for="Form.NgayMongMuon" class="form-label">Ngày mong muốn <em>*</em></label>
                 <input asp-for="Form.NgayMongMuon" type="date" class="form-control" required
                        min="@Model.Today.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)"
                        max="@Model.Today.AddDays(60).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)"
                        aria-describedby="desired-date-help" />
                 <div id="desired-date-help" class="form-text">Chọn ngày từ @Model.Today.ToString("dd/MM/yyyy") đến @Model.Today.AddDays(60).ToString("dd/MM/yyyy") (tối đa 60 ngày kể từ hôm nay).</div>
                 <span asp-validation-for="Form.NgayMongMuon" class="text-danger"></span></div>
-            <div class="mb-3"><label asp-for="Form.SoNguoiDuKien" class="form-label">Số người dự kiến ở *</label>
+            <div class="mb-3"><label asp-for="Form.SoNguoiDuKien" class="form-label">Số người dự kiến <em>*</em></label>
                 <input asp-for="Form.SoNguoiDuKien" type="number" min="1" max="@Model.Phong.SoNguoiToiDa" step="1" class="form-control" required aria-describedby="capacity-help" />
                 <div id="capacity-help" class="form-text">Phòng chỉ cho phép tối đa @Model.Phong.SoNguoiToiDa người.</div>
                 <span asp-validation-for="Form.SoNguoiDuKien" class="text-danger"></span></div>
             <div class="mb-3"><label asp-for="Form.LoiNhan" class="form-label">Lời nhắn</label>
-                <textarea asp-for="Form.LoiNhan" class="form-control" rows="4" maxlength="2000"></textarea>
+                <textarea asp-for="Form.LoiNhan" class="form-control" rows="3" maxlength="2000"></textarea>
                 <span asp-validation-for="Form.LoiNhan" class="text-danger"></span></div>
-            <button class="btn btn-primary" type="submit">Gửi yêu cầu</button>
+            <button class="ld-submit" type="submit" data-request-submit>Gửi yêu cầu xem phòng</button><p class="ld-request-note">Chủ nhà sẽ nhận yêu cầu và xác nhận lịch với bạn.</p>
         </form>
     </section>
 }
@@ -181,8 +89,14 @@ else if (Model.TinConCongKhai && Model.RequestModuleInstalled && User.Identity?.
 }
 else if (Model.TinConCongKhai && Model.RequestModuleInstalled) { <p>Chức năng gửi yêu cầu dành cho tài khoản Khách thuê.</p> }
 
+
+            <section class="ld-card ld-owner"><span class="ld-owner-avatar" aria-hidden="true">@(string.IsNullOrWhiteSpace(detail.TenChuNha) ? "C" : System.Globalization.StringInfo.GetNextTextElement(detail.TenChuNha))</span><div><h2>@(detail.TenChuNha ?? "Chủ nhà")</h2><p>Chủ nhà cho thuê phòng</p><small>Trao đổi thông tin qua yêu cầu thuê.</small></div></section>
+        </aside>
+    </div>
+</article>
+@section Styles { <link rel="stylesheet" href="~/css/listing-detail.css" asp-append-version="true" /> }
 @section Scripts {
-    <script src="~/js/public-gallery.js" asp-append-version="true"></script>
+    <script src="~/js/listing-detail.js" asp-append-version="true"></script>
     <script>
         const people = document.getElementById('Form_SoNguoiDuKien');
         if (people) {

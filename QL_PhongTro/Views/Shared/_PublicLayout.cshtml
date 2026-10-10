@@ -11,6 +11,8 @@
         <link rel="stylesheet" href="~/css/listing-theme.css" asp-append-version="true" />
     }
 <link rel="stylesheet" href="~/css/champagne-theme.css" asp-append-version="true" />
+@if (User.IsInRole("KHACH_THUE")) { <link rel="stylesheet" href="~/css/tenant-header.css" asp-append-version="true" /> }
+@await RenderSectionAsync("Styles", required: false)
 </head>
 <body class="public-site @(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "public-home" : "")">
     @{
@@ -20,6 +22,12 @@
         var isTinDang = path.StartsWith("/tindang");
         var isGioiThieu = path.StartsWith("/home/gioithieu") || path.StartsWith("/gioithieu");
     }
+    @if (User.IsInRole("KHACH_THUE"))
+    {
+        <partial name="_TenantHeader" />
+    }
+    else
+    {
     <header class="public-header nhatot-header">
         <div class="nhatot-header-inner">
             <a class="public-brand nhatot-brand" href="/" aria-label="NhàTốt, về trang chủ">
@@ -46,6 +54,7 @@
             </div>
         </div>
     </header>
+    }
     <main class="public-main @(isHome ? "public-main-home" : "") @(isTimTin ? "public-main-timtin" : "")">
         @RenderBody()
     </main>

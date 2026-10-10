@@ -7,9 +7,11 @@ public class HopDongCreateViewModel
 {
     [Required(ErrorMessage = "Vui lòng chọn yêu cầu đã duyệt.")]
     public int? YeuCauId { get; set; }
-    [BindNever] public long? GiaThue { get; set; }
-    [BindNever] public long? TienCoc { get; set; }
-    [Required(ErrorMessage = "Vui lòng chọn số tháng cọc."), Range(0, 3, ErrorMessage = "Số tháng cọc phải từ 0 đến 3 tháng.")]
+    [Required(ErrorMessage = "Vui lòng nhập giá thuê chốt."), Range(500000, long.MaxValue, ErrorMessage = "Giá thuê chốt tối thiểu 500.000 đ.")]
+    public long? GiaThue { get; set; }
+    [Required(ErrorMessage = "Vui lòng nhập tiền cọc."), Range(0, long.MaxValue, ErrorMessage = "Tiền cọc không được âm.")]
+    public long? TienCoc { get; set; }
+    [BindNever]
     public int? SoThangCoc { get; set; }
     [BindNever] public DateOnly HomNay { get; set; }
     [Required(ErrorMessage = "Vui lòng chọn ngày bắt đầu.")] public DateOnly? NgayBatDau { get; set; }

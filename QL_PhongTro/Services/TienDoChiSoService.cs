@@ -186,7 +186,7 @@ public sealed class TienDoChiSoService(AppDbContext db)
              && period.NgayBatDau <= last && period.NgayKetThuc >= first
              && (!contract.NgayTraPhong.HasValue || contract.NgayTraPhong.Value >= first)
          select new LeasedRoom(
-             building.Id, room.Id, room.MaPhong, room.Tang, contract.Id,
+             building.Id, room.Id, room.MaPhong, room.Tang, contract.Id, building.ChuNhaId,
              db.TaiKhoans.Where(account => account.Id == building.QuanLyId)
                  .Select(account => account.HoTen).FirstOrDefault()))
         .Distinct()
@@ -196,33 +196,37 @@ public sealed class TienDoChiSoService(AppDbContext db)
         List<LeasedRoom> leasedRooms, DateOnly first, DateOnly last, CancellationToken ct)
     {
         var serviceIds = await db.DichVus.AsNoTracking()
-            .Where(x => x.MaDichVu == "DIEN" || x.MaDichVu == "NUOC")
-            .Select(x => new { x.MaDichVu, x.Id })
-            .ToListAsync(ct);
-        var electricId = serviceIds.Where(x => x.MaDichVu == "DIEN").Select(x => (int?)x.Id).SingleOrDefault();
-        var waterId = serviceIds.Where(x => x.MaDichVu == "NUOC").Select(x => (int?)x.Id).SingleOrDefault();
-        var confirmedContracts = new HashSet<int>();
+            .Where(x => x.MaDichVu == "DIEN" || x.MaDichVu == "NUOC").Select(x => x.Id).ToListAsync(ct);
         var contractIds = leasedRooms.Select(x => x.ContractId).Distinct().ToList();
-
-        if (electricId.HasValue && waterId.HasValue && contractIds.Count > 0)
+        var readings = await db.ChiSoDienNuocs.AsNoTracking()
+            .Where(x => contractIds.Contains(x.HopDongId) && x.TuNgay <= first && x.DenNgay >= last
+                && x.ChiSoDau >= 0 && x.ChiSoCuoi >= x.ChiSoDau)
+            .Select(x => new { x.HopDongId, x.DichVuId }).ToListAsync(ct);
+        var cutoffs = await db.HopDongs.AsNoTracking().Where(x => contractIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.NgayChot, ct);
+        var pricing = new DichVuPhongService(db, new DichVuService(db));
+        var confirmedContracts = new HashSet<int>();
+        foreach (var room in leasedRooms.DistinctBy(x => x.ContractId))
         {
-            var readings = await db.ChiSoDienNuocs.AsNoTracking()
-                .Where(x => contractIds.Contains(x.HopDongId)
-                    && (x.DichVuId == electricId.Value || x.DichVuId == waterId.Value)
-                    && x.TuNgay <= first && x.DenNgay >= last)
-                .Select(x => new { x.HopDongId, x.DichVuId })
-                .ToListAsync(ct);
-            var metersByContract = readings.GroupBy(x => x.HopDongId)
-                .ToDictionary(x => x.Key, x => x.Select(r => r.DichVuId).ToHashSet());
-            foreach (var contractId in contractIds)
-                if (metersByContract.TryGetValue(contractId, out var meters)
-                    && meters.Contains(electricId.Value) && meters.Contains(waterId.Value))
-                    confirmedContracts.Add(contractId);
+            if (serviceIds.Count != 2 || !cutoffs.TryGetValue(room.ContractId, out var day) || day is < 1 or > 31) continue;
+            var cutoff = new DateOnly(first.Year, first.Month, Math.Min(day, last.Day));
+            var ready = true;
+            foreach (var serviceId in serviceIds)
+            {
+                ct.ThrowIfCancellationRequested();
+                var price = await pricing.LayGiaHoaDonAsync(room.OwnerId, room.RoomId, serviceId, cutoff);
+                if (price is null || price.DonGia <= 0) { ready = false; break; }
+                if (price.CachTinh == QL_PhongTro.Models.CachTinhDichVu.TheoNguoi) continue;
+                if (price.CachTinh != QL_PhongTro.Models.CachTinhDichVu.TheoChiSo ||
+                    !readings.Any(x => x.HopDongId == room.ContractId && x.DichVuId == serviceId))
+                { ready = false; break; }
+            }
+            if (ready) confirmedContracts.Add(room.ContractId);
         }
 
         return confirmedContracts;
     }
 
     private sealed record LeasedRoom(
-        int Id, int RoomId, string RoomCode, int Floor, int ContractId, string? ManagerName);
+        int Id, int RoomId, string RoomCode, int Floor, int ContractId, int OwnerId, string? ManagerName);
 }

@@ -78,6 +78,10 @@ public sealed class AnhPhongQuanLyViewModel
 
 public sealed class TinDangChiTietViewModel
 {
+    public string MaPhong { get; init; } = "";
+    public string TenToaNha { get; init; } = "";
+    public string? TenChuNha { get; init; }
+    public IReadOnlyList<string> TienNghi { get; init; } = [];
     public int Id { get; init; }
     public string TieuDe { get; init; } = string.Empty;
     public string? MoTa { get; init; }

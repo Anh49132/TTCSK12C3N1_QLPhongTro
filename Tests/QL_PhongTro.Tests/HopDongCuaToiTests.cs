@@ -243,9 +243,9 @@ public sealed class HopDongCuaToiTests : IDisposable
     [InlineData(1, true)]
     [InlineData(30, false)]
     [InlineData(31, false)]
-    [InlineData(0, false)]
+    [InlineData(0, true)]
     [InlineData(-1, false)]
-    public void ExpiryWarningOnlyAppliesToPositiveDaysUnderThirty(int remaining, bool expected)
+    public void ExpiryWarningIncludesTodayAndDaysUnderThirty(int remaining, bool expected)
     {
         var model = new HopDongChiTietViewModel { SoNgayConLai = remaining };
         Assert.Equal(expected, model.SapHetHan);

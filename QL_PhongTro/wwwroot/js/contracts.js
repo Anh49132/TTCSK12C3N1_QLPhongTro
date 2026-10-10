@@ -20,15 +20,21 @@
     start.addEventListener('input', update); months.addEventListener('input', update);
     const rent = document.getElementById('GiaThue');
     const deposit = document.getElementById('TienCoc');
-    const depositMonths = document.getElementById('SoThangCoc');
+    let depositEdited = false;
     function updateDeposit() {
-        deposit.value = /^[0-3]$/.test(depositMonths.value) && /^\d+$/.test(rent.value)
-            ? (BigInt(rent.value) * BigInt(depositMonths.value)).toString() : '';
+        if (/^\d+$/.test(rent.value)) {
+            deposit.max = (BigInt(rent.value) * 3n).toString();
+            if (!depositEdited) deposit.value = rent.value;
+        } else deposit.removeAttribute('max');
         const preview = document.getElementById('deposit-preview');
-        if (preview) preview.textContent = deposit.value ? BigInt(deposit.value).toLocaleString('vi-VN') + ' đ' : '—';
+        if (preview) preview.textContent = /^\d+$/.test(deposit.value) ? BigInt(deposit.value).toLocaleString('vi-VN') + ' đ' : '—';
+        const rentPreview = document.getElementById('rent-preview');
+        if (rentPreview) rentPreview.textContent = /^\d+$/.test(rent.value) ? BigInt(rent.value).toLocaleString('vi-VN') + ' đ/tháng' : '—';
     }
-    depositMonths.addEventListener('change', updateDeposit);
-    updateDeposit();
+    deposit.addEventListener('input', () => { depositEdited = true; updateDeposit(); });
+    rent.addEventListener('input', updateDeposit);
+    // Preserve values of existing drafts and failed submissions on initial load.
+    depositEdited = true; updateDeposit(); depositEdited = deposit.value !== rent.value;
     const status = document.getElementById('overlap-status'), save = document.getElementById('save-contract');
     const request = document.getElementById('YeuCauId').value;
     let timer, abort;

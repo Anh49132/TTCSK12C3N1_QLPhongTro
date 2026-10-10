@@ -2,6 +2,8 @@
 @using QL_PhongTro.Models
 @using QL_PhongTro.Services
 @{ ViewData["Title"] = Model.LaKhachThue ? "Yêu cầu của tôi" : "Yêu cầu của khách"; }
+@if(Model.LaKhachThue) { <partial name="_TenantRequests" model="Model" /> }
+else {
 <section class="mb-4"><p class="text-uppercase text-secondary small fw-semibold mb-2">Vận hành nhà cho thuê</p><h1 class="h2 mb-1">@(Model.LaKhachThue ? "Yêu cầu của tôi" : "Yêu cầu của khách")</h1><p class="text-secondary mb-0">@(Model.LaKhachThue ? "Theo dõi lịch hẹn và phản hồi từ chủ nhà." : "Lọc yêu cầu theo trạng thái và tòa nhà.")</p></section>
 <form method="get" asp-action="Index" class="row g-2 align-items-end mb-4">
     <div class="col-sm-6 col-md-4"><label for="trangThai" class="form-label">Trạng thái</label><select id="trangThai" name="trangThai" class="form-select"><option value="">Tất cả trạng thái</option>@foreach (var item in TrangThaiYeuCau.Labels) { <option value="@item.Key" selected="@(Model.TrangThai == item.Key)">@item.Value</option> }</select></div>
@@ -10,64 +12,7 @@
     }
     <div class="col-auto"><button class="btn btn-primary" type="submit">Lọc danh sách</button><a class="btn btn-outline-secondary ms-1" asp-action="Index">Bỏ bộ lọc</a></div>
 </form>
-@if (Model.LaKhachThue)
-{
-    @if (Model.YeuCausCuaKhach.Count == 0)
-    {
-        <div class="border-top border-bottom py-4"><h2 class="h5">Bạn chưa có yêu cầu nào</h2><p class="text-secondary mb-0">Khi gửi yêu cầu thuê hoặc xem phòng, trạng thái sẽ xuất hiện tại đây.</p></div>
-    }
-    else
-    {
-        <div class="table-responsive"><table class="table table-hover align-middle">
-            <thead class="table-light"><tr><th>STT</th><th>Mã yêu cầu</th><th>Phòng</th><th>Ngày gửi</th><th>Trạng thái</th><th>Lịch hẹn</th><th>Lý do từ chối</th><th>Tin đăng</th><th>Thao tác</th></tr></thead>
-            <tbody>
-            @{ var tenantStt = 0; }
-            @foreach (var item in Model.YeuCausCuaKhach)
-            {
-                tenantStt++;
-                var openListingUrl = Url.Action("MoTinDang", "YeuCau", new { id = item.Id });
-                <tr data-request-status="@item.TrangThai" data-open-listing-url="@(openListingUrl ?? string.Empty)">
-                    <td>@tenantStt</td>
-                    <th scope="row">@item.MaYeuCau</th>
-                    <td>@item.MaPhong</td>
-                    <td>@LichHenService.HienThoiGio(item.NgayTao)</td>
-                    <td><span class="badge @TrangThaiYeuCau.BadgeClass(item.TrangThai)">@item.TrangThaiHienThi</span></td>
-                    <td>@(item.LichHen is { } appointment ? LichHenService.HienThoiGio(appointment) : "Chưa có lịch hẹn")</td>
-                    <td>@(item.LyDoTuChoi ?? "—")</td>
-                    <td>
-                        <a asp-action="MoTinDang" asp-route-id="@item.Id">Mở tin đăng</a>
-                    </td>
-                    <td>
-                        @if (item.ChoPhepHuy)
-                        {
-                            <form method="post" asp-action="Huy" asp-route-id="@item.Id" data-cancel-request>
-                                <button type="button" class="btn btn-sm btn-outline-danger" data-open-cancel-confirmation aria-haspopup="dialog">Huỷ</button>
-                            </form>
-                        }
-                        else
-                        {
-                            <span>—</span>
-                        }
-                    </td>
-                </tr>
-            }
-            </tbody>
-        </table></div>
-        <dialog id="tenant-request-cancel-confirmation" aria-labelledby="tenant-request-cancel-title">
-            <form method="dialog">
-                <h2 id="tenant-request-cancel-title" class="h5">Xác nhận huỷ yêu cầu</h2>
-                <p>Bạn có chắc chắn muốn huỷ yêu cầu này không?</p>
-                <div class="d-flex flex-wrap justify-content-end gap-2">
-                    <button value="cancel" class="btn btn-outline-secondary" autofocus>Quay lại</button>
-                    <button value="confirm" class="btn btn-danger">Huỷ yêu cầu</button>
-                </div>
-            </form>
-        </dialog>
-    }
-}
-else
-{
-    @if (Model.YeuCaus.Count == 0) { <div class="border-top border-bottom py-4"><h2 class="h5">Không có yêu cầu phù hợp</h2><p class="text-secondary mb-0">Thử bỏ một hoặc cả hai bộ lọc.</p></div> }
+@if (Model.YeuCaus.Count == 0) { <div class="border-top border-bottom py-4"><h2 class="h5">Không có yêu cầu phù hợp</h2><p class="text-secondary mb-0">Thử bỏ một hoặc cả hai bộ lọc.</p></div> }
     else
     {
         <div class="table-responsive"><table class="table table-hover align-middle">
@@ -90,8 +35,10 @@ else
             </tbody>
         </table></div>
     }
-}
 
+}
+@section Styles { @if(Model.LaKhachThue){<link rel="stylesheet" href="~/css/tenant-requests.css" asp-append-version="true" />} }
 @section Scripts {
+    @if(Model.LaKhachThue){<script src="~/js/tenant-requests.js" asp-append-version="true"></script>}
     <script src="~/js/tenant-request-cancel-confirmation.js" asp-append-version="true"></script>
 }

@@ -11,7 +11,7 @@ namespace QL_PhongTro.Controllers;
 
 [Authorize(Roles = "KHACH_THUE")]
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
-public class HopDongCuaToiController(AppDbContext db, HopDongPdfService pdfService) : Controller
+public class HopDongCuaToiController(AppDbContext db, HopDongPdfService pdfService, ITimeProvider? clock = null) : Controller
 {
     private static readonly string[] ContractTables =
         ["hop_dong", "ky_hop_dong", "nguoi_o_ghep"];
@@ -167,8 +167,32 @@ public class HopDongCuaToiController(AppDbContext db, HopDongPdfService pdfServi
         }));
 
         var appliedServices = await AppliedServicesAsync(contract.Id);
+        var roomInfo = await (from h in db.HopDongs.AsNoTracking()
+            join room in db.PhongTros.AsNoTracking() on h.PhongId equals room.Id
+            where h.Id == contract.Id
+            select new { h.NgayChot, room.SoNguoiToiDa, room.TrangThai,
+                Listing = db.TinDangs.Where(t => t.PhongId == room.Id && (t.TrangThai == "DA_CHO_THUE" || t.TrangThai == "DANG_HIEN_THI"))
+                    .OrderByDescending(t => t.Id).Select(t => (int?)t.Id).FirstOrDefault(),
+                Months = db.KyHopDongs.Where(k => k.HopDongId == h.Id).Sum(k => k.SoThang),
+                Image = db.AnhPhongs.Where(a => a.PhongId == room.Id && !a.DangChoXoa)
+                    .OrderBy(a => a.ThuTu).Select(a => a.DuongDanAnhNho ?? a.DuongDan).FirstOrDefault() }).SingleAsync();
+        DateOnly? nextCutoff = null;
+        if (roomInfo.NgayChot is >= 1 and <= 31 && contract.TrangThai == "DANG_HIEU_LUC")
+        {
+            var month = new DateOnly(today.Year, today.Month, 1);
+            var date = month.AddDays(Math.Min(roomInfo.NgayChot, DateTime.DaysInMonth(month.Year, month.Month)) - 1);
+            if (date <= today) { month = month.AddMonths(1); date = month.AddDays(Math.Min(roomInfo.NgayChot, DateTime.DaysInMonth(month.Year, month.Month)) - 1); }
+            if (periods.Any(p => p.NgayBatDau <= date && p.NgayKetThuc >= date)) nextCutoff = date;
+        }
         return (new HopDongChiTietViewModel
         {
+            NgayChot = roomInfo.NgayChot,
+            SoNguoiToiDa = roomInfo.SoNguoiToiDa,
+            ThoiHanThang = roomInfo.Months,
+            AnhPhong = roomInfo.Image,
+            TinDangId = roomInfo.Listing,
+            TrangThaiPhong = roomInfo.TrangThai,
+            NgayChotTiepTheo = nextCutoff,
             MaHopDong = contract.MaHopDong,
             MaPhong = contract.MaPhong,
             TenToaNha = contract.TenToaNha,
@@ -260,8 +284,8 @@ public class HopDongCuaToiController(AppDbContext db, HopDongPdfService pdfServi
         return View("NotFound");
     }
 
-    private static DateOnly TodayInVietnam() =>
-        DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7)).DateTime);
+    private DateOnly TodayInVietnam() =>
+        DateOnly.FromDateTime((clock ?? new SystemTimeProvider()).UtcNow.AddHours(7));
 
     public static int? SoNgayConLai(DateOnly? ngayKetThuc, DateOnly today) =>
         ngayKetThuc is { } end ? end.DayNumber - today.DayNumber : null;

@@ -55,7 +55,7 @@ public sealed partial class ContractCreationTests : IDisposable
     [Fact] public async Task ApprovedRequestPrefillsCorrectTenantRoom(){using var db=Context();var result=Assert.IsType<ViewResult>(await Controller(db).Create(1,default));var vm=Assert.IsType<HopDongCreateViewModel>(result.Model);Assert.Equal("Tenant",vm.DaChon!.Khach);Assert.Equal("A203",vm.DaChon.Phong);Assert.Single(vm.YeuCaus);Assert.Equal(3500000,vm.GiaThue);}
     [Theory][InlineData(1,2)][InlineData(2,1)] public async Task UnapprovedOrOtherOwnerCannotSelect(int actor,int request){using var db=Context(actor);var result=await Controller(db,actor).Create(request,default);if(actor==2)Assert.IsType<ForbidResult>(result);else Assert.IsType<NotFoundResult>(result);}
     [Fact] public async Task SavesContractPeriodMetersAndRentedRoom(){using var db=Context();Assert.IsType<RedirectToActionResult>(await Controller(db).Create(Valid(),default));var h=await db.HopDongs.SingleAsync();var k=await db.KyHopDongs.SingleAsync();Assert.Equal(1,h.KhachDungTenId);Assert.Equal(1,h.PhongId);Assert.Equal("DANG_HIEU_LUC",h.TrangThai);Assert.Matches(@"^HD-\d{4}-\d{4}$",h.MaHopDong);Assert.Equal(new DateOnly(2027,11,4),k.NgayKetThuc);Assert.Equal("DANG_THUE",(await db.PhongTros.SingleAsync()).TrangThai);var meter=await db.HopDongChiSoDauKys.SingleAsync();Assert.Equal(1240,meter.ChiSoDien);Assert.Equal(356,meter.ChiSoNuoc);Assert.Equal(h.NgayTao,meter.NgayNhap);Assert.Equal(new DateOnly(2026,11,5),meter.NgayBanGiao);Assert.Equal(4,await db.NhatKyHoatDongs.CountAsync());}
-    [Fact] public async Task MissingRequiredDoesNotSave(){using var db=Context();var vm=Valid();vm.SoThangCoc=null;Assert.IsType<ViewResult>(await Controller(db).Create(vm,default));Assert.Empty(await db.HopDongs.ToListAsync());}
+    [Fact] public async Task MissingRequiredDoesNotSave(){using var db=Context();var vm=Valid();vm.TienCoc=null;Assert.IsType<ViewResult>(await Controller(db).Create(vm,default));Assert.Empty(await db.HopDongs.ToListAsync());}
     [Fact] public async Task CannotPostUnapprovedRequest(){using var db=Context();var vm=Valid();vm.YeuCauId=2;Assert.IsType<ViewResult>(await Controller(db).Create(vm,default));Assert.Empty(await db.HopDongs.ToListAsync());}
     [Theory][InlineData(0,5)][InlineData(-1,5)][InlineData(12,0)][InlineData(12,32)]
     public async Task InvalidDurationOrCutoffDoesNotSave(int months,int cutoff){using var db=Context();var vm=Valid();vm.SoThang=months;vm.NgayChot=cutoff;Assert.IsType<ViewResult>(await Controller(db).Create(vm,default));Assert.Empty(await db.HopDongs.ToListAsync());}
@@ -83,16 +83,16 @@ public sealed partial class ContractCreationTests : IDisposable
         Assert.Contains("readonly", phoneInput);
         Assert.DoesNotContain("name=", phoneInput);
         Assert.Matches("id=\"end-date\"[^>]*readonly",page);
-        Assert.Matches("id=\"GiaThue\"[^>]*readonly",page);
+        Assert.DoesNotContain("readonly", Regex.Match(page, "<input[^>]*id=\"GiaThue\"[^>]*>").Value);
         Assert.Contains("min=\"2026-10-07\"",page);
-        var values=new Dictionary<string,string>{{"YeuCauId","1"},{"GiaThue","1"},{"TienCoc","999999999"},{"SoThangCoc","0"},{"NgayBatDau","2026-11-05"},{"SoThang","12"},{"NgayChot","5"},{"NgayKetThuc","2099-01-01"},{"ChiSoDien","1240"},{"ChiSoNuoc","356"},{"PhienBanPhong","0"},{"__RequestVerificationToken",Token(page)}};
+        var values=new Dictionary<string,string>{{"YeuCauId","1"},{"GiaThue","3200000"},{"TienCoc","1500000"},{"SoThangCoc","0"},{"NgayBatDau","2026-11-05"},{"SoThang","12"},{"NgayChot","5"},{"NgayKetThuc","2099-01-01"},{"ChiSoDien","1240"},{"ChiSoNuoc","356"},{"PhienBanPhong","0"},{"__RequestVerificationToken",Token(page)}};
         Assert.Equal(HttpStatusCode.BadRequest,(await client.PostAsync("/HopDong/Create",new FormUrlEncodedContent(new Dictionary<string,string>{{"YeuCauId","1"}}))).StatusCode);
         var conflicts = await client.GetAsync("/HopDong/KiemTra?yeuCauId=1&ngayBatDau=2026-11-05&soThang=12");
         Assert.Equal(HttpStatusCode.OK,conflicts.StatusCode);Assert.Equal("[]",await conflicts.Content.ReadAsStringAsync());
         values["ChiSoDien"]="1240.125";values["ChiSoNuoc"]="356.5";
         Assert.Equal(HttpStatusCode.Redirect,(await client.PostAsync("/HopDong/Create",new FormUrlEncodedContent(values))).StatusCode);
         using var db=Context();Assert.Equal(new DateOnly(2027,11,4),(await db.KyHopDongs.SingleAsync()).NgayKetThuc);
-        Assert.Equal(3500000,(await db.KyHopDongs.SingleAsync()).GiaThue);Assert.Equal(0,(await db.HopDongs.SingleAsync()).TienCoc);
+        Assert.Equal(3200000,(await db.KyHopDongs.SingleAsync()).GiaThue);Assert.Equal(1500000,(await db.HopDongs.SingleAsync()).TienCoc);Assert.Equal(3500000,(await db.PhongTros.SingleAsync()).GiaThue);
         var meter=await db.HopDongChiSoDauKys.SingleAsync();Assert.Equal(1240.125m,meter.ChiSoDien);Assert.Equal(356.5m,meter.ChiSoNuoc);
         var index=WebUtility.HtmlDecode(await client.GetStringAsync("/HopDong"));Assert.Contains((await db.HopDongs.SingleAsync()).MaHopDong,index);Assert.Contains("Đang thuê",index);
     }

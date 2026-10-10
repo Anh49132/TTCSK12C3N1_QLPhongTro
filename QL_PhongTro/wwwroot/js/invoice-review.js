@@ -153,3 +153,22 @@
     });
     renderRows();
 })();
+
+(() => {
+    const form = document.getElementById('publish-monthly-drafts');
+    if (!form) return;
+    const boxes = [...form.querySelectorAll('input[name="selectedInvoiceIds"]')];
+    const issue = form.querySelector('#batch-issue');
+    const due = form.querySelector('#batch-due');
+    form.querySelector('[data-batch-select]').addEventListener('click', () => boxes.forEach((box, i) => box.checked = i < 50));
+    form.querySelector('[data-batch-clear]').addEventListener('click', () => boxes.forEach(box => box.checked = false));
+    issue.addEventListener('change', () => due.min = issue.value);
+    form.addEventListener('submit', event => {
+        const count = boxes.filter(box => box.checked).length;
+        if (count < 1 || count > 50) {
+            event.preventDefault();
+            form.querySelector('[data-batch-status]').textContent = 'Hãy chọn từ 1 đến 50 hóa đơn để phát hành.';
+            form.querySelector('[data-batch-select]').focus();
+        }
+    });
+})();

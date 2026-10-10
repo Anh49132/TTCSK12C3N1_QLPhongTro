@@ -132,6 +132,8 @@ public sealed class S304NghiemThuTests : IDisposable
         {
             Intent = "NHAP",
             YeuCauId = YeuCauId,
+            GiaThue = (await db.PhongTros.SingleAsync(x => x.Id == PhongId)).GiaThue,
+            TienCoc = 0,
             NgayBatDau = new DateOnly(2026, 11, 5),
             SoThang = 12,
             NgayChot = 5,

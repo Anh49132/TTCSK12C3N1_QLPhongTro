@@ -11,6 +11,42 @@ public sealed partial class HoaDonDichVuService
         await db.Database.OpenConnectionAsync();
         await using var sqlite = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
         await using var tx = await db.Database.UseTransactionAsync(sqlite);
+        await PhatHanhNhapCoreAsync(actor, input);
+        await sqlite.CommitAsync();
+    }
+
+    // A whole batch shares one transaction, including meter locks, audit and notifications.
+    public async Task<int> PhatHanhNhieuNhapAsync(int actor, int building, int year, int month,
+        IReadOnlyDictionary<int, int> versions, DateOnly issue, DateOnly due, bool confirmed)
+    {
+        if (!confirmed || versions.Count is < 1 or > 50)
+            throw new InvalidOperationException("Hãy xác nhận từ 1 đến 50 hóa đơn Nháp mỗi lần.");
+        NgayHoaDon(issue, due);
+        await db.Database.OpenConnectionAsync();
+        await using var sqlite = ((SqliteConnection)db.Database.GetDbConnection()).BeginTransaction(deferred: false);
+        await using var tx = await db.Database.UseTransactionAsync(sqlite);
+        await KiemTraChuNhaAsync(actor, building);
+        var ids = versions.Keys.ToList();
+        var bills = await (from bill in db.HoaDons join contract in db.HopDongs on bill.HopDongId equals contract.Id
+            join room in db.PhongTros on contract.PhongId equals room.Id
+            where ids.Contains(bill.Id) && room.ToaNhaId == building && bill.Nam == year && bill.Thang == month
+            select new { bill.Id, bill.TrangThai }).ToListAsync();
+        if (bills.Count != ids.Count) throw new UnauthorizedAccessException();
+        var count = 0;
+        foreach (var bill in bills.OrderBy(x => x.Id))
+        {
+            // Repeated submissions do not create another notification or change published amounts.
+            if (bill.TrangThai == "DA_PHAT_HANH") continue;
+            await PhatHanhNhapCoreAsync(actor, new() { Id = bill.Id, PhienBan = versions[bill.Id],
+                XacNhan = true, NgayPhatHanh = issue, HanThanhToan = due });
+            count++;
+        }
+        await sqlite.CommitAsync();
+        return count;
+    }
+
+    private async Task PhatHanhNhapCoreAsync(int actor, PhatHanhNhapViewModel input)
+    {
         var context = await (from invoice in db.HoaDons.AsNoTracking()
             join contract in db.HopDongs on invoice.HopDongId equals contract.Id
             join room in db.PhongTros on contract.PhongId equals room.Id
@@ -21,10 +57,6 @@ public sealed partial class HoaDonDichVuService
         if (bill.TrangThai != "NHAP") throw new InvalidOperationException("Hóa đơn đã được phát hành hoặc không còn là Nháp. Hãy tải lại trang.");
         if (bill.PhienBan != input.PhienBan) throw new InvalidOperationException("Hóa đơn đã thay đổi sau khi kiểm tra. Hãy tải lại và xác nhận số tiền mới.");
         if (!input.XacNhan) throw new InvalidOperationException("Hãy xác nhận nội dung và tổng tiền trước khi phát hành.");
-        var contractServices = await db.HopDongDichVus.Where(x => x.HopDongId == bill.HopDongId).Select(x => x.DichVuId).ToListAsync();
-        var peopleBased = await LayDichVuKhoanTheoNguoiAsync(actor, context.Id, bill.NgayChot, contractServices);
-        peopleBased.AddRange(bill.ChiTiet.Where(x => x.CachTinhApDung == CachTinhDichVu.TheoNguoi).Select(x => x.TenKhoan));
-        if (peopleBased.Count > 0) throw new InvalidOperationException(LyDoKhoanTheoNguoi(peopleBased));
         var dates = NgayHoaDon(input.NgayPhatHanh, input.HanThanhToan);
         if (bill.ChiTiet.Count == 0 || bill.ChiTiet.Any(x => x.DonGia < 0 || x.SoLuong < 0 || string.IsNullOrWhiteSpace(x.TenKhoan)))
             throw new InvalidOperationException("Chi tiết hóa đơn chưa hợp lệ.");
@@ -65,6 +97,6 @@ public sealed partial class HoaDonDichVuService
             TieuDe = $"Hóa đơn phòng {context.MaPhong} · {bill.Thang:00}/{bill.Nam}", DuongDan = $"/ThongBao/HoaDon/{bill.Id}",
             NoiDung = $"Hóa đơn {bill.MaHoaDon} đã được phát hành. Tổng tiền: {bill.TongTien.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN"))} đ. Hạn thanh toán: {dates.Due:dd/MM/yyyy}." });
         // Invoice, source meter locks and durable notification are committed together. No email is sent inside this transaction.
-        await db.SaveChangesAsync(); await sqlite.CommitAsync();
+        await db.SaveChangesAsync();
     }
 }

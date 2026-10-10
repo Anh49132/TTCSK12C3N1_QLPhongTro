@@ -76,6 +76,24 @@ var otherLines = row.HoaDon.ChiTiet.Where(d => d.LoaiKhoan != "TIEN_PHONG" && !d
 <section class="mi-card"><h2>Thông tin kỳ</h2><dl class="mr-period-info"><dt>Kỳ áp dụng</dt><dd>Tháng @Model.Thang.ToString("00")/@Model.Nam</dd><dt>Ngày phát hành dự kiến</dt><dd>@Model.NgayPhatHanh.ToString("dd/MM/yyyy")</dd><dt>Hạn thanh toán</dt><dd>@Model.HanThanhToan.ToString("dd/MM/yyyy")</dd><dt>Đơn giá</dt><dd>Tiền phòng theo kỳ hạn; dịch vụ theo ngày chốt</dd></dl><p class="mi-muted">Thông tin được kiểm tra lại khi xác nhận. Phòng có dữ liệu thay đổi sẽ được báo rõ.</p></section>
 </aside></div>
 <section class="mi-card" id="invoice-history"><h2>Hóa đơn đã lưu · @Model.Thang.ToString("00")/@Model.Nam</h2>
+@if(write && Model.DaPhatHanh.Any(x=>x.HoaDon.TrangThai=="NHAP")){
+<form asp-action="PublishMonthlyDrafts" method="post" id="publish-monthly-drafts">
+<h3>Phát hành hóa đơn Nháp đã kiểm tra</h3>
+<p>Chọn tối đa 50 hóa đơn. Khi phát hành, nội dung được khóa và khách nhận thông báo. Nếu một bản không hợp lệ, toàn bộ lần phát hành được hoàn tác.</p>
+<p><button type="button" class="btn btn-outline-dark" data-batch-select>Chọn 50 bản nháp đầu tiên</button> <button type="button" class="btn btn-outline-dark" data-batch-clear>Bỏ chọn</button></p>
+<p data-batch-status role="status" class="text-danger"></p>
+<input type="hidden" name="toaNhaId" value="@Model.ToaNhaId" /><input type="hidden" name="nam" value="@Model.Nam" /><input type="hidden" name="thang" value="@Model.Thang" />
+<div class="mr-fields"><div><label for="batch-issue">Ngày phát hành</label><input id="batch-issue" type="date" name="ngayPhatHanh" value="@Model.NgayPhatHanh.ToString("yyyy-MM-dd")" required class="form-control" /></div>
+<div><label for="batch-due">Hạn thanh toán</label><input id="batch-due" type="date" name="hanThanhToan" value="@Model.HanThanhToan.ToString("yyyy-MM-dd")" min="@Model.NgayPhatHanh.ToString("yyyy-MM-dd")" required class="form-control" /></div></div>
+<div class="table-responsive"><table class="table"><thead><tr><th>Chọn</th><th>Phòng</th><th>Mã hóa đơn</th><th>Tổng tiền</th><th>Kiểm tra</th></tr></thead><tbody>
+@foreach(var row in Model.DaPhatHanh.Where(x=>x.HoaDon.TrangThai=="NHAP")){
+<tr><td><input type="checkbox" name="selectedInvoiceIds" value="@row.HoaDon.Id" aria-label="Phát hành hóa đơn phòng @row.MaPhong" /><input type="hidden" name="versions[@row.HoaDon.Id]" value="@row.HoaDon.PhienBan" /></td><th>@row.MaPhong</th><td>@row.HoaDon.MaHoaDon</td><td>@row.HoaDon.TongTien.ToString("N0",vn) đ</td><td><a asp-action="Details" asp-route-id="@row.HoaDon.Id">Xem chi tiết</a></td></tr>
+}
+</tbody></table></div>
+<label><input type="checkbox" name="xacNhan" value="true" required /> Tôi đã kiểm tra nội dung, số tiền và hạn thanh toán của các hóa đơn được chọn.</label>
+<p><button type="submit" class="btn btn-dark">Phát hành các hóa đơn đã chọn</button></p>
+</form>
+}
 @if(Model.DaPhatHanh.Count==0){<p>Chưa có hóa đơn trong kỳ này.</p>}else{<div class="table-responsive"><table class="table mr-table" data-page-size="15"><thead><tr><th>Phòng</th><th>Trạng thái</th><th>Ngày phát hành</th><th>Hạn thanh toán</th><th>Tổng tiền</th><th></th></tr></thead><tbody>@foreach(var row in Model.DaPhatHanh){<tr><th>@row.MaPhong</th><td>@(row.HoaDon.TrangThai == "NHAP" ? "Nháp" : row.HoaDon.TrangThai == "DA_HUY" ? "Đã hủy" : "Đã phát hành")</td><td>@(row.HoaDon.NgayPhatHanhNghiepVu?.ToString("dd/MM/yyyy") ?? row.HoaDon.NgayPhatHanh?.AddHours(7).ToString("dd/MM/yyyy"))</td><td>@row.HoaDon.HanThanhToan.ToString("dd/MM/yyyy")</td><td>@row.HoaDon.TongTien.ToString("N0",vn) đ</td><td><a asp-action="Details" asp-route-id="@row.HoaDon.Id">Xem chi tiết</a></td></tr>}</tbody></table></div>}
 </section>
 <footer class="mi-footer"><strong>Đã chọn <span data-selected-count>@Model.DuKien.Count</span>/@Model.DuKien.Count hóa đơn · Tổng <span data-selected-total>@total.ToString("N0",vn) đ</span></strong>

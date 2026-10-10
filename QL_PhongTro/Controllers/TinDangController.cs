@@ -385,13 +385,16 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
 
     [Authorize(Roles = "KHACH_THUE"), HttpGet]
     [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
-    public async Task<IActionResult> YeuCau(int id)
+    public async Task<IActionResult> YeuCau(int id, [FromServices] LichHenService appointments)
     {
         if (!await requests.IsInstalled()) return NotFound();
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var accountId)) return Forbid();
         var request = await db.YeuCauThues.AsNoTracking().SingleOrDefaultAsync(r => r.Id == id
             && db.KhachThues.Any(k => k.Id == r.KhachThueId && k.TaiKhoanId == accountId));
-        return request is null ? NotFound() : View(request);
+        if (request is null) return NotFound();
+        var listing = await GetListingAsync(request.TinDangId, requirePublic: false);
+        var history = await appointments.LichSuAsync(accountId, id, HttpContext.RequestAborted);
+        return View(new ChiTietYeuCauKhachViewModel(request, listing, history));
     }
     [HttpGet("/api/tin-dang/{id:int}")]
     [Produces("application/json")]
@@ -430,9 +433,13 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
                 RoomId = room.Id,
                 BuildingId = building.Id,
                 OwnerId = building.ChuNhaId,
+                OwnerName = db.TaiKhoans.Where(a => a.Id == building.ChuNhaId).Select(a => a.HoTen).FirstOrDefault(),
+                building.ThangMay, building.BaiDoXe, building.CameraAnNinh, building.BaoVe24h, building.KhuGiatSay, building.SanThuong,
                 Listing = new TinDangChiTietViewModel
                 {
                     Id = post.Id,
+                    MaPhong = room.MaPhong,
+                    TenToaNha = building.TenToaNha,
                     TieuDe = post.TieuDe,
                     MoTa = post.NoiDung ?? room.MoTa,
                     GiaThue = room.GiaThue,
@@ -450,10 +457,21 @@ public class TinDangController(AppDbContext db, YeuCauThueService requests, Dich
             return null;
 
         var listing = result.Listing;
+        var amenities = new List<string>();
+        if (result.ThangMay) amenities.Add("Thang máy");
+        if (result.BaiDoXe) amenities.Add("Chỗ để xe");
+        if (result.CameraAnNinh) amenities.Add("Camera an ninh");
+        if (result.BaoVe24h) amenities.Add("Bảo vệ 24 giờ");
+        if (result.KhuGiatSay) amenities.Add("Khu giặt sấy");
+        if (result.SanThuong) amenities.Add("Sân thượng");
         var servicePrices = await GetPublicServicePricesAsync(result.BuildingId, result.RoomId, result.OwnerId);
         return new TinDangChiTietViewModel
         {
+            TenChuNha = result.OwnerName,
+            TienNghi = amenities,
             Id = listing.Id,
+            MaPhong = listing.MaPhong,
+            TenToaNha = listing.TenToaNha,
             TieuDe = listing.TieuDe,
             MoTa = listing.MoTa,
             GiaThue = listing.GiaThue,

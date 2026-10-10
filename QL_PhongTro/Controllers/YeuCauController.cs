@@ -17,12 +17,12 @@ public class YeuCauController(AppDbContext db, ITimeProvider clock, YeuCauThueSe
             return View(new DanhSachYeuCauViewModel { LaKhachThue = laKhachThue, TrangThai = validStatus, ToaNhaId = validBuilding, ToaNhaOptions = buildings });
         if (laKhachThue)
         {
+            ViewData["NowUtc"] = clock.UtcNow;
             var tenantRequests = await (from request in db.YeuCauThues.AsNoTracking()
                                         join tenant in db.KhachThues.AsNoTracking() on request.KhachThueId equals tenant.Id
                                         join listing in db.TinDangs.AsNoTracking() on request.TinDangId equals listing.Id
                                         join room in db.PhongTros.AsNoTracking() on listing.PhongId equals room.Id
                                         where tenant.TaiKhoanId == accountId
-                                            && (validStatus == null || request.TrangThai == validStatus)
                                         orderby request.NgayTao descending, request.Id descending
                                         select new
                                         {
@@ -30,6 +30,8 @@ public class YeuCauController(AppDbContext db, ITimeProvider clock, YeuCauThueSe
                                             request.MaYeuCau,
                                             request.TinDangId,
                                             room.MaPhong,
+                                            request.LoaiYeuCau,
+                                            TenToaNha = db.ToaNhas.Where(b => b.Id == room.ToaNhaId).Select(b => b.TenToaNha).FirstOrDefault(),
                                             request.NgayTao,
                                             request.TrangThai,
                                             request.LichHen,
@@ -49,7 +51,7 @@ public class YeuCauController(AppDbContext db, ITimeProvider clock, YeuCauThueSe
                     ? string.IsNullOrWhiteSpace(request.LyDoTuChoi)
                         ? "Không có lý do"
                         : LichHenService.LyDoLabel(request.LyDoTuChoi)
-                    : null)).ToList();
+                    : null) { LoaiYeuCau = request.LoaiYeuCau, TenToaNha = request.TenToaNha ?? "" }).ToList();
 
             return View(new DanhSachYeuCauViewModel
             {

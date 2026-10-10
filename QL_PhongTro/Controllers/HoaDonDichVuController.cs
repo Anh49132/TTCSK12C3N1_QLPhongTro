@@ -275,6 +275,29 @@ public partial class HoaDonDichVuController(AppDbContext db, DichVuService servi
     }
 
     [HttpPost, Authorize(Roles = "CHU_NHA"), ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]
+    public async Task<IActionResult> PublishMonthlyDrafts(int toaNhaId, int nam, int thang,
+        List<int>? selectedInvoiceIds, Dictionary<int, int>? versions, DateOnly ngayPhatHanh,
+        DateOnly hanThanhToan, bool xacNhan)
+    {
+        if (!ModelState.IsValid || selectedInvoiceIds is null || versions is null) return BadRequest();
+        if (selectedInvoiceIds.Count != selectedInvoiceIds.Distinct().Count() ||
+            selectedInvoiceIds.Any(id => !versions.ContainsKey(id))) return BadRequest();
+        try
+        {
+            var count = await invoices.PhatHanhNhieuNhapAsync(AccountId, toaNhaId, nam, thang,
+                selectedInvoiceIds.ToDictionary(id => id, id => versions[id]), ngayPhatHanh, hanThanhToan, xacNhan);
+            TempData["MonthlyMessage"] = count == 0 ? "Các hóa đơn đã được phát hành trước đó. Không tạo thông báo trùng."
+                : $"Đã phát hành {count} hóa đơn và tạo thông báo cho khách.";
+        }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (InvalidOperationException ex) { TempData["MonthlyError"] = "Chưa phát hành hóa đơn nào trong lần này. " + ex.Message; }
+        catch (Exception ex) when (ex is DbUpdateException or Microsoft.Data.Sqlite.SqliteException or OverflowException)
+        { TempData["MonthlyError"] = "Phát hành không thành công; toàn bộ thay đổi đã được hoàn tác. Hãy kiểm tra lại danh sách."; }
+        return RedirectToAction(nameof(Monthly), new { toaNhaId, nam, thang,
+            ngayPhatHanh = ngayPhatHanh.ToString("yyyy-MM-dd"), hanThanhToan = hanThanhToan.ToString("yyyy-MM-dd") });
+    }
+
+    [HttpPost, Authorize(Roles = "CHU_NHA"), ValidateAntiForgeryToken, ModuleAccess("TAI_CHINH", write: true)]
     public async Task<IActionResult> SaveDraft(SuaHoaDonNhapViewModel model)
     {
         if (!ModelState.IsValid) { TempData["DraftError"] = "Số tiền/chỉ số không hợp lệ. Hãy kiểm tra định dạng nhập."; return RedirectToAction(nameof(Details), new { id = model.Id }); }

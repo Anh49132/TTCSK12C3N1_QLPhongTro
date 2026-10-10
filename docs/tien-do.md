@@ -1,3 +1,61 @@
+## 10/10/2026 — Yêu cầu của tôi và chi tiết yêu cầu theo ảnh mẫu
+
+- Khách thuê xem danh sách với bốn thống kê, lịch hẹn sắp tới, tab loại yêu cầu, tìm theo mã/phòng/tòa và lọc trạng thái trên dữ liệu chỉ thuộc chính mình. Danh sách có liên kết chi tiết, menu mở tin/hủy; giữ giao diện chủ nhà/quản lý/admin. Thống kê tính toàn bộ yêu cầu, lọc chỉ tác động các hàng hiển thị.
+- Chi tiết gồm thông tin/lời nhắn, lịch hẹn hoặc trạng thái trống, lịch sử nghiệp vụ, thẻ phòng từ dữ liệu hiện có, trạng thái xử lý và liên kết hỗ trợ. Lịch đã hủy/từ chối được đánh dấu hết hiệu lực. Hủy chỉ cho MOI/DA_HEN_LICH, xác nhận dialog trước POST có CSRF; backend hủy và kiểm tra sở hữu giữ nguyên. Lịch sử chỉ hiển thị trạng thái/thời gian/lịch hẹn/lý do nghiệp vụ, không đưa snapshot người thực hiện lên trang khách.
+- CSS tenant-requests.css chỉ nạp hai trang khách thuê; mobile chuyển hàng bảng thành thẻ, chi tiết một cột. Không đổi schema, không sửa DB thật hoặc thêm thư viện.
+- Build PASS; bộ kiểm thử quyền/hủy/lịch sử và liên kết tin: 34/34 PASS. HTTP demo xác nhận danh sách và sáu chi tiết trả 200, có các thẻ thông tin/lịch sử, form hủy và tài nguyên CSS/JS. Chưa nghiệm thu trực quan 360px/Safari hoặc thao tác bộ lọc/dialog trong trình duyệt do không có trình duyệt kết nối. Cần khởi động lại app để nhận Razor mới.
+
+## 10/10/2026 — Chi tiết tin đăng cho khách thuê theo ảnh mẫu
+
+- Trang `TinDang/ChiTiet`: bố cục hai cột, cụm ảnh lớn và ảnh phụ, bộ ảnh mở trong dialog, thông tin phòng, mô tả mở rộng, tiện nghi, bảng dịch vụ; cột phải gồm giá thuê/cọc/chi phí cố định, form xem phòng hoặc thuê ngay và chủ nhà. Giữ dữ liệu giá thật, kiểm tra quyền, tin lịch sử và các ràng buộc gửi yêu cầu + CSRF.
+- Tiện nghi và tên chủ nhà lấy từ dữ liệu hiện có; thiếu dữ liệu hiển thị chưa cập nhật, không dựng tiện nghi hoặc dấu xác minh. Lưu tin dùng localStorage trên thiết bị; chia sẻ dùng chức năng trình duyệt hoặc sao chép/hiển thị liên kết. Không thêm thư viện hoặc đổi schema/DB thật.
+- CSS riêng `listing-detail.css`, JS `listing-detail.js`, SVG nội bộ; chuyển một cột trên màn hình nhỏ, bảng dịch vụ cuộn trong khung. Public layout hỗ trợ section Styles để trang chưa đăng nhập cũng nạp đúng CSS.
+- Build PASS; 14/14 kiểm thử hiện có về chi tiết/giá/ảnh và quyền xem tin qua yêu cầu PASS. HTTP demo riêng PASS cho trang khách chưa đăng nhập/khách thuê, CSS/JS và trường form + CSRF. `git diff --check` PASS. Chưa kiểm tra trực quan 360px/Safari và thao tác JavaScript trên trình duyệt do không có trình duyệt kết nối. Cần khởi động lại app để nhận Razor mới.
+
+## 10/10/2026 — Thanh đầu trang khách thuê theo ảnh mẫu
+
+- Sửa `_TenantHeader`: nền trắng, nút menu và biểu tượng nhà màu than, chữ NhàTốt, liên kết giữa thanh, chuông vàng/số chưa đọc, đường phân cách và avatar/tên tài khoản bên phải. Dùng SVG nội bộ; gom chuông + tài khoản để khớp bốn cột và tránh xuống hàng.
+- CSS `tenant-header.css` chỉ nạp cho KHACH_THUE, sau theme chung. Khi khách thuê đã đăng nhập, trang tìm phòng/tin đăng/giới thiệu dùng cùng header; khách chưa đăng nhập và vai trò khác giữ header công khai. Màn hình nhỏ ẩn liên kết giữa/tên dài, giữ menu, thương hiệu, chuông và tài khoản.
+- Giữ kiểm tra quyền và tính số thông báo từ DB, menu hồ sơ/đổi mật khẩu, đăng xuất POST có CSRF. Sửa trạng thái liên kết Trang chủ/Giới thiệu để không cùng được đánh dấu.
+- Build PASS, 0 lỗi; kiểm tra HTTP trên demo riêng: `/HopDongCuaToi`, `/TimTin`, `/TinDang`, `/Home/GioiThieu` và stylesheet đều 200, đúng một header, có chuông/tài khoản/form đăng xuất + CSRF. Header công khai trước đăng nhập được giữ nguyên. `git diff --check` PASS. Chưa nghiệm thu trực quan 360px/Safari vì không có trình duyệt kết nối. Không đổi DB thật; cần khởi động lại app để nhận Razor mới.
+
+## 10/10/2026 — Giao diện khách thuê xem chi tiết hợp đồng theo ảnh mẫu
+
+- Trang `HopDongCuaToi/Details`: bố cục hai cột, tiêu đề/trạng thái và nút tải PDF; sáu thông tin chính, thanh thời hạn, người ở, bảng/khung trống dịch vụ bên trái; thẻ phòng thuê, xem trước PDF, tóm tắt thanh toán và ba mục mở rộng bên phải. Giữ lịch sử kỳ thuê và ngày trả phòng khi có.
+- Dùng ngày chốt, sức chứa, trạng thái/ảnh phòng, tin đăng và thời hạn từ dữ liệu hiện có sau kiểm tra quyền hợp đồng. Ngày chốt tiếp theo theo ngày Việt Nam qua `ITimeProvider`, kẹp ngày cuối tháng và nằm trong kỳ hợp đồng. Không nhầm ngày chốt với hạn thanh toán. Không điền số trang/dung lượng PDF mẫu; ảnh/điều khoản chưa có hiển thị rõ trạng thái trống.
+- CSS riêng `tenant-contract-detail.css`, icon SVG nội bộ, không thêm thư viện, không đổi header chung hoặc schema. Mobile chuyển một cột, thông tin chính hai cột; bảng dịch vụ cuộn trong khung, điều khoản dùng `details/summary` hỗ trợ bàn phím.
+- Build Razor + 18/18 `HopDongCuaToiTests` PASS (quyền đứng tên/ở ghép/người ngoài và PDF). Demo mới riêng cổng 5256: chi tiết, CSS, tải PDF HTTP 200; xác nhận liên kết xem trước/tải và 27 icon SVG đã render. `git diff --check` PASS. Công cụ computer-use không có trình duyệt kết nối nên chưa nghiệm thu trực quan 360px/Safari; không khẳng định đã kiểm tra hình ảnh trên thiết bị.
+- Không cập nhật DB thật. App đang chạy cần khởi động lại để nhận giao diện mới.
+
+## 10/10/2026 — Sửa tự động các khoảng trống Sprint 3
+
+- S3-01: nhập giá thuê/cọc thỏa thuận nguyên đồng; backend chặn giá dưới 500.000 đ và cọc ngoài 0…3 tháng giá chốt. Lưu giá kỳ hợp đồng, giữ giá niêm yết phòng; mở lại Nháp giữ giá/cọc đã lưu.
+- S3-03: cảnh báo 0…29 ngày, hiển thị riêng ngày hết hạn hôm nay.
+- S3-06: chọn tối đa 50 Nháp đã kiểm tra và xác nhận phát hành một lần. Kiểm tra quyền tòa/kỳ, phiên bản từng bản, dữ liệu và ngày/hạn; cùng transaction cho phát hành, khóa chỉ số, audit và thông báo. Gửi lại/đồng thời không tạo trùng; lỗi một bản rollback cả lần.
+- S3-10: tiến độ lấy giá/cách tính theo phòng và ngày chốt; không đòi công tơ cho điện/nước THEO_NGUOI. Thiếu cấu hình hoặc giá không hợp lệ vẫn chưa sẵn sàng.
+- Đồng bộ test schema 23, fixture hồ sơ dùng hợp đồng thật + module yêu cầu thuê; fixture nghiệm thu kích hoạt truyền giá/cọc theo form mới. Thêm test thương lượng, Nháp sau đổi giá niêm yết, khoán hỗn hợp/toàn bộ, 50 hóa đơn qua HTTP, gửi lặp/đồng thời, rollback phiên bản/audit và giới hạn 50.
+- Xác minh cuối: **365 test liên quan đã PASS** (lượt `autofix-final.trx`: 362 PASS/3 lỗi fixture chưa tạo bảng hóa đơn; sửa fixture và chạy lại đúng ba trường hợp đạt 3/3 trong `autofix-limits-final.trx`). HTTP 50 hóa đơn + kiểm tra gửi lặp/quyền mất khoảng 2,18 giây, đạt ngưỡng 30 giây. Build và `git diff --check` PASS.
+- Lượt đầy đủ trước các chỉnh fixture cuối: 617 test, 600 PASS/17 FAIL. Tám lỗi fixture hợp đồng/hồ sơ đã qua ở lượt cuối; chín lỗi giao diện/form/phân quyền Sprint 1–2 đã có trước lượt sửa vẫn chưa xử lý. Không khẳng định toàn bộ suite đã xanh. Chi tiết trong [báo cáo Sprint 3](kiem-tra-sprint3-sau-sua-20261010.md).
+- Không đổi schema, không cập nhật DB thật; build riêng, test trên SQLite tạm. Chưa nghiệm thu 360px/Safari/PDF/SMTP thật. App đang chạy cần khởi động lại để nhận mã mới.
+
+## 10/10/2026 — Kiểm tra lại 10 story Sprint 3 sau sửa phí theo người
+
+- Báo cáo [kiem-tra-sprint3-sau-sua-20261010.md](kiem-tra-sprint3-sau-sua-20261010.md): S3-02 giảm phí kỳ sau đã được kiểm thử; S3-01 vẫn thiếu giá chốt/cọc tùy ý; S3-06 web tạo Nháp hàng loạt rồi phát hành từng bản, chưa có một thao tác web phát hành toàn tòa; S3-10 vẫn đòi chỉ số điện+nước khi tính tiến độ dù nước có thể khoán theo người. S3-03 cảnh báo chỉ 1…29 ngày, cần chốt ngày hết hạn 0 ngày.
+- Kiểm thử bổ sung hợp đồng/chỉ số/lịch sử: 245 test, 241 PASS, 4 FAIL (3 kỳ vọng schema cũ, 1 fixture tạo lại bảng), 0 SKIP. Không cộng với bộ 140 test trước vì có thể trùng. Không sửa mã nghiệp vụ hay DB trong lượt kiểm tra; chưa nghiệm thu UX 360px/PDF/Safari/SMTP thật.
+
+## 10/10/2026 — Khôi phục phí dịch vụ theo người (S3-02/S3-06)
+
+- Theo yêu cầu trực tiếp của người dùng, thay thế quyết định cũ chặn THEO_NGUOI ngày 09/10. Bỏ chặn hóa đơn riêng lẻ, xem trước/thao tác hàng loạt và phát hành Nháp; dùng số người tính phí phía server, không nhận số người giả từ form. Tháng chuyển đi tính đủ, kỳ sau giảm; người mới bắt đầu tính phí từ tháng kế tiếp theo quy tắc hiện có.
+- Điện/nước khoán theo người tính số người × đơn giá ngày chốt, không yêu cầu chỉ số; dịch vụ theo công tơ vẫn bắt buộc chốt đầy đủ. Snapshot số người/giá/dòng đã lưu không tự thay đổi khi sửa hồ sơ hoặc bảng giá. Giữ kiểm tra quyền, phiên bản, chống trùng và rollback nhật ký.
+- Cập nhật bộ test số người/chuyển đi để kiểm tra số tiền thực tế, thêm kiểm thử Nháp → phát hành + thông báo, nước khoán/điện công tơ, cả hai khoán, phí tháng kế tiếp và snapshot. Test chuyển đi mở đúng tab `people` của giao diện hiện hành.
+- Không đổi schema, không nâng cấp hay chỉnh DB đang dùng. Build/test dùng output riêng và SQLite tạm. Hồi quy `RoomServicesTests|Roommate|Invoice`: **140/140 PASS**, 0 SKIP, 59 giây; build và `git diff --check` PASS. TRX local: `data/criteria-audit-results/per-person-final.trx`. Lượt đầu 112/113 PASS, còn một assertion cũ kỳ vọng chặn theo người; đã cập nhật sang kiểm tra phí thực tế và chạy lại cả nhóm. Chưa nghiệm thu lại trình duyệt/360px/Safari/SMTP thật; tiến trình web đang chạy cần khởi động lại để nhận mã mới.
+
+## 10/10/2026 — Rà soát tiêu chí Sprint 1–3 theo yêu cầu người dùng
+
+- Đối chiếu 30 story từ ba tệp tiêu chí với mã `dev` tại `265dd83`; báo cáo: [kiem-tra-tieu-chi-sprint1-3-20261010.md](kiem-tra-tieu-chi-sprint1-3-20261010.md). Chưa đáp ứng toàn bộ tiêu chí gốc: thiếu cửa sổ đếm đăng nhập sai 15 phút, tìm tin 6 thay vì 12/trang, giá hợp đồng chỉ lấy giá phòng/cọc chỉ số tháng nguyên, chặn dịch vụ theo người theo quyết định PO mới, chưa đủ nhật ký thanh toán. Phân biệt các quyết định hiện hành khác bản gốc về xác nhận email, MVC 403 và quyền xem hồ sơ hợp đồng đã kết thúc.
+- Chạy toàn bộ xUnit bằng output riêng: 604 test, 587 PASS, 17 FAIL, 0 SKIP; 6 lỗi assertion còn kỳ vọng schema v22, 1 fixture tạo lại bảng, 10 lỗi giao diện/luồng cần đối chiếu chi tiết trong báo cáo. Không sửa test/mã nghiệp vụ trong audit. TRX local: `data/criteria-audit-results/criteria.trx`.
+- Chỉ đọc DB theo đường dẫn log người dùng bằng SQLite mode=ro: hiện v23, integrity ok, FK 0 lỗi. Không chạy updater/initializer hoặc thay đổi dữ liệu DB đang dùng. Chưa nghiệm thu UI 360px/Safari/SMTP thật/3G/tải production.
+
 ## 10/10/2026 — Merge S3-07 vào dev
 
 - Merge `feature/S3-07/tenant-invoice-list-and-filter` vào `dev`; giữ các thay đổi mới hơn của dev và toàn bộ chức năng hóa đơn khách thuê của nhánh feature.
