@@ -145,7 +145,7 @@ public sealed partial class HoaDonDichVuService(AppDbContext db, DichVuService s
                 ThanhTien = ThanhTien(quantity, price.DonGia)
             });
         }
-        invoice.TongTien = invoice.ChiTiet.Aggregate(0L, (sum, line) => checked(sum + line.ThanhTien));
+        invoice.TongTien = TongCong(invoice.ChiTiet);
         db.HoaDons.Add(invoice);
         await db.SaveChangesAsync(); // Insert lines while NHAP; triggers forbid line changes after publication.
         if (!taoNhap)

@@ -8,6 +8,12 @@
     const body = document.querySelector("#tenant-invoice-lines tbody");
     const period = document.getElementById("tenant-invoice-period");
     const room = document.getElementById("tenant-invoice-room");
+    const total = document.getElementById("tenant-invoice-total");
+    const paid = document.getElementById("tenant-invoice-paid");
+    const remaining = document.getElementById("tenant-invoice-remaining");
+    const due = document.getElementById("tenant-invoice-due");
+    const overdue = document.getElementById("tenant-invoice-overdue");
+    const vnd = new Intl.NumberFormat("vi-VN");
 
     const cell = (value, className) => {
         const element = document.createElement("td");
@@ -52,10 +58,16 @@
                     cell(line.chiSoCuoi === null ? "—" : `${line.chiSoCuoi}${unit}`),
                     cell(`${line.soLuongTieuThu}${unit}`),
                     cell(`${line.donGia} đ${line.donViTinh ? `/${line.donViTinh}` : ""}`, "text-end"),
-                    cell(`${line.thanhTien} đ`, "text-end fw-semibold")
+                    cell(`${line.loaiKhoan === "GIAM_TRU" ? "−" : ""}${line.thanhTien} đ`, "text-end fw-semibold")
                 );
                 body.append(row);
             }
+            total.textContent = `${vnd.format(invoice.tongCong)} đ`;
+            paid.textContent = `${vnd.format(invoice.soDaThanhToan)} đ`;
+            remaining.textContent = `${vnd.format(invoice.soConPhaiTra)} đ`;
+            due.textContent = invoice.hanThanhToan;
+            overdue.textContent = invoice.quaHan ? `Quá hạn ${invoice.soNgayTre} ngày` : "";
+            overdue.hidden = !invoice.quaHan;
             loading.hidden = true;
             content.hidden = false;
         } catch {

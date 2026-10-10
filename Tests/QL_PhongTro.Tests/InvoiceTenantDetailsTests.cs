@@ -18,7 +18,7 @@ public sealed partial class RoomServicesTests
         var invoiceId = await AddPublishedTenantInvoiceAsync(db, fixture.A, "HD-DEMO-202609-0001", true);
         await AddPublishedTenantInvoiceAsync(db, fixture.B, "HD-DEMO-202609-0002", false);
 
-        using var factory = BillingWeb();
+        using var factory = BillingWeb(new MockTimeProvider { UtcNow = new(2026, 10, 10, 16, 30, 0, DateTimeKind.Utc) });
         using var tenant = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await Login(tenant, "tenant");
 
@@ -33,8 +33,11 @@ public sealed partial class RoomServicesTests
         Assert.Contains("Số đơn vị tiêu thụ", html);
         Assert.Contains("Đơn giá", html);
         Assert.Contains("Thành tiền", html);
-        Assert.DoesNotContain("Tổng cộng", html);
-        Assert.DoesNotContain("Còn phải trả", html);
+        Assert.Contains("Tổng kết hóa đơn", html);
+        Assert.Contains("Tổng cộng", html);
+        Assert.Contains("Đã thanh toán", html);
+        Assert.Contains("Còn phải trả", html);
+        Assert.Contains("Hạn thanh toán", html);
 
         var response = await tenant.GetAsync("/ThongBao/ChiTietDuLieu?maHoaDon=HD-DEMO-202609-0001");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -42,6 +45,12 @@ public sealed partial class RoomServicesTests
         var root = data.RootElement;
         Assert.Equal("09/2026", $"{root.GetProperty("thang").GetInt32():00}/{root.GetProperty("nam").GetInt32()}");
         Assert.Equal("DEMO-A", root.GetProperty("maPhong").GetString());
+        Assert.Equal(1_181_188, root.GetProperty("tongCong").GetInt64());
+        Assert.Equal(0, root.GetProperty("soDaThanhToan").GetInt64());
+        Assert.Equal(1_181_188, root.GetProperty("soConPhaiTra").GetInt64());
+        Assert.Equal("07/10/2026", root.GetProperty("hanThanhToan").GetString());
+        Assert.True(root.GetProperty("quaHan").GetBoolean());
+        Assert.Equal(3, root.GetProperty("soNgayTre").GetInt32());
         var lines = root.GetProperty("chiTiet").EnumerateArray().ToArray();
         Assert.Equal(new[] { "Tiền phòng", "Điện", "Nước", "Internet" },
             lines.Select(x => x.GetProperty("tenKhoan").GetString()).ToArray());
@@ -70,6 +79,15 @@ public sealed partial class RoomServicesTests
         Assert.Null(lines[0].GetProperty("chiSoDau").GetString());
         Assert.Null(lines[0].GetProperty("chiSoCuoi").GetString());
         Assert.Contains("line.chiSoDau === null ? \"—\"", File.ReadAllText(Path.Combine(app, "wwwroot", "js", "tenant-invoice-detail.js")));
+
+        var notificationDetail = await tenant.GetAsync($"/ThongBao/HoaDon/{invoiceId}");
+        Assert.Equal(HttpStatusCode.OK, notificationDetail.StatusCode);
+        var notificationHtml = await notificationDetail.Content.ReadAsStringAsync();
+        Assert.Contains("Tổng cộng", notificationHtml);
+        Assert.Contains("Đã thanh toán", notificationHtml);
+        Assert.Contains("Còn phải trả", notificationHtml);
+        Assert.Contains("Hạn thanh toán", notificationHtml);
+        Assert.Contains("Quá hạn 3 ngày", notificationHtml);
 
         var foreign = await tenant.GetAsync("/ThongBao/ChiTietDuLieu?maHoaDon=HD-DEMO-202609-0002");
         var missing = await tenant.GetAsync("/ThongBao/ChiTietDuLieu?maHoaDon=HD-DOES-NOT-EXIST");
@@ -116,7 +134,14 @@ public sealed partial class RoomServicesTests
     }
 
     private async Task<int> AddPublishedTenantInvoiceAsync(
-        QL_PhongTro.Data.AppDbContext db, int contractId, string code, bool withAllLineTypes)
+        QL_PhongTro.Data.AppDbContext db,
+        int contractId,
+        string code,
+        bool withAllLineTypes,
+        int month = 9,
+        int year = 2026,
+        DateOnly? dueDate = null,
+        bool includeDiscount = false)
     {
         var lines = new List<QL_PhongTro.Models.ChiTietHoaDon>
         {
@@ -173,19 +198,32 @@ public sealed partial class RoomServicesTests
                 }
             ]);
         }
-        var total = lines.Sum(x => x.ThanhTien);
+        if (includeDiscount)
+        {
+            lines.Add(new()
+            {
+                SoThuTu = lines.Count + 1,
+                LoaiKhoan = "GIAM_TRU",
+                TenKhoan = "Giảm trừ minh họa",
+                GhiChu = "Dữ liệu kiểm thử",
+                SoLuong = 1,
+                DonGia = 200_000,
+                ThanhTien = 200_000
+            });
+        }
+        var total = QL_PhongTro.Services.HoaDonDichVuService.TongCong(lines);
         var bill = new QL_PhongTro.Models.HoaDon
         {
             MaHoaDon = code,
             HopDongId = contractId,
-            Nam = 2026,
-            Thang = 9,
-            TuNgay = new DateOnly(2026, 9, 1),
-            DenNgay = new DateOnly(2026, 9, 30),
-            NgayChot = new DateOnly(2026, 9, 30),
+            Nam = year,
+            Thang = month,
+            TuNgay = new DateOnly(year, month, 1),
+            DenNgay = new DateOnly(year, month, DateTime.DaysInMonth(year, month)),
+            NgayChot = new DateOnly(year, month, DateTime.DaysInMonth(year, month)),
             SoNguoiTinhPhi = 1,
             NgayLap = DateTime.UtcNow,
-            HanThanhToan = new DateOnly(2026, 10, 7),
+            HanThanhToan = dueDate ?? new DateOnly(year, month, DateTime.DaysInMonth(year, month)).AddDays(7),
             TongTien = total,
             TrangThai = "NHAP",
             NguoiLapId = 1,
@@ -199,8 +237,8 @@ public sealed partial class RoomServicesTests
             {
                 Id = bill.Id,
                 PhienBan = bill.PhienBan,
-                NgayPhatHanh = new DateOnly(2026, 9, 30),
-                HanThanhToan = new DateOnly(2026, 10, 7),
+                NgayPhatHanh = new DateOnly(year, month, DateTime.DaysInMonth(year, month)),
+                HanThanhToan = dueDate ?? new DateOnly(year, month, DateTime.DaysInMonth(year, month)).AddDays(7),
                 XacNhan = true
             });
         return bill.Id;

@@ -29,9 +29,24 @@
                     <tbody></tbody>
                 </table>
             </div>
+            <section class="tenant-invoice-summary mt-4" aria-labelledby="tenant-invoice-summary-title">
+                <h3 class="h6" id="tenant-invoice-summary-title">Tổng kết hóa đơn</h3>
+                <dl class="mb-0">
+                    <div><dt>Tổng cộng</dt><dd id="tenant-invoice-total"></dd></div>
+                    <div><dt>Đã thanh toán</dt><dd id="tenant-invoice-paid"></dd></div>
+                    <div><dt>Còn phải trả</dt><dd id="tenant-invoice-remaining"></dd></div>
+                    <div class="tenant-invoice-due-row">
+                        <dt>Hạn thanh toán</dt>
+                        <dd><span id="tenant-invoice-due"></span><span id="tenant-invoice-overdue" class="tenant-invoice-overdue" role="status" hidden></span></dd>
+                    </div>
+                </dl>
+            </section>
         </div>
     </section>
 </section>
+@section Styles {
+    <link rel="stylesheet" href="~/css/invoice-detail.css" asp-append-version="true" />
+}
 @section Scripts {
     <script src="~/js/tenant-invoice-detail.js" asp-append-version="true"></script>
 }

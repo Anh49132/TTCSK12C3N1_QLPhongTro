@@ -10,7 +10,10 @@ namespace QL_PhongTro.Controllers;
 
 [Authorize(Roles = "KHACH_THUE"), ModuleAccess("TAI_CHINH")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class ThongBaoController(AppDbContext db, QL_PhongTro.Services.HoaDonDichVuService invoices) : Controller
+public sealed class ThongBaoController(
+    AppDbContext db,
+    QL_PhongTro.Services.HoaDonDichVuService invoices,
+    QL_PhongTro.Services.ITimeProvider clock) : Controller
 {
     private int Actor => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
     public async Task<IActionResult> Index(int page = 1)
@@ -48,8 +51,27 @@ public sealed class ThongBaoController(AppDbContext db, QL_PhongTro.Services.Hoa
         var context = await (from h in db.HopDongs join p in db.PhongTros on h.PhongId equals p.Id join t in db.ToaNhas on p.ToaNhaId equals t.Id
             where h.Id == invoice.HopDongId select new { p.MaPhong, p.ToaNhaId, t.TenToaNha, h.KhachDungTenId }).SingleAsync();
         var tenant = await db.KhachThues.Where(x => x.Id == context.KhachDungTenId).Select(x => x.HoTen).SingleOrDefaultAsync();
-        var model = new ChiTietHoaDonViewModel { HoaDon = invoice, KhachXem = true,
-            MaPhong = context.MaPhong, ToaNhaId = context.ToaNhaId, TenToaNha = context.TenToaNha, TenKhach = tenant ?? "" };
+        var total = QL_PhongTro.Services.HoaDonDichVuService.TongCong(invoice.ChiTiet);
+        var paid = await db.ThanhToans.AsNoTracking()
+            .Where(x => x.HoaDonId == invoice.Id && x.TrangThai == "DA_XAC_NHAN")
+            .SumAsync(x => (long?)x.SoTien) ?? 0L;
+        var remaining = Math.Max(0L, checked(total - paid));
+        var today = DateOnly.FromDateTime(clock.UtcNow.AddHours(7));
+        var overdue = invoice.TrangThai == "DA_PHAT_HANH" && remaining > 0 && today > invoice.HanThanhToan;
+        var model = new ChiTietHoaDonViewModel
+        {
+            HoaDon = invoice,
+            KhachXem = true,
+            MaPhong = context.MaPhong,
+            ToaNhaId = context.ToaNhaId,
+            TenToaNha = context.TenToaNha,
+            TenKhach = tenant ?? "",
+            TongCong = total,
+            SoDaThanhToan = paid,
+            SoConPhaiTra = remaining,
+            QuaHan = overdue,
+            SoNgayTre = overdue ? today.DayNumber - invoice.HanThanhToan.DayNumber : 0
+        };
         await invoices.FillRelationsAsync(model, Actor);
         return View("~/Views/HoaDonDichVu/Details.cshtml", model);
     }
@@ -90,6 +112,18 @@ public sealed class ThongBaoController(AppDbContext db, QL_PhongTro.Services.Hoa
                 x.ThanhTien))
             .ToListAsync(cancellationToken);
 
+        var total = lines.Aggregate(0L, (sum, line) =>
+            checked(sum + (line.LoaiKhoan == "GIAM_TRU" ? -line.ThanhTien : line.ThanhTien)));
+        var paid = await db.ThanhToans.AsNoTracking()
+            .Where(x => x.HoaDonId == invoice.Bill.Id && x.TrangThai == "DA_XAC_NHAN")
+            .SumAsync(x => (long?)x.SoTien, cancellationToken) ?? 0L;
+        var remaining = Math.Max(0L, checked(total - paid));
+        var today = DateOnly.FromDateTime(clock.UtcNow.AddHours(7));
+        var overdue = invoice.Bill.TrangThai == "DA_PHAT_HANH"
+            && remaining > 0
+            && today > invoice.Bill.HanThanhToan;
+        var daysLate = overdue ? today.DayNumber - invoice.Bill.HanThanhToan.DayNumber : 0;
+
         return Ok(new ChiTietHoaDonKhachViewModel(
             invoice.Bill.MaHoaDon,
             invoice.Bill.Thang,
@@ -104,6 +138,13 @@ public sealed class ThongBaoController(AppDbContext db, QL_PhongTro.Services.Hoa
                     : x.SoLuong).ToString("0.###", culture),
                 x.DonViTinh ?? (x.LoaiKhoan == "TIEN_PHONG" ? "tháng" : ""),
                 x.DonGia.ToString("N0", culture),
-                x.ThanhTien.ToString("N0", culture))).ToArray()));
+                x.ThanhTien.ToString("N0", culture),
+                x.LoaiKhoan)).ToArray(),
+            total,
+            paid,
+            remaining,
+            invoice.Bill.HanThanhToan.ToString("dd/MM/yyyy", culture),
+            overdue,
+            daysLate));
     }
 }

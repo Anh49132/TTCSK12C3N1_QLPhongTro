@@ -1,10 +1,17 @@
-# 09/10/2026 — S3-07: chi tiết hóa đơn khách thuê
+# 10/10/2026 — S3-07 AC2–AC3: tổng kết và hạn thanh toán hóa đơn khách thuê
+
+- PO chốt: tổng cộng lấy các dòng chi tiết, phụ phí cộng và giảm trừ trừ; tiền cọc/công nợ kỳ trước không gộp. Hạn mặc định là ngày phát hành + 7 ngày và được lưu trên hóa đơn. Chỉ khoản thanh toán `DA_XAC_NHAN` được cộng; trả dư vẫn giữ số đã trả thực tế nhưng công nợ tối thiểu bằng 0.
+- Quá hạn khi hóa đơn đã phát hành, còn phải trả > 0 và ngày Việt Nam đã qua hạn (ngày hạn chưa quá hạn). Số ngày trễ là hiệu ngày lịch; nhãn đỏ “Quá hạn N ngày” không hiện khi chưa quá hạn hoặc đã trả đủ.
+- Thêm bảng lưu các khoản thanh toán với số tiền, ngày và trạng thái; updater cộng thêm schema v23, giữ nguyên dữ liệu cũ và kiểm tra FK. Endpoint khách thuê trả tổng cộng, đã thanh toán, còn phải trả, hạn `dd/MM/yyyy`, cờ quá hạn/số ngày trễ. Cả hai đường chi tiết hóa đơn của khách hiển thị đủ bốn dòng tổng kết; trang dòng chi tiết đặt nhãn cạnh hạn.
+- Demo S3-08 có các hóa đơn mẫu chưa trả, trả một phần, trả đủ, quá hạn nhiều ngày, quá hạn một ngày, đúng hạn, chưa đến hạn và trả dư; mã ghi tại `tenant-invoice-samples.txt`. Chưa có danh sách hóa đơn/lọc kỳ/lọc trạng thái thanh toán.
+- Xác minh: 12/12 test có tên `Invoice` PASS (bao gồm tổng kết, nhiều khoản thanh toán, trả dư, biên ngày/múi giờ Việt Nam, quyền và render chi tiết); 3/3 test chi tiết tổng kết/schema PASS; build ứng dụng và `verification/S308` PASS; demo trên bản sao mới tạo đủ 8 kịch bản, cùng Nháp tháng cho bản chuẩn bị. `git diff --check` PASS. Build có cảnh báo ImageSharp thiếu license và CS8601 có sẵn trong `AuthController`.
+- Chưa kiểm tra trực quan bằng trình duyệt, Safari/thiết bị thật, SMTP thật hoặc database người dùng thật. Bảng thanh toán v23 hiện chỉ lưu phần tối thiểu phục vụ tổng kết AC2/AC3, chưa triển khai đầy đủ luồng thu tiền S4.
+
+## 09/10/2026 — S3-07 AC1: chi tiết dòng hóa đơn khách thuê
 
 - PO chốt cho AC1: tiền phòng cố định; điện/nước theo chỉ số; dịch vụ cấu hình, Internet và phí dịch vụ theo giá cố định; không dùng khoán theo người trong danh sách AC này; tiêu thụ giữ tối đa 3 chữ số thập phân; làm tròn thành tiền từng dòng tới đồng `AwayFromZero`; tiền hiển thị VND, dấu chấm phân tách nghìn và hậu tố `đ`; khoản không có chỉ số hiển thị `—`; điện không tính bậc thang.
-- Bổ sung trang mở trực tiếp theo mã hóa đơn và endpoint dữ liệu cho `KHACH_THUE`. Chỉ trả bản đã phát hành/đã hủy mà hồ sơ đứng tên hợp đồng liên kết đúng tài khoản đang đăng nhập; hóa đơn người khác, mã không có, Nháp và schema hóa đơn chưa cài trả cùng 404 “Không tìm thấy hóa đơn.”. Trang có trạng thái tải/lỗi, kỳ hóa đơn, phòng và các dòng snapshot theo thứ tự lưu; không thêm tổng, thanh toán, công nợ, hạn hay danh sách hóa đơn.
-- Không đổi schema, cập nhật giá hay chạy updater trên database local. Bổ sung fixture test nhiều khoản và seeder chỉ dùng bản sao S3-08 dưới `data/s308-demo/`; `Start-S308Demo.ps1` tạo hóa đơn giả có tiền phòng, điện, nước, Internet, phí dịch vụ và ghi mã vào `tenant-invoice-code.txt` đã ignore. Giá trong demo được ghi rõ là minh họa, không dùng cho nghiệp vụ thật.
-- Xác minh: 2/2 test mục tiêu + hồi quy snapshot PASS; build `verification/S308` PASS. Tạo dữ liệu mẫu trên database mới cô lập, đăng nhập khách thuê giả trong trình duyệt, mở đường dẫn trực tiếp và thấy 5 dòng đúng thứ tự, chỉ số/sản lượng/đơn giá/thành tiền cùng quy ước hiển thị. Database demo thử, backup, credential và server đã dừng/dọn; database mặc định vẫn không tồn tại. `node` chưa có trong môi trường nên không chạy được `node --check`; trình duyệt thực tế đã thực thi JavaScript thành công.
-- Còn chưa nghiệm thu viewport 360px/Safari, SMTP thật và database người dùng thật; không commit/push.
+- Trang mở trực tiếp theo mã hóa đơn và endpoint dữ liệu giới hạn hóa đơn đã phát hành/đã hủy cho `KHACH_THUE` đứng tên hợp đồng; các trường hợp không có quyền trả cùng 404. Giữ snapshot các dòng, không trả thông tin cá nhân khác.
+- AC1 trước đó đã kiểm thử trên SQLite tạm; demo sử dụng bản sao S3-08, không thao tác database local.
 
 ## Bổ sung quyết định PO — chặn dịch vụ khoán theo người
 

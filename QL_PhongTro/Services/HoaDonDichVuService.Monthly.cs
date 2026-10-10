@@ -157,7 +157,7 @@ public sealed partial class HoaDonDichVuService
                     SoLuong = quantity, DonGia = price.DonGia, ThanhTien = ThanhTien(quantity, price.DonGia)
                 });
             }
-            invoice.TongTien = invoice.ChiTiet.Aggregate(0L, (sum, line) => checked(sum + line.ThanhTien));
+            invoice.TongTien = TongCong(invoice.ChiTiet);
             var tenant = await db.KhachThues.AsNoTracking().Where(x => x.Id == h.KhachDungTenId).Select(x => x.HoTen).SingleOrDefaultAsync();
             model.DuKien.Add(new(context.Room.MaPhong, invoice, readings) { Tang = context.Room.Tang, TenKhach = tenant ?? "", PhienBanPhong = context.Room.PhienBan });
         }

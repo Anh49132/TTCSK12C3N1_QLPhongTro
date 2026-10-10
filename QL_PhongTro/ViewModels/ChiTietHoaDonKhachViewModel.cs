@@ -7,7 +7,13 @@ public sealed record ChiTietHoaDonKhachViewModel(
     int Thang,
     int Nam,
     string MaPhong,
-    IReadOnlyList<ChiTietHoaDonKhachLineResponse> ChiTiet);
+    IReadOnlyList<ChiTietHoaDonKhachLineResponse> ChiTiet,
+    long TongCong,
+    long SoDaThanhToan,
+    long SoConPhaiTra,
+    string HanThanhToan,
+    bool QuaHan,
+    int SoNgayTre);
 
 public sealed record ChiTietHoaDonKhachLineViewModel(
     string TenKhoan,
@@ -26,4 +32,5 @@ public sealed record ChiTietHoaDonKhachLineResponse(
     string SoLuongTieuThu,
     string DonViTinh,
     string DonGia,
-    string ThanhTien);
+    string ThanhTien,
+    string LoaiKhoan);

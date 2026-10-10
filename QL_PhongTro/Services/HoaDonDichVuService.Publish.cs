@@ -41,7 +41,7 @@ public sealed partial class HoaDonDichVuService
             if (ThanhTien(line.SoLuong, line.DonGia) != line.ThanhTien)
                 throw new InvalidOperationException("Thành tiền không khớp chi tiết. Hãy lưu và kiểm tra lại bản nháp.");
         }
-        if (TongNhap(bill.ChiTiet) < 0 || TongNhap(bill.ChiTiet) != bill.TongTien)
+        if (TongCong(bill.ChiTiet) < 0 || TongCong(bill.ChiTiet) != bill.TongTien)
             throw new InvalidOperationException("Tổng tiền không khớp các khoản trên hóa đơn.");
         var recipient = await (from tenant in db.KhachThues join account in db.TaiKhoans on tenant.TaiKhoanId equals account.Id
             where tenant.Id == context.KhachDungTenId && account.VaiTro == "KHACH_THUE" && account.DangHoatDong && !account.IsDeleted
