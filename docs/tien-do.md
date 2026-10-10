@@ -1,3 +1,18 @@
+## 10/10/2026 — Chủ nhà chốt chỉ số điện nước như quản lý
+
+- Theo yêu cầu mới: ChiSoDienNuoc cho CHU_NHA và QUAN_LY dùng cùng màn hình/form chốt từng phòng. Service đọc vai trò đang hoạt động từ DB: chủ nhà chỉ tòa có chu_nha_id là mình; quản lý chỉ tòa có quan_ly_id là mình. Tòa/phòng/hợp đồng bị giả mạo vẫn bị chặn khi GET và POST.
+- Menu chủ nhà dẫn trực tiếp /ChiSoDienNuoc; đường dẫn /Modules/DIEN_NUOC cũ chuyển tới màn hình nghiệp vụ. Danh sách phòng thiếu thêm Nhập chỉ số cho kỳ hiện tại (ngày Việt Nam qua ITimeProvider), giữ Xem phòng cho kỳ cũ. Ghi nhận nguoi_nhap_id là tài khoản thao tác.
+- Giữ quyền module DIEN_NUOC (WRITE khi lưu), CSRF, chỉ số không giảm, kiểm tra phiên bản/chống ghi đè giữa chủ nhà và quản lý, cảnh báo tiêu thụ bất thường và khóa kỳ sau phát hành. Không sửa DB thật, schema, dữ liệu phân quyền hoặc mở quyền đã bị thu hồi.
+- Kiểm thử mới: chủ nhà lưu và ghi đúng người nhập; GET/POST tòa khác bị chặn cả khi được gán là quản lý; READ/NONE và khóa hóa đơn vẫn chặn lưu; quản lý dùng form cũ sau chủ nhà lưu không ghi đè được. Cập nhật hai kỳ vọng test cũ vốn chặn chủ nhà theo yêu cầu trước đây.
+- Build PASS; 104/104 kiểm thử nhóm MeterReadingListTests, MeterUsageWarningTests, tiến độ và phòng thiếu PASS; git diff --check PASS. Chưa kiểm tra trực quan trình duyệt/360px. Khởi động lại ứng dụng để nhận thay đổi.
+
+## 10/10/2026 — Thiết kế lại tiến độ chốt chỉ số S3-10
+
+- Màn hình theo kỳ: bốn ô thống kê, cảnh báo đến ngày chốt, bảng theo tòa có người quản lý phụ trách, tổng/đã chốt/còn thiếu, thanh tiến độ và trạng thái khóa riêng. Tìm theo tên tòa, lọc trạng thái, xuất CSV các tòa đang hiển thị với UTF-8 BOM và xử lý ô có tiền tố công thức. Dữ liệu hiển thị lấy từ service hiện hành, không dùng số hoặc ảnh mẫu.
+- Bấm số phòng thiếu/Xem chi tiết mở dialog bên phải qua partial của endpoint PhongConThieu, vẫn kiểm tra vai trò/quyền sở hữu; mở liên kết bình thường vẫn có trang đầy đủ. Danh sách nêu phòng/tầng/người quản lý, hỗ trợ trạng thái trống và liên kết xem phòng. Không thêm nút nhập chỉ số cho chủ nhà vì controller nhập hiện chỉ cho QUAN_LY. Không suy đoán phòng thiếu điện hay nước khi dữ liệu service hiện chỉ trả kết quả hoàn tất chung; thiếu cấu hình giá cũng có thể khiến phòng chưa hoàn tất.
+- Giữ nguyên cơ chế khóa kỳ sau phát hành và cảnh báo trang chủ; không đổi quyền, schema hoặc DB thật. CSS/JS riêng cho màn hình tiến độ; bảng cuộn trong khung trên điện thoại, dialog rộng tối đa màn hình.
+- Build PASS; 11/11 kiểm thử tiến độ/phòng thiếu/quyền/cảnh báo và khóa sau phát hành PASS. HTTP demo: tiến độ và hai tòa ở cả chế độ trang đầy đủ/partial trả 200, CSS/JS 200. git diff --check PASS. Chưa kiểm tra trực quan 360px/Safari hoặc thao tác dialog/lọc/xuất trong trình duyệt do không có trình duyệt kết nối. Khởi động lại app để nhận Razor mới.
+
 ## 10/10/2026 — Yêu cầu của tôi và chi tiết yêu cầu theo ảnh mẫu
 
 - Khách thuê xem danh sách với bốn thống kê, lịch hẹn sắp tới, tab loại yêu cầu, tìm theo mã/phòng/tòa và lọc trạng thái trên dữ liệu chỉ thuộc chính mình. Danh sách có liên kết chi tiết, menu mở tin/hủy; giữ giao diện chủ nhà/quản lý/admin. Thống kê tính toàn bộ yêu cầu, lọc chỉ tác động các hàng hiển thị.

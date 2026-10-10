@@ -33,7 +33,7 @@
             ("Vận hành", "Tin đăng cho thuê", "/TinDang/QuanLy", "TIN_DANG", "speaker"),
             ("Vận hành", "Yêu cầu thuê & lịch xem", "/YeuCau", "YEU_CAU_THUE", "calendar"),
             ("Vận hành", "Hợp đồng & người ở ghép", "/Modules/HOP_DONG", "HOP_DONG", "file"),
-            ("Tài chính", "Chỉ số điện nước", User.IsInRole("QUAN_LY") ? "/ChiSoDienNuoc" : "/Modules/DIEN_NUOC", "DIEN_NUOC", "meter"),
+            ("Tài chính", "Chỉ số điện nước", (User.IsInRole("QUAN_LY") || owner) ? "/ChiSoDienNuoc" : "/Modules/DIEN_NUOC", "DIEN_NUOC", "meter"),
             ("Tài chính", "Hóa đơn, thanh toán", "/Modules/TAI_CHINH", "TAI_CHINH", "wallet"),
             ("Tài chính", "Công nợ", "/Modules/TAI_CHINH?section=cong-no", "TAI_CHINH", "money"),
             ("Tài chính", "Báo cáo doanh thu", "/Modules/BAO_CAO", "BAO_CAO", "chart"),

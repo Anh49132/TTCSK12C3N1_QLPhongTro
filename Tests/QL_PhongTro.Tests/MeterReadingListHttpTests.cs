@@ -51,7 +51,7 @@ public sealed partial class MeterReadingListTests
     {
         using var factory=Factory();using var guest=factory.CreateClient(new(){AllowAutoRedirect=false});
         Assert.Equal(HttpStatusCode.Redirect,(await guest.GetAsync("/ChiSoDienNuoc")).StatusCode);
-        foreach(var email in new[]{"owner@meter.test","tenant@meter.test","admin@meter.test"})
+        foreach(var email in new[]{"tenant@meter.test","admin@meter.test"})
         {using var client=await Login(factory,email);Assert.Equal(HttpStatusCode.Forbidden,(await client.GetAsync("/ChiSoDienNuoc")).StatusCode);Assert.Equal(HttpStatusCode.OK,(await client.GetAsync("/Modules/DIEN_NUOC")).StatusCode);}
         using var manager=await Login(factory,"manager@meter.test");using var other=await Login(factory,"other@meter.test");
         Assert.Equal(HttpStatusCode.Forbidden,(await other.GetAsync("/ChiSoDienNuoc?toaNhaId=1")).StatusCode);

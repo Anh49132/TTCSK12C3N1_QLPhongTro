@@ -9,7 +9,7 @@ using Microsoft.Data.Sqlite;
 
 namespace QL_PhongTro.Controllers;
 
-[Authorize(Roles = "QUAN_LY"), ModuleAccess("DIEN_NUOC")]
+[Authorize(Roles = "CHU_NHA,QUAN_LY"), ModuleAccess("DIEN_NUOC")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class ChiSoDienNuocController(ChiSoDienNuocService readings) : Controller
 {

@@ -10,6 +10,8 @@ public sealed class TienDoChiSoViewModel
     [Range(1, 12, ErrorMessage = "Tháng theo dõi không hợp lệ.")]
     public int Thang { get; set; }
 
+    public DateTime CapNhatLuc { get; set; }
+    public List<HomeMeterAlert> CanhBaos { get; set; } = [];
     public List<TienDoChiSoToaNha> ToaNhas { get; set; } = [];
 }
 
@@ -19,7 +21,10 @@ public sealed record TienDoChiSoToaNha(
     int TongPhongDangThue,
     int SoPhongDaChot,
     int SoPhongConThieu,
-    bool KyDaKhoa);
+    bool KyDaKhoa)
+{
+    public string? TenQuanLy { get; init; }
+}
 
 public sealed record PhongConThieuViewModel(
     int ToaNhaId,

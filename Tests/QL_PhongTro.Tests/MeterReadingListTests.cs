@@ -120,8 +120,8 @@ public sealed partial class MeterReadingListTests : IDisposable
     [Theory][InlineData(null,null,"THEO_CHI_SO")][InlineData(10,null,"THEO_CHI_SO")][InlineData(10,20,"THEO_NGUOI")]
     public async Task CurrentInvoiceWithoutBothRealMetersRemainsUnclosed(int? electricity,int? water,string type)
     {Invoice(1,1,10,electricity:electricity,water:water,type:type);Assert.False(Assert.Single((await List()).Phongs,x=>x.PhongId==1).DaChot);}
-    [Fact] public async Task ForeignBuildingAndNonManagerForbidden()
-    { await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>List(building:2));await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>List(actor:1)); }
+    [Fact] public async Task ForeignBuildingAndUnsupportedRoleForbidden()
+    { await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>List(building:2));Assert.Equal(1,(await List(actor:1)).ToaNhaId);await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>List(actor:4));await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>List(actor:5)); }
     [Fact] public async Task OptionalInvoiceModuleMissingStillListsRooms()
     {
         var optionalPath = Path.Combine(Path.GetTempPath(), "s305-no-invoices-" + Guid.NewGuid().ToString("N") + ".sqlite");

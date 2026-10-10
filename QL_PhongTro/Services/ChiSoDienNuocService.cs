@@ -14,12 +14,14 @@ public sealed partial class ChiSoDienNuocService(AppDbContext db, ITimeProvider 
 
     public async Task<ChiSoDienNuocViewModel> DanhSachAsync(int accountId, int? toaNhaId, CancellationToken ct = default)
     {
-        if (!await db.TaiKhoans.AsNoTracking().AnyAsync(x => x.Id == accountId && x.VaiTro == "QUAN_LY"
-                && x.DangHoatDong && !x.IsDeleted, ct)) throw new UnauthorizedAccessException();
+        var role = await db.TaiKhoans.AsNoTracking()
+            .Where(x => x.Id == accountId && x.DangHoatDong && !x.IsDeleted)
+            .Select(x => x.VaiTro).SingleOrDefaultAsync(ct);
+        if (role is not ("CHU_NHA" or "QUAN_LY")) throw new UnauthorizedAccessException();
         var today = DateOnly.FromDateTime(clock.UtcNow.AddHours(7));
         var model = new ChiSoDienNuocViewModel { DauKy = new(today.Year, today.Month, 1) };
         model.ToaNhas = await db.ToaNhas.AsNoTracking()
-            .Where(x => x.QuanLyId == accountId && x.DangHoatDong).OrderBy(x => x.TenToaNha).ThenBy(x => x.Id)
+            .Where(x => x.DangHoatDong && (role == "CHU_NHA" ? x.ChuNhaId == accountId : x.QuanLyId == accountId)).OrderBy(x => x.TenToaNha).ThenBy(x => x.Id)
             .Select(x => new ToaNhaGhiChiSo(x.Id, x.TenToaNha)).ToListAsync(ct);
         if (toaNhaId.HasValue && !model.ToaNhas.Any(x => x.Id == toaNhaId)) throw new UnauthorizedAccessException();
         model.ToaNhaId = toaNhaId ?? model.ToaNhas.FirstOrDefault()?.Id;

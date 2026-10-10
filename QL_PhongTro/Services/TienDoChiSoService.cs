@@ -83,7 +83,7 @@ public sealed class TienDoChiSoService(AppDbContext db)
         }
         var buildings = await ownerBuildings
             .OrderBy(x => x.TenToaNha)
-            .Select(x => new { x.Id, x.TenToaNha })
+            .Select(x => new { x.Id, x.TenToaNha, ManagerName = db.TaiKhoans.Where(a => a.Id == x.QuanLyId).Select(a => a.HoTen).FirstOrDefault() })
             .ToListAsync(ct);
         var first = new DateOnly(year, month, 1);
         var last = first.AddMonths(1).AddDays(-1);
@@ -111,7 +111,7 @@ public sealed class TienDoChiSoService(AppDbContext db)
                 var counts = summaries.GetValueOrDefault(building.Id);
                 var total = counts.Total;
                 return new TienDoChiSoToaNha(building.Id, building.TenToaNha, total, counts.Confirmed,
-                    total - counts.Confirmed, lockedBuildings.Contains(building.Id));
+                    total - counts.Confirmed, lockedBuildings.Contains(building.Id)) { TenQuanLy = building.ManagerName };
             }).ToList()
         };
     }
