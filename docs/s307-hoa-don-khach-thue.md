@@ -31,14 +31,22 @@ Các dòng đã lưu tiếp tục là snapshot bất biến của hóa đơn. Kh
 - Mở `/ThongBao/ChiTiet?maHoaDon=<mã>` để xem trang chi tiết. Trang lấy dữ liệu từ `/ThongBao/ChiTietDuLieu?maHoaDon=<mã>`.
 - Chỉ tài khoản `KHACH_THUE` có hồ sơ đứng tên hợp đồng được truy vấn hóa đơn đã phát hành. Hóa đơn của tài khoản khác, mã không tồn tại, bản Nháp hoặc module chưa cài trả cùng HTTP 404 và thông báo “Không tìm thấy hóa đơn.”
 - Trang có trạng thái đang tải/lỗi, kỳ hóa đơn, phòng, bảng khoản mục theo `so_thu_tu` và bốn dòng tổng kết: tổng cộng, đã thanh toán, còn phải trả, hạn thanh toán. Hai cột chỉ số để `—` với khoản cố định. Nhãn quá hạn nằm gần hạn và chỉ hiện khi còn nợ, sau ngày hạn.
-- Cả `/ThongBao/ChiTiet` và chi tiết từ thông báo (`/ThongBao/HoaDon/{id}`) hiển thị phần tổng kết. Chưa có danh sách hóa đơn, lọc theo kỳ hoặc lọc trạng thái thanh toán.
+- Cả `/ThongBao/ChiTiet` và chi tiết từ thông báo (`/ThongBao/HoaDon/{id}`) hiển thị phần tổng kết. Trang `/ThongBao/DanhSach` và dữ liệu `/ThongBao/DanhSachDuLieu` chỉ trả hóa đơn đã phát hành của khách đang đăng nhập; không phụ thuộc bản ghi thông báo và không trả bản nháp/bản đã hủy.
 - Dữ liệu cá nhân của khách khác và các trường quản trị nội bộ không được trả về.
+
+## AC4: danh sách và bộ lọc
+
+- PO chốt sắp xếp mặc định theo kỳ mới nhất trước; nếu cùng kỳ, mã hóa đơn mới tạo hơn trước. Phân trang 10 hóa đơn/trang.
+- Danh sách có các cột mã hóa đơn, kỳ, tổng cộng, còn phải trả, hạn thanh toán và trạng thái. Bộ lọc kỳ chọn một tháng (`yyyy-MM`); bộ lọc trạng thái chọn một giá trị hoặc “Tất cả”. Hai bộ lọc được kết hợp bằng điều kiện AND.
+- Trạng thái suy ra từ các khoản `DA_XAC_NHAN`: còn 0 đồng là `Đã thanh toán`; còn nợ và đã quá hạn là `Quá hạn`; còn nợ, chưa quá hạn và đã trả một phần là `Thanh toán một phần`; các trường hợp còn lại là `Chưa thanh toán`. Quá hạn chỉ khi ngày Việt Nam đã qua hạn, không phải đúng ngày hạn. Nhãn `Quá hạn N ngày` trên dòng danh sách dùng cùng quy tắc với trang chi tiết.
+- Kỳ phải đúng định dạng tháng `yyyy-MM`; trạng thái ngoài danh mục bị từ chối với HTTP 400 và thông báo cụ thể. Trang phân biệt “Bạn chưa có hóa đơn nào.” với “Không có hóa đơn nào khớp bộ lọc.”; lỗi tải danh sách cũng được thông báo.
+- Chọn hóa đơn mở chi tiết; đường quay lại giữ kỳ, trạng thái và trang hiện tại. Xóa bộ lọc quay về trang đầu của toàn bộ danh sách. Danh sách, bộ lọc và chi tiết đều được giới hạn theo tài khoản khách thuê ở backend.
 
 ## Demo trên database demo S3-08
 
 Chạy `.\verification\Start-S308Demo.ps1` để cập nhật và chuẩn bị dữ liệu trên bản sao nằm trong `data/s308-demo/`; script không dùng database mặc định. Bộ demo giữ hóa đơn chi tiết AC1 (giá dịch vụ chỉ minh họa) và tạo các hóa đơn mẫu thanh toán/quá hạn riêng. Mã mẫu được ghi trong `tenant-invoice-samples.txt`.
 
-Đăng nhập bằng tài khoản khách thuê giả trong `access.json` của bộ Sprint 2 nguồn, chọn mã trong `tenant-invoice-samples.txt` hoặc `tenant-invoice-code.txt` trong thư mục database demo, rồi mở:
+Đăng nhập bằng tài khoản khách thuê giả trong `access.json` của bộ Sprint 2 nguồn, mở `/ThongBao/DanhSach` để xem nhiều kỳ với các trạng thái. Mã hóa đơn của một khách khác cũng được ghi trong `tenant-invoice-samples.txt` để xác minh không xuất hiện trong danh sách của khách hiện tại. Chọn một hóa đơn trong danh sách để mở chi tiết; bộ lọc được giữ khi quay lại. Có thể mở riêng hóa đơn chi tiết AC1 bằng mã trong `tenant-invoice-code.txt`:
 
 ```text
 /ThongBao/ChiTiet?maHoaDon=<mã trong tenant-invoice-code.txt>
@@ -49,7 +57,9 @@ Không đưa database, file mã, credential hoặc backup demo vào Git.
 ## Kiểm thử
 
 ```powershell
-dotnet test Tests\QL_PhongTro.Tests\QL_PhongTro.Tests.csproj --filter "FullyQualifiedName~TenantCanOpenOnlyTheirPublishedInvoiceByCodeAndSeeAllOrderedLines|FullyQualifiedName~TenantInvoiceSummaryReflectsPaymentsDiscountsAndVietnamDueDates|FullyQualifiedName~Version23AddsPaymentHistoryWithoutChangingExistingInvoiceData"
+dotnet test Tests\QL_PhongTro.Tests\QL_PhongTro.Tests.csproj --filter "FullyQualifiedName~TenantCanOpenOnlyTheirPublishedInvoiceByCodeAndSeeAllOrderedLines|FullyQualifiedName~TenantInvoiceSummaryReflectsPaymentsDiscountsAndVietnamDueDates|FullyQualifiedName~Version23AddsPaymentHistoryWithoutChangingExistingInvoiceData|FullyQualifiedName~TenantInvoiceList"
 ```
 
-Kiểm thử dùng SQLite tạm; xác nhận quyền sở hữu, 404 đồng nhất, phép tính tổng/giảm trừ, nhiều khoản thanh toán và các trạng thái tiền, hạn/biên ngày Việt Nam qua tháng/năm, không hiện nhãn khi đủ tiền, HTML tổng kết/nhãn, và updater v23 bảo toàn hóa đơn cùng FK.
+Kiểm thử danh sách dùng SQLite tạm, xác minh quyền sở hữu, dữ liệu rỗng/phân trang/sắp xếp, từng trạng thái, bộ lọc đơn/kết hợp, lỗi kỳ/trạng thái, khớp nhãn quá hạn với chi tiết và giữ bộ lọc khi quay lại. Kiểm thử tổng kết/schema hiện có xác nhận phép tính tổng/giảm trừ, nhiều khoản thanh toán, hạn/biên ngày Việt Nam, không hiện nhãn khi đủ tiền, HTML và updater v23 bảo toàn hóa đơn cùng FK.
+
+Build web/test và tiện ích demo S3-08 đạt 0 lỗi. Chưa xác nhận thực thi bộ test danh sách: lần chạy lại bị Windows Application Control chặn load DLL kiểm thử (`0x800711C7`). Chưa nghiệm thu trực quan trên trình duyệt, Safari hoặc thiết bị 360px.

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,6 +17,113 @@ public sealed class ThongBaoController(
     QL_PhongTro.Services.ITimeProvider clock) : Controller
 {
     private int Actor => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
+
+    [HttpGet]
+    public IActionResult DanhSach(string? ky, string? trangThai, int page = 1)
+    {
+        var status = string.IsNullOrEmpty(trangThai) ? TrangThaiThanhToanHoaDon.TatCa : trangThai;
+        var error = ValidateInvoiceFilters(ky, status, page, out _);
+        if (error is not null) Response.StatusCode = StatusCodes.Status400BadRequest;
+        return View(new HoaDonKhachDanhSachPageViewModel(ky, status, page, error));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> DanhSachDuLieu(
+        string? ky,
+        string? trangThai,
+        int page = 1,
+        CancellationToken cancellationToken = default)
+    {
+        var status = string.IsNullOrEmpty(trangThai) ? TrangThaiThanhToanHoaDon.TatCa : trangThai;
+        var error = ValidateInvoiceFilters(ky, status, page, out var selectedMonth);
+        if (error is not null) return BadRequest(new { message = error });
+        if (!await QL_PhongTro.Services.InvoiceNotificationDispatcher.IsInstalledAsync(db, cancellationToken))
+            return NotFound(new { message = "Chưa có dữ liệu hóa đơn." });
+
+        var invoices = await (from bill in db.HoaDons.AsNoTracking()
+            join contract in db.HopDongs.AsNoTracking() on bill.HopDongId equals contract.Id
+            join profile in db.KhachThues.AsNoTracking() on contract.KhachDungTenId equals profile.Id
+            where profile.TaiKhoanId == Actor && bill.TrangThai == "DA_PHAT_HANH"
+            select new
+            {
+                bill.Id,
+                bill.MaHoaDon,
+                bill.Thang,
+                bill.Nam,
+                bill.HanThanhToan,
+                TongCong = db.ChiTietHoaDons.AsNoTracking().Where(line => line.HoaDonId == bill.Id)
+                    .Sum(line => (long?)(line.LoaiKhoan == "GIAM_TRU" ? -line.ThanhTien : line.ThanhTien)) ?? 0L,
+                DaThanhToan = db.ThanhToans.AsNoTracking()
+                    .Where(payment => payment.HoaDonId == bill.Id && payment.TrangThai == "DA_XAC_NHAN")
+                    .Sum(payment => (long?)payment.SoTien) ?? 0L
+            }).ToListAsync(cancellationToken);
+
+        var today = DateOnly.FromDateTime(clock.UtcNow.AddHours(7));
+        var summaries = invoices.Select(invoice =>
+        {
+            var remaining = Math.Max(0L, checked(invoice.TongCong - invoice.DaThanhToan));
+            var overdue = remaining > 0 && today > invoice.HanThanhToan;
+            var paymentStatus = remaining == 0
+                ? TrangThaiThanhToanHoaDon.DaThanhToan
+                : overdue
+                    ? TrangThaiThanhToanHoaDon.QuaHan
+                    : invoice.DaThanhToan > 0
+                        ? TrangThaiThanhToanHoaDon.ThanhToanMotPhan
+                        : TrangThaiThanhToanHoaDon.ChuaThanhToan;
+            var lateDays = overdue ? today.DayNumber - invoice.HanThanhToan.DayNumber : 0;
+            var paymentStatusLabel = paymentStatus switch
+            {
+                TrangThaiThanhToanHoaDon.DaThanhToan => "Đã thanh toán",
+                TrangThaiThanhToanHoaDon.QuaHan => "Quá hạn",
+                TrangThaiThanhToanHoaDon.ThanhToanMotPhan => "Thanh toán một phần",
+                _ => "Chưa thanh toán"
+            };
+            return new
+            {
+                invoice.Id,
+                invoice.MaHoaDon,
+                invoice.Thang,
+                invoice.Nam,
+                invoice.HanThanhToan,
+                invoice.TongCong,
+                SoConPhaiTra = remaining,
+                TrangThai = paymentStatus,
+                TenTrangThai = paymentStatusLabel,
+                QuaHan = overdue,
+                SoNgayTre = lateDays
+            };
+        }).ToList();
+
+        var totalCount = summaries.Count;
+        if (selectedMonth is { } month)
+            summaries = summaries.Where(invoice => invoice.Nam == month.Year && invoice.Thang == month.Month).ToList();
+        if (status != TrangThaiThanhToanHoaDon.TatCa)
+            summaries = summaries.Where(invoice => invoice.TrangThai == status).ToList();
+
+        var filteredCount = summaries.Count;
+        var pages = Math.Max(1, (filteredCount + 9) / 10);
+        page = Math.Min(page, pages);
+        var rows = summaries.OrderByDescending(invoice => invoice.Nam)
+            .ThenByDescending(invoice => invoice.Thang)
+            .ThenByDescending(invoice => invoice.Id)
+            .Skip((page - 1) * 10)
+            .Take(10)
+            .Select(invoice => new HoaDonKhachDanhSachItem(
+                invoice.MaHoaDon,
+                invoice.Thang,
+                invoice.Nam,
+                invoice.TongCong,
+                invoice.SoConPhaiTra,
+                invoice.HanThanhToan.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("vi-VN")),
+                invoice.TrangThai,
+                invoice.TenTrangThai,
+                invoice.QuaHan,
+                invoice.SoNgayTre))
+            .ToArray();
+
+        return Ok(new HoaDonKhachDanhSachResponse(totalCount, filteredCount, pages, page, rows));
+    }
+
     public async Task<IActionResult> Index(int page = 1)
     {
         if (!await QL_PhongTro.Services.InvoiceNotificationDispatcher.IsInstalledAsync(db)) return NotFound();
@@ -77,10 +185,14 @@ public sealed class ThongBaoController(
     }
 
     [HttpGet]
-    public IActionResult ChiTiet(string maHoaDon)
+    public IActionResult ChiTiet(string maHoaDon, string? ky = null, string? trangThai = null, int page = 1)
     {
         if (string.IsNullOrWhiteSpace(maHoaDon)) return NotFound();
-        return View(new ChiTietHoaDonKhachPageViewModel(maHoaDon));
+        return View(new ChiTietHoaDonKhachPageViewModel(
+            maHoaDon,
+            ky,
+            string.IsNullOrWhiteSpace(trangThai) ? TrangThaiThanhToanHoaDon.TatCa : trangThai,
+            page));
     }
 
     [HttpGet]
@@ -146,5 +258,34 @@ public sealed class ThongBaoController(
             invoice.Bill.HanThanhToan.ToString("dd/MM/yyyy", culture),
             overdue,
             daysLate));
+    }
+
+    private static string? ValidateInvoiceFilters(
+        string? period,
+        string status,
+        int page,
+        out DateOnly? selectedMonth)
+    {
+        selectedMonth = null;
+        if (!string.IsNullOrEmpty(period))
+        {
+            if (period.Length != 7 || period[4] != '-'
+                || !period.Take(4).All(char.IsAsciiDigit)
+                || !period.Skip(5).All(char.IsAsciiDigit)
+                || !DateOnly.TryParseExact(period + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var month))
+                return "Kỳ hóa đơn phải đúng định dạng yyyy-MM.";
+            selectedMonth = month;
+        }
+
+        if (status is not (TrangThaiThanhToanHoaDon.TatCa
+            or TrangThaiThanhToanHoaDon.ChuaThanhToan
+            or TrangThaiThanhToanHoaDon.ThanhToanMotPhan
+            or TrangThaiThanhToanHoaDon.DaThanhToan
+            or TrangThaiThanhToanHoaDon.QuaHan))
+            return "Trạng thái thanh toán không hợp lệ.";
+
+        if (page < 1) return "Số trang phải lớn hơn 0.";
+        return null;
     }
 }

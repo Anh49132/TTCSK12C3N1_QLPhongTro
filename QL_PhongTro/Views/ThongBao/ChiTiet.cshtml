@@ -3,7 +3,11 @@
     ViewData["Title"] = "Chi tiết hóa đơn";
 }
 <section class="container py-4 tenant-invoice-detail" data-invoice-url="@Url.Action("ChiTietDuLieu", "ThongBao", new { maHoaDon = Model.MaHoaDon })">
-    <a asp-action="Index" class="btn btn-outline-secondary mb-3">← Thông báo hóa đơn</a>
+    <a asp-action="DanhSach"
+       asp-route-ky="@Model.Ky"
+       asp-route-trangThai="@(Model.TrangThai == QL_PhongTro.ViewModels.TrangThaiThanhToanHoaDon.TatCa ? null : Model.TrangThai)"
+       asp-route-page="@(Model.Page > 1 ? Model.Page : null)"
+       class="btn btn-outline-secondary mb-3">← Danh sách hóa đơn</a>
     <h1 class="h3">Chi tiết hóa đơn</h1>
     <div id="tenant-invoice-loading" class="alert alert-info" role="status" aria-live="polite">
         Đang tải chi tiết hóa đơn…

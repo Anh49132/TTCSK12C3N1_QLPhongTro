@@ -222,8 +222,10 @@ internal static class PrepareDemo
                 if (!paymentRows.Order().SequenceEqual(expected.Order()))
                     throw new InvalidOperationException($"Payment records for {invoice.MaHoaDon} are incomplete; inspect the demo copy.");
             }
+            var otherTenantCode = await PrepareOtherTenantInvoiceAsync(db, ownerId, today);
             await File.WriteAllLinesAsync(samplesFile,
-                samples.Select(x => $"{x.Item2} | HD-DEMO-S307-{x.Item1}"));
+                samples.Select(x => $"{x.Item2} | HD-DEMO-S307-{x.Item1}")
+                    .Append($"Hóa đơn khách thuê khác (không được thấy) | {otherTenantCode}"));
             Console.WriteLine("Tenant payment samples already prepared: " + samplesFile);
             return;
         }
@@ -346,7 +348,128 @@ internal static class PrepareDemo
                 });
         }
         await db.SaveChangesAsync();
-        await File.WriteAllLinesAsync(samplesFile, samples.Select(x => $"{x.Item2} | HD-DEMO-S307-{x.Item1}"));
+        var otherTenantInvoice = await PrepareOtherTenantInvoiceAsync(db, ownerId, today);
+        await File.WriteAllLinesAsync(samplesFile, samples.Select(x => $"{x.Item2} | HD-DEMO-S307-{x.Item1}")
+            .Append($"Hóa đơn khách thuê khác (không được thấy) | {otherTenantInvoice}"));
         Console.WriteLine($"Tenant payment samples ready for {selection.Room}: {samplesFile}");
+    }
+
+    private static async Task<string> PrepareOtherTenantInvoiceAsync(AppDbContext db, int ownerId, DateOnly today)
+    {
+        const string code = "HD-DEMO-S307-OTHER-TENANT";
+        var existing = await (from existingInvoice in db.HoaDons.AsNoTracking()
+            join existingContract in db.HopDongs.AsNoTracking() on existingInvoice.HopDongId equals existingContract.Id
+            join existingTenant in db.KhachThues.AsNoTracking() on existingContract.KhachDungTenId equals existingTenant.Id
+            join existingAccount in db.TaiKhoans.AsNoTracking() on existingTenant.TaiKhoanId equals existingAccount.Id
+            join existingRoom in db.PhongTros.AsNoTracking() on existingContract.PhongId equals existingRoom.Id
+            join existingBuilding in db.ToaNhas.AsNoTracking() on existingRoom.ToaNhaId equals existingBuilding.Id
+            where existingInvoice.MaHoaDon == code
+            select new { existingInvoice.TrangThai, existingAccount.Email, existingBuilding.ChuNhaId }).SingleOrDefaultAsync();
+        if (existing is not null)
+        {
+            if (existing.TrangThai != "DA_PHAT_HANH"
+                || existing.Email != RequestDemoSeeder.Tenant2Email
+                || existing.ChuNhaId != ownerId)
+                throw new InvalidOperationException("The other-tenant invoice demo is inconsistent; inspect the copied database.");
+            return code;
+        }
+
+        var tenantId = await (from tenant in db.KhachThues
+            join account in db.TaiKhoans on tenant.TaiKhoanId equals account.Id
+            where account.Email == RequestDemoSeeder.Tenant2Email
+                && account.VaiTro == "KHACH_THUE" && account.DangHoatDong && !account.IsDeleted
+            select tenant.Id).SingleAsync();
+        var buildingId = await (from baseContract in db.HopDongs.AsNoTracking()
+            join baseRoom in db.PhongTros.AsNoTracking() on baseContract.PhongId equals baseRoom.Id
+            join baseBuilding in db.ToaNhas.AsNoTracking() on baseRoom.ToaNhaId equals baseBuilding.Id
+            where baseContract.TrangThai == "DANG_HIEU_LUC" && baseBuilding.ChuNhaId == ownerId
+            orderby baseContract.Id
+            select baseBuilding.Id).FirstAsync();
+        if (await db.PhongTros.AnyAsync(x => x.ToaNhaId == buildingId && x.MaPhong == "S307-FOREIGN"))
+            throw new InvalidOperationException("The other-tenant invoice demo room already exists without its invoice.");
+
+        var now = DateTime.UtcNow;
+        var room = new PhongTro
+        {
+            ToaNhaId = buildingId,
+            MaPhong = "S307-FOREIGN",
+            Tang = 1,
+            DienTich = 20,
+            GiaThue = 1_250_000,
+            TienCocDuKien = 1_250_000,
+            SoNguoiToiDa = 2,
+            TrangThai = "DANG_THUE",
+            MoTa = "Phòng mẫu riêng cho kiểm thử phân quyền hóa đơn.",
+            NgayTao = now
+        };
+        db.PhongTros.Add(room);
+        await db.SaveChangesAsync();
+
+        var contract = new HopDongThamChieu
+        {
+            MaHopDong = "HD-S307-FOREIGN-DEMO",
+            PhongId = room.Id,
+            KhachDungTenId = tenantId,
+            TrangThai = "DANG_HIEU_LUC",
+            NguoiLapId = ownerId,
+            NgayTao = now
+        };
+        db.HopDongs.Add(contract);
+        await db.SaveChangesAsync();
+        var first = new DateOnly(today.Year, today.Month, 1);
+        var term = new KyHopDongThamChieu
+        {
+            HopDongId = contract.Id,
+            SoThuTu = 1,
+            NgayBatDau = first.AddYears(-1),
+            NgayKetThuc = first.AddYears(2).AddDays(-1),
+            SoThang = 36,
+            GiaThue = room.GiaThue,
+            NguoiLapId = ownerId,
+            NgayTao = now
+        };
+        db.KyHopDongs.Add(term);
+        await db.SaveChangesAsync();
+        var bill = new HoaDon
+        {
+            MaHoaDon = code,
+            HopDongId = contract.Id,
+            Thang = first.Month,
+            Nam = first.Year,
+            TuNgay = first,
+            DenNgay = first.AddMonths(1).AddDays(-1),
+            NgayChot = first.AddMonths(1).AddDays(-1),
+            SoNguoiTinhPhi = 1,
+            NgayLap = now,
+            HanThanhToan = today.AddDays(7),
+            TongTien = room.GiaThue,
+            TrangThai = "NHAP",
+            NguoiLapId = ownerId,
+            ChiTiet =
+            [
+                new ChiTietHoaDon
+                {
+                    SoThuTu = 1,
+                    KyHopDongId = term.Id,
+                    LoaiKhoan = "TIEN_PHONG",
+                    TenKhoan = "Tiền phòng",
+                    DonViTinh = "tháng",
+                    SoLuong = 1,
+                    DonGia = room.GiaThue,
+                    ThanhTien = room.GiaThue
+                }
+            ]
+        };
+        db.HoaDons.Add(bill);
+        await db.SaveChangesAsync();
+        await new HoaDonDichVuService(db, new DichVuService(db)).PhatHanhNhapAsync(ownerId, new()
+        {
+            Id = bill.Id,
+            PhienBan = bill.PhienBan,
+            NgayPhatHanh = today,
+            HanThanhToan = today.AddDays(7),
+            XacNhan = true
+        });
+        return code;
     }
 }

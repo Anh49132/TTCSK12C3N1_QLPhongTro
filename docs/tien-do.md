@@ -1,9 +1,17 @@
-# 10/10/2026 — S3-07 AC2–AC3: tổng kết và hạn thanh toán hóa đơn khách thuê
+# 10/10/2026 — S3-07 AC4: danh sách và lọc hóa đơn khách thuê
+
+- PO chốt: kỳ mới nhất lên trước; 10 hóa đơn/trang; chọn một tháng; chọn một trạng thái hoặc “Tất cả”; trạng thái “Quá hạn” thay cho chưa thanh toán/trả một phần sau ngày hạn, còn đã thanh toán giữ nguyên. Kết hợp kỳ + trạng thái bằng AND; phân biệt chưa có hóa đơn với bộ lọc không khớp.
+- Thêm danh sách và endpoint chỉ lấy hóa đơn đã phát hành của khách đang đăng nhập theo hồ sơ đứng tên hợp đồng; tính tổng từ snapshot dòng, chỉ trừ thanh toán đã xác nhận, áp dụng ngày Việt Nam. Lọc/sắp xếp/phân trang ở backend; kỳ `yyyy-MM` và trạng thái ngoài danh mục bị từ chối. Không đổi schema.
+- Màn hình có lọc tháng/trạng thái, xóa lọc, 6 cột, nhãn quá hạn/số ngày trễ, tải/lỗi/rỗng/không khớp; chọn dòng mở chi tiết và giữ bộ lọc/trang khi quay lại. Bổ sung hóa đơn của khách thứ hai trong demo S3-08 để kiểm tra không lộ chéo; giữ 8 tình huống thanh toán qua nhiều kỳ.
+- S3-07 đã triển khai đủ AC1–AC4. Kiểm thử mới `InvoiceTenantListTests` bao gồm phân quyền, 12 hóa đơn/phân trang/thứ tự, đủ trạng thái, lọc đơn/kết hợp/rỗng, kỳ/trạng thái lỗi, nhãn quá hạn đồng nhất với chi tiết và giữ query bộ lọc.
+- Build web + test và build tiện ích demo S3-08: PASS, 0 lỗi. Cảnh báo ImageSharp license, `CS8601` trong `AuthController` và `xUnit2013` hiện có. Chạy test mục tiêu ban đầu phát hiện ngày hạn sai trong dữ liệu test; đã sửa. Lượt chạy lại không khởi chạy được vì Windows Application Control chặn load DLL kiểm thử (`0x800711C7`), nên chưa xác nhận pass/fail runtime cho bộ test mới. Chưa chạy trình duyệt/Safari/thiết bị 360px.
+
+## 10/10/2026 — S3-07 AC2–AC3: tổng kết và hạn thanh toán hóa đơn khách thuê
 
 - PO chốt: tổng cộng lấy các dòng chi tiết, phụ phí cộng và giảm trừ trừ; tiền cọc/công nợ kỳ trước không gộp. Hạn mặc định là ngày phát hành + 7 ngày và được lưu trên hóa đơn. Chỉ khoản thanh toán `DA_XAC_NHAN` được cộng; trả dư vẫn giữ số đã trả thực tế nhưng công nợ tối thiểu bằng 0.
 - Quá hạn khi hóa đơn đã phát hành, còn phải trả > 0 và ngày Việt Nam đã qua hạn (ngày hạn chưa quá hạn). Số ngày trễ là hiệu ngày lịch; nhãn đỏ “Quá hạn N ngày” không hiện khi chưa quá hạn hoặc đã trả đủ.
 - Thêm bảng lưu các khoản thanh toán với số tiền, ngày và trạng thái; updater cộng thêm schema v23, giữ nguyên dữ liệu cũ và kiểm tra FK. Endpoint khách thuê trả tổng cộng, đã thanh toán, còn phải trả, hạn `dd/MM/yyyy`, cờ quá hạn/số ngày trễ. Cả hai đường chi tiết hóa đơn của khách hiển thị đủ bốn dòng tổng kết; trang dòng chi tiết đặt nhãn cạnh hạn.
-- Demo S3-08 có các hóa đơn mẫu chưa trả, trả một phần, trả đủ, quá hạn nhiều ngày, quá hạn một ngày, đúng hạn, chưa đến hạn và trả dư; mã ghi tại `tenant-invoice-samples.txt`. Chưa có danh sách hóa đơn/lọc kỳ/lọc trạng thái thanh toán.
+- Demo S3-08 có các hóa đơn mẫu chưa trả, trả một phần, trả đủ, quá hạn nhiều ngày, quá hạn một ngày, đúng hạn, chưa đến hạn và trả dư; mã ghi tại `tenant-invoice-samples.txt`.
 - Xác minh: 12/12 test có tên `Invoice` PASS (bao gồm tổng kết, nhiều khoản thanh toán, trả dư, biên ngày/múi giờ Việt Nam, quyền và render chi tiết); 3/3 test chi tiết tổng kết/schema PASS; build ứng dụng và `verification/S308` PASS; demo trên bản sao mới tạo đủ 8 kịch bản, cùng Nháp tháng cho bản chuẩn bị. `git diff --check` PASS. Build có cảnh báo ImageSharp thiếu license và CS8601 có sẵn trong `AuthController`.
 - Chưa kiểm tra trực quan bằng trình duyệt, Safari/thiết bị thật, SMTP thật hoặc database người dùng thật. Bảng thanh toán v23 hiện chỉ lưu phần tối thiểu phục vụ tổng kết AC2/AC3, chưa triển khai đầy đủ luồng thu tiền S4.
 
