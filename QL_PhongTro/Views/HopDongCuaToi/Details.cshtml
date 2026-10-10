@@ -1,0 +1,109 @@
+@model QL_PhongTro.ViewModels.HopDongChiTietViewModel
+@{
+    ViewData["Title"] = "Chi tiết hợp đồng " + Model.MaHopDong;
+    ViewData["PageStyles"] = "contracts";
+}
+
+<section class="contracts-page contract-detail-page" aria-labelledby="contract-detail-title">
+    <nav class="contracts-breadcrumb" aria-label="Đường dẫn">
+        <a asp-controller="Home" asp-action="Index">Trang chủ</a><span aria-hidden="true">/</span><a asp-action="Index">Hợp đồng của tôi</a><span aria-hidden="true">/</span><span>@Model.MaHopDong</span>
+    </nav>
+    <a class="contract-back" asp-action="Index">← Quay lại hợp đồng của tôi</a>
+    <header class="contract-detail-heading">
+        <div><span class="contract-detail-kicker">THÔNG TIN HỢP ĐỒNG</span><h1 id="contract-detail-title">@Model.MaHopDong</h1><p>Phòng @Model.MaPhong <span aria-hidden="true">·</span> @Model.TenToaNha</p></div>
+        <div class="contract-heading-actions">
+            <span class="contract-status @(Model.TrangThai == "DANG_HIEU_LUC" ? "status-active" : Model.TrangThai == "DA_KET_THUC" ? "status-ended" : "status-other")"><i aria-hidden="true"></i>@(Model.TrangThai == "DANG_HIEU_LUC" ? "Đang hiệu lực" : Model.TrangThai == "DA_KET_THUC" ? "Đã kết thúc" : Model.TrangThai == "CHO_HIEU_LUC" ? "Chờ hiệu lực" : Model.TrangThai)</span>
+            <a class="contract-download-button" asp-action="PreviewPdf" asp-route-maHopDong="@Model.MaHopDong">Xem hợp đồng PDF</a>
+        </div>
+    </header>
+
+    @if (Model.SapHetHan)
+    {
+        <aside class="contract-expiry-alert" role="status" aria-label="Cảnh báo hợp đồng sắp hết hạn">
+            <span class="contract-expiry-alert-icon" aria-hidden="true">◷</span>
+            <strong>Hợp đồng sẽ hết hạn sau @Model.SoNgayConLai ngày</strong>
+            <span class="contract-expiry-alert-date">Ngày kết thúc: @(Model.NgayKetThuc?.ToString("dd/MM/yyyy"))</span>
+        </aside>
+    }
+
+    <div class="contract-summary-grid">
+        <article class="contract-summary-card"><span class="summary-icon" aria-hidden="true">₫</span><div><small>Giá thuê hiện tại</small><strong>@Model.GiaThueHienTai.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN")) đ/tháng</strong></div></article>
+        <article class="contract-summary-card"><span class="summary-icon" aria-hidden="true">◈</span><div><small>Tiền cọc thỏa thuận</small><strong>@Model.TienCoc.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN")) đ</strong></div></article>
+        <article class="contract-summary-card"><span class="summary-icon" aria-hidden="true">▣</span><div><small>Ngày bắt đầu</small><strong>@(Model.NgayBatDau?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật")</strong></div></article>
+        <article class="contract-summary-card"><span class="summary-icon" aria-hidden="true">▣</span><div><small>Ngày kết thúc</small><strong>@(Model.NgayKetThuc?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật")</strong></div></article>
+    </div>
+
+    <div class="contract-detail-columns">
+        <section class="contract-panel">
+            <div class="contract-panel-heading"><div><span class="contract-detail-kicker">THÀNH VIÊN</span><h2>Người ở trong hợp đồng</h2></div><span class="occupant-count">@Model.NguoiO.Count</span></div>
+            @if (Model.NguoiO.Count == 0)
+            {
+                <p class="contract-panel-empty">Chưa có thông tin người ở trong hợp đồng này.</p>
+            }
+            else
+            {
+                <ul class="occupant-list">
+                    @foreach (var person in Model.NguoiO)
+                    {
+                        <li class="occupant-row">
+                            <span class="occupant-avatar" aria-hidden="true">@person.HoTen.Trim().FirstOrDefault()</span>
+                            <span class="occupant-name"><strong>@person.HoTen</strong><small>@person.VaiTro · vào ở từ @(person.NgayVao == DateOnly.MinValue ? "chưa cập nhật" : person.NgayVao.ToString("dd/MM/yyyy"))</small></span>
+                            <span class="occupant-state @(person.DangO ? "is-staying" : "is-left")">@(person.DangO ? "Đang ở" : "Đã chuyển đi")</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="contract-panel contract-address-panel">
+            <span class="contract-detail-kicker">ĐỊA ĐIỂM THUÊ</span>
+            <h2>Phòng @Model.MaPhong</h2>
+            <p>@Model.TenToaNha</p>
+            <p class="contract-address">@Model.DiaChiToaNha</p>
+        </section>
+    </div>
+
+    <section class="contract-panel contract-services-panel">
+        <div class="contract-panel-heading"><div><span class="contract-detail-kicker">DỊCH VỤ</span><h2>Dịch vụ và đơn giá áp dụng</h2></div></div>
+        @if (Model.DichVus.Count == 0)
+        {
+            <p class="contract-panel-empty">Chưa có dịch vụ được ghi nhận cho hợp đồng này.</p>
+        }
+        else
+        {
+            <div class="contract-services-table-wrap">
+                <table class="contract-services-table">
+                    <thead><tr><th scope="col">Dịch vụ</th><th scope="col">Cách tính</th><th scope="col">Đơn vị</th><th scope="col">Đơn giá</th></tr></thead>
+                    <tbody>
+                    @foreach (var service in Model.DichVus)
+                    {
+                        <tr>
+                            <td>@service.TenDichVu</td>
+                            <td>@QL_PhongTro.Models.CachTinhDichVu.Ten(service.CachTinh)</td>
+                            <td>@service.DonViTinh</td>
+                            <td>@service.DonGia.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN")) đ</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    @if (Model.CacKy.Count > 1)
+    {
+        <section class="contract-panel contract-period-panel">
+            <div class="contract-panel-heading"><div><span class="contract-detail-kicker">LỊCH SỬ THỜI HẠN</span><h2>Các kỳ hợp đồng</h2></div></div>
+            <div class="contract-period-list">
+                @foreach (var period in Model.CacKy)
+                {
+                    <div class="contract-period-row"><span>@period.NgayBatDau.ToString("dd/MM/yyyy") — @period.NgayKetThuc.ToString("dd/MM/yyyy")</span><strong>@period.GiaThue.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN")) đ/tháng</strong></div>
+                }
+            </div>
+        </section>
+    }
+</section>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/contracts.css" asp-append-version="true" />
+}

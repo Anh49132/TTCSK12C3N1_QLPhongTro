@@ -1,3 +1,21 @@
+## 09/10/2026 — Khởi chạy và kiểm tra tài khoản demo hợp đồng
+
+- Tạo DB demo biệt lập dưới `data/sprint2-demo/20261009-135112-532c7a`, tài khoản khách thuê giả `tenant1.demo@demo.local`; thông tin đăng nhập ngẫu nhiên chỉ lưu trong `access.json` bị ignore. Không sửa DB local `QL_PhongTro/Data/local-dev.sqlite`.
+- Sửa đăng ký DI cho `HopDongPdfService` và bổ sung `Views/HopDongCuaToi/Index.cshtml` theo màn danh sách mẫu: thẻ hợp đồng, trạng thái, tìm kiếm/lọc theo vai trò, truy cập chi tiết/PDF và menu khách thuê. Giao diện responsive; không thay schema hay dữ liệu.
+- Xác minh: build Debug thành công; 5/5 `HopDongCuaToiTests` PASS. Lần build song song test bị khóa output, chạy lại riêng sau đó thành công. HTTP login trả 200; sau đăng nhập, trang `/HopDongCuaToi` hiển thị 2 hợp đồng demo `HD-DEMO-C001` và `HD-DEMO-C002`.
+- Máy chủ tại `http://localhost:5249`; nếu dừng, chạy `verification/Start-Sprint2Demo.ps1 -Directory 'data/sprint2-demo/20261009-135112-532c7a'` từ thư mục dự án. Database demo riêng, không dùng database gốc. Bước upload ảnh mẫu lúc tạo demo vẫn lỗi, không ảnh hưởng màn hợp đồng; chưa xác minh thao tác tải PDF bằng trình duyệt.
+
+## 09/10/2026 — Sửa fixture test hợp đồng khách thuê
+
+- Đổi khởi tạo hợp đồng trong `Tests/QL_PhongTro.Tests/HopDongCuaToiTests.cs` từ thuộc tính không còn tồn tại `TienCocThoaThuan` sang `TienCoc`. Đồng bộ fixture với schema hiện tại bằng cách khởi tạo cờ email/xóa mềm, tiện ích tòa nhà và principal hợp lệ cho audit.
+- Xác minh: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --filter FullyQualifiedName~HopDongCuaToiTests` đạt 5/5. Không thao tác database local; test dùng SQLite in-memory. Còn cảnh báo license ImageSharp và analyzer xUnit có sẵn ngoài phạm vi.
+
+## 09/10/2026 — Sửa lỗi ánh xạ chi tiết hợp đồng khách thuê
+
+- Sửa gán ngày chuyển đi từ `NguoiOGhep.NgayRa` vào `NguoiOViewModel.NgayChuyenDi`; dùng `HopDongThamChieu.TienCoc` thay thuộc tính không tồn tại `TienCocThoaThuan`; khai báo `HopDongCardViewModel.KhachDungTenId` nullable khớp entity.
+- Thành phần: `QL_PhongTro/Controllers/HopDongCuaToiController.cs`, `QL_PhongTro/ViewModels/HopDongCuaToiViewModels.cs`.
+- Xác minh: `dotnet build QL_PhongTro/QL_PhongTro.csproj --configuration Debug` thành công, 0 lỗi. Còn 3 cảnh báo đã có: license ImageSharp và 2 nullable warnings trong `AuthController`; không chạy test vì không có test riêng cho controller này trong nhánh hiện tại. Không chạy ứng dụng hoặc thao tác CSDL.
+
 ## 09/10/2026 — S3-08 phần 4: lịch sử sửa Nháp
 
 - Nhánh feature/S3-08/04-invoice-draft-history kế thừa phần 3. Ghi một bản trước/sau cho mỗi lần lưu có thay đổi, cùng transaction; có tên/người sửa, giờ UTC, chỉ số, tiền và ghi chú phát sinh/giảm trừ. Thao tác rỗng/sai/stale không thêm lịch sử. Không đổi công thức hoặc schema v22; giữ audit cũ, không backfill thông tin không tồn tại.
@@ -1105,3 +1123,11 @@ Cách chạy lại: `dotnet run --project .\QL_PhongTro\QL_PhongTro.csproj --lau
 - 10/10: Hai menu chọn cơ sở/phòng chuyển thành dropdown nổi, bo góc/bóng/hover/dấu chọn, đồng bộ select gốc và điều hướng khi đổi; hỗ trợ keyboard/đóng ngoài. JS syntax PASS.
 - 10/10: Mở tạo tin từ danh sách mặc định Chọn tòa nhà/Chọn phòng, chưa cho submit đến khi chọn. Mở trực tiếp phòng hoặc sửa tin giữ lựa chọn hiện tại; đổi tòa tải phòng hợp lệ.
 - 10/10: Chọn tòa không tự chọn phòng; reset ô phòng về Chọn phòng cho thuê và chặn lưu đến khi chọn phòng. Chọn phòng mới tải chi tiết phòng tương ứng; sửa tin giữ lựa chọn hiện có.
+## 10/10/2026 — Cảnh báo hợp đồng sắp hết hạn cho khách thuê
+
+- Đã thêm số ngày còn lại từ hôm nay theo múi giờ Việt Nam vào model danh sách/chi tiết hợp đồng; cảnh báo chỉ hiển thị khi còn `> 0` và `< 30` ngày. Đúng 30 ngày, trên 30 ngày và hợp đồng đã hết hạn không cảnh báo.
+- Trang `HopDongCuaToi/Details` có banner màu cảnh báo theo bố cục ảnh mẫu, hiển thị số ngày còn lại và ngày kết thúc; danh sách hợp đồng dùng cùng quy tắc lọc và số ngày.
+- Đã thêm test biên trong `HopDongCuaToiTests`: 29, 1, 30, 31, 0, âm ngày và ngày kết thúc thiếu. Không đổi schema hoặc database local.
+- Xác minh: `git diff --check` đạt. Chưa chạy được build/test hoàn chỉnh vì tiến trình web hiện hữu đang khóa `QL_PhongTro.dll/.exe`; thử output cách ly cần restore nhưng môi trường bị từ chối đọc `NuGet.Config`. Cần dừng tiến trình đó hoặc chạy terminal có quyền phù hợp rồi chạy lại test.
+- Xac minh bo sung sau khi dung dung tien trinh QL_PhongTro.exe PID 11296 dang khoa output: `dotnet test Tests/QL_PhongTro.Tests/QL_PhongTro.Tests.csproj --no-restore --filter FullyQualifiedName~HopDongCuaToiTests` PASS 18/18. Canh bao ImageSharp license va xUnit2013 la canh bao san co.
+- Cap nhat giao dien xem PDF hop dong theo mau: them route `PreviewPdf`/`PdfPreviewFile`, trang `Views/HopDongCuaToi/PreviewPdf.cshtml`, khung xem truoc PDF, header, file card, nut quay lai va nut tai xuong; nut tu danh sach/chi tiet chuyen sang Xem PDF. Build cach ly `data/pdf-preview-check-runtime` PASS 0 loi; canh bao ImageSharp/CS8601 da co san. Khong doi schema/database.
